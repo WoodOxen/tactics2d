@@ -2,6 +2,7 @@ ALL_VEHICLE = {"car", "bus", "truck", "taxi"}
 MOTOR = {"motorcycle", "motorbike"}
 CYCLIST = {"cyclist"}
 PEDESTRIAN = {"pedestrian", "walker"}
+ALL_PARTICIPANT = ALL_VEHICLE.union(MOTOR, CYCLIST, PEDESTRIAN)
 
 DEFAULT_LANE = {
     "road": {
@@ -18,7 +19,7 @@ DEFAULT_LANE = {
     }, 
     "play_street": {
         "drivable": True, 
-        "participants": ALL_VEHICLE.union(MOTOR, CYCLIST, PEDESTRIAN),
+        "participants": ALL_PARTICIPANT,
         "color": (190, 190, 190, 255),
         "speed_limit": 15,
     }, 

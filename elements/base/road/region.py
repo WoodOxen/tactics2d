@@ -4,10 +4,17 @@ from Tacktics2D.elements.base.road.defaults import *
 
 
 class Area(object):
+    """_summary_
+
+    Args:
+        id (int): region id, which must be unique
+        shape (Polygon): 
+        subtype (str): region type, which can be from the defaults or customized
+        participant (set): the traffic participant types that are allowed in the region.
+            Defaults to ALL_PARTICIPANT.
+    """
     def __init__(
-        self, id: str, 
-        shape: Polygon = None, 
-        subtype: str = None,
+        self, id: int, shape: Polygon = None, subtype: str = None, 
         participants: list = None
     ):
 

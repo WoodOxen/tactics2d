@@ -17,16 +17,18 @@ class Lane(object):
     """_summary_
 
     Args:
-        id (str): lane id
+        id (int): lane id, which must be unique
         left_side (LineString):
         right_side (LineString):
         subtype (str): lane type, which can be from the defaults or customized
-        participant (list): Defaults to None.
-        speed_limit (float, optional): The maximum speed is allowed on the lane. Unit m/s. Defaults to None.
+        participant (set): the traffic participant types that are allowed on the lane. 
+            Defaults to ALL_PARTICIPANT.
+        speed_limit (float, optional): the maximum speed is allowed on the lane. Unit m/s. 
+            Defaults to None.
     """
     def __init__(
-        self, id: str, left_side: LineString, right_side: LineString, subtype: str = None, 
-        participants: list = None, speed_limit: float = None
+        self, id: int, left_side: LineString, right_side: LineString, subtype: str = None, 
+        participants: set = ALL_PARTICIPANT, speed_limit: float = None
     ):
 
         self.id = id

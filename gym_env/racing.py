@@ -12,8 +12,8 @@ from shapely.geometry import Point, LinearRing, LineString, Polygon
 from shapely.affinity import affine_transform
 import pygame
 
-from env.vehicle import *
-from env.map_base import *
+from Tacktics2D.elements.base.road.lane import Lane
+from Tacktics2D.elements.base.participant.vehicle import Vehicle
 
 
 OBS_W = 128
@@ -42,6 +42,13 @@ DISCRETE_ACTION = np.array([
 
 BG_COLOR = (36, 128, 103)
 TILE_COLOR = (120, 120, 120)
+
+class Status(Enum):
+    CONTINUE = 1
+    ARRIVED = 2
+    COLLIDED = 3
+    OUTBOUND = 4
+    OUTTIME = 5
 
 
 class RacingMap(object):
