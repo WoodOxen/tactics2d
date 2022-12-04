@@ -1,0 +1,1 @@
+LEGAL_SPEED_UNIT = ["km/h", "mi/h", "m/s"]
