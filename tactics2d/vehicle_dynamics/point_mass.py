@@ -2,15 +2,18 @@ from typing import Tuple
 
 import numpy as np
 
-from tactics2d.vehicle_dynamics.state import State
+from tactics2d.vehicle_dynamics.base.dynamics import Dynamics
+from tactics2d.vehicle_dynamics.base.state import State
 
 
-class PointMass(object):
+class PointMass(Dynamics):
     """An implementation of the point-mass model. 
     
     The implementation is specified for the purpose of updating and verifying the vehicle's state.
 
-    TODO: implement speed limit
+    TODO: 
+    - implement speed limit
+    - implement state validation
 
     Attributes:
         time_step (float): _description_
@@ -23,14 +26,10 @@ class PointMass(object):
         steering_angle_range: Tuple[float, float] = None, 
         speed_range: Tuple[float, float] = None,
         accel_range: Tuple[float, float] = None,
-    ) -> State:
+    ):
+        super().__init__(time_step, steering_angle_range, speed_range, accel_range)
 
-        self.time_step = time_step
-        self.steering_angle_range = steering_angle_range
-        self.speed_range = speed_range
-        self.accel_range = accel_range
-
-    def update(self, state: State, action):
+    def update(self, state: State, action) -> State:
         if self.accel_range is not None:
             accel = np.clip(action.accel, self.accel_range[0], self.accel_range[1])
         else:
@@ -56,3 +55,5 @@ class PointMass(object):
 
         return new_state
 
+    def validate(self, prev_state: State, curr_state: State) -> bool:
+        return True
