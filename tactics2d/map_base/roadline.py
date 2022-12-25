@@ -25,7 +25,8 @@ class RoadLine:
         type: str = "virtual", subtype: str = None, 
         lane_change: Tuple[bool, bool] = (True, True),
         width: float = None, height: float = None,
-        temporary: bool = False, color: str = "white"
+        temporary: bool = False, color: str = "white",
+        custom_tags: dict = None
     ):
 
         self.id = id
@@ -37,6 +38,7 @@ class RoadLine:
         self.height = height
         self.temporary = temporary
         self.color = color
+        self.custom_tags = custom_tags
     
     def get_shape(self):
         """Get shape of the roadline

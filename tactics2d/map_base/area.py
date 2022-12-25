@@ -22,22 +22,24 @@ class Area(object):
         speed_limit_mandatory (bool, optional): _description_. Defaults to True.
     """
     def __init__(
-        self, id: str, polygon: Polygon,
-        subtype: str = None, location: str = None,
+        self, id: str, polygon: Polygon, line_ids: dict,
+        type: str = "multipolygon", subtype: str = None, location: str = None, 
         inferred_participants: list = None,
         speed_limit: float = None, speed_limit_unit: str = "km/h",
-        speed_limit_mandatory: bool = True
+        speed_limit_mandatory: bool = True,
+        custom_tags: dict = None
     ):
 
         self.id = id
         self.polygon = polygon
-        self.type = "area"
+        self.type = type
         self.subtype = subtype
         self.location = location
         self.inferred_participants = inferred_participants
         self.speed_limit = speed_limit
         self.speed_limit_unit = speed_limit_unit
         self.speed_limit_mandatory = speed_limit_mandatory
+        self.custom_tags = custom_tags
 
     def is_valid(self):
         """

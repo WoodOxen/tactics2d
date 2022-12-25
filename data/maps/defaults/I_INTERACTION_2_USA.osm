@@ -588,14 +588,9 @@
   <node id='1775983' visible='true' version='1' lat='0.00893875467' lon='0.00867311938' />
   <node id='1776096' visible='true' version='1' lat='0.00888002704' lon='0.00899317766' />
   <node id='1776149' visible='true' version='1' lat='0.00900295862' lon='0.00926945897' />
-  <way id='-102166' action='modify' visible='true'>
-    <nd ref='1458' />
-    <nd ref='1510' />
-    <tag k='type' v='virtual' />
-  </way>
-  <way id='-102222' action='modify' visible='true'>
-    <nd ref='1082' />
-    <nd ref='1371' />
+  <way id='104752' visible='true' version='1'>
+    <nd ref='1436' />
+    <nd ref='1775843' />
     <tag k='type' v='virtual' />
   </way>
   <way id='10000' visible='true' version='1'>
@@ -1850,8 +1845,7 @@
     <nd ref='1176' />
     <tag k='type' v='virtual' />
   </way>
-  <way id='10153' visible='true' version='1'>
-    <nd ref='1436' />
+  <way id='10153' action='modify' visible='true' version='1'>
     <nd ref='1775843' />
     <nd ref='1473' />
     <nd ref='1474' />
@@ -1942,6 +1936,16 @@
     <nd ref='1082' />
     <nd ref='1458' />
     <nd ref='1460' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='102166' visible='true' version='1'>
+    <nd ref='1458' />
+    <nd ref='1510' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='102222' visible='true' version='1'>
+    <nd ref='1082' />
+    <nd ref='1371' />
     <tag k='type' v='virtual' />
   </way>
   <way id='102586' visible='true' version='1'>
@@ -2609,9 +2613,9 @@
     <tag k='type' v='lanelet' />
   </relation>
   <relation id='30049' action='modify' visible='true' version='1'>
-    <member type='way' ref='-102222' role='left' />
+    <member type='way' ref='102222' role='left' />
     <member type='way' ref='10157' role='left' />
-    <member type='way' ref='-102166' role='right' />
+    <member type='way' ref='102166' role='right' />
     <member type='way' ref='10056' role='right' />
     <member type='relation' ref='50000' role='regulatory_element' />
     <tag k='location' v='urban' />
@@ -2712,8 +2716,9 @@
     <tag k='subtype' v='road' />
     <tag k='type' v='lanelet' />
   </relation>
-  <relation id='30059' visible='true' version='1'>
+  <relation id='30059' action='modify' visible='true' version='1'>
     <member type='way' ref='10116' role='left' />
+    <member type='way' ref='104752' role='right' />
     <member type='way' ref='10153' role='right' />
     <member type='relation' ref='50000' role='regulatory_element' />
     <member type='relation' ref='50006' role='regulatory_element' />
@@ -3146,7 +3151,7 @@
     <tag k='subtype' v='freespace' />
     <tag k='type' v='multipolygon' />
   </relation>
-  <relation id='1771745' visible='true' version='1'>
+  <relation id='1771745' action='modify' visible='true' version='1'>
     <member type='way' ref='1780224' role='outer' />
     <member type='way' ref='10135' role='outer' />
     <member type='way' ref='1780177' role='outer' />

@@ -1,9 +1,11 @@
-import setuptools
+from setuptools import setup, find_packages
+
+REQUIRED = ["pyproj", "shapely", "gym"]
 
 with open("README.md", "r") as fh:
   long_description = fh.read()
 
-setuptools.setup(
+setup(
     name="tactics2d",
     version="0.0.1",
     author="Yueyuan Li",
@@ -12,10 +14,11 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="",
-    packages=setuptools.find_packages(),
+    packages=find_packages(),
+    install_requires=REQUIRED,
+    python_requires=">=3.7.0",
     classifiers=[
-        "Development Status :: 1 - Planning",
-        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU Affero General Public License v3",
         "Operating System :: POSIX :: Linux",
     ]

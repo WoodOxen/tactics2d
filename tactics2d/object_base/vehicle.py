@@ -1,11 +1,11 @@
-from typing import Tuple, List
-import warnings
+from typing import Tuple
 
 import numpy as np
 
 from tactics2d.vehicle_dynamics.base.dynamics import Dynamics
 from tactics2d.vehicle_dynamics.base.state import State
 from tactics2d.vehicle_dynamics.base.trajectory import Trajectory
+
 
 class Vehicle(object):
     """_summary_
@@ -49,6 +49,19 @@ class Vehicle(object):
         else:
             state = self.history_state.find(time_stamp)
         return state
+
+    def verify_state(self, state1, state2, time_interval) -> bool:
+        """
+
+        Args:
+            state1 (_type_): _description_
+            state2 (_type_): _description_
+            time_interval (_type_): _description_
+
+        Returns:
+            bool: _description_
+        """
+        return True
 
     def update_state(self, action):
         """_summary_

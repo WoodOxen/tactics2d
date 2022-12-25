@@ -234,7 +234,7 @@
   <node id='1231' visible='true' version='1' lat='0.00889883761' lon='0.0090551005' />
   <node id='1232' visible='true' version='1' lat='0.00904460583' lon='0.00892925732' />
   <node id='1233' visible='true' version='1' lat='0.00904333442' lon='0.00895335823' />
-  <node id='1234' visible='true' version='1' lat='0.00903547206' lon='0.00897359856' />
+  <node id='1234' action='modify' visible='true' version='1' lat='0.00903547206' lon='0.00897359856' />
   <node id='1235' visible='true' version='1' lat='0.00889294015' lon='0.00881482699' />
   <node id='1236' visible='true' version='1' lat='0.00891374165' lon='0.00881567378' />
   <node id='1237' visible='true' version='1' lat='0.00883112779' lon='0.00921012569' />
@@ -458,6 +458,11 @@
   <node id='1775409' visible='true' version='1' lat='0.00896156557' lon='0.00899704482' />
   <node id='1775410' visible='true' version='1' lat='0.00898375752' lon='0.00898190762' />
   <node id='1775411' visible='true' version='1' lat='0.00894622437' lon='0.00902574708' />
+  <way id='103876' visible='true' version='1'>
+    <nd ref='1106' />
+    <nd ref='1234' />
+    <tag k='type' v='virtual' />
+  </way>
   <way id='10000' visible='true' version='1'>
     <nd ref='1189' />
     <nd ref='1310' />
@@ -2082,7 +2087,8 @@
     <tag k='subtype' v='right_of_way' />
     <tag k='type' v='regulatory_element' />
   </relation>
-  <relation id='1771728' visible='true' version='1'>
+  <relation id='1771728' action='modify' visible='true' version='1'>
+    <member type='way' ref='103876' role='outer' />
     <member type='way' ref='10030' role='outer' />
     <member type='way' ref='10033' role='outer' />
     <member type='way' ref='10072' role='outer' />
