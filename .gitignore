@@ -1,3 +1,10 @@
+# custom
+#  vscode
+*.code-workspace
+
+
+
+# Gitignore Template for Python
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
