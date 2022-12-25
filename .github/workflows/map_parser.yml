@@ -22,4 +22,5 @@ jobs:
       run: |
         pip install -e .[all]
     - name: Test all functions in map parser
-      pytest ./tests/test_map_parser.py
+      run: |
+        pytest ./tests/test_map_parser.py
