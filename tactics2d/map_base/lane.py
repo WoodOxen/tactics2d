@@ -1,7 +1,7 @@
 import warnings
 from enum import Enum
 
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Polygon
 
 from tactics2d.map_base import LEGAL_SPEED_UNIT
 
@@ -23,6 +23,7 @@ class Lane(object):
         id (str): _description_
         left_side (LineString): _description_
         right_side (LineString): _description_
+        line_ids (set, optional): the ids of the roadline components. Defaults to None.
         subtype (str, optional): _description_. Defaults to None.
         location (str, optional): _description_. Defaults to None.
         inferred_participants (list, optional): _description_. Defaults to None.
@@ -35,7 +36,7 @@ class Lane(object):
         right_neighbors (set):
     """
     def __init__(
-        self, id: str, left_side: LineString, right_side: LineString, line_ids: dict,
+        self, id: str, left_side: LineString, right_side: LineString, line_ids: set = None,
         type: str = "lanelet", subtype: str = None, location: str = None, 
         inferred_participants: list = None,
         speed_limit: float = None, speed_limit_unit: str = "km/h",
@@ -115,9 +116,16 @@ class Lane(object):
         """
         return [self.left_side.coords[-1], self.right_side.coords[-1]]
 
+    def get_polygon(self) -> Polygon:
+        """Convert the lane's figure to a polygon
+        """
+        left_side_coords = list(self.left_side.coords)
+        right_side_coords = list(self.right_side.coords).reverse
+        return Polygon(left_side_coords+right_side_coords)
+
     def get_shape(self) -> list:
         """Get the shape of the lane
         """
         left_side_coords = list(self.left_side.coords)
-        right_side_coords = list(self.right_side.coords)
-        return left_side_coords, right_side_coords
+        right_side_coords = list(self.right_side.coords).reverse
+        return left_side_coords+right_side_coords
