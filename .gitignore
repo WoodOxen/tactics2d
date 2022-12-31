@@ -1,7 +1,7 @@
 # custom
 #  vscode
 *.code-workspace
-
+.VSCodeCounter/
 
 
 # Gitignore Template for Python

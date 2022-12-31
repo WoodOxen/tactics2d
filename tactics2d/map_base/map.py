@@ -33,6 +33,9 @@ class Map(object):
                 raise ValueError()
         self._nodes[node.id] = node
 
+    def get_node(self, node_id: str) -> Node:
+        return self._nodes[node_id]
+
     def add_roadline(self, roadline: RoadLine):
         if roadline.id in self._ids:
             if roadline.id in self._roadlines:
@@ -41,6 +44,9 @@ class Map(object):
                 raise ValueError()
         self._ids.add(roadline.id)
         self._roadlines[roadline.id] = roadline
+
+    def get_roadline(self, line_id: str) -> RoadLine:
+        return self._roadlines[line_id]
 
     def add_lane(self, lane: Lane):
         if lane.id in self._ids:
@@ -51,6 +57,9 @@ class Map(object):
         self._ids.add(lane.id)
         self._lanes[lane.id] = lane
 
+    def get_lane(self, lane_id: str) -> Lane:
+        return self._lanes[lane_id]
+
     def add_area(self, area: Area):
         if area.id in self._ids:
             if area.id in self._areas:
@@ -60,6 +69,9 @@ class Map(object):
         self._ids.add(area.id)
         self._areas[area.id] = area
 
+    def get_area(self, area_id: str) -> Area:
+        return self._areas[area_id]
+
     def add_regulatory(self, regulatory: RegulatoryElement):
         if regulatory.id in self._ids:
             if regulatory.id in self._regulations:
@@ -68,6 +80,9 @@ class Map(object):
                 raise ValueError()
         self._ids.add(regulatory.id)
         self._regulations[regulatory.id] = regulatory
+
+    def get_regulatory(self, reg_id: str) -> RegulatoryElement:
+        return self._regulations[reg_id]
 
     def set_boundary(self, boundary):
         self._boundary = boundary

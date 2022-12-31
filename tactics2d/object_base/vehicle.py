@@ -2,9 +2,7 @@ from typing import Tuple
 
 import numpy as np
 
-from tactics2d.vehicle_dynamics.base.dynamics import Dynamics
-from tactics2d.vehicle_dynamics.base.state import State
-from tactics2d.vehicle_dynamics.base.trajectory import Trajectory
+from tactics2d.object_base.state import State
 
 
 class Vehicle(object):
@@ -13,14 +11,14 @@ class Vehicle(object):
     Attributes:
     """
     def __init__(
-        self, id: str, type: str,
+        self, id: str, type: str, initial_state: State = None,
         length: float = None, width: float = None, height: float = None,
         steering_angle_range: Tuple[float, float] = None, 
         steering_velocity_range: Tuple[float, float] = None, 
         speed_range: Tuple[float, float] = None,
         accel_range: Tuple[float, float] = None,
         comfort_accel_range: Tuple[float, float] = None,
-        dynamics_model: Dynamics = None
+        physics = None
     ):
 
         self.id = id
@@ -33,10 +31,12 @@ class Vehicle(object):
         self.speed_range = speed_range
         self.accel_range = accel_range
         self.comfort_accel_range = comfort_accel_range
-        self.dynamics_model = dynamics_model
+        self.physics = physics
 
-        self.current_state = None
-        self.history_state = Trajectory()
+        self.initial_state = initial_state
+        self.current_state = initial_state
+        self.history_state = []
+        self.add_state(self.initial_state)
 
     def get_state(self, time_stamp: float = None) -> State:
         """Obtain the object's state at the requested time stamp.
@@ -51,7 +51,7 @@ class Vehicle(object):
         return state
 
     def verify_state(self, state1, state2, time_interval) -> bool:
-        """
+        """Check if the state change is allowed by the vehicle's physical model.
 
         Args:
             state1 (_type_): _description_
@@ -63,19 +63,26 @@ class Vehicle(object):
         """
         return True
 
+    def add_state(self, state):
+        return
+
     def update_state(self, action):
         """_summary_
         """
-        self.current_state = self.dynamics_model.update(self.current_state, action)
-        self.history_state.add(self.current_state)
+        self.current_state = self.physics.update(self.current_state, action)
+        self.add_state(self.current_state)
 
-    def reset(self,state: State = None):
-        """Reset the object to a given state.
+    def get_trajectory(self, length: int = None):
+            
+        return
 
-        If the initial state is not specified, the object will be reset to the same initial state as previous.
+    def reset(self, state: State = None):
+        """Reset the object to a given state. If the initial state is not specified, the object 
+        will be reset to the same initial state as previous.
         """
         if state is not None:
             self.current_state = state
+            self.initial_state = state
         else:
-            self.current_state = None
-        self.history_state = Trajectory()
+            self.current_state = self.initial_state
+        self.history_state.clear()

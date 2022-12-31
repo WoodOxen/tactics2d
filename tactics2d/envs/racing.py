@@ -1,18 +1,19 @@
 from typing import Optional, Union
-from enum import Enum
 import time
 
 import numpy as np
-from shapely.geometry import Point, LineString
+from shapely.geometry import Point, LineString, Polygon
 import gym
 from gym import spaces
 
-from tactics2d.map_base.node import Node
-from tactics2d.map_base.roadline import RoadLine
+from tactics2d.common.get_circle import get_circle
+from tactics2d.common.bezier import Bezier
 from tactics2d.map_base.lane import Lane
 from tactics2d.map_base.map import Map
-from tactics2d.math.point import get_circle
-from tactics2d.math.bezier import Bezier
+from tactics2d.object_base.vehicle import Vehicle
+from tactics2d.object_base.state import State
+from tactics2d.envs.status import Status
+
 
 STATE_W = 128
 STATE_H = 128
@@ -21,7 +22,8 @@ VIDEO_H = 400
 WIN_W= 1000
 WIN_H = 1000
 
-FPS = 50
+FPS = 100
+MAX_FPS = 200
 
 DISCRETE_ACTION = np.array([
     [0, 0], # do nothing
@@ -36,16 +38,9 @@ N_CHECKPOINT = (10, 20) # the number of turns is ranging in 10-20
 TRACK_WIDTH = 15 # the width of the track is ranging in 15m
 TRACK_RAD = 800 # the maximum curvature radius
 CURVE_RAD = (10, 150) # the curvature radius is ranging in 10-150m
-TILE_LENGTH = 5 # the length of each tile
-TOLERANT_TIME = 20000 # steps
-TIME_STEP = 0.02 # simulate speed: 0.01s/step
-
-class Status(Enum):
-    CONTINUE = 1
-    ARRIVED = 2
-    COLLIDED = 3
-    OUTBOUND = 4
-    OUTTIME = 5
+TILE_LENGTH = 10 # the length of each tile
+STEP_LIMIT = 20000 # steps
+TIME_STEP = 0.01 # state update time step: 0.01 s/step
 
 
 class CarRacing(gym.Env):
@@ -74,14 +69,19 @@ class CarRacing(gym.Env):
     """
     metadata = {
         "render_modes": ["human", "rgb_array"],
-        "render_fps": FPS,
     }
     def __init__(
-        self, render_mode: Optional[str] = None, render_fps: int = FPS,
+        self, render_mode: Optional[str] = "human", render_fps: int = FPS,
         verbose: bool =True, continuous: bool = True
     ):
 
-        self.render_mode = "human" if render_mode is None else render_mode
+        self.render_mode = render_mode
+        if self.render_mode not in self.metadata["render_mode"]:
+            raise NotImplementedError
+        self.render_fps = render_fps
+        if render_fps > MAX_FPS:
+            raise UserWarning()
+
         self.verbose = verbose
         self.continuous = continuous
 
@@ -92,13 +92,17 @@ class CarRacing(gym.Env):
             )
         else:
             self.action_space = spaces.Discrete(5) # do nothing, left, right, gas, brake
-
         self.observation_space = spaces.Box(
             low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8
         )
 
         self.bezier_generator = Bezier(2, 50)
         self.map = Map(name="CarRacing", scenario_type="racing")
+        self.agent = Vehicle(
+            id="0", type="vehicle:racing", width=1.8, length=5, height=1.5,
+            steering_angle_range=(-0.5, 0.5), steering_velocity_range=(-0.5, 0.5),
+            speed_range=(-10, 100), accel_range=(-1, 1), physics=None
+        )
 
     def _create_checkpoints(self):
         n_checkpoint = np.random.randint(*N_CHECKPOINT)
@@ -152,10 +156,48 @@ class CarRacing(gym.Env):
         success = success and all(alpha == sorted(alpha))
         return checkpoints, control_points, success
 
-    def _create_map(self) -> bool:
-        """Generate a new map with random track configurations.
-        """
+    def _create_map(self, center: LineString):
         self.map.reset()
+
+        # split the track into tiles
+        distance = center.length
+        n_tile = int(np.ceil(distance/TILE_LENGTH))
+
+        if self.verbose:
+            print("The track is %dm long and has %d tiles." % (int(distance), n_tile), end=" ")
+
+        center_points = []
+        left_points = []
+        right_points = []
+
+        for i in range(n_tile+1):
+            center_points.append(center.interpolate(TILE_LENGTH * i))
+            if i > 0:
+                pt1 = center_points[i-1]
+                pt2 = center_points[i]
+                x_diff = pt2.x - pt1.x
+                y_diff = pt2.y - pt1.y
+                k = TRACK_WIDTH / 2 / Point(pt1).distance(Point(pt2))
+                left_points.append([pt1.x - k*y_diff, pt1.y + k*x_diff])
+                right_points.append([pt1.x + k*y_diff, pt1.y - k*x_diff])
+        
+        # generate map
+        for i in range(n_tile):
+            tile = Lane(
+                id="%04d" % i,
+                left_side=LineString([left_points[i], left_points[i+1]]),
+                right_side=LineString([right_points[i], right_points[i+1]]),
+                subtype="road", inferred_participants=["vehicle:car", "vehicle:racingcar"]
+            )
+            self.map.add_lane(tile)
+
+        bbox = center.bounds
+        boundary = [bbox[0]-50, bbox[2]+50, bbox[1]-50,  bbox[3]+50]
+        self.map.set_boundary(boundary)
+
+    def _reset_map(self):
+        """Reset the map by generating a new one with random track configurations.
+        """
         t1 = time.time()
 
         # generate checkpoints of the track
@@ -163,7 +205,7 @@ class CarRacing(gym.Env):
         while not success:
             checkpoints, control_points, success = self._create_checkpoints()
         n_checkpoints = checkpoints.shape[1]
-        
+
         if self.verbose:
             print("Generated a new track.", end=" ")
 
@@ -191,67 +233,111 @@ class CarRacing(gym.Env):
                 control_points[start_id - i - 1][0]
             ]))
 
+        # create the new map by the centerline
         center = LineString([start_point] + points + [start_point])
-        distance = center.length
+        self._create_map(center)
 
-        # split the track into tiles
-        n_tile = int(np.ceil(distance/TILE_LENGTH))
-        k = TRACK_WIDTH / 2 / TILE_LENGTH
-
-        if self.verbose:
-            print("The track is %dm long and has %d tiles." % (int(distance), n_tile), end=" ")
-
-        center_points = []
-        left_points = []
-        right_points = []
-
-        for i in range(n_tile+1):
-            center_points.append(center.interpolate(TILE_LENGTH * i))
-            if i > 0:
-                pt1 = center_points[i-1]
-                pt2 = center_points[i]
-                x_diff = pt2.x - pt1.x
-                y_diff = pt2.y - pt1.y
-                left_points.append([pt1.x - k*y_diff, pt1.y + k*x_diff])
-                right_points.append([pt1.x + k*y_diff, pt1.y - k*x_diff])
-
-        # generate map
-        for i in range(n_tile):
-            tile = Lane(
-                id="%04d" % i,
-                left_side=LineString([left_points[i], left_points[i+1]]),
-                right_side=LineString([right_points[i], right_points[i+1]]),
-                subtype="road", inferred_participants=["vehicle:car", "vehicle:racingcar"]
-            )
-            self.map.add_lane(tile)
-
-        bbox = center.bounds
-        boundary = [bbox[0]-50, bbox[2]+50, bbox[1]-50,  bbox[3]+50]
-        self.map.set_boundary(boundary)
-        
         # record time cost
         t2 = time.time()
         if self.verbose:
             print("Generating process takes %.4fs." % (t2-t1))
+
+    def _reset_vehicle(self):
+        heading_direction = [
+            np.mean(list(self.finish_line.coords)),
+            np.mean(list(self.start_line.coords))
+        ]
+        heading_vec = heading_direction[1] - heading_direction[0]
+        heading_angle = np.arctan2(heading_vec[1], heading_vec[0])
+        heading_direction = LineString(heading_direction)
+        start_loc = heading_direction.interpolate(heading_direction.length - self.agent.length/2)
+
+        state = State(
+            timestamp=self.n_step, heading=heading_angle, 
+            x = start_loc.x, y = start_loc.y, vx=0, vy=0
+        )
+        self.agent.reset(state)
+        if self.verbose:
+            print("The racing car starts at .")
     
     def reset(self):
+        self.n_step = 0
         self.reward = 0.
+        self.tile_visited.clear()
         self.tile_visited_count = 0
-        self.vehicle_on_track = True
-        self._create_map()
+        self._reset_map()
+        self.start_tile = self.map.get_lane("0000")
+        self.start_line = LineString(self.start_tile.get_ends())
+        self.finish_line = LineString(self.start_tile.get_starts())
+        self._reset_vehicle()
+
+    def _check_retrograde(self):
+        
+        return Status.RETROGRADE
+
+    def _check_non_drivable(self, agent_shape: Polygon, ):
+        return Status.NON_DRIVABLE
 
     def _check_arrived(self):
-        return 
+        return Status.ARRIVED
+
+    def _check_outbound(self, agent_shape: Polygon, boundary: Polygon):
+        if agent_shape.within(boundary):
+            return Status.NORMAL
+        return Status.OUTBOUND
 
     def _check_time_exceeded(self):
-        return self.t > TOLERANT_TIME
+        if self.n_step < STEP_LIMIT:
+            return Status.NORMAL
+        return Status.OUT_TIME
+
+    def _check_status(self) -> Status:
+        if self._check_retrograde() == Status.RETROGRADE:
+            return Status.RETROGRADE
+        if self._check_non_drivable() == Status.NON_DRIVABLE:
+            return Status.NON_DRIVABLE
+        if self._check_arrived() == Status.ARRIVED:
+            return Status.ARRIVED
+        if self._check_outbound() == Status.OUTBOUND:
+            return Status.OUTBOUND
+        if self._check_time_exceeded() == Status.OUT_TIME:
+            return Status.OUT_TIME
+        return Status.NORMAL
+
+    def _get_observation(self) -> np.ndarray:
+        
+        return
+
+    def _get_reward(self):
+        
+        return
 
     def step(self, action: Union[np.array, int]):
-        return 
+        if not self.continuous:
+            action = DISCRETE_ACTION[action]
+        
+        self.agent.update(action)
+        location = self._locate(self.agent)
+
+        observation = self._get_observation()
+        status = self._check_status(location)
+        reward = self._get_reward(status)
+        done = (status != Status.NORMAL)
+
+        info = {
+            "status": status,
+        }
+
+        if done and self.verbose:
+            print("The vehicle stops after %d steps. Stop reason: %s" % (self.n_step, str(status)))
+
+        return observation, reward, done, info
     
     def render(self):
-        if self.render_mode not in self.metadata["render_mode"]:
-            raise NotImplementedError
+        if self.render_mode == "human":
+            return
+        elif self.render_mode == "rgb_array":
+            return
 
 
 if __name__ == "__main__":
