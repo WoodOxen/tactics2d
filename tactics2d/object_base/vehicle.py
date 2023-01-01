@@ -1,6 +1,8 @@
 from typing import Tuple
 
 import numpy as np
+from shapely.geometry import LinearRing
+from shapely.affinity import affine_transform
 
 from tactics2d.object_base.state import State
 
@@ -26,6 +28,9 @@ class Vehicle(object):
         self.length = length
         self.width = width
         self.height = height
+        self.bbox = LinearRing([
+            [0,0], [self.length, 0], [self.length, self.width], [0, self.width]
+        ])
         self.steering_angle_range = steering_angle_range
         self.steering_velocity_range = steering_velocity_range
         self.speed_range = speed_range
@@ -37,6 +42,22 @@ class Vehicle(object):
         self.current_state = initial_state
         self.history_state = []
         self.add_state(self.initial_state)
+
+    @property
+    def position(self):
+        return self.current_state.x, self.current_state.y
+
+    @property
+    def state(self):
+        return self.current_state
+
+    @property
+    def velocity(self):
+        return self.current_state.vx, self.current_state.vy
+    
+    @property
+    def speed(self):
+        return np.linalg.norm([self.current_state.vx, self.current_state.y])
 
     def get_state(self, time_stamp: float = None) -> State:
         """Obtain the object's state at the requested time stamp.
@@ -73,8 +94,18 @@ class Vehicle(object):
         self.add_state(self.current_state)
 
     def get_trajectory(self, length: int = None):
-            
+        
         return
+
+    def get_bbox(self) -> LinearRing:
+        state = self.current_state
+        transform_matrix = [
+            np.cos(state.heading), -np.sin(state.heading), 
+            np.sin(state.heading), np.cos(state.heading),
+            state.x - self.length/2, state.y - self.width/2
+        ]
+        bbox = affine_transform(self.bbox, transform_matrix)
+        return bbox
 
     def reset(self, state: State = None):
         """Reset the object to a given state. If the initial state is not specified, the object 

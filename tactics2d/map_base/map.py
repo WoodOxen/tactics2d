@@ -16,86 +16,73 @@ class Map(object):
         self.scenario_type = scenario_type
         self.country = country
 
-        self._ids = set()
-        self._nodes = dict()
-        self._lanes = dict()
-        self._areas = dict()
-        self._roadlines = dict()
-        self._regulations = dict()
-        self._customs = dict()
+        self.ids = set()
+        self.nodes = dict()
+        self.lanes = dict()
+        self.areas = dict()
+        self.roadlines = dict()
+        self.regulations = dict()
+        self.customs = dict()
         self._boundary = None
 
     def add_node(self, node: Node):
-        if node.id in self._ids:
-            if node.id in self._nodes:
+        if node.id in self.ids:
+            if node.id in self.nodes:
                 warnings.warn("Node %s already exists! Replacing the node with new data." % node.id)
             else:
                 raise ValueError()
-        self._nodes[node.id] = node
-
-    def get_node(self, node_id: str) -> Node:
-        return self._nodes[node_id]
+        self.nodes[node.id] = node
 
     def add_roadline(self, roadline: RoadLine):
-        if roadline.id in self._ids:
-            if roadline.id in self._roadlines:
+        if roadline.id in self.ids:
+            if roadline.id in self.roadlines:
                 warnings.warn("Roadline %s already exists! Replacing the roadline with new data." % roadline.id)
             else:
                 raise ValueError()
-        self._ids.add(roadline.id)
-        self._roadlines[roadline.id] = roadline
-
-    def get_roadline(self, line_id: str) -> RoadLine:
-        return self._roadlines[line_id]
+        self.ids.add(roadline.id)
+        self.roadlines[roadline.id] = roadline
 
     def add_lane(self, lane: Lane):
-        if lane.id in self._ids:
-            if lane.id in self._lanes:
+        if lane.id in self.ids:
+            if lane.id in self.lanes:
                 warnings.warn("Lane %s already exists! Replacing the lane with new data." % lane.id)
             else:
                 raise ValueError()
-        self._ids.add(lane.id)
-        self._lanes[lane.id] = lane
-
-    def get_lane(self, lane_id: str) -> Lane:
-        return self._lanes[lane_id]
+        self.ids.add(lane.id)
+        self.lanes[lane.id] = lane
 
     def add_area(self, area: Area):
-        if area.id in self._ids:
-            if area.id in self._areas:
+        if area.id in self.ids:
+            if area.id in self.areas:
                 warnings.warn("Area %s already exists! Replacing the area with new data." % area.id)
             else:
                 raise ValueError()
-        self._ids.add(area.id)
-        self._areas[area.id] = area
-
-    def get_area(self, area_id: str) -> Area:
-        return self._areas[area_id]
+        self.ids.add(area.id)
+        self.areas[area.id] = area
 
     def add_regulatory(self, regulatory: RegulatoryElement):
-        if regulatory.id in self._ids:
-            if regulatory.id in self._regulations:
+        if regulatory.id in self.ids:
+            if regulatory.id in self.regulations:
                 warnings.warn()
             else:
                 raise ValueError()
-        self._ids.add(regulatory.id)
-        self._regulations[regulatory.id] = regulatory
+        self.ids.add(regulatory.id)
+        self.regulations[regulatory.id] = regulatory
 
-    def get_regulatory(self, reg_id: str) -> RegulatoryElement:
-        return self._regulations[reg_id]
-
-    def set_boundary(self, boundary):
+    @property
+    def boundary(self):
+        return self._boundary
+    
+    @boundary.setter
+    def boundary(self, boundary):
         self._boundary = boundary
 
-    def get_boundary(self):
-        return self._boundary
-
     def reset(self):
-        self._ids.clear()
-        self._nodes.clear()
-        self._lanes.clear()
-        self._areas.clear()
-        self._roadlines.clear()
-        self._regulations.clear()
-        self._customs.clear()
-        self._boundary = None
+        self.ids.clear()
+        self.nodes.clear()
+        self.lanes.clear()
+        self.areas.clear()
+        self.roadlines.clear()
+        self.regulations.clear()
+        self.customs.clear()
+        self.boundary = None

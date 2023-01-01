@@ -179,12 +179,14 @@ class Lane(object):
         """Convert the lane's figure to a polygon
         """
         left_side_coords = list(self.left_side.coords)
-        right_side_coords = list(self.right_side.coords).reverse
+        right_side_coords = list(self.right_side.coords)
+        right_side_coords.reverse()
         return Polygon(left_side_coords+right_side_coords)
 
     def get_shape(self) -> list:
         """Get the shape of the lane
         """
         left_side_coords = list(self.left_side.coords)
-        right_side_coords = list(self.right_side.coords).reverse
+        right_side_coords = list(self.right_side.coords)
+        right_side_coords.reverse()
         return left_side_coords+right_side_coords
