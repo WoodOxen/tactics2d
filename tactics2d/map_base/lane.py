@@ -79,7 +79,7 @@ class Lane(object):
     https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md
 
     Attributes:
-        id (str): _description_
+        id_ (str): _description_
         left_side (LineString): _description_
         right_side (LineString): _description_
         line_ids (set, optional): the ids of the roadline components. Defaults to None.
@@ -95,15 +95,15 @@ class Lane(object):
         right_neighbors (set):
     """
     def __init__(
-        self, id: str, left_side: LineString, right_side: LineString, line_ids: set = None,
-        type: str = "lanelet", subtype: str = None, location: str = None, 
+        self, id_: str, left_side: LineString, right_side: LineString, line_ids: set = None,
+        type: str = "lanelet", subtype: str = None, location: str = None,
         inferred_participants: list = None,
         speed_limit: float = None, speed_limit_unit: str = "km/h",
         speed_limit_mandatory: bool = True,
         custom_tags: dict = None
     ):
 
-        self.id = id
+        self.id_ = id_
         self.left_side = left_side
         self.right_side = right_side
         self.line_ids = line_ids
@@ -128,41 +128,41 @@ class Lane(object):
         if self.speed_limit_unit not in LEGAL_SPEED_UNIT:
             warnings.warn(
                 "Invalid speed limit unit %s. The legal units types are %s" % \
-                    (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
+                (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
             )
 
-    def add_related_lane(self, id: str, relationship: Relationship):
+    def add_related_lane(self, id_: str, relationship: Relationship):
         """Add a related lane's id to the corresponding list
 
         Args:
-            id (str): the related lane's id
+            id_ (str): the related lane's id
             relationship (Relationship): the relationship of the lanes
         """
-        if id == self.id:
-            UserWarning("Lane %d cannot be a related lane to itself." % self.id)
+        if id_ == self.id_:
+            UserWarning("Lane %d cannot be a related lane to itself." % self.id_)
             return
         if relationship == Relationship.PREDECESSOR:
-            self.predecessors.add(id)
+            self.predecessors.add(id_)
         elif relationship == Relationship.SUCCESSOR:
-            self.successors.add(id)
+            self.successors.add(id_)
         elif relationship == Relationship.LEFT_NEIGHBOR:
-            self.left_neighbors.add(id)
+            self.left_neighbors.add(id_)
         elif relationship == Relationship.RIGHT_NEIGHBOR:
-            self.right_neighbors.add(id)
+            self.right_neighbors.add(id_)
 
-    def is_related(self, id: str) -> Relationship:
+    def is_related(self, id_: str) -> Relationship:
         """Check if a given lane is related to the lane
 
         Args:
-            id (str): The given lane's id.
+            id_ (str): The given lane's id.
         """
-        if id in self.predecessors:
+        if id_ in self.predecessors:
             return Relationship.PREDECESSOR
-        elif id in self.successors:
+        elif id_ in self.successors:
             return Relationship.SUCCESSOR
-        elif id in self.left_neighbors:
+        elif id_ in self.left_neighbors:
             return Relationship.LEFT_NEIGHBOR
-        elif id in self.right_neighbors:
+        elif id_ in self.right_neighbors:
             return Relationship.RIGHT_NEIGHBOR
 
     def get_starts(self) -> list:

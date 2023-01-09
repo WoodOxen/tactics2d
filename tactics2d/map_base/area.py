@@ -12,7 +12,7 @@ class Area(object):
     https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md
 
     Attributes:
-        id (str): _description_.
+        id_ (str): _description_.
         polygon (Polygon): _description_.
         subtype (str, optional): _description_. Defaults to None.
         location (str, optional): _description_. Defaults to None.
@@ -22,15 +22,15 @@ class Area(object):
         speed_limit_mandatory (bool, optional): _description_. Defaults to True.
     """
     def __init__(
-        self, id: str, polygon: Polygon, line_ids: dict,
-        type: str = "multipolygon", subtype: str = None, location: str = None, 
+        self, id_: str, polygon: Polygon, line_ids: dict,
+        type: str = "multipolygon", subtype: str = None, location: str = None,
         inferred_participants: list = None,
         speed_limit: float = None, speed_limit_unit: str = "km/h",
         speed_limit_mandatory: bool = True,
         custom_tags: dict = None
     ):
 
-        self.id = id
+        self.id_ = id_
         self.polygon = polygon
         self.type = type
         self.subtype = subtype
@@ -47,7 +47,7 @@ class Area(object):
         if self.speed_limit_unit not in LEGAL_SPEED_UNIT:
             warnings.warn(
                 "Invalid speed limit unit %s. The legal units types are %s" % \
-                    (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
+                (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
             )
 
     def get_shape(self, outer_only: bool = False):

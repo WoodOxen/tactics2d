@@ -3,7 +3,7 @@ from enum import Enum
 
 class Status(Enum):
     """All the possible statuses of an agent in the training environment.
-    
+
     - 1 (Normal): The agent behaves normally. It has no sign of breaking any rule.
     - 2 (Arrived): The agent has arrived at the destination.
     - 3 (Retrograde): The agent is moving in the reversed direction of the lane.

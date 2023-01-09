@@ -34,7 +34,7 @@ class Bezier(object):
     def get_points(self, control_points: np.ndarray) -> List[np.ndarray]:
         if control_points.shape[0] - 1 != self.order:
             raise ValueError
-        
+
         if self.order == 2:
             return self._second_order(control_points)
 

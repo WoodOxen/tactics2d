@@ -16,17 +16,17 @@ class RegulatoryElement(object):
     """
     # TODO: Process Regulatory Information
     def __init__(
-        self, id: str, 
-        relation_list:List[Tuple[str, str]]=None, way_list:List[Tuple[str, str]]=None, 
-        type: str = "regulatory_element", subtype:str=None, location: str = None, 
-        dynamic:bool=False, fallback:bool=False,
+        self, id_: str, 
+        relation_list: List[Tuple[str, str]] = None, way_list: List[Tuple[str, str]] = None,
+        type: str = "regulatory_element", subtype: str = None, location: str = None,
+        dynamic: bool = False, fallback: bool = False,
         custom_tags: dict = None
     ):
         
         if subtype is None:
-            raise ValueError("The subtype of RegulatoryElement %s is not defined!" % id)
+            raise ValueError("The subtype of RegulatoryElement %s is not defined!" % id_)
         
-        self.id = id
+        self.id_ = id_
         self.type = type
         self.subtype = subtype
         self.location = location

@@ -15,7 +15,7 @@ class Vehicle(object):
     def __init__(
         self, id: str, type: str, initial_state: State = None,
         length: float = None, width: float = None, height: float = None,
-        steering_angle_range: Tuple[float, float] = None, 
+        steering_angle_range: Tuple[float, float] = None,
         steering_velocity_range: Tuple[float, float] = None, 
         speed_range: Tuple[float, float] = None,
         accel_range: Tuple[float, float] = None,

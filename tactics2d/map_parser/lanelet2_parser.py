@@ -47,7 +47,7 @@ def _load_node(xml_node: ET.Element, projector: Proj, origin: Point) -> Node:
     proj_y = y - origin[1]
     return Node(node_id, Point(proj_x, proj_y))
 
-def _get_tags(xml_node) -> dict:
+def _get_tags(xml_node: ET.Element) -> dict:
     tags = dict()
     tags["custom_tags"] = dict()
     for tag in xml_node.findall("tag"):
@@ -103,11 +103,11 @@ def _get_tags(xml_node) -> dict:
             tags["custom_tags"][tag.get("k")] = tag.get("v")
     return tags
 
-def _load_roadline(xml_node: ET.Element, map: Map) -> Lane:
+def _load_roadline(xml_node: ET.Element, map_: Map) -> Lane:
     line_id = xml_node.get("id")
     point_list = []
     for node in xml_node.findall("nd"):
-        point_list.append(map.nodes[node.get("ref")].location)
+        point_list.append(map_.nodes[node.get("ref")].location)
     linestring = LineString(point_list)
 
     line_tags = _get_tags(xml_node)
@@ -136,7 +136,7 @@ def _append_point_list(point_list, new_points, component_id):
 
     point_list += new_points[1:]
 
-def _load_lane(xml_node: ET.Element, map: Map) -> Lane:
+def _load_lane(xml_node: ET.Element, map_: Map) -> Lane:
     lane_id = xml_node.get("id")
     line_ids = dict(left=[], right=[])
     regulatory_id_list = []
@@ -150,9 +150,9 @@ def _load_lane(xml_node: ET.Element, map: Map) -> Lane:
 
     point_list = dict()
     for side in ["left", "right"]:
-        point_list[side] = list(map.roadlines[line_ids[side][0]].linestring.coords)
+        point_list[side] = list(map_.roadlines[line_ids[side][0]].linestring.coords)
         for line_id in line_ids[side][1:]:
-            new_points = list(map.roadlines[line_id].linestring.coords)
+            new_points = list(map_.roadlines[line_id].linestring.coords)
             _append_point_list(point_list[side], new_points, lane_id)
 
     left_side = LineString(point_list["left"])
@@ -174,7 +174,7 @@ def _load_lane(xml_node: ET.Element, map: Map) -> Lane:
 
     return Lane(lane_id, left_side, right_side, line_ids, **lane_tags)
 
-def _load_area(xml_node: ET.Element, map: Map) -> Area:
+def _load_area(xml_node: ET.Element, map_: Map) -> Area:
     area_id = xml_node.get("id")
     line_ids = dict(inner=[],outer=[])
     regulatory_id_list = []
@@ -185,10 +185,10 @@ def _load_area(xml_node: ET.Element, map: Map) -> Area:
             line_ids["inner"].append(member.get("ref"))
         elif member.get("role") == "regulatory_element":
             regulatory_id_list.append(member.get("ref"))
-    
-    outer_point_list = list(map.roadlines[line_ids["outer"][0]].linestring.coords)
+
+    outer_point_list = list(map_.roadlines[line_ids["outer"][0]].linestring.coords)
     for line_id in line_ids["outer"][1:]:
-        new_points = list(map.roadlines[line_id].linestring.coords)
+        new_points = list(map_.roadlines[line_id].linestring.coords)
         _append_point_list(outer_point_list, new_points, area_id)
     if outer_point_list[0] != outer_point_list[-1]:
         warnings.warn("The outer boundary of area %s is not closed." % area_id, MapParseWarning)
@@ -197,9 +197,9 @@ def _load_area(xml_node: ET.Element, map: Map) -> Area:
     inner_idx = 0
     for line_id in line_ids["inner"]:
         if len(inner_point_list[inner_idx]) == 0:
-            inner_point_list[inner_idx] = list(map.roadlines[line_id].linestring.coords)
+            inner_point_list[inner_idx] = list(map_.roadlines[line_id].linestring.coords)
         else:
-            new_points = list(map.roadlines[line_id].linestring.coords)
+            new_points = list(map_.roadlines[line_id].linestring.coords)
             _append_point_list(inner_point_list[inner_idx], new_points, area_id)
         if inner_point_list[inner_idx][0] == inner_point_list[inner_idx][-1]:
             inner_point_list.append([])
@@ -235,7 +235,7 @@ def parse(xml_root: ET.ElementTree, map_config: dict) -> Map:
     scenario_type = map_info[0]
     country = map_info[3]
 
-    map = Map(map_name, scenario_type, country)
+    map_ = Map(map_name, scenario_type, country)
 
     projector = Proj(**map_config["project_rule"])
     origin = projector(
@@ -245,26 +245,26 @@ def parse(xml_root: ET.ElementTree, map_config: dict) -> Map:
         if xml_node.get("action") == "delete":
             continue
         node = _load_node(xml_node, projector, origin)
-        map.add_node(node)
+        map_.add_node(node)
     
     for xml_node in xml_root.findall("way"):
         if xml_node.get("action") == "delete":
             continue
-        roadline = _load_roadline(xml_node, map)
-        map.add_roadline(roadline)
+        roadline = _load_roadline(xml_node, map_)
+        map_.add_roadline(roadline)
     
     for xml_node in xml_root.findall("relation"):
         if xml_node.get("action") == "delete":
             continue
         for tag in xml_node.findall("tag"):
             if tag.get("v") == "lanelet":
-                lane = _load_lane(xml_node, map)
-                map.add_lane(lane)
+                lane = _load_lane(xml_node, map_)
+                map_.add_lane(lane)
             elif tag.get("v") in ["multipolygon", "area"]:
-                area = _load_area(xml_node, map)
-                map.add_area(area)
-        
-    # Regulatory may contain any type of road element, so the parsing of regulatory 
+                area = _load_area(xml_node, map_)
+                map_.add_area(area)
+
+    # Regulatory may contain any type of road element, so the parsing of regulatory
     # must be at the final step.
     for xml_node in xml_root.findall("relation"):
         if xml_node.get("action") == "delete":
@@ -272,4 +272,4 @@ def parse(xml_root: ET.ElementTree, map_config: dict) -> Map:
         for tag in xml_node.findall("tag"):
             if tag.get("v") == "regulatory_element":
                 regulatory = _load_regulatory(xml_node)
-                map.add_regulatory(regulatory)
+                map_.add_regulatory(regulatory)

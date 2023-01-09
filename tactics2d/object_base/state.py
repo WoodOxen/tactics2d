@@ -4,7 +4,7 @@ class State(object):
         heading: float, x: float, y: float, 
         vx: float, vy: float, ax: float = None, ay: float = None,   
     ):
-    
+
         self.timestamp = timestamp
         self.heading = heading
         self.x = x

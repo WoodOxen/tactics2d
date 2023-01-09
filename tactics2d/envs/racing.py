@@ -5,7 +5,7 @@ import numpy as np
 from shapely.geometry import Point, LineString, LinearRing
 from shapely.affinity import affine_transform
 import pyglet
-import gym
+import gymnasium as gym
 from gym import spaces
 
 from tactics2d.common.get_circle import get_circle
@@ -74,7 +74,7 @@ class CarRacing(gym.Env):
     }
     def __init__(
         self, render_mode: Optional[str] = "human", render_fps: int = FPS,
-        verbose: bool =True, continuous: bool = True
+        verbose: bool = True, continuous: bool = True
     ):
 
         self.render_mode = render_mode
@@ -272,7 +272,7 @@ class CarRacing(gym.Env):
         start_loc = heading_direction.interpolate(heading_direction.length - self.agent.length/2)
 
         state = State(
-            timestamp=self.n_step, heading=heading_angle, 
+            timestamp = self.n_step, heading = heading_angle, 
             x = start_loc.x, y = start_loc.y, vx=0, vy=0
         )
         self.agent.reset(state)
@@ -347,7 +347,7 @@ class CarRacing(gym.Env):
         position = self._locate(self.agent)
 
         observation = self._get_observation()
-        status = self._check_status(position)
+        status = self._check_status()
         reward = self._get_reward(status)
         done = (status != Status.NORMAL)
 

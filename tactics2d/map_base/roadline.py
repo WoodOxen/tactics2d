@@ -10,7 +10,7 @@ class RoadLine:
     https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md
 
     Attributes:
-        id (str): _description_
+        id_ (str): _description_
         linestring (LineString): _description_
         type (str, optional): _description_. Defaults to "virtual".
         subtype (str, optional): _description_. Defaults to None.
@@ -21,7 +21,7 @@ class RoadLine:
         color (str, optional): color of the lane marking. Defaults to "white".
     """
     def __init__(
-        self, id: str, linestring: LineString,
+        self, id_: str, linestring: LineString,
         type: str = "virtual", subtype: str = None, 
         lane_change: Tuple[bool, bool] = (True, True),
         width: float = None, height: float = None,
@@ -29,7 +29,7 @@ class RoadLine:
         custom_tags: dict = None
     ):
 
-        self.id = id
+        self.id_ = id_
         self.linestring = linestring
         self.type = type
         self.subtype = subtype
@@ -39,7 +39,7 @@ class RoadLine:
         self.temporary = temporary
         self.color = color
         self.custom_tags = custom_tags
-    
+
     def get_shape(self):
         """Get shape of the roadline
         """
