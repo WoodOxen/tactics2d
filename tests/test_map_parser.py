@@ -22,4 +22,4 @@ if __name__ == "__main__":
             print("Parsing map %s" % map_name)
             map_file = map_name + ".osm"
             map_root = ET.parse(map_dir+map_file).getroot()
-            map = map_parser.parse(map_root, map_config)
+            map_ = map_parser.parse(map_root, map_config)

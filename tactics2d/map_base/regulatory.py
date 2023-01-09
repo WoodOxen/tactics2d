@@ -6,7 +6,7 @@ class RegulatoryElement(object):
     https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/RegulatoryElementTagging.md
     
     Attrs:
-        subtype (str): By default it is one of [traffic_sign, traffic_light, speed_limit, 
+        subtype (str): By default it is one of [traffic_sign, traffic_light, speed_limit,
             right_of_way, all_way_stop]
         member_list
         dynamic (bool): Indicates that this Regulatory Element might change its meaning based
@@ -18,16 +18,16 @@ class RegulatoryElement(object):
     def __init__(
         self, id_: str, 
         relation_list: List[Tuple[str, str]] = None, way_list: List[Tuple[str, str]] = None,
-        type: str = "regulatory_element", subtype: str = None, location: str = None,
+        type_: str = "regulatory_element", subtype: str = None, location: str = None,
         dynamic: bool = False, fallback: bool = False,
         custom_tags: dict = None
     ):
         
         if subtype is None:
             raise ValueError("The subtype of RegulatoryElement %s is not defined!" % id_)
-        
+
         self.id_ = id_
-        self.type = type
+        self.type_ = type_
         self.subtype = subtype
         self.location = location
         self.relation_list = relation_list

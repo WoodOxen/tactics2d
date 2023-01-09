@@ -74,7 +74,7 @@ DEFAULT_LANE = {
 
 class Lane(object):
     """An implementation of the lanelet2-style lanelet with neighbors detected.
-    
+
     The detailed definition of the lanelet2-style lanelet can be found here:
     https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md
 
@@ -89,14 +89,14 @@ class Lane(object):
         speed_limit (float, optional): _description_. Defaults to None.
         speed_limit_unit (str, optional): _description_. Defaults to "km/h".
         speed_limit_mandatory (bool, optional): _description_. Defaults to True.
-        predecessors (set): 
+        predecessors (set):
         successors (set):
         left_neighbors (set):
         right_neighbors (set):
     """
     def __init__(
         self, id_: str, left_side: LineString, right_side: LineString, line_ids: set = None,
-        type: str = "lanelet", subtype: str = None, location: str = None,
+        type_: str = "lanelet", subtype: str = None, location: str = None,
         inferred_participants: list = None,
         speed_limit: float = None, speed_limit_unit: str = "km/h",
         speed_limit_mandatory: bool = True,
@@ -107,7 +107,7 @@ class Lane(object):
         self.left_side = left_side
         self.right_side = right_side
         self.line_ids = line_ids
-        self.type = type
+        self.type_ = type_
         self.subtype = subtype
         self.location = location
         self.inferred_participants = inferred_participants

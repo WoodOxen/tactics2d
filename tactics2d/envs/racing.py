@@ -153,7 +153,7 @@ class CarRacing(gym.Env):
                 else:
                     glued_cnt += 1
                     control_points.append([pt1_, pt3_])
-            
+
             if glued_cnt == n_checkpoint:
                 success = True
                 break
@@ -203,7 +203,7 @@ class CarRacing(gym.Env):
         # generate map
         for i in range(n_tile):
             tile = Lane(
-                id="%04d" % i,
+                id_="%04d" % i,
                 left_side=LineString([left_points[i], left_points[i+1]]),
                 right_side=LineString([right_points[i], right_points[i+1]]),
                 subtype="road", inferred_participants=["vehicle:car", "vehicle:racing"]

@@ -22,7 +22,7 @@ class RoadLine:
     """
     def __init__(
         self, id_: str, linestring: LineString,
-        type: str = "virtual", subtype: str = None, 
+        type_: str = "virtual", subtype: str = None, 
         lane_change: Tuple[bool, bool] = (True, True),
         width: float = None, height: float = None,
         temporary: bool = False, color: str = "white",
@@ -31,7 +31,7 @@ class RoadLine:
 
         self.id_ = id_
         self.linestring = linestring
-        self.type = type
+        self.type_ = type_
         self.subtype = subtype
         self.lane_change = lane_change
         self.width = width

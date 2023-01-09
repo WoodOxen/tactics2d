@@ -13,17 +13,17 @@ class Vehicle(object):
     Attributes:
     """
     def __init__(
-        self, id: str, type: str, initial_state: State = None,
+        self, id_: str, type: str, initial_state: State = None,
         length: float = None, width: float = None, height: float = None,
         steering_angle_range: Tuple[float, float] = None,
-        steering_velocity_range: Tuple[float, float] = None, 
+        steering_velocity_range: Tuple[float, float] = None,
         speed_range: Tuple[float, float] = None,
         accel_range: Tuple[float, float] = None,
         comfort_accel_range: Tuple[float, float] = None,
         physics = None
     ):
 
-        self.id = id
+        self.id_ = id_
         self.type = type
         self.length = length
         self.width = width
@@ -54,7 +54,7 @@ class Vehicle(object):
     @property
     def velocity(self):
         return self.current_state.vx, self.current_state.vy
-    
+
     @property
     def speed(self):
         return np.linalg.norm([self.current_state.vx, self.current_state.y])
@@ -100,7 +100,7 @@ class Vehicle(object):
     def get_bbox(self) -> LinearRing:
         state = self.current_state
         transform_matrix = [
-            np.cos(state.heading), -np.sin(state.heading), 
+            np.cos(state.heading), -np.sin(state.heading),
             np.sin(state.heading), np.cos(state.heading),
             state.x - self.length/2, state.y - self.width/2
         ]

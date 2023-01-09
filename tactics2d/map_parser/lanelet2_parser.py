@@ -192,7 +192,7 @@ def _load_area(xml_node: ET.Element, map_: Map) -> Area:
         _append_point_list(outer_point_list, new_points, area_id)
     if outer_point_list[0] != outer_point_list[-1]:
         warnings.warn("The outer boundary of area %s is not closed." % area_id, MapParseWarning)
-    
+
     inner_point_list = [[]]
     inner_idx = 0
     for line_id in line_ids["inner"]:

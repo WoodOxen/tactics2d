@@ -23,7 +23,7 @@ class Area(object):
     """
     def __init__(
         self, id_: str, polygon: Polygon, line_ids: dict,
-        type: str = "multipolygon", subtype: str = None, location: str = None,
+        type_: str = "multipolygon", subtype: str = None, location: str = None,
         inferred_participants: list = None,
         speed_limit: float = None, speed_limit_unit: str = "km/h",
         speed_limit_mandatory: bool = True,
@@ -32,7 +32,7 @@ class Area(object):
 
         self.id_ = id_
         self.polygon = polygon
-        self.type = type
+        self.type_ = type_
         self.subtype = subtype
         self.location = location
         self.inferred_participants = inferred_participants
