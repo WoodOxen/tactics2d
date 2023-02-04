@@ -1,4 +1,6 @@
 # custom
+./tactics2d/data/trajectory/
+
 #  vscode
 *.code-workspace
 .VSCodeCounter/
