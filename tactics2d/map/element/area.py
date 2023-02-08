@@ -2,7 +2,7 @@ import warnings
 
 from shapely.geometry import Polygon
 
-from tactics2d.map_base import LEGAL_SPEED_UNIT
+from tactics2d.map.element import LEGAL_SPEED_UNIT
 
 
 class Area(object):
@@ -32,6 +32,7 @@ class Area(object):
 
         self.id_ = id_
         self.polygon = polygon
+        self.line_ids = line_ids
         self.type_ = type_
         self.subtype = subtype
         self.location = location

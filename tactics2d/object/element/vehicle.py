@@ -4,7 +4,7 @@ import numpy as np
 from shapely.geometry import LinearRing
 from shapely.affinity import affine_transform
 
-from tactics2d.object_base.state import State
+from tactics2d.trajectory.element.state import State
 
 
 class Vehicle(object):
@@ -13,18 +13,17 @@ class Vehicle(object):
     Attributes:
     """
     def __init__(
-        self, id_: str, type: str, initial_state: State = None,
+        self, id_: str, type_: str,
         length: float = None, width: float = None, height: float = None,
         steering_angle_range: Tuple[float, float] = None,
         steering_velocity_range: Tuple[float, float] = None,
         speed_range: Tuple[float, float] = None,
         accel_range: Tuple[float, float] = None,
         comfort_accel_range: Tuple[float, float] = None,
-        physics = None
     ):
 
         self.id_ = id_
-        self.type = type
+        self.type_ = type_
         self.length = length
         self.width = width
         self.height = height
@@ -36,42 +35,35 @@ class Vehicle(object):
         self.speed_range = speed_range
         self.accel_range = accel_range
         self.comfort_accel_range = comfort_accel_range
-        self.physics = physics
 
-        self.initial_state = initial_state
-        self.current_state = initial_state
-        self.history_state = []
-        self.add_state(self.initial_state)
+        self.trajectory = None
+        self.physics = None
 
     @property
-    def position(self):
-        return self.current_state.x, self.current_state.y
+    def current_state(self):
+        return self.trajectory.get_state()
 
     @property
-    def state(self):
-        return self.current_state
+    def location(self):
+        return (self.current_state.x, self.current_state.y)
+
+    @property
+    def heading(self):
+        return self.current_state.heading
 
     @property
     def velocity(self):
-        return self.current_state.vx, self.current_state.vy
+        return (self.current_state.vx, self.current_state.vy)
 
     @property
     def speed(self):
-        return np.linalg.norm([self.current_state.vx, self.current_state.y])
+        return self.current_state.speed
 
-    def get_state(self, time_stamp: float = None) -> State:
-        """Obtain the object's state at the requested time stamp.
+    @property
+    def accel(self):
+        return self.current_state.accel
 
-        If the time stamp is not specified, the function will return current state.
-        If the time stamp is given but not found, the function will return None.
-        """
-        if time_stamp is None:
-            return self.current_state
-        else:
-            state = self.history_state.find(time_stamp)
-        return state
-
-    def verify_state(self, state1, state2, time_interval) -> bool:
+    def _verify_state(self, state1, state2, time_interval) -> bool:
         """Check if the state change is allowed by the vehicle's physical model.
 
         Args:
@@ -84,18 +76,20 @@ class Vehicle(object):
         """
         return True
 
-    def add_state(self, state):
-        return
-
     def update_state(self, action):
         """_summary_
         """
         self.current_state = self.physics.update(self.current_state, action)
         self.add_state(self.current_state)
 
-    def get_trajectory(self, length: int = None):
-        
-        return
+    def bind_trajectory(self, trajectory):
+        if self._verify_trajectory(trajectory):
+            self.trajectory = trajectory
+        else:
+            raise RuntimeError()
+
+    def bind_physics(self, physics):
+        self.physics = physics
 
     def get_bbox(self) -> LinearRing:
         state = self.current_state

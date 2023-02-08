@@ -1,10 +1,10 @@
 import warnings
 
-from tactics2d.map_base.node import Node
-from tactics2d.map_base.roadline import RoadLine
-from tactics2d.map_base.lane import Lane
-from tactics2d.map_base.area import Area
-from tactics2d.map_base.regulatory import RegulatoryElement
+from tactics2d.map.element.node import Node
+from tactics2d.map.element.roadline import RoadLine
+from tactics2d.map.element.lane import Lane
+from tactics2d.map.element.area import Area
+from tactics2d.map.element.regulatory import RegulatoryElement
 
 
 class Map(object):

@@ -3,7 +3,7 @@ from enum import Enum
 
 from shapely.geometry import LineString, Polygon
 
-from tactics2d.map_base import LEGAL_SPEED_UNIT
+from tactics2d.map.element import LEGAL_SPEED_UNIT
 
 
 class Relationship(Enum):
@@ -11,65 +11,6 @@ class Relationship(Enum):
     SUCCESSOR = 2
     LEFT_NEIGHBOR = 3
     RIGHT_NEIGHBOR = 4
-
-
-DEFAULT_LANE = {
-    "road": {
-        "inferred_participants": [],
-        "speed_limit": 20,
-        "speed_limit_unit": "km/h",
-    },
-    "highway": {
-        "inferred_participants": [],
-        "speed_limit": 35,
-        "speed_limit_unit": "km/h",
-    },
-    "play_street": {
-        "inferred_participants": [],
-        "speed_limit": 15,
-        "speed_limit_unit": "km/h",
-    },
-    "emergency_lane": {
-        "inferred_participants": [],
-        "speed_limit": 35,
-        "speed_limit_unit": "km/h",
-    },
-    "bus_lane": {
-        "inferred_participants": [],
-        "speed_limit": 15,
-        "speed_limit_unit": "km/h",
-    },
-    "bicycle_lane": {
-        "inferred_participants": [],
-        "speed_limit": 10,
-        "speed_limit_unit": "km/h",
-    },
-    "exit": {
-        "inferred_participants": [],
-        "speed_limit": 5,
-        "speed_limit_unit": "km/h",
-    },
-    "walkway": {
-        "inferred_participants": [],
-        "speed_limit": 5,
-        "speed_limit_unit": "km/h",
-    },
-    "shared_walkway": {
-        "inferred_participants": [],
-        "speed_limit": 10,
-        "speed_limit_unit": "km/h",
-    },
-    "crosswalk": {
-        "inferred_participants": [],
-        "speed_limit": 5,
-        "speed_limit_unit": "km/h",
-    },
-    "stairs": {
-        "inferred_participants": [],
-        "speed_limit": 5,
-        "speed_limit_unit": "km/h",
-    },
-}
 
 
 class Lane(object):
@@ -122,6 +63,33 @@ class Lane(object):
         self.left_neighbors = set()
         self.right_neighbors = set()
 
+    @property
+    def starts(self) -> list:
+        """Return start points of the lane
+        """
+        return [self.left_side.coords[0], self.right_side.coords[0]]
+
+    @property
+    def ends(self) -> list:
+        """Retun the end points of the lane
+        """
+        return [self.left_side.coords[-1], self.right_side.coords[-1]]
+
+    @property
+    def polygon(self) -> Polygon:
+        """Return the lane's figure as a polygon
+        """
+        left_side_coords = list(self.left_side.coords)
+        right_side_coords = list(self.right_side.coords)
+        right_side_coords.reverse()
+        return Polygon(left_side_coords+right_side_coords)
+
+    @property
+    def shape(self) -> list:
+        """Retun the shape of the lane
+        """
+        return list(self.polygon.coords)
+
     def is_valid(self):
         """
         """
@@ -130,6 +98,21 @@ class Lane(object):
                 "Invalid speed limit unit %s. The legal units types are %s" % \
                 (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
             )
+
+    def is_related(self, id_: str) -> Relationship:
+        """Check if a given lane is related to the lane
+
+        Args:
+            id_ (str): The given lane's id.
+        """
+        if id_ in self.predecessors:
+            return Relationship.PREDECESSOR
+        elif id_ in self.successors:
+            return Relationship.SUCCESSOR
+        elif id_ in self.left_neighbors:
+            return Relationship.LEFT_NEIGHBOR
+        elif id_ in self.right_neighbors:
+            return Relationship.RIGHT_NEIGHBOR
 
     def add_related_lane(self, id_: str, relationship: Relationship):
         """Add a related lane's id to the corresponding list
@@ -149,44 +132,3 @@ class Lane(object):
             self.left_neighbors.add(id_)
         elif relationship == Relationship.RIGHT_NEIGHBOR:
             self.right_neighbors.add(id_)
-
-    def is_related(self, id_: str) -> Relationship:
-        """Check if a given lane is related to the lane
-
-        Args:
-            id_ (str): The given lane's id.
-        """
-        if id_ in self.predecessors:
-            return Relationship.PREDECESSOR
-        elif id_ in self.successors:
-            return Relationship.SUCCESSOR
-        elif id_ in self.left_neighbors:
-            return Relationship.LEFT_NEIGHBOR
-        elif id_ in self.right_neighbors:
-            return Relationship.RIGHT_NEIGHBOR
-
-    def get_starts(self) -> list:
-        """Get the start points of the lane
-        """
-        return [self.left_side.coords[0], self.right_side.coords[0]]
-    
-    def get_ends(self) -> list:
-        """Get the end points of the lane
-        """
-        return [self.left_side.coords[-1], self.right_side.coords[-1]]
-
-    def get_polygon(self) -> Polygon:
-        """Convert the lane's figure to a polygon
-        """
-        left_side_coords = list(self.left_side.coords)
-        right_side_coords = list(self.right_side.coords)
-        right_side_coords.reverse()
-        return Polygon(left_side_coords+right_side_coords)
-
-    def get_shape(self) -> list:
-        """Get the shape of the lane
-        """
-        left_side_coords = list(self.left_side.coords)
-        right_side_coords = list(self.right_side.coords)
-        right_side_coords.reverse()
-        return left_side_coords+right_side_coords

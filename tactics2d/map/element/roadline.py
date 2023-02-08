@@ -1,6 +1,7 @@
 from typing import Tuple
 
-from shapely.geometry import LineString
+import shapely
+from shapely.geometry import LineString, Point
 
 
 class RoadLine:
@@ -40,7 +41,16 @@ class RoadLine:
         self.color = color
         self.custom_tags = custom_tags
 
-    def get_shape(self):
+    @property
+    def head(self) -> Point:
+        return shapely.get_point(self.linestring, 0)
+    
+    @property
+    def tail(self) -> Point:
+        return shapely.get_point(self.linestring, -1)
+
+    @property
+    def shape(self) -> list:
         """Get shape of the roadline
         """
         return list(self.linestring.coords)

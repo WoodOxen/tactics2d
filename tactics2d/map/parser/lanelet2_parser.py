@@ -4,12 +4,12 @@ import warnings
 from pyproj import Proj
 from shapely.geometry import Point, LineString, Polygon
 
-from tactics2d.map_base.node import Node
-from tactics2d.map_base.lane import Lane
-from tactics2d.map_base.area import Area
-from tactics2d.map_base.roadline import RoadLine
-from tactics2d.map_base.regulatory import RegulatoryElement
-from tactics2d.map_base.map import Map
+from tactics2d.map.element.node import Node
+from tactics2d.map.element.lane import Lane
+from tactics2d.map.element.area import Area
+from tactics2d.map.element.roadline import RoadLine
+from tactics2d.map.element.regulatory import RegulatoryElement
+from tactics2d.map.element.map import Map
 
 
 LANE_CHANGE_MAPPING = {
