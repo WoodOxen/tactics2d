@@ -1,5 +1,6 @@
+class DLPParser(object):
 
-
-
-def dlp_parser(processed: bool = True):
-    if processed:
+    @staticmethod
+    def parse(file_id, folder_path, stamp_range):
+        
+        return

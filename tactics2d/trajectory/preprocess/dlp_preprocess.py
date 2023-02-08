@@ -20,17 +20,17 @@ class DLPPreprocess(object):
         self.scene = {}
         self.obstacles = {}
 
-    def load(self, file_id, file_path):
+    def load(self, file_id, folder_path):
         self.scene_id = file_id
-        with open(file_path+"DJI_%04d_agents.json" % file_id, "r") as f:
+        with open(os.path.join(folder_path, "DJI_%04d_agents.json" % file_id), "r") as f:
             self.agents = json.load(f)
-        with open(file_path+"DJI_%04d_frames.json" % file_id, "r") as f:
+        with open(os.path.join(folder_path, "DJI_%04d_frames.json" % file_id), "r") as f:
             self.frames = json.load(f)
-        with open(file_path+"DJI_%04d_instances.json" % file_id, "r") as f:
+        with open(os.path.join(folder_path, "DJI_%04d_instances.json" % file_id), "r") as f:
             self.instances = json.load(f)
-        with open(file_path+"DJI_%04d_scene.json" % file_id, "r") as f:
+        with open(os.path.join(folder_path, "DJI_%04d_scene.json" % file_id), "r") as f:
             self.scene = json.load(f)
-        with open(file_path+"DJI_%04d_obstacles.json" % file_id, "r") as f:
+        with open(os.path.join(folder_path, "DJI_%04d_obstacles.json" % file_id), "r") as f:
             self.obstacles = json.load(f)
 
     @property
@@ -117,7 +117,7 @@ if __name__ == "__main__":
         df_track.to_csv(target_path+"%04d_tracks.csv" % int(i+1), index=False)
         print("Finished processing scene %02d" % int(i+1))
 
-    n_process = min(15, multiprocessing.cpu_count())
+    n_process = min(16, multiprocessing.cpu_count())
     pool = multiprocessing.Pool(processes=n_process)
     tasks = list(range(30))
 

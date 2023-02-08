@@ -13,7 +13,7 @@ class Vehicle(object):
     Attributes:
     """
     def __init__(
-        self, id_: str, type_: str,
+        self, id_: int, type_: str,
         length: float = None, width: float = None, height: float = None,
         steering_angle_range: Tuple[float, float] = None,
         steering_velocity_range: Tuple[float, float] = None,

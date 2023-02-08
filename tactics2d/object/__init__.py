@@ -4,21 +4,6 @@ BICYCLE_TYPE = {"cycle", "bicycle"}
 ALL_VEHICLE_TYPE = VEHICLE_TYPE | MOTORCYCLE_TYPE | BICYCLE_TYPE
 PEDESTRIAN_TYPE = {"pedestrian", "walker"}
 
-NAME_MAPPING = {
-    "car": "car",
-    "Car": "car",
-    "van": "van",
-    "truck": "truck",
-    "Truck": "truck",
-    "truck_bus": "bus",
-    "bus": "bus",
-    "trailer": "trailer",
-    "motorcycle": "motorcycle",
-    "bicycle": "bicycle",
-    "cycle": "cycle",
-    "pedestrian": "pedestrian"
-}
-
 # Refer to https://sumo.dlr.de/docs/Vehicle_Type_Parameter_OBJECTs.html
 OBJECT_SIZE = {
     "bicycle": [1.6, 0.65, 1.7],

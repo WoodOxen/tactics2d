@@ -2,8 +2,8 @@ import numpy as np
 
 
 class State(object):
-    def __init__(self, time_stamp: int, x: float = 0, y: float = 0, heading: float = 0):
-            self.time_stamp = time_stamp
+    def __init__(self, frame: int, x: float = 0, y: float = 0, heading: float = 0):
+            self.frame = frame
             self.x = x
             self.y = y
             self.heading = heading

@@ -1,4 +1,4 @@
-class Pedestrian(object):
+class Cyclist(object):
     def __init__(self, id: int):
         self.id = id
         self.trajectory = None
