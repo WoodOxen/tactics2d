@@ -4,8 +4,8 @@ import time
 import numpy as np
 from shapely.geometry import Point, LineString, LinearRing
 from shapely.affinity import affine_transform
-import pyglet
-import gymnasium as gym
+# import gymnasium as gym
+import gym
 from gym import spaces
 
 from tactics2d.common.get_circle import get_circle
@@ -14,7 +14,7 @@ from tactics2d.map_base.lane import Lane
 from tactics2d.map_base.map import Map
 from tactics2d.object_base.vehicle import Vehicle
 from tactics2d.object_base.state import State
-from tactics2d.envs.status import Status
+from tactics2d.traffic_event.status import Status
 
 
 STATE_W = 128
@@ -327,7 +327,7 @@ class CarRacing(gym.Env):
             return Status.ARRIVED
         if self._check_outbound() == Status.OUTBOUND:
             return Status.OUTBOUND
-        if self._check_time_exceeded() == Status.OUT_TIME:
+        if self._check_time_exceeded() == Status.TIME_EXCEED:
             return Status.OUT_TIME
         return Status.NORMAL
 

@@ -10,7 +10,7 @@ class Status(Enum):
     - 4 (Collided): The agent collided with another object.
     - 5 (Non-drivable): The agent drives into a non-drivable region of the map.
     - 6 (Outbound): The agent has driven out of the map's boundary.
-    - 7 (Out-time): The agent fails to arrive at the destination within the time limit.
+    - 7 (Time exceed): The agent fails to arrive at the destination within the time limit.
     """
     NORMAL = 1
     ARRIVED = 2
@@ -18,7 +18,8 @@ class Status(Enum):
     COLLIDED = 4
     NON_DRIVABLE = 5
     OUTBOUND = 6
-    OUT_TIME = 7
+    TIME_EXCEED = 7
+    OTHER = 8
 
     def __str__(self) -> str:
         return self.name

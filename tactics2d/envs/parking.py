@@ -20,7 +20,7 @@ except ImportError:
         "pygame is not installed, run `pip install pygame`"
     )
 
-from tactics2d.envs.status import Status
+from tactics2d.traffic_event.status import Status
 
 
 OBS_W = 256
