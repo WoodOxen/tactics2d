@@ -28,7 +28,7 @@ class InteractionParser(object):
             
             vehicle_id =  state_info["track_id"]
             if vehicle_id not in vehicles:
-                vehicle_type = InteractionParser._get_vehicle_type(state_info["length"], state_info["width"])
+                vehicle_type = InteractionParser()._get_vehicle_type(state_info["length"], state_info["width"])
                 vehicle = Vehicle(
                     id_=vehicle_id, type_=vehicle_type,
                     length=state_info["length"], width=state_info["width"]
@@ -76,7 +76,7 @@ class InteractionParser(object):
             trajectories[trajectory_id].add_state(state)
 
         for trajectory_id, trajectory in trajectories.items():
-            if InteractionParser._get_pedestrian_type(trajectory) == "pedestrians":
+            if InteractionParser()._get_pedestrian_type(trajectory) == "pedestrians":
                 pedestrians[trajectory_id] = Pedestrian(trajectory_id)
                 pedestrians[trajectory_id].set_trajectory(trajectory)
             else:
