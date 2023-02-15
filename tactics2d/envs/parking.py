@@ -1,8 +1,8 @@
 import sys
 sys.path.append("../")
 from typing import Optional, Union
-import csv
 import math
+from typing import OrderedDict
 
 import numpy as np
 import gym
@@ -10,7 +10,6 @@ from gym import spaces
 from gym.error import DependencyNotInstalled, InvalidAction
 from shapely.geometry import LineString, LinearRing, Polygon
 from shapely.affinity import affine_transform
-
 try:
     # As pygame is necessary for using the environment (reset and step) even without a render mode
     #   therefore, pygame is a necessary import for the environment.
@@ -20,102 +19,61 @@ except ImportError:
         "pygame is not installed, run `pip install pygame`"
     )
 
-from tactics2d.traffic_event.status import Status
+from envs.lidar_simulator import LidarSimlator
+from envs.observation_processor import Obs_Processor
+from tactics2d.envs.status import Status
+from envs.parking_base import ParkingMapNormal
+from envs.observation_processor import Obs_Processor
+from object_base.position import Position
+from tactics2d.object_base.vehicle import Vehicle
+from tactics2d.object_base.state import State
 
-
-OBS_W = 256
-OBS_H = 256
-VIDEO_W = 600
-VIDEO_H = 400
-WIN_W = 500
-WIN_H = 500
-
-FPS = 50
-TOLERANT_TIME = 1000
+WHEEL_BASE = 2.8  # wheelbase
+FRONT_HANG = 0.96  # front hang length
+REAR_HANG = 0.929  # rear hang length
+LENGTH = WHEEL_BASE+FRONT_HANG+REAR_HANG
+WIDTH = 1.942  # width
 
 DISCRETE_ACTION = np.array([
     [0, 0], # do nothing
-    [-0.3, 0], # steer left
-    [0.3, 0], # steer right
+    [-0.6, 0], # steer left
+    [0.6, 0], # steer right
     [0, 0.2], # accelerate
     [0, -0.8], # decelerate
 ])
+FPS = 100
+MAX_FPS = 200
+STATE_W = 256
+STATE_H = 256
+VIDEO_W = 600
+VIDEO_H = 400
+K = 12
+STEP_LIMIT = 20000 # steps
+MAX_STEP = 200
 
+LIDAR_RANGE = 10.0
+LIDAR_NUM = 120
+VALID_SPEED = [-2.5, 2.5]
+VALID_STEER = [-0.75, 0.75]
 VALID_ACCEL = [-1.0, 1.0]
-VALID_STEER = [-1.0, 1.0]
+VALID_ANGULAR_SPEED = [-0.5, 0.5]
 
+# TODO match the color in color_default.py
 BG_COLOR = (255, 255, 255, 255)
 START_COLOR = (100, 149, 237, 255)
 DEST_COLOR = (69, 139, 0, 255)
 OBSTACLE_COLOR = (150, 150, 150, 255)
 TRAJ_COLOR = (10, 10, 150, 255)
+VEHICLE_COLOR = (30, 144, 255, 255)
 
 
-class ParkingMap(object):
-    default = {
-        "path": '../data/Case%d.csv'
-    }
-
-    def __init__(self):
-
-        self.case_id:int = None
-        self.start: State = None
-        self.dest: State = None
-        self.start_box:LinearRing = None
-        self.dest_box:LinearRing = None
-        self.xmin, self.xmax = 0, 0
-        self.ymin, self.ymax = 0, 0
-        self.n_obstacle = 0
-        self.obstacles:List[Area] = []
-
-    def reset(self, case_id: int = None, path: str = None) -> State:
-        case_id = 19 # np.random.randint(1, 21) if case_id is None else case_id
-        path = self.default["path"] if path is None else path
-
-        if case_id == self.case_id:
-            return self.start
-        else:
-            self.case_id = case_id
-            fname = path % case_id
-            self.obstacles.clear()
-
-        with open(fname, 'r') as f:
-            reader = csv.reader(f)
-            tmp = list(reader)
-            v = [float(i) for i in tmp[0]]
-
-            self.start = State(v[:3]+[0,0])
-            self.start_box = self.start.create_box()
-            self.dest = State(v[3:6]+[0,0])
-            self.dest_box = self.dest.create_box()
-            self.xmin = np.floor(min(self.start.loc.x, self.dest.loc.x) - 10)
-            self.xmax = np.ceil(max(self.start.loc.x, self.dest.loc.x) + 10)
-            self.ymin = np.floor(min(self.start.loc.y, self.dest.loc.y) - 10)
-            self.ymax = np.ceil(max(self.start.loc.y, self.dest.loc.y) + 10)
-
-            self.n_obstacle = int(v[6])
-            n_vertex = np.array(v[7:7 + self.n_obstacle], dtype=np.int32)
-            vertex_start = 7 + self.n_obstacle + (np.cumsum(n_vertex, dtype=np.int32) - n_vertex) * 2
-            for vs, nv in zip(vertex_start, n_vertex):
-                obstacle = LinearRing(np.array(v[vs : vs+nv*2]).reshape((nv, 2), order='A'))
-                self.obstacles.append(
-                    Area(shape=obstacle, subtype="obstacle", color=(150, 150, 150, 255)))
-
-        return self.start
+def State2Position(state:State)->Position:
+    return Position([state.x, state.y, state.heading])
 
 
 class CarParking(gym.Env):
     """
     Description:
-
-    Action Space:
-        If continuous:
-            There are 3 actions: steer (-1 is full left, +1 is full right), gas, and brake.
-        If discrete:
-            There are 5 actions: do nothing, steer left, steer right, gas, brake.
-
-    Observation Space:
-        State consists of 96x96 pixels.
     
     Args:
         
@@ -130,59 +88,107 @@ class CarParking(gym.Env):
 
     def __init__(
         self, 
-        render_mode: str = None,
-        fps: int = FPS,
+        render_mode: Optional[str] = "human",
+        render_fps: int = FPS,
         verbose: bool =True, 
-        continuous: bool =True
+        continuous: bool =True,
+        use_lidar_observation: bool = True,
+        use_img_observation: bool = True,
     ):
         super().__init__()
 
+        self.render_mode = render_mode
+        if self.render_mode not in self.metadata["render_mode"]:
+            raise NotImplementedError
+        self.render_fps = render_fps
+        if render_fps > MAX_FPS:
+            raise UserWarning()
+
         self.verbose = verbose
         self.continuous = continuous
-        self.render_mode = "human" if render_mode is None else render_mode
-        self.fps = fps
+        if not continuous:
+            raise NotImplementedError('parking environment only support continuous action space !')
+        self.use_lidar_observation = use_lidar_observation
+        self.use_img_observation = use_img_observation
         self.screen: Optional[pygame.Surface] = None
         self.matrix = None
         self.clock = None
         self.is_open = True
         self.t = 0.0
         self.k = None
+        self.tgt_repr_size = 5 # relative_distance, cos(theta), sin(theta), cos(phi), sin(phi)
 
-        self.map = ParkingMap()
-        self.vehicle = Vehicle()
+        self.map = ParkingMapNormal()
+        self.agent = Vehicle( 
+            id="0", type="vehicle:racing", width=1.8, length=5, height=1.5, # TODO make the hyperparameters
+            steering_angle_range=(-0.5, 0.5), steering_velocity_range=(-0.5, 0.5),
+            speed_range=(-10, 100), accel_range=(-1, 1), physics=None
+        )
+        self.raw_vehicle_box = LinearRing([
+            (-REAR_HANG, -WIDTH/2), 
+            (FRONT_HANG + WHEEL_BASE, -WIDTH/2), 
+            (FRONT_HANG + WHEEL_BASE,  WIDTH/2),
+            (-REAR_HANG,  WIDTH/2)])
+        self.curr_vehicle_box = None
+        self.lidar = LidarSimlator(LIDAR_RANGE, LIDAR_NUM)
         self.reward = 0.0
-        self.prev_reward = 0.0
 
         if self.continuous:
+            # self.action_space = spaces.Box(
+            #     np.array([VALID_ANGULAR_SPEED[0], VALID_ACCEL[0]]).astype(np.float32),
+            #     np.array([VALID_ANGULAR_SPEED[1], VALID_ACCEL[1]]).astype(np.float32),
+            # ) # steer, acceleration
             self.action_space = spaces.Box(
-                np.array([VALID_STEER[0], VALID_ACCEL[0]]).astype(np.float32),
-                np.array([VALID_STEER[1], VALID_ACCEL[1]]).astype(np.float32),
-            ) # steer, acceleration
+                np.array([VALID_STEER[0], VALID_SPEED[0]]).astype(np.float32),
+                np.array([VALID_STEER[1], VALID_SPEED[1]]).astype(np.float32),
+            ) # steer, speed
         else:
             self.action_space = spaces.Discrete(5) # do nothing, left, right, gas, brake
        
-        self.observation_space = spaces.Box(
-            low=0, high=255, shape=(OBS_W, OBS_H, 3), dtype=np.uint8
+        self.observation_space = {'lidar':None, 'img':None, 'target':None}
+        if self.use_img_observation:
+            self.img_processor = Obs_Processor()
+            self.observation_space['img'] = spaces.Box(low=0, high=255, 
+                shape=(STATE_W//self.img_processor.downsample_rate, STATE_H//self.img_processor.downsample_rate, 
+                self.img_processor.n_channels), dtype=np.uint8
+            )
+        if self.use_lidar_observation:
+            # the observation is composed of lidar points and target representation
+            # the target representation is (relative_distance, cos(theta), sin(theta), cos(phi), sin(phi))
+            # where the theta indicates the relative angle of parking lot, and phi means the heading of 
+            # parking lit in the polar coordinate of the ego car's view
+            low_bound, high_bound = np.zeros((LIDAR_NUM)), np.ones((LIDAR_NUM))*LIDAR_RANGE
+            self.observation_space['lidar'] = spaces.Box(
+                low=low_bound, high=high_bound, shape=(LIDAR_NUM,), dtype=np.float64
+            )
+        low_bound = np.array([0,-1,-1,-1,-1])
+        high_bound = np.array([50,1,1,1,1]) # TODO the hyper-param high_bound[0], the max distance to target
+        self.observation_space['target'] = spaces.Box(
+            low=low_bound, high=high_bound, shape=(self.tgt_repr_size,), dtype=np.float64
         )
 
-    def reset(self, case_id: int = None, data_dir: str = None) -> np.ndarray:
+    def reset(self,) -> np.ndarray:
+        self.n_step = 0
         self.reward = 0.0
-        self.prev_reward = 0.0
-        self.t = 0.0
 
-        initial_state = self.map.reset(case_id, data_dir)
-        self.vehicle.reset(initial_state)
+        initial_pos = self.map.reset()
+        state = State(
+            timestamp=self.n_step, heading=initial_pos.heading, 
+            x = initial_pos.loc.x, y = initial_pos.loc.y, vx=0, vy=0
+        )
+        self.agent.reset(state)
         self.matrix = self._coord_transform_matrix()
+        self.curr_vehicle_box = initial_pos.create_box(self.raw_vehicle_box)
         return self.step()[0]
 
     def _coord_transform_matrix(self) -> list:
         """Get the transform matrix that convert the real world coordinate to the pygame coordinate.
         """
-        k1 = WIN_W/ (self.map.xmax - self.map.xmin)
-        k2 = WIN_H / (self.map.ymax - self.map.ymin)
-        k = k1 if k1 < k2 else k2
-        bx = 0.5 * (WIN_W - k * (self.map.xmax + self.map.xmin))
-        by = 0.5 * (WIN_H - k * (self.map.ymax + self.map.ymin))
+        # k1 = WIN_W/ (self.map.xmax - self.map.xmin)
+        # k2 = WIN_H / (self.map.ymax - self.map.ymin)
+        k = K
+        bx = 0.5 * (VIDEO_W - k * (self.map.xmax + self.map.xmin))
+        by = 0.5 * (VIDEO_H - k * (self.map.ymax + self.map.ymin))
         self.k = k
         return [k, 0, 0, k, bx, by]
 
@@ -191,34 +197,35 @@ class CarParking(gym.Env):
         return list(transformed.coords)
 
     def _detect_collision(self):
-        return False
+        # return False
         for obstacle in self.map.obstacles:
-            if self.vehicle.box.intersects(obstacle.shape):
+            if self.curr_vehicle_box.intersects(obstacle.shape):
                 return True
         return False
     
     def _detect_outbound(self):
-        vehicle_box = np.array(self._coord_transform(self.vehicle.box))
+        vehicle_box = np.array(self._coord_transform(self.curr_vehicle_box))
         if vehicle_box[:, 0].min() < 0:
             return True
-        if vehicle_box[:, 0].max() > WIN_W:
+        if vehicle_box[:, 0].max() > VIDEO_W:
             return True
         if vehicle_box[:, 1].min() < 0:
             return True
-        if vehicle_box[:, 1].max() > WIN_H:
+        if vehicle_box[:, 1].max() > VIDEO_H:
             return True
         return False
 
     def _check_arrived(self):
-        vehicle_box = Polygon(self.vehicle.box)
+        vehicle_box = Polygon(self.curr_vehicle_box)
         dest_box = Polygon(self.map.dest_box)
         union_area = vehicle_box.intersection(dest_box).area
         if union_area / dest_box.area > 0.95:
+            # print('arrive!!: ',union_area / dest_box.area)
             return True
         return False
     
     def _check_time_exceeded(self):
-        return self.t > TOLERANT_TIME
+        return self.n_step < STEP_LIMIT
 
     def _check_status(self):
         if self._detect_collision():
@@ -228,99 +235,84 @@ class CarParking(gym.Env):
         if self._check_arrived():
             return Status.ARRIVED
         if self._check_time_exceeded():
-            return Status.OUTTIME
-        return Status.CONTINUE
+            return Status.OUT_TIME
+        return Status.NORMAL
 
-    def _get_reward2(self, prev_state: State, curr_state: State) -> float:
-        time_cost = - np.tanh(self.t / 1000)
+    def _get_reward(self, prev_state: Position, curr_state: Position):
+        # time penalty
+        time_cost = - np.tanh(self.t / (10*MAX_STEP))
 
-        dist_diff = curr_state.loc.distance(self.map.dest.loc)
-        angle_diff = abs(curr_state.heading - self.map.dest.heading)
-        if dist_diff == 0:
-            k = 10 / angle_diff
-        elif angle_diff == 0:
-            k = 10 / dist_diff
-        else:
-            k = np.sqrt(10 / (dist_diff * angle_diff))
-        dx =  dist_diff - prev_state.loc.distance(self.map.dest.loc)
-        dtheta =  angle_diff - abs(prev_state.heading - self.map.dest.heading)
-        distance_reward = k * dist_diff * dx
-        angle_reward = k * angle_diff * dtheta
-        print(k, dist_diff, angle_diff)
-        print(time_cost , distance_reward , angle_reward)
-        return time_cost + distance_reward + angle_reward
-
-    def _get_reward(self, prev_state: State, curr_state: State) -> float:
-        time_cost = - np.tanh(self.t / 10000)
-
+        # Euclidean distance reward & angle reward
         def get_angle_diff(angle1, angle2):
-            # norm to 0 ~ pi
-            return math.acos(math.cos(angle1 - angle2))
-
+            # norm to 0 ~ pi/2
+            angle_dif = math.acos(math.cos(angle1 - angle2)) # 0~pi
+            return angle_dif if angle_dif<math.pi/2 else math.pi-angle_dif
         dist_diff = curr_state.loc.distance(self.map.dest.loc)
         angle_diff = get_angle_diff(curr_state.heading, self.map.dest.heading)
         prev_dist_diff = prev_state.loc.distance(self.map.dest.loc)
         prev_angle_diff = get_angle_diff(prev_state.heading, self.map.dest.heading)
-        dist_norm_ratio = self.map.dest.loc.distance(self.map.start.loc)
+        dist_norm_ratio = max(self.map.dest.loc.distance(self.map.start.loc),10)
         angle_norm_ratio = math.pi
         dist_reward = math.exp(-dist_diff/dist_norm_ratio) - \
             math.exp(-prev_dist_diff/dist_norm_ratio)
         angle_reward = math.exp(-angle_diff/angle_norm_ratio) - \
             math.exp(-prev_angle_diff/angle_norm_ratio)
-
-        dist_reward *= 10
-        # reward mainly focus angle when is close to destinaiton
-        angle_reward *= (5*max(dist_norm_ratio/dist_diff,10))
-        # print(time_cost , dist_reward , angle_reward)
-
-        vehicle_box = Polygon(self.vehicle.box)
-        prev_vehicle_box = Polygon(prev_state.create_box())
-        dest_box = Polygon(self.map.dest_box)
-        union_area = vehicle_box.intersection(dest_box).area
-        prev_union_area = prev_vehicle_box.intersection(dest_box).area
-        arriving_reward = (union_area-prev_union_area)/dest_box.area *100
-        # print(time_cost , dist_reward , angle_reward , arriving_reward)
-        return time_cost + dist_reward + angle_reward + arriving_reward
+        
+        return time_cost+dist_reward+angle_reward
         
 
     def step(self, action: Union[np.ndarray, int] = None):
-        assert self.vehicle is not None
-        prev_state = self.vehicle.state
+        '''
+        Parameters:
+        ----------
+        `action`: `np.ndarra`y if continous action space else `int`
+
+        Returns:
+        ----------
+        ``obsercation`` (Dict): 
+            the observation of image based surroundings, lidar view and target representation.
+            If `use_lidar_observation` is `True`, then `obsercation['img'] = None`.
+            If `use_lidar_observation` is `False`, then `obsercation['lidar'] = None`. 
+
+        ``reward`` (float): the reward considering the distance and angle difference between 
+                current state and destination.
+        `status` (`Status`): represent the state of vehicle, including:
+                `NORMAL`, `ARRIVED`, `COLLIDED`, `OUTBOUND`, `OUT_TIME`
+        `info` (`OrderedDict`): other information.
+        '''
+
+        assert self.agent is not None
+        self.n_step += 1
+        prev_state = self.agent.current_state
         if action is not None:
             if self.continuous:
-                self.vehicle.step(action)
+                self.agent.update(action) # TODO unimplemented function
             else:
                 if not self.action_space.contains(action):
                     raise InvalidAction(
                         f"you passed the invalid action `{action}`. "
                         f"The supported action_space is `{self.action_space}`"
                     )
-                self.vehicle.step(DISCRETE_ACTION[action])
+                self.agent.update(DISCRETE_ACTION[action]) # TODO unimplemented function
 
-        self.t += 1 # . / self.fps
+        # update vehicle box
+        self.curr_vehicle_box = \
+            State2Position(self.agent.current_state).create_box(self.raw_vehicle_box)
+
         observation = self.render(self.render_mode)
 
-        step_reward = 0
-        if action is not None:
-            self.prev_reward = self.reward
         status = self._check_status()
-        if status == Status.COLLIDED:
-            step_reward = -50
-        elif status == Status.OUTBOUND:
-            step_reward = -50
-        elif status == Status.OUTTIME:
-            step_reward = -20
-        elif status == Status.ARRIVED:
-            step_reward = 50
-        elif status == Status.CONTINUE:
-            step_reward = self._get_reward(prev_state, self.vehicle.state)
-        self.reward += step_reward
+        done = (status != Status.NORMAL)
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.is_open = False
+        reward = self._get_reward(State2Position(prev_state), \
+            State2Position(self.agent.current_state))
 
-        return observation, step_reward, status, self.is_open
+        # done = False if status==Status.CONTINUE else True
+        info = OrderedDict({'reward_info':None,
+            'path_to_dest':None,
+            'status':status})
+
+        return observation, reward, done, info
 
     def _render(self, surface: pygame.Surface):
         surface.fill(BG_COLOR)
@@ -334,69 +326,77 @@ class CarParking(gym.Env):
             surface, DEST_COLOR, self._coord_transform(self.map.dest_box))#, width=1
         
         pygame.draw.polygon(
-            surface, self.vehicle.color, self._coord_transform(self.vehicle.box))
+            surface, VEHICLE_COLOR, self._coord_transform(self.curr_vehicle_box))
 
-        if len(self.vehicle.trajectory) > 1:
+        if len(self.agent.history_state) > 1:
             pygame.draw.lines(
                 surface, TRAJ_COLOR, False, 
-                self._coord_transform(LineString(self.vehicle.trajectory[-10:]))
+                self._coord_transform(LineString(self.agent.trajectory)) # TODO convert the history to trajectory
             )
 
-    def _get_observation(self, surface: pygame.Surface):
-        angle = self.vehicle.state.heading
+    def _get_img_observation(self, surface: pygame.Surface):
+        angle = self.agent.current_state.heading
         old_center = surface.get_rect().center
 
         # Rotate and find the center of the vehicle
         capture = pygame.transform.rotate(surface, np.rad2deg(angle))
-        rotate = pygame.Surface((WIN_W, WIN_H))
+        rotate = pygame.Surface((VIDEO_W, VIDEO_H))
         rotate.blit(capture, capture.get_rect(center=old_center))
         
-        vehicle_center = np.array(self._coord_transform(self.vehicle.box.centroid)[0])
+        vehicle_center = np.array(self._coord_transform(self.curr_vehicle_box.centroid)[0])
         dx = (vehicle_center[0]-old_center[0])*np.cos(angle) \
             + (vehicle_center[1]-old_center[1])*np.sin(angle)
         dy = -(vehicle_center[0]-old_center[0])*np.sin(angle) \
             + (vehicle_center[1]-old_center[1])*np.cos(angle)
         
         # align the center of the observation with the center of the vehicle
-        observation = pygame.Surface((WIN_W, WIN_H))
+        observation = pygame.Surface((VIDEO_W, VIDEO_H))
     
         observation.fill(BG_COLOR)
         observation.blit(rotate, (int(-dx), int(-dy)))
         observation = observation.subsurface((
-            (WIN_W-OBS_W)/2, (WIN_H-OBS_H)/2), (OBS_W, OBS_H))
-
-        # add destination info when it is out of horizon
-        if self.map.dest_box.centroid.distance(self.vehicle.box.centroid)>150/self.k:
-            dest_direction_relative = math.atan2(self.map.dest_box.centroid.y-self.vehicle.box.centroid.y, \
-                self.map.dest_box.centroid.x-self.vehicle.box.centroid.x) - self.vehicle.state.heading
-            arrow_margin = 20
-            if -OBS_H/OBS_W < math.tan(dest_direction_relative) <= OBS_H/OBS_W:
-                arrow_pos_x = OBS_W - arrow_margin if math.cos(dest_direction_relative)>0 else arrow_margin
-                arrow_pos_y = (arrow_pos_x-OBS_W/2) * math.tan(dest_direction_relative) + OBS_H/2
-            else:
-                arrow_pos_y = OBS_H - arrow_margin if math.sin(dest_direction_relative)>0 else arrow_margin
-                arrow_pos_x = (arrow_pos_y-OBS_H/2) * math.cos(dest_direction_relative) / math.sin(dest_direction_relative) + OBS_W/2
-            # create the arrow
-            arrow_margin -= 2
-            pt1 = (int(arrow_pos_x+math.cos(dest_direction_relative)*arrow_margin),\
-                    int(arrow_pos_y+math.sin(dest_direction_relative)*arrow_margin))
-            pt2 = (int(arrow_pos_x+math.cos(dest_direction_relative+1.7)*arrow_margin/2),\
-                    int(arrow_pos_y+math.sin(dest_direction_relative+1.7)*arrow_margin/2))
-            pt3 = (int(arrow_pos_x), int(arrow_pos_y))
-            pt4 = (int(arrow_pos_x+math.cos(dest_direction_relative-1.7)*arrow_margin/2),\
-                    int(arrow_pos_y+math.sin(dest_direction_relative-1.7)*arrow_margin/2))
-            pygame.draw.polygon(observation, DEST_COLOR, [pt1, pt2, pt3, pt4])
-
+            (VIDEO_W-STATE_W)/2, (VIDEO_H-STATE_H)/2), (STATE_W, STATE_H))
     
         obs_str = pygame.image.tostring(observation, "RGB")
         observation = np.frombuffer(obs_str, dtype=np.uint8)
-        observation = observation.reshape(self.observation_space.shape)
-
+        observation = observation.reshape(self.observation_space['img'].shape)
         return observation
+
+    def _process_img_observation(self, img):
+        '''
+        Process the img into channels of different information.
+
+        Parameters
+        ------
+        img (np.ndarray): RGB image of shape (OBS_W, OBS_H, 3)
+
+        Returns
+        ------
+        processed img (np.ndarray): shape (OBS_W//downsample_rate, OBS_H//downsample_rate, n_channels )
+        '''
+        return self.img_processor.process_img(img)
+
+    def _get_lidar_observation(self,):
+        obs_list = [obs.shape for obs in self.map.obstacles]
+        ego_pos = (self.agent.current_state.x, self.agent.current_state.y,\
+             self.agent.current_state.heading)
+        lidar_view = self.lidar.get_observation(ego_pos, obs_list)
+        return lidar_view
+    
+    def _get_targt_repr(self,):
+        # target position representation
+        dest_pos = (self.map.dest.loc.x, self.map.dest.loc.y, self.map.dest.heading)
+        ego_pos = (self.agent.current_state.x, self.agent.current_state.y,\
+             self.agent.current_state.heading)
+        rel_distance = math.sqrt((dest_pos[0]-ego_pos[0])**2 + (dest_pos[1]-ego_pos[1])**2)
+        rel_angle = math.atan2(dest_pos[1]-ego_pos[1], dest_pos[0]-ego_pos[0]) - ego_pos[2]
+        rel_dest_heading = dest_pos[2] - ego_pos[2]
+        tgt_repr = np.array([rel_distance, math.cos(rel_angle), math.sin(rel_angle),\
+            math.cos(rel_dest_heading), math.cos(rel_dest_heading)])
+        return tgt_repr 
 
     def render(self, mode: str = "human"):
         assert mode in self.metadata["render_mode"]
-        assert self.vehicle is not None
 
         if mode == "human":
             display_flags = pygame.SHOWN
@@ -405,14 +405,20 @@ class CarParking(gym.Env):
         if self.screen is None:
             pygame.init()
             pygame.display.init()
-            self.screen = pygame.display.set_mode((WIN_W, WIN_H), flags = display_flags)
+            self.screen = pygame.display.set_mode((VIDEO_W, VIDEO_H), flags = display_flags)
         if self.clock is None:
             self.clock = pygame.time.Clock()
 
         self._render(self.screen)
-        observation = self._get_observation(self.screen)
+        observation = {'img':None, 'lidar':None, 'target':None}
+        if self.use_img_observation:
+            raw_observation = self._get_img_observation(self.screen)
+            observation['img'] = self._process_img_observation(raw_observation)
+        if self.use_lidar_observation:
+            observation['lidar'] = self._get_lidar_observation()
+        observation['target'] = self._get_targt_repr()
         pygame.display.update()
-        self.clock.tick(self.fps)
+        self.clock.tick(self.render_fps)
         
         return observation
 
@@ -448,8 +454,8 @@ if __name__ == "__main__":
         total_reward = 0.0
         n_step = 0
         restart = False
-        status = Status.CONTINUE
-        while status == Status.CONTINUE and is_open:
+        status = Status.NORMAL
+        while status == Status.NORMAL and is_open:
             register_input()
             observation, reward, status = env.step(a)
             total_reward += reward
