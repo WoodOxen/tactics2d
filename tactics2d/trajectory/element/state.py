@@ -50,5 +50,7 @@ class State(object):
     def set_speed(self, speed: float):
         self.v_norm = speed
 
-    def set_accel(self, accel: float):
-        self.a_norm = accel
+    def set_accel(self, ax: float, ay: float):
+        self.ax = ax
+        self.ay = ay
+        self.a_norm = np.linalg.norm([self.ax, self.ay])

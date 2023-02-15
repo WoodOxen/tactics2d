@@ -1,5 +1,6 @@
 from typing import List, Tuple
 
+
 class RegulatoryElement(object):
     """_summary_
     The attributes of Regulatory refers to

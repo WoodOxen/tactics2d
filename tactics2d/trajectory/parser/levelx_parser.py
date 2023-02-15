@@ -91,10 +91,10 @@ class LevelXParser(object):
                 if self.dataset == "highD":
                     x, y = self._calibrate_location(state_info["x"], state_info["y"])
                     heading = round(math.atan2(state_info["xVelocity"], state_info["yVelocity"]), 5)
-                    state = State(time_stamp=state_info["frame"], x=x, y=y, heading=heading)
+                    state = State(frame=state_info["frame"], x=x, y=y, heading=heading)
                 else:
                     x, y = self._calibrate_location(state_info["xCenter"], state_info["yCenter"])
-                    state = State(time_stamp=state_info["frame"], x=x, y=y,heading=state_info["heading"])
+                    state = State(frame=state_info["frame"], x=x, y=y,heading=state_info["heading"])
                 state.set_velocity(state_info["xVelocity"], state_info["yVelocity"])
                 state.set_accel(state_info["xAcceleration"], state_info["yAcceleration"])
 

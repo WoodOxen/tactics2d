@@ -45,7 +45,7 @@ def _load_node(xml_node: ET.Element, projector: Proj, origin: Point) -> Node:
     x, y = projector(xml_node.get("lon"), xml_node.get("lat"))
     proj_x = x - origin[0]
     proj_y = y - origin[1]
-    return Node(node_id, Point(proj_x, proj_y))
+    return Node(node_id, proj_x, proj_y)
 
 def _get_tags(xml_node: ET.Element) -> dict:
     tags = dict()

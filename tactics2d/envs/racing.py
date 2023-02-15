@@ -10,10 +10,10 @@ from gym import spaces
 
 from tactics2d.common.get_circle import get_circle
 from tactics2d.common.bezier import Bezier
-from tactics2d.map_base.lane import Lane
-from tactics2d.map_base.map import Map
-from tactics2d.object_base.vehicle import Vehicle
-from tactics2d.object_base.state import State
+from tactics2d.map.element.lane import Lane
+from tactics2d.map.element.map import Map
+from tactics2d.object.element.vehicle import Vehicle
+from tactics2d.object.element.pedestrian import Pedestrian
 from tactics2d.traffic_event.status import Status
 
 
@@ -101,12 +101,9 @@ class CarRacing(gym.Env):
         self.bezier_generator = Bezier(2, 50)
         self.map = Map(name="CarRacing", scenario_type="racing")
         self.agent = Vehicle(
-            id="0", type="vehicle:racing", width=1.8, length=5, height=1.5,
+            id_="0", type_="vehicle:racing", length=5, width=1.8, height=1.5,
             steering_angle_range=(-0.5, 0.5), steering_velocity_range=(-0.5, 0.5),
-            speed_range=(-10, 100), accel_range=(-1, 1), physics=None
-        )
-        self.window = pyglet.window.Window(
-            resizable=True, visible=(self.render_mode=="human")
+            speed_range=(-10, 100), accel_range=(-1, 1)
         )
 
     def _create_checkpoints(self):
