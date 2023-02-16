@@ -8,11 +8,11 @@ from tactics2d.trajectory.element.state import State
 from tactics2d.trajectory.element.trajectory import Trajectory
 
 
-def _get_vehicle_type(self, length: float, width: float) -> str:
+def _get_vehicle_type(length: float, width: float) -> str:
     return 
 
 
-def _get_pedestrian_type(self, trajectory: Trajectory) -> str:
+def _get_pedestrian_type(trajectory: Trajectory) -> str:
     return
 
 
