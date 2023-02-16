@@ -23,16 +23,16 @@ LENGTH = WHEEL_BASE+FRONT_HANG+REAR_HANG
 WIDTH = 1.942  # width
 # TODO define the vehicle center
 VEHICLE_BOX = LinearRing([
-    (-REAR_HANG, -WIDTH/2), 
-    (FRONT_HANG + WHEEL_BASE, -WIDTH/2), 
+    (-REAR_HANG, -WIDTH/2),
+    (FRONT_HANG + WHEEL_BASE, -WIDTH/2),
     (FRONT_HANG + WHEEL_BASE,  WIDTH/2),
     (-REAR_HANG,  WIDTH/2)])
 
 MIN_DIST_TO_OBST = 0.1
 MIN_PARA_PARK_LOT_LEN = LENGTH*1.25
 MIN_BAY_PARK_LOT_WIDTH = WIDTH + 1.2
-# the distance that the obstacles out of driving area is from dest 
-BAY_PARK_WALL_DIST = 7.0 
+# the distance that the obstacles out of driving area is from dest
+BAY_PARK_WALL_DIST = 7.0
 PARA_PARK_WALL_DIST = 4.5
 
 DEBUG = True
@@ -64,10 +64,9 @@ def get_rand_pos(origin_x, origin_y, angle_min, angle_max, radius_min, radius_ma
     radius_rand = random_gaussian_num((radius_min+radius_max)/2, (radius_max-radius_min)/4, radius_min, radius_max)
     return origin_x+cos(angle_rand)*radius_rand, origin_y+sin(angle_rand)*radius_rand
 
-def generate_bay_parking_case(VehicleBox:LinearRing=VEHICLE_BOX):
+def generate_bay_parking_case(VehicleBox):
     '''
     Generate the parameters that a bay parking case need.
-    
     Returns
     ----------
         `start` (list): [x, y, yaw]
@@ -78,10 +77,10 @@ def generate_bay_parking_case(VehicleBox:LinearRing=VEHICLE_BOX):
     bay_half_len = 15.
     generate_success = True
     # generate obstacle on back
-    obstacle_back = LinearRing(( 
+    obstacle_back = LinearRing((
         (origin[0]+bay_half_len, origin[1]),
-        (origin[0]+bay_half_len, origin[1]-1), 
-        (origin[0]-bay_half_len, origin[1]-1), 
+        (origin[0]+bay_half_len, origin[1]-1),
+        (origin[0]-bay_half_len, origin[1]-1),
         (origin[0]-bay_half_len, origin[1])))
     
     if DEBUG:
@@ -109,10 +108,10 @@ def generate_bay_parking_case(VehicleBox:LinearRing=VEHICLE_BOX):
         min_dist_to_obst = 0.4 + MIN_DIST_TO_OBST
         left_obst_rf = get_rand_pos(*car_lf, pi*11/12, pi*13/12, min_dist_to_obst, max_dist_to_obst)
         left_obst_rb = get_rand_pos(*car_lb, pi*11/12, pi*13/12, min_dist_to_obst, max_dist_to_obst)
-        obstacle_left = LinearRing(( 
+        obstacle_left = LinearRing((
             left_obst_rf,
-            left_obst_rb, 
-            (origin[0]-bay_half_len, origin[1]), 
+            left_obst_rb,
+            (origin[0]-bay_half_len, origin[1]),
             (origin[0]-bay_half_len, left_obst_rf[1])))
     else: # generate another vehicle as obstacle on left
         max_dist_to_obst = 1.0
@@ -131,9 +130,9 @@ def generate_bay_parking_case(VehicleBox:LinearRing=VEHICLE_BOX):
     if random()<0.5: # generate simple obstacle
         right_obst_lf = get_rand_pos(*car_rf, -pi/12, pi/12, min_dist_to_obst, max_dist_to_obst)
         right_obst_lb = get_rand_pos(*car_rb, -pi/12, pi/12, min_dist_to_obst, max_dist_to_obst)
-        obstacle_right = LinearRing(( 
+        obstacle_right = LinearRing((
             (origin[0]+bay_half_len, right_obst_lf[1]),
-            (origin[0]+bay_half_len, origin[1]), 
+            (origin[0]+bay_half_len, origin[1]),
             right_obst_lb, 
             right_obst_lf))
     else: # generate another vehicle as obstacle on right
@@ -160,16 +159,16 @@ def generate_bay_parking_case(VehicleBox:LinearRing=VEHICLE_BOX):
     max_obstacle_y = max([np.max(np.array(obs.coords)[:,1]) for obs in obstacles])+MIN_DIST_TO_OBST
     other_obstcales = []
     if random()<0.2: # in this case only a wall will be generate
-        other_obstcales = [LinearRing(( 
+        other_obstcales = [LinearRing((
         (origin[0]-bay_half_len, BAY_PARK_WALL_DIST+max_obstacle_y+MIN_DIST_TO_OBST),
-        (origin[0]+bay_half_len, BAY_PARK_WALL_DIST+max_obstacle_y+MIN_DIST_TO_OBST), 
-        (origin[0]+bay_half_len, BAY_PARK_WALL_DIST+max_obstacle_y+MIN_DIST_TO_OBST+0.1), 
+        (origin[0]+bay_half_len, BAY_PARK_WALL_DIST+max_obstacle_y+MIN_DIST_TO_OBST),
+        (origin[0]+bay_half_len, BAY_PARK_WALL_DIST+max_obstacle_y+MIN_DIST_TO_OBST+0.1),
         (origin[0]-bay_half_len, BAY_PARK_WALL_DIST+max_obstacle_y+MIN_DIST_TO_OBST+0.1)))]
     else:
-        other_obstacle_range = LinearRing(( 
+        other_obstacle_range = LinearRing((
         (origin[0]-bay_half_len, BAY_PARK_WALL_DIST+max_obstacle_y),
-        (origin[0]+bay_half_len, BAY_PARK_WALL_DIST+max_obstacle_y), 
-        (origin[0]+bay_half_len, BAY_PARK_WALL_DIST+max_obstacle_y+8), 
+        (origin[0]+bay_half_len, BAY_PARK_WALL_DIST+max_obstacle_y),
+        (origin[0]+bay_half_len, BAY_PARK_WALL_DIST+max_obstacle_y+8),
         (origin[0]-bay_half_len, BAY_PARK_WALL_DIST+max_obstacle_y+8)))
         valid_obst_x_range = (origin[0]-bay_half_len+2, origin[0]+bay_half_len-2)
         valid_obst_y_range = (BAY_PARK_WALL_DIST+max_obstacle_y+2, BAY_PARK_WALL_DIST+max_obstacle_y+6)
@@ -230,7 +229,7 @@ def generate_bay_parking_case(VehicleBox:LinearRing=VEHICLE_BOX):
         # print(1)
         return generate_bay_parking_case()
 
-def generate_parallel_parking_case(VehicleBox:LinearRing=VEHICLE_BOX):
+def generate_parallel_parking_case(VehicleBox):
     '''
     Generate the parameters that a parallel parking case need.
     
@@ -327,16 +326,16 @@ def generate_parallel_parking_case(VehicleBox:LinearRing=VEHICLE_BOX):
     max_obstacle_y = max([np.max(np.array(obs.coords)[:,1]) for obs in obstacles])+MIN_DIST_TO_OBST
     other_obstcales = []
     if random()<0.2: # in this case only a wall will be generate
-        other_obstcales = [LinearRing(( 
+        other_obstcales = [LinearRing((
         (origin[0]-bay_half_len, PARA_PARK_WALL_DIST+max_obstacle_y+MIN_DIST_TO_OBST),
-        (origin[0]+bay_half_len, PARA_PARK_WALL_DIST+max_obstacle_y+MIN_DIST_TO_OBST), 
-        (origin[0]+bay_half_len, PARA_PARK_WALL_DIST+max_obstacle_y+MIN_DIST_TO_OBST+0.1), 
+        (origin[0]+bay_half_len, PARA_PARK_WALL_DIST+max_obstacle_y+MIN_DIST_TO_OBST),
+        (origin[0]+bay_half_len, PARA_PARK_WALL_DIST+max_obstacle_y+MIN_DIST_TO_OBST+0.1),
         (origin[0]-bay_half_len, PARA_PARK_WALL_DIST+max_obstacle_y+MIN_DIST_TO_OBST+0.1)))]
     else:
-        other_obstacle_range = LinearRing(( 
+        other_obstacle_range = LinearRing((
         (origin[0]-bay_half_len, PARA_PARK_WALL_DIST+max_obstacle_y),
-        (origin[0]+bay_half_len, PARA_PARK_WALL_DIST+max_obstacle_y), 
-        (origin[0]+bay_half_len, PARA_PARK_WALL_DIST+max_obstacle_y+8), 
+        (origin[0]+bay_half_len, PARA_PARK_WALL_DIST+max_obstacle_y),
+        (origin[0]+bay_half_len, PARA_PARK_WALL_DIST+max_obstacle_y+8),
         (origin[0]-bay_half_len, PARA_PARK_WALL_DIST+max_obstacle_y+8)))
         valid_obst_x_range = (origin[0]-bay_half_len+2, origin[0]+bay_half_len-2)
         valid_obst_y_range = (PARA_PARK_WALL_DIST+max_obstacle_y+2, PARA_PARK_WALL_DIST+max_obstacle_y+6)
@@ -408,7 +407,7 @@ def generate_parallel_parking_case(VehicleBox:LinearRing=VEHICLE_BOX):
 class Area(object):
     def __init__(
         self,
-        shape = None, 
+        shape = None,
         subtype: str = None,
     ):
         self.shape = shape
@@ -418,8 +417,8 @@ class Area(object):
         return np.array(self.shape.coords)
 
 class ParkingMapNormal(Map):
-    def __init__(self):
-        super.__init__(name="CarParking", scenario_type="parking")
+    def __init__(self,name="CarParking", scenario_type="parking"):
+        super.__init__(name, scenario_type)
 
         self.start: Position = None
         self.dest: Position = None
@@ -431,18 +430,18 @@ class ParkingMapNormal(Map):
         self.obstacles:List[Area] = []
         self.vehicle_box:LinearRing = None
     
-    def set_vehicle(self, vehicle_box): 
+    def set_vehicle(self, vehicle_box):
         self.vehicle_box = vehicle_box
 
-    def reset(self, case_id: int = None, vehicle_box: LinearRing = VEHICLE_BOX) -> Position:
-        if case_id == 0 or (random() > 0.5 and case_id != 1):
-            start, dest, obstacles = generate_bay_parking_case()
+    def reset(self) -> Position:
+        self.set_vehicle(VEHICLE_BOX) # TODO
+        if random() > 0.5:
+            start, dest, obstacles = generate_bay_parking_case(self.vehicle_box)
             self.case_id = 0
         else:
-            start, dest, obstacles = generate_parallel_parking_case()
+            start, dest, obstacles = generate_parallel_parking_case(self.vehicle_box)
             self.case_id = 1
 
-        self.set_vehicle(vehicle_box) #TODO
         self.start = Position(start)
         self.start_box = self.start.create_box(self.vehicle_box)
         self.dest = Position(dest)
@@ -451,9 +450,9 @@ class ParkingMapNormal(Map):
         self.xmax = np.ceil(max(self.start.loc.x, self.dest.loc.x) + 10)
         self.ymin = np.floor(min(self.start.loc.y, self.dest.loc.y) - 10)
         self.ymax = np.ceil(max(self.start.loc.y, self.dest.loc.y) + 10)
-        self.set_boundary(self.xmin, self.ymin, self.xmax, self.ymax)
+        self.set_boundary([self.xmin, self.ymin, self.xmax, self.ymax])
         self.obstacles = list([Area(shape=obs, subtype="obstacle", \
-            color=(150, 150, 150, 255)) for obs in obstacles])
+            ) for obs in obstacles])
         self.n_obstacle = len(self.obstacles)
 
         return self.start
