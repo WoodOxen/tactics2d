@@ -64,7 +64,7 @@ def get_rand_pos(origin_x, origin_y, angle_min, angle_max, radius_min, radius_ma
     radius_rand = random_gaussian_num((radius_min+radius_max)/2, (radius_max-radius_min)/4, radius_min, radius_max)
     return origin_x+cos(angle_rand)*radius_rand, origin_y+sin(angle_rand)*radius_rand
 
-def generate_bay_parking(vehicle_box):
+def gene_bay_park(vehicle_box):
     '''
     Generate the parameters that a bay parking case need.
     Returns
@@ -217,15 +217,14 @@ def generate_bay_parking(vehicle_box):
         ax.add_patch(plt.Polygon(xy=get_box_coords(start_x, start_y, start_yaw, vehicle_box), color='g'))
         print(generate_success)
         plt.show()
-    
     # return if generate successfully
     if generate_success:
         return [start_x, start_y, start_yaw], [dest_x, dest_y, dest_yaw], obstacles
     else:
         # print(1)
-        return generate_bay_parking(vehicle_box)
+        return gene_bay_park(vehicle_box)
 
-def generate_parallel_parking(vehicle_box):
+def gene_parallel_park(vehicle_box):
     '''
     Generate the parameters that a parallel parking case need.
     
@@ -389,12 +388,11 @@ def generate_parallel_parking(vehicle_box):
         ax.add_patch(plt.Polygon(xy=get_box_coords(start_x, start_y, start_yaw, vehicle_box), color='g'))
         print(generate_success)
         plt.show()
-    
     # return if success
     if generate_success:
         return [start_x, start_y, start_yaw], [dest_x, dest_y, dest_yaw], obstacles
     else:
-        return generate_parallel_parking(vehicle_box)
+        return gene_parallel_park(vehicle_box)
 
 # TODO use class `Area` from tactics2d.map_base.area
 class Area(object):
@@ -429,10 +427,10 @@ class ParkingMapNormal(Map):
     def reset(self) -> Position:
         self.set_vehicle(VEHICLE_BOX) # TODO
         if random() > 0.5:
-            start, dest, obstacles = generate_bay_parking(self.vehicle_box)
+            start, dest, obstacles = gene_bay_park(self.vehicle_box)
             self.case_id = 0
         else:
-            start, dest, obstacles = generate_parallel_parking(self.vehicle_box)
+            start, dest, obstacles = gene_parallel_park(self.vehicle_box)
             self.case_id = 1
 
         self.start = Position(start)
