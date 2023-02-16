@@ -19,12 +19,10 @@ except ImportError:
         "pygame is not installed, run `pip install pygame`"
     )
 
-from envs.lidar_simulator import LidarSimlator
-from envs.observation_processor import Obs_Processor
+from tactics2d.envs.lidar_simulator import LidarSimlator
 from tactics2d.envs.status import Status
-from envs.parking_base import ParkingMapNormal
-from envs.observation_processor import Obs_Processor
-from object_base.position import Position
+from tactics2d.envs.parking_base import ParkingMapNormal
+from tactics2d.object_base.position import Position
 from tactics2d.object_base.vehicle import Vehicle
 from tactics2d.object_base.state import State
 
@@ -74,23 +72,21 @@ def State2Position(state:State)->Position:
 class CarParking(gym.Env):
     """
     Description:
-    
     Args:
-        
     """
 
     metadata = {
         "render_mode": [
-            "human", 
+            "human",
             "rgb_array",
         ]
     }
 
     def __init__(
-        self, 
+        self,
         render_mode: Optional[str] = "human",
         render_fps: int = FPS,
-        verbose: bool =True, 
+        verbose: bool =True,
         continuous: bool =True,
         use_lidar_observation: bool = True,
         use_img_observation: bool = True,
@@ -114,19 +110,19 @@ class CarParking(gym.Env):
         self.matrix = None
         self.clock = None
         self.is_open = True
-        self.t = 0.0
+        self.n_step = 0.0
         self.k = None
         self.tgt_repr_size = 5 # relative_distance, cos(theta), sin(theta), cos(phi), sin(phi)
 
         self.map = ParkingMapNormal()
-        self.agent = Vehicle( 
+        self.agent = Vehicle(
             id="0", type="vehicle:racing", width=1.8, length=5, height=1.5, # TODO make the hyperparameters
             steering_angle_range=(-0.5, 0.5), steering_velocity_range=(-0.5, 0.5),
             speed_range=(-10, 100), accel_range=(-1, 1), physics=None
         )
         self.raw_vehicle_box = LinearRing([
-            (-REAR_HANG, -WIDTH/2), 
-            (FRONT_HANG + WHEEL_BASE, -WIDTH/2), 
+            (-REAR_HANG, -WIDTH/2),
+            (FRONT_HANG + WHEEL_BASE, -WIDTH/2),
             (FRONT_HANG + WHEEL_BASE,  WIDTH/2),
             (-REAR_HANG,  WIDTH/2)])
         self.curr_vehicle_box = None
@@ -144,18 +140,14 @@ class CarParking(gym.Env):
             ) # steer, speed
         else:
             self.action_space = spaces.Discrete(5) # do nothing, left, right, gas, brake
-       
         self.observation_space = {'lidar':None, 'img':None, 'target':None}
         if self.use_img_observation:
-            self.img_processor = Obs_Processor()
-            self.observation_space['img'] = spaces.Box(low=0, high=255, 
-                shape=(STATE_W//self.img_processor.downsample_rate, STATE_H//self.img_processor.downsample_rate, 
-                self.img_processor.n_channels), dtype=np.uint8
-            )
+            self.observation_space['img'] = spaces.Box(low=0, high=255,
+                shape=(STATE_W, STATE_H, 3), dtype=np.uint8)
         if self.use_lidar_observation:
             # the observation is composed of lidar points and target representation
             # the target representation is (relative_distance, cos(theta), sin(theta), cos(phi), sin(phi))
-            # where the theta indicates the relative angle of parking lot, and phi means the heading of 
+            # where the theta indicates the relative angle of parking lot, and phi means the heading of
             # parking lit in the polar coordinate of the ego car's view
             low_bound, high_bound = np.zeros((LIDAR_NUM)), np.ones((LIDAR_NUM))*LIDAR_RANGE
             self.observation_space['lidar'] = spaces.Box(
@@ -173,7 +165,7 @@ class CarParking(gym.Env):
 
         initial_pos = self.map.reset()
         state = State(
-            timestamp=self.n_step, heading=initial_pos.heading, 
+            timestamp=self.n_step, heading=initial_pos.heading,
             x = initial_pos.loc.x, y = initial_pos.loc.y, vx=0, vy=0
         )
         self.agent.reset(state)
@@ -192,8 +184,8 @@ class CarParking(gym.Env):
         self.k = k
         return [k, 0, 0, k, bx, by]
 
-    def _coord_transform(self, object) -> list:
-        transformed = affine_transform(object, self.matrix)
+    def _coord_transform(self, obj) -> list:
+        transformed = affine_transform(obj, self.matrix)
         return list(transformed.coords)
 
     def _detect_collision(self):
@@ -240,7 +232,7 @@ class CarParking(gym.Env):
 
     def _get_reward(self, prev_state: Position, curr_state: Position):
         # time penalty
-        time_cost = - np.tanh(self.t / (10*MAX_STEP))
+        time_cost = - np.tanh(self.n_step / (10*MAX_STEP))
 
         # Euclidean distance reward & angle reward
         def get_angle_diff(angle1, angle2):
@@ -269,12 +261,10 @@ class CarParking(gym.Env):
 
         Returns:
         ----------
-        ``obsercation`` (Dict): 
+        ``obsercation`` (Dict):
             the observation of image based surroundings, lidar view and target representation.
-            If `use_lidar_observation` is `True`, then `obsercation['img'] = None`.
-            If `use_lidar_observation` is `False`, then `obsercation['lidar'] = None`. 
 
-        ``reward`` (float): the reward considering the distance and angle difference between 
+        ``reward`` (float): the reward considering the distance and angle difference between
                 current state and destination.
         `status` (`Status`): represent the state of vehicle, including:
                 `NORMAL`, `ARRIVED`, `COLLIDED`, `OUTBOUND`, `OUT_TIME`
@@ -330,7 +320,7 @@ class CarParking(gym.Env):
 
         if len(self.agent.history_state) > 1:
             pygame.draw.lines(
-                surface, TRAJ_COLOR, False, 
+                surface, TRAJ_COLOR, False,
                 self._coord_transform(LineString(self.agent.trajectory)) # TODO convert the history to trajectory
             )
 
@@ -362,20 +352,6 @@ class CarParking(gym.Env):
         observation = observation.reshape(self.observation_space['img'].shape)
         return observation
 
-    def _process_img_observation(self, img):
-        '''
-        Process the img into channels of different information.
-
-        Parameters
-        ------
-        img (np.ndarray): RGB image of shape (OBS_W, OBS_H, 3)
-
-        Returns
-        ------
-        processed img (np.ndarray): shape (OBS_W//downsample_rate, OBS_H//downsample_rate, n_channels )
-        '''
-        return self.img_processor.process_img(img)
-
     def _get_lidar_observation(self,):
         obs_list = [obs.shape for obs in self.map.obstacles]
         ego_pos = (self.agent.current_state.x, self.agent.current_state.y,\
@@ -393,7 +369,7 @@ class CarParking(gym.Env):
         rel_dest_heading = dest_pos[2] - ego_pos[2]
         tgt_repr = np.array([rel_distance, math.cos(rel_angle), math.sin(rel_angle),\
             math.cos(rel_dest_heading), math.cos(rel_dest_heading)])
-        return tgt_repr 
+        return tgt_repr
 
     def render(self, mode: str = "human"):
         assert mode in self.metadata["render_mode"]
@@ -412,8 +388,7 @@ class CarParking(gym.Env):
         self._render(self.screen)
         observation = {'img':None, 'lidar':None, 'target':None}
         if self.use_img_observation:
-            raw_observation = self._get_img_observation(self.screen)
-            observation['img'] = self._process_img_observation(raw_observation)
+            observation['img'] = self._get_img_observation(self.screen)
         if self.use_lidar_observation:
             observation['lidar'] = self._get_lidar_observation()
         observation['target'] = self._get_targt_repr()
