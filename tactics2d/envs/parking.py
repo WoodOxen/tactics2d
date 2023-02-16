@@ -1,5 +1,3 @@
-
-
 import sys
 sys.path.append("../")
 from typing import Optional, Union
@@ -21,10 +19,10 @@ except ImportError:
         "pygame is not installed, run `pip install pygame`"
     )
 
-from envs.lidar_simulator import LidarSimlator
+from tactics2d.envs.lidar_simulator import LidarSimlator
 from tactics2d.envs.status import Status
-from envs.parking_base import ParkingMapNormal
-from object_base.position import Position
+from tactics2d.envs.parking_base import ParkingMapNormal
+from tactics2d.object_base.position import Position
 from tactics2d.object_base.vehicle import Vehicle
 from tactics2d.object_base.state import State
 
@@ -114,7 +112,7 @@ class CarParking(gym.Env):
         self.matrix = None
         self.clock = None
         self.is_open = True
-        self.t = 0.0
+        self.n_step = 0.0
         self.k = None
         self.tgt_repr_size = 5 # relative_distance, cos(theta), sin(theta), cos(phi), sin(phi)
 
@@ -237,7 +235,7 @@ class CarParking(gym.Env):
 
     def _get_reward(self, prev_state: Position, curr_state: Position):
         # time penalty
-        time_cost = - np.tanh(self.t / (10*MAX_STEP))
+        time_cost = - np.tanh(self.n_step / (10*MAX_STEP))
 
         # Euclidean distance reward & angle reward
         def get_angle_diff(angle1, angle2):
