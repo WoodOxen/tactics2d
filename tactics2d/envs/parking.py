@@ -140,7 +140,6 @@ class CarParking(gym.Env):
             ) # steer, speed
         else:
             self.action_space = spaces.Discrete(5) # do nothing, left, right, gas, brake
-       
         self.observation_space = {'lidar':None, 'img':None, 'target':None}
         if self.use_img_observation:
             self.observation_space['img'] = spaces.Box(low=0, high=255,
