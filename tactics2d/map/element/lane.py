@@ -1,7 +1,7 @@
 import warnings
 from enum import Enum
 
-from shapely.geometry import LineString, Polygon
+from shapely.geometry import LineString, LinearRing
 
 from tactics2d.map.element import LEGAL_SPEED_UNIT
 
@@ -37,7 +37,7 @@ class Lane(object):
     """
     def __init__(
         self, id_: str, left_side: LineString, right_side: LineString, line_ids: set = None,
-        type_: str = "lanelet", subtype: str = None, location: str = None,
+        type_: str = "lanelet", subtype: str = None, color: tuple = None, location: str = None,
         inferred_participants: list = None,
         speed_limit: float = None, speed_limit_unit: str = "km/h",
         speed_limit_mandatory: bool = True,
@@ -50,6 +50,7 @@ class Lane(object):
         self.line_ids = line_ids
         self.type_ = type_
         self.subtype = subtype
+        self.color = color
         self.location = location
         self.inferred_participants = inferred_participants
         self.speed_limit = speed_limit
@@ -57,7 +58,8 @@ class Lane(object):
         self.speed_limit_mandatory = speed_limit_mandatory
         self.custom_tags = custom_tags
 
-        # lists of related lanes
+        self.polygon = LinearRing(list(self.left_side.coords) + list(self.right_side.reverse().coords))
+
         self.predecessors = set()
         self.successors = set()
         self.left_neighbors = set()
@@ -71,26 +73,17 @@ class Lane(object):
 
     @property
     def ends(self) -> list:
-        """Retun the end points of the lane
+        """Return the end points of the lane
         """
         return [self.left_side.coords[-1], self.right_side.coords[-1]]
 
     @property
-    def polygon(self) -> Polygon:
-        """Return the lane's figure as a polygon
-        """
-        left_side_coords = list(self.left_side.coords)
-        right_side_coords = list(self.right_side.coords)
-        right_side_coords.reverse()
-        return Polygon(left_side_coords+right_side_coords)
-
-    @property
     def shape(self) -> list:
-        """Retun the shape of the lane
+        """Return the shape of the lane
         """
         return list(self.polygon.coords)
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         """
         """
         if self.speed_limit_unit not in LEGAL_SPEED_UNIT:

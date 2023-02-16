@@ -47,6 +47,7 @@ def _load_node(xml_node: ET.Element, projector: Proj, origin: Point) -> Node:
     proj_y = y - origin[1]
     return Node(node_id, proj_x, proj_y)
 
+
 def _get_tags(xml_node: ET.Element) -> dict:
     tags = dict()
     tags["custom_tags"] = dict()
@@ -103,6 +104,7 @@ def _get_tags(xml_node: ET.Element) -> dict:
             tags["custom_tags"][tag.get("k")] = tag.get("v")
     return tags
 
+
 def _load_roadline(xml_node: ET.Element, map_: Map) -> Lane:
     line_id = xml_node.get("id")
     point_list = []
@@ -121,6 +123,7 @@ def _load_roadline(xml_node: ET.Element, map_: Map) -> Lane:
 
     return RoadLine(line_id, linestring, **line_tags)
 
+
 def _append_point_list(point_list, new_points, component_id):
     if point_list[-1] == new_points[0]:
         pass
@@ -135,6 +138,7 @@ def _append_point_list(point_list, new_points, component_id):
         raise MapParseError("Points on the side of relation %s is not continuous." % component_id)
 
     point_list += new_points[1:]
+
 
 def _load_lane(xml_node: ET.Element, map_: Map) -> Lane:
     lane_id = xml_node.get("id")
@@ -173,6 +177,7 @@ def _load_lane(xml_node: ET.Element, map_: Map) -> Lane:
     lane_tags = _get_tags(xml_node)
 
     return Lane(lane_id, left_side, right_side, line_ids, **lane_tags)
+
 
 def _load_area(xml_node: ET.Element, map_: Map) -> Area:
     area_id = xml_node.get("id")
@@ -215,6 +220,7 @@ def _load_area(xml_node: ET.Element, map_: Map) -> Area:
     
     return Area(area_id, polygon, line_ids, **area_tags)
 
+
 def _load_regulatory(xml_node: ET.Element) -> RegulatoryElement:
     regulatory_id = xml_node.get("id")
     relation_list = []
@@ -227,6 +233,19 @@ def _load_regulatory(xml_node: ET.Element) -> RegulatoryElement:
 
     regulatory_tags = _get_tags(xml_node)
     return RegulatoryElement(regulatory_id, relation_list, lane_list, **regulatory_tags)
+
+
+def _get_map_bounds(nodes: dict):
+    x_min, x_max, y_min, y_max = float('inf'), float('-inf'), float('inf'), float('-inf')
+
+    for node in nodes.values():
+        x_min = min(x_min, node.x)
+        x_max = max(x_max, node.x)
+        y_min = min(y_min, node.y)
+        y_max = max(y_max, node.y)
+    
+    return x_min, x_max, y_min, y_max
+
 
 def parse(xml_root: ET.ElementTree, map_config: dict) -> Map:
 
@@ -264,8 +283,6 @@ def parse(xml_root: ET.ElementTree, map_config: dict) -> Map:
                 area = _load_area(xml_node, map_)
                 map_.add_area(area)
 
-    # Regulatory may contain any type of road element, so the parsing of regulatory
-    # must be at the final step.
     for xml_node in xml_root.findall("relation"):
         if xml_node.get("action") == "delete":
             continue
@@ -273,3 +290,6 @@ def parse(xml_root: ET.ElementTree, map_config: dict) -> Map:
             if tag.get("v") == "regulatory_element":
                 regulatory = _load_regulatory(xml_node)
                 map_.add_regulatory(regulatory)
+
+    x_min, x_max, y_min, y_max = _get_map_bounds(map_.nodes)
+    map_.boundary = [x_min-10, x_max+10, y_min-10, y_max+10]

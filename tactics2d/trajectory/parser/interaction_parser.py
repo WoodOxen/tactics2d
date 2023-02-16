@@ -8,12 +8,15 @@ from tactics2d.trajectory.element.state import State
 from tactics2d.trajectory.element.trajectory import Trajectory
 
 
-class InteractionParser(object):
-    def _get_vehicle_type(self, length: float, width: float) -> str:
-        return 
+def _get_vehicle_type(self, length: float, width: float) -> str:
+    return 
 
-    def _get_pedestrian_type(self, trajectory: Trajectory) -> str:
-        return
+
+def _get_pedestrian_type(self, trajectory: Trajectory) -> str:
+    return
+
+
+class InteractionParser(object):
 
     @staticmethod
     def parse_vehicle(file_id, folder_path, stamp_range):
@@ -28,7 +31,7 @@ class InteractionParser(object):
             
             vehicle_id =  state_info["track_id"]
             if vehicle_id not in vehicles:
-                vehicle_type = InteractionParser()._get_vehicle_type(state_info["length"], state_info["width"])
+                vehicle_type = _get_vehicle_type(state_info["length"], state_info["width"])
                 vehicle = Vehicle(
                     id_=vehicle_id, type_=vehicle_type,
                     length=state_info["length"], width=state_info["width"]
@@ -76,7 +79,7 @@ class InteractionParser(object):
             trajectories[trajectory_id].add_state(state)
 
         for trajectory_id, trajectory in trajectories.items():
-            if InteractionParser()._get_pedestrian_type(trajectory) == "pedestrians":
+            if _get_pedestrian_type(trajectory) == "pedestrians":
                 pedestrians[trajectory_id] = Pedestrian(trajectory_id)
                 pedestrians[trajectory_id].set_trajectory(trajectory)
             else:

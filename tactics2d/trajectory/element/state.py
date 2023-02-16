@@ -2,17 +2,26 @@ import numpy as np
 
 
 class State(object):
+    """_summary_
+
+    Attributes:
+        frame (int): _description_
+        x (float, optional): _description_. Defaults to 0.
+        y (float, optional): _description_. Defaults to 0.
+        heading (float, optional): The heading direction of an object. The heading information is parsed in an 2D Cardinal coordinate system counterclockwise. The default unit is radian. Defaults to 0.
+    """
     def __init__(self, frame: int, x: float = 0, y: float = 0, heading: float = 0):
-            self.frame = frame
-            self.x = x
-            self.y = y
-            self.heading = heading
-            self.vx = None
-            self.vy = None
-            self.v_norm = None
-            self.ax = None
-            self.ay = None
-            self.a_norm = None
+        
+        self.frame = frame
+        self.x = x
+        self.y = y
+        self.heading = heading
+        self.vx = None
+        self.vy = None
+        self.v_norm = None
+        self.ax = None
+        self.ay = None
+        self.a_norm = None
 
     @property
     def location(self):

@@ -12,8 +12,8 @@ from tactics2d.common.get_circle import get_circle
 from tactics2d.common.bezier import Bezier
 from tactics2d.map.element.lane import Lane
 from tactics2d.map.element.map import Map
-from tactics2d.object.element.vehicle import Vehicle
-from tactics2d.object.element.pedestrian import Pedestrian
+from tactics2d.participant.element.vehicle import Vehicle
+from tactics2d.participant.element.pedestrian import Pedestrian
 from tactics2d.traffic_event.status import Status
 
 

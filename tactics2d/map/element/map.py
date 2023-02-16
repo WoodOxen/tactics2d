@@ -23,7 +23,7 @@ class Map(object):
         self.roadlines = dict()
         self.regulations = dict()
         self.customs = dict()
-        self._boundary = None
+        self.boundary = None
 
     def add_node(self, node: Node):
         if node.id_ in self.ids:
@@ -68,14 +68,6 @@ class Map(object):
                 raise ValueError()
         self.ids.add(regulatory.id_)
         self.regulations[regulatory.id_] = regulatory
-
-    @property
-    def boundary(self):
-        return self._boundary
-    
-    @boundary.setter
-    def boundary(self, boundary):
-        self._boundary = boundary
 
     def reset(self):
         self.ids.clear()

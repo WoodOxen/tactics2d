@@ -14,13 +14,13 @@ class Trajectory(object):
         self.even_interval = True
 
     @property
-    def initial_state(self):
+    def initial_state(self) -> State:
         if len(self.frames) == None:
             return None
         return self.history_states[self.frames[0]]
 
     @property
-    def last_state(self):
+    def last_state(self) -> State:
         if len(self.frames) == None:
             return None
         return self.history_states[self.frames[-1]]

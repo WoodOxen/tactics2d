@@ -6,6 +6,7 @@ class RenderManager(object):
         pygame.display.init()
         self.clock = pygame.time.Clock()
         self.surfaces = []
+        self.bound_sensors = []
 
     @property
     def driver(self) -> str:
@@ -17,6 +18,9 @@ class RenderManager(object):
 
     def add_sensor(self, sensor, sensor_id):
         return True
+
+    def bind(self, sensor_id, participant_id):
+        self.bound_sensors.append((sensor_id, participant_id))
 
     def remove_sensor(self, sensor_id):
         return

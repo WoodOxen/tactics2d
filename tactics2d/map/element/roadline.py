@@ -15,18 +15,18 @@ class RoadLine:
         linestring (LineString): _description_
         type (str, optional): _description_. Defaults to "virtual".
         subtype (str, optional): _description_. Defaults to None.
+        color (tuple, optional): color of the lane marking. Defaults to None.
         lane_change (Tuple[bool, bool], optional): _description_. Defaults to (True, True).
         width (float, optional): width of the line (in m). The linestring then represents the centerline of the object. Defaults to None.
         height (float, optional): height of line (in m). The linestring then represents the lower outline/lowest edge of the object. Defaults to None.
         temporary (bool, optional): _description_. Defaults to False.
-        color (str, optional): color of the lane marking. Defaults to "white".
     """
     def __init__(
         self, id_: str, linestring: LineString,
-        type_: str = "virtual", subtype: str = None, 
+        type_: str = "virtual", subtype: str = None, color: tuple = None,
         lane_change: Tuple[bool, bool] = (True, True),
         width: float = None, height: float = None,
-        temporary: bool = False, color: str = "white",
+        temporary: bool = False, 
         custom_tags: dict = None
     ):
 
@@ -34,11 +34,11 @@ class RoadLine:
         self.linestring = linestring
         self.type_ = type_
         self.subtype = subtype
+        self.color = color
         self.lane_change = lane_change
         self.width = width
         self.height = height
         self.temporary = temporary
-        self.color = color
         self.custom_tags = custom_tags
 
     @property
