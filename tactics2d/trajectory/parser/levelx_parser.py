@@ -4,7 +4,7 @@ import math
 
 import pandas as pd
 
-from tactics2d.object.element.vehicle import Vehicle
+from tactics2d.participant.element.vehicle import Vehicle
 from tactics2d.trajectory.element.state import State
 from tactics2d.trajectory.element.trajectory import Trajectory
 

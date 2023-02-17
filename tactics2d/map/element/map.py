@@ -28,35 +28,35 @@ class Map(object):
     def add_node(self, node: Node):
         if node.id_ in self.ids:
             if node.id_ in self.nodes:
-                warnings.warn("Node %s already exists! Replacing the node with new data." % node.id_)
+                warnings.warn(f"Node {node.id_} already exists! Replaced the node with new data.")
             else:
-                raise ValueError()
+                raise ValueError(f"The id of Node {node.id_} is used by the other road element.")
         self.nodes[node.id_] = node
 
     def add_roadline(self, roadline: RoadLine):
         if roadline.id_ in self.ids:
             if roadline.id_ in self.roadlines:
-                warnings.warn("Roadline %s already exists! Replacing the roadline with new data." % roadline.id_)
+                warnings.warn(f"Roadline {roadline.id_} already exists! Replaced the roadline with new data.")
             else:
-                raise ValueError()
+                raise ValueError(f"The id of Roadline {roadline.id_} is used by the other road element.")
         self.ids.add(roadline.id_)
         self.roadlines[roadline.id_] = roadline
 
     def add_lane(self, lane: Lane):
         if lane.id_ in self.ids:
             if lane.id_ in self.lanes:
-                warnings.warn("Lane %s already exists! Replacing the lane with new data." % lane.id_)
+                warnings.warn(f"Lane {lane.id_} already exists! Replacing the lane with new data.")
             else:
-                raise ValueError()
+                raise ValueError(f"The id of Lane {lane.id_} is used by the other road element.")
         self.ids.add(lane.id_)
         self.lanes[lane.id_] = lane
 
     def add_area(self, area: Area):
         if area.id_ in self.ids:
             if area.id_ in self.areas:
-                warnings.warn("Area %s already exists! Replacing the area with new data." % area.id_)
+                warnings.warn(f"Area {area.id_} already exists! Replacing the area with new data.")
             else:
-                raise ValueError()
+                raise ValueError(f"The id of Area {area.id_} is used by the other road element.")
         self.ids.add(area.id_)
         self.areas[area.id_] = area
 

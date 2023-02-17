@@ -912,6 +912,7 @@
     <nd ref='100085' />
     <nd ref='100043' />
     <nd ref='100000' />
+    <tag k='type' v='virtual' />
   </way>
   <way id='105001' visible='true' version='1'>
     <nd ref='100000' />
@@ -1297,6 +1298,7 @@
     <nd ref='100163' />
     <nd ref='100138' />
     <nd ref='100086' />
+    <tag k='type' v='virtual' />
   </way>
   <way id='105044' visible='true' version='1'>
     <nd ref='100086' />
@@ -1754,6 +1756,7 @@
     <nd ref='100229' />
     <nd ref='100208' />
     <nd ref='100164' />
+    <tag k='type' v='virtual' />
   </way>
   <way id='105095' visible='true' version='1'>
     <nd ref='100164' />
@@ -2139,6 +2142,7 @@
     <nd ref='100307' />
     <nd ref='100282' />
     <nd ref='100230' />
+    <tag k='type' v='virtual' />
   </way>
   <way id='105138' visible='true' version='1'>
     <nd ref='100230' />
@@ -2596,6 +2600,7 @@
     <nd ref='100373' />
     <nd ref='100352' />
     <nd ref='100308' />
+    <tag k='type' v='virtual' />
   </way>
   <way id='105189' visible='true' version='1'>
     <nd ref='100308' />
@@ -2981,6 +2986,7 @@
     <nd ref='100451' />
     <nd ref='100426' />
     <nd ref='100374' />
+    <tag k='type' v='virtual' />
   </way>
   <way id='105232' visible='true' version='1'>
     <nd ref='100374' />
@@ -3438,6 +3444,7 @@
     <nd ref='100517' />
     <nd ref='100496' />
     <nd ref='100452' />
+    <tag k='type' v='virtual' />
   </way>
   <way id='105283' visible='true' version='1'>
     <nd ref='100452' />
@@ -3823,6 +3830,7 @@
     <nd ref='100569' />
     <nd ref='100544' />
     <nd ref='100518' />
+    <tag k='type' v='virtual' />
   </way>
   <way id='105326' visible='true' version='1'>
     <nd ref='100518' />
@@ -4055,6 +4063,7 @@
     <nd ref='100613' />
     <nd ref='100592' />
     <nd ref='100570' />
+    <tag k='type' v='virtual' />
   </way>
   <way id='105352' visible='true' version='1'>
     <nd ref='100570' />
