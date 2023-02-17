@@ -58,7 +58,7 @@ class Lane(object):
         self.speed_limit_mandatory = speed_limit_mandatory
         self.custom_tags = custom_tags
 
-        self.polygon = LinearRing(list(self.left_side.coords) + list(self.right_side.reverse().coords))
+        self.polygon = LinearRing(list(self.left_side.coords) + list(reversed(list(self.right_side.coords))))
 
         self.predecessors = set()
         self.successors = set()

@@ -213,3 +213,6 @@ class TopDownCamera(SensorBase):
         self._render_pedestrians(pedestrians)
 
 
+class SingleLineLidar(SensorBase):
+    def __init__(self, sensor_id):
+        super().__init__(sensor_id)

@@ -8,13 +8,13 @@ from shapely.affinity import affine_transform
 import gym
 from gym import spaces
 
-from tactics2d.common.get_circle import get_circle
-from tactics2d.common.bezier import Bezier
+from tactics2d.utils.get_circle import get_circle
+from tactics2d.utils.bezier import Bezier
 from tactics2d.map.element.lane import Lane
 from tactics2d.map.element.map import Map
 from tactics2d.participant.element.vehicle import Vehicle
 from tactics2d.participant.element.pedestrian import Pedestrian
-from tactics2d.traffic_event.status import Status
+from tactics2d.traffic.traffic_event import Status
 
 
 STATE_W = 128

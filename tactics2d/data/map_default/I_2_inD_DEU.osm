@@ -491,6 +491,10 @@
   <node id='1775297' visible='true' version='1' lat='50.76807300412' lon='6.10046982631' />
   <node id='1775298' visible='true' version='1' lat='50.76795425648' lon='6.09984621271' />
   <node id='1775299' visible='true' version='1' lat='50.76788173545' lon='6.09947204456' />
+  <way id='-105780' action='modify' visible='true'>
+    <nd ref='1769934' />
+    <nd ref='1769780' />
+  </way>
   <way id='1770081' visible='true' version='1'>
     <nd ref='1770177' />
     <nd ref='1769739' />
@@ -2079,12 +2083,13 @@
     <nd ref='1770155' />
     <tag k='type' v='virtual' />
   </way>
-  <way id='1778983' visible='true' version='1'>
+  <way id='1778983' action='modify' visible='true' version='1'>
     <nd ref='1775295' />
     <nd ref='1775296' />
     <nd ref='1775297' />
     <nd ref='1775298' />
     <nd ref='1775299' />
+    <nd ref='1770150' />
     <tag k='type' v='virtual' />
   </way>
   <way id='1778984' visible='true' version='1'>
@@ -3354,7 +3359,8 @@
     <tag k='subtype' v='road' />
     <tag k='type' v='lanelet' />
   </relation>
-  <relation id='1769775' visible='true' version='1'>
+  <relation id='1769775' action='modify' visible='true' version='1'>
+    <member type='way' ref='-105780' role='' />
     <member type='way' ref='1770833' role='outer' />
     <member type='way' ref='1770741' role='outer' />
     <tag k='location' v='urban' />

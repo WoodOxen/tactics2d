@@ -1,5 +1,6 @@
 from pygame.colordict import THECOLORS
 
+
 LANE_COLOR = {
     "default": THECOLORS["darkgray"],
     "road": THECOLORS["darkgray"],
@@ -27,13 +28,16 @@ AREA_COLOR = {
     "traffic_island": THECOLORS["silver"],
 }
 
+
 ROADLINE_COLOR = {
     "default": THECOLORS["white"],
 }
 
+
 VEHICLE_COLOR = {
     "default": THECOLORS["turquoise1"],
 }
+
 
 PEDESTRIAN_COLOR = {
     "default": THECOLORS["lightpink"],
