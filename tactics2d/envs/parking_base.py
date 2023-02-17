@@ -8,12 +8,11 @@ from typing import List
 
 import numpy as np
 from numpy.random import randn, random
-from shapely.geometry import LinearRing
+from shapely.geometry import LinearRing, Point
 from shapely.affinity import affine_transform
 
 # from env.vehicle import State,LENGTH,WIDTH
-from tactics2d.object_base.position import Position
-from tactics2d.map_base.map import Map
+from tactics2d.map.element.map import Map
 # from tactics2d.map_base.area import Area
 
 WHEEL_BASE = 2.8  # wheelbase
@@ -34,19 +33,30 @@ MIN_BAY_PARK_LOT_WIDTH = WIDTH + 1.2
 # the distance that the obstacles out of driving area is from dest
 BAY_PARK_WALL_DIST = 7.0
 PARA_PARK_WALL_DIST = 4.5
+origin = (0., 0.)
+bay_half_len = 18.
 
 DEBUG = True
 if DEBUG:
     import matplotlib.pyplot as plt
 
-def create_vehicle_box(x,y,heading,vehicle_box):
-    cos_theta = np.cos(heading)
-    sin_theta = np.sin(heading)
-    mat = [cos_theta, -sin_theta, sin_theta, cos_theta, x, y]
-    return affine_transform(vehicle_box, mat)
+class Position:
+    def __init__(self, raw_state: list):
+        self.loc: Point = Point(raw_state[:2]) #(x,y)
+        self.heading: float = raw_state[2]
+
+    def create_box(self, VehicleBox:LinearRing) -> LinearRing:
+        cos_theta = np.cos(self.heading)
+        sin_theta = np.sin(self.heading)
+        mat = [cos_theta, -sin_theta, sin_theta, cos_theta, self.loc.x, self.loc.y]
+        return affine_transform(VehicleBox, mat)
+
+    def get_pos(self,):
+        return (self.loc.x, self.loc.y, self.heading)
+
 
 def get_box_coords(x,y,heading,vehicle_box):
-    vehicle_box = create_vehicle_box(x,y,heading,vehicle_box)
+    vehicle_box = Position([x,y,heading]).create_box(vehicle_box)
     return list(vehicle_box.coords)[:-1]
 
 def random_gaussian_num(mean, std, clip_low, clip_high):
@@ -64,43 +74,26 @@ def get_rand_pos(origin_x, origin_y, angle_min, angle_max, radius_min, radius_ma
     radius_rand = random_gaussian_num((radius_min+radius_max)/2, (radius_max-radius_min)/4, radius_min, radius_max)
     return origin_x+cos(angle_rand)*radius_rand, origin_y+sin(angle_rand)*radius_rand
 
-def gene_bay_park(vehicle_box):
-    '''
-    Generate the parameters that a bay parking case need.
-    Returns
-    ----------
-        `start` (list): [x, y, yaw]
-        `dest` (list): [x, y, yaw]
-        `obstacles` (list): [ obstacle (`LinearRing`) , ...]
-    '''
-    origin = (0., 0.)
-    bay_half_len = 15.
-    generate_success = True
-    # generate obstacle on back
+def gene_park_back():
     obstacle_back = LinearRing((
         (origin[0]+bay_half_len, origin[1]),
         (origin[0]+bay_half_len, origin[1]-1),
         (origin[0]-bay_half_len, origin[1]-1),
         (origin[0]-bay_half_len, origin[1])))
-    if DEBUG:
-        fig=plt.figure()
-        ax=fig.add_subplot(111)
-        ax.set_xlim(-20,20)
-        ax.set_ylim(-20,20)
+    return obstacle_back
 
-    # generate dest
+def gene_bay_park_dest(vehicle_box):
+    'generate the destination for bay parking cases'
     dest_yaw = random_gaussian_num(pi/2, pi/36, pi*5/12, pi*7/12)
     rb, _, _, lb  = get_box_coords(origin[0], origin[1], dest_yaw, vehicle_box)
     min_dest_y = -min(rb[1], lb[1]) + MIN_DIST_TO_OBST
     dest_x = origin[0]
     dest_y = random_gaussian_num(min_dest_y+0.4, 0.2, min_dest_y, min_dest_y+0.8)
-    car_rb, car_rf, car_lf, car_lb  = get_box_coords(dest_x, dest_y, dest_yaw, vehicle_box)
-    dest_box = LinearRing((car_rb, car_rf, car_lf, car_lb))
-    if DEBUG:
-        ax.add_patch(plt.Polygon(xy=list([car_rb, car_rf, car_lf, car_lb]), color='r'))
+    return [dest_x, dest_y, dest_yaw]
 
-    # generate obstacle on left
-    # the obstacle can be another vehicle or just a simple obstacle
+def gene_bay_park_left(dest_pos, vehicle_box):
+    '''generate the obstacle on left of destination'''
+    _, _, car_lf, car_lb = get_box_coords(*dest_pos, vehicle_box)
     if random()<0.5: # generate simple obstacle
         max_dist_to_obst = 1.0
         min_dist_to_obst = 0.4 + MIN_DIST_TO_OBST
@@ -119,9 +112,14 @@ def gene_bay_park(vehicle_box):
         rb, _, _, lb  = get_box_coords(left_car_x, origin[1], left_car_yaw, vehicle_box)
         min_left_car_y = -min(rb[1], lb[1]) + MIN_DIST_TO_OBST
         left_car_y = random_gaussian_num(min_left_car_y+0.4, 0.2, min_left_car_y, min_left_car_y+0.8)
-        obstacle_left = create_vehicle_box( left_car_x, left_car_y, left_car_yaw, vehicle_box)
+        obstacle_left = Position([left_car_x, left_car_y, left_car_yaw]).create_box(vehicle_box)
+    return obstacle_left
 
-    # generate obstacle on right
+def gene_bay_park_right(dest_pos, vehicle_box, obstacle_left):
+    '''generate the obstacle on right of destination'''
+    dest_box = Position(dest_pos).create_box()
+    car_rb, car_rf, _, _ = get_box_coords(*dest_pos, vehicle_box)
+    generate_success = True
     dist_dest_to_left_obst = dest_box.distance(obstacle_left)
     min_dist_to_obst = max(MIN_BAY_PARK_LOT_WIDTH-WIDTH-dist_dest_to_left_obst, 0)+MIN_DIST_TO_OBST
     max_dist_to_obst = 1.0
@@ -139,7 +137,7 @@ def gene_bay_park(vehicle_box):
         rb, _, _, lb  = get_box_coords(right_car_x, origin[1], right_car_yaw, vehicle_box)
         min_right_car_y = -min(rb[1], lb[1]) + MIN_DIST_TO_OBST
         right_car_y = random_gaussian_num(min_right_car_y+0.4, 0.2, min_right_car_y, min_right_car_y+0.8)
-        obstacle_right = create_vehicle_box(right_car_x, right_car_y, right_car_yaw, vehicle_box)
+        obstacle_right = Position([right_car_x, right_car_y, right_car_yaw]).create_box(vehicle_box)
     # print(dist_dest_to_left_obst, dest_box.distance(obstacle_right), dest_box.distance(obstacle_right)+dist_dest_to_left_obst)
     dist_dest_to_right_obst = dest_box.distance(obstacle_right)
     if dist_dest_to_right_obst+dist_dest_to_left_obst<MIN_BAY_PARK_LOT_WIDTH-WIDTH or \
@@ -147,6 +145,30 @@ def gene_bay_park(vehicle_box):
         dist_dest_to_right_obst<MIN_DIST_TO_OBST:
         # print(dist_dest_to_left_obst, dest_box.distance(obstacle_right), dest_box.distance(obstacle_right)+dist_dest_to_left_obst)
         generate_success = False
+    return obstacle_right, generate_success
+
+def gene_bay_park(vehicle_box):
+    '''
+    Generate the parameters that a bay parking case need.
+    Returns
+    ----------
+        `start` (list): [x, y, yaw]
+        `dest` (list): [x, y, yaw]
+        `obstacles` (list): [ obstacle (`LinearRing`) , ...]
+    '''
+    generate_success = True
+    # generate obstacle on back
+    obstacle_back = gene_park_back()
+
+    # generate dest
+    dest_pos = gene_bay_park_dest(vehicle_box)
+    dest_box = Position(dest_pos).create_box()
+
+    # generate obstacle on left
+    # the obstacle can be another vehicle or just a simple obstacle
+    obstacle_left = gene_bay_park_left(dest_pos, vehicle_box)
+    # generate obstacle on right
+    obstacle_right, generate_success = gene_bay_park_right(dest_pos, vehicle_box, obstacle_left)
     # check collision
     obstacles = [obstacle_back, obstacle_left, obstacle_right]
     for obst in obstacles:
@@ -182,9 +204,6 @@ def gene_bay_park(vehicle_box):
 
     # merge two kind of obstacles
     obstacles.extend(other_obstcales)
-    if DEBUG:
-        for obs in obstacles:
-            ax.add_patch(plt.Polygon(xy=list(obs.coords), color='b'))
 
     # generate start position
     start_box_valid = False
@@ -196,7 +215,7 @@ def gene_bay_park(vehicle_box):
         start_y = random_uniform_num(*valid_start_y_range)
         start_yaw = random_gaussian_num(0, pi/6, -pi/2, pi/2)
         start_yaw = start_yaw+pi if random()<0.5 else start_yaw
-        start_box = create_vehicle_box(start_x, start_y, start_yaw, vehicle_box)
+        start_box = Position([start_x, start_y, start_yaw]).create_box(vehicle_box)
         # check collision
         for obst in obstacles:
             if obst.intersects(start_box):
@@ -213,57 +232,22 @@ def gene_bay_park(vehicle_box):
     for obs in obstacles:
         if random()<0.1:
             obstacles.remove(obs)
-    if DEBUG:
-        ax.add_patch(plt.Polygon(xy=get_box_coords(start_x, start_y, start_yaw, vehicle_box), color='g'))
-        print(generate_success)
-        plt.show()
     # return if generate successfully
     if generate_success:
-        return [start_x, start_y, start_yaw], [dest_x, dest_y, dest_yaw], obstacles
+        return [start_x, start_y, start_yaw], dest_pos, obstacles
     else:
-        # print(1)
         return gene_bay_park(vehicle_box)
 
-def gene_parallel_park(vehicle_box):
-    '''
-    Generate the parameters that a parallel parking case need.
-    
-    Returns
-    ----------
-        `start` (list): [x, y, yaw]
-        `dest` (list): [x, y, yaw]
-        `obstacles` (list): [ obstacle (`LinearRing`) , ...]
-    '''
-    origin = (0., 0.)
-    bay_half_len = 18.
-    generate_success = True
-    # generate obstacle on back
-    obstacle_back = LinearRing((
-        (origin[0]+bay_half_len, origin[1]),
-        (origin[0]+bay_half_len, origin[1]-1),
-        (origin[0]-bay_half_len, origin[1]-1),
-        (origin[0]-bay_half_len, origin[1])))
-    
-    if DEBUG:
-        fig=plt.figure()
-        ax=fig.add_subplot(111)
-        ax.set_xlim(-20,20)
-        ax.set_ylim(-20,20)
-
-    # generate dest
+def gene_parallel_dest(vehicle_box):
     dest_yaw = random_gaussian_num(0, pi/36, -pi/12, pi/12)
     rb, rf, _, _  = get_box_coords(origin[0], origin[1], dest_yaw, vehicle_box)
     min_dest_y = -min(rb[1], rf[1]) + MIN_DIST_TO_OBST
     dest_x = origin[0]
     dest_y = random_gaussian_num(min_dest_y+0.4, 0.2, min_dest_y, min_dest_y+0.8)
-    car_rb, car_rf, car_lf, car_lb  = get_box_coords(dest_x, dest_y, dest_yaw, vehicle_box)
-    dest_box = LinearRing((car_rb, car_rf, car_lf, car_lb))
+    return [dest_x, dest_y, dest_yaw]
 
-    if DEBUG:
-        ax.add_patch(plt.Polygon(xy=list([car_rb, car_rf, car_lf, car_lb]), color='r'))
-
-    # generate obstacle on left
-    # the obstacle can be another vehicle or just a simple obstacle
+def gene_parallel_left(dest_pos, vehicle_box):
+    car_rb, _, _, car_lb  = get_box_coords(*dest_pos, vehicle_box)
     if random()<0.5: # generate simple obstacle
         max_dist_to_obst = 1.0
         min_dist_to_obst = 0.4 + MIN_DIST_TO_OBST
@@ -282,9 +266,13 @@ def gene_parallel_park(vehicle_box):
         rb, rf, _, _  = get_box_coords(left_car_x, origin[1], left_car_yaw, vehicle_box)
         min_left_car_y = -min(rb[1], rf[1]) + MIN_DIST_TO_OBST
         left_car_y = random_gaussian_num(min_left_car_y+0.4, 0.2, min_left_car_y, min_left_car_y+0.8)
-        obstacle_left = create_vehicle_box(left_car_x, left_car_y, left_car_yaw, vehicle_box)
+        obstacle_left = Position([left_car_x, left_car_y, left_car_yaw]).create_box(vehicle_box)
+    return obstacle_left
 
-    # generate obstacle on right
+def gene_parallel_right(dest_pos, vehicle_box, obstacle_left):
+    '''generate the obstacle on right of destination'''
+    dest_box = Position(dest_pos).create_box()
+    _, car_rf, car_lf, _  = get_box_coords(*dest_pos, vehicle_box)
     dist_dest_to_left_obst = dest_box.distance(obstacle_left)
     min_dist_to_obst = max(MIN_PARA_PARK_LOT_LEN-LENGTH-dist_dest_to_left_obst, 0)+MIN_DIST_TO_OBST
     max_dist_to_obst = 1.0
@@ -302,18 +290,41 @@ def gene_parallel_park(vehicle_box):
         rb, rf, _, _  = get_box_coords(right_car_x, origin[1], right_car_yaw, vehicle_box)
         min_right_car_y = -min(rb[1], rf[1]) + MIN_DIST_TO_OBST
         right_car_y = random_gaussian_num(min_right_car_y+0.4, 0.2, min_right_car_y, min_right_car_y+0.8)
-        obstacle_right = create_vehicle_box(right_car_x, right_car_y, right_car_yaw, vehicle_box)
+        obstacle_right = Position([right_car_x, right_car_y, right_car_yaw]).create_box(vehicle_box)
     # print(dist_dest_to_left_obst, dest_box.distance(obstacle_right), dest_box.distance(obstacle_right)+dist_dest_to_left_obst)
     dist_dest_to_right_obst = dest_box.distance(obstacle_right)
     if dist_dest_to_right_obst+dist_dest_to_left_obst<LENGTH/4 or \
         dist_dest_to_left_obst<MIN_DIST_TO_OBST or \
         dist_dest_to_right_obst<MIN_DIST_TO_OBST:
         generate_success = False
+    return obstacle_right, generate_success
+
+def gene_parallel_park(vehicle_box):
+    '''
+    Generate the parameters that a parallel parking case need.
+    
+    Returns
+    ----------
+        `start` (list): [x, y, yaw]
+        `dest` (list): [x, y, yaw]
+        `obstacles` (list): [ obstacle (`LinearRing`) , ...]
+    '''
+    generate_success = True
+    # generate obstacle on back
+    obstacle_back = gene_park_back()
+    # generate dest
+    dest_pos = gene_parallel_dest(vehicle_box)
+    dest_x, dest_y, dest_yaw = dest_pos
+    dest_box = Position(dest_pos).create_box()
+    # generate obstacle on left
+    # the obstacle can be another vehicle or just a simple obstacle
+    obstacle_left = gene_bay_park_left(dest_pos, vehicle_box)
+    # generate obstacle on right
+    obstacle_right, generate_success = gene_parallel_right(dest_pos, vehicle_box, obstacle_left)
     # check collision
     obstacles = [obstacle_back, obstacle_left, obstacle_right]
     for obst in obstacles:
         if obst.intersects(dest_box):
-            print(dist_dest_to_left_obst, min_dist_to_obst)
             print('dest box intersect with obstacles!!!')
             generate_success = False
 
@@ -346,9 +357,6 @@ def gene_parallel_park(vehicle_box):
 
     # merge two kind of obstacles
     obstacles.extend(other_obstcales)
-    if DEBUG:
-        for obs in obstacles:
-            ax.add_patch(plt.Polygon(xy=list(obs.coords), color='b'))
     
     # generate start position
     start_box_valid = False
@@ -360,17 +368,13 @@ def gene_parallel_park(vehicle_box):
         start_y = random_uniform_num(*valid_start_y_range)
         start_yaw = random_gaussian_num(0, pi/6, -pi/2, pi/2)
         start_yaw = start_yaw+pi if random()<0.5 else start_yaw
-        start_box = create_vehicle_box(start_x, start_y, start_yaw, vehicle_box)
+        start_box = Position([start_x, start_y, start_yaw]).create_box(vehicle_box)
         # check collision
         for obst in obstacles:
             if obst.intersects(start_box):
-                if DEBUG:
-                    print('start box intersect with obstacles, will retry to generate.')
                 start_box_valid = False
         # check overlap with dest box
         if dest_box.intersects(start_box):
-            if DEBUG:
-                print('start box intersect with dest box, will retry to generate.')
             start_box_valid = False
     
     # flip the dest box so that the orientation of start matches the dest
@@ -384,10 +388,6 @@ def gene_parallel_park(vehicle_box):
     for obs in obstacles:
         if random()<0.1:
             obstacles.remove(obs)
-    if DEBUG:
-        ax.add_patch(plt.Polygon(xy=get_box_coords(start_x, start_y, start_yaw, vehicle_box), color='g'))
-        print(generate_success)
-        plt.show()
     # return if success
     if generate_success:
         return [start_x, start_y, start_yaw], [dest_x, dest_y, dest_yaw], obstacles
@@ -441,7 +441,7 @@ class ParkingMapNormal(Map):
         self.xmax = np.ceil(max(self.start.loc.x, self.dest.loc.x) + 10)
         self.ymin = np.floor(min(self.start.loc.y, self.dest.loc.y) - 10)
         self.ymax = np.ceil(max(self.start.loc.y, self.dest.loc.y) + 10)
-        self.set_boundary([self.xmin, self.ymin, self.xmax, self.ymax])
+        # self.set_boundary([self.xmin, self.ymin, self.xmax, self.ymax])
         self.obstacles = list([Area(shape=obs, subtype="obstacle", \
             ) for obs in obstacles])
         self.n_obstacle = len(self.obstacles)
