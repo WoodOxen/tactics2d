@@ -90,6 +90,7 @@ class ParkingMapNormal(Map):
         self.n_obstacle = 0
         self.obstacles:list[Area] = []
         self.vehicle_box:LinearRing = None
+        self.case_id = 0
 
     def set_vehicle(self, vehicle_box):
         self.vehicle_box = vehicle_box
@@ -168,7 +169,7 @@ class CarParking(gym.Env):
 
         self.map = ParkingMapNormal()
         self.agent = Vehicle(
-            id_="0", type="vehicle:racing", width=WIDTH, length=LENGTH, height=1.5, # TODO make the hyperparameters
+            id_=0, type_="vehicle:racing", width=WIDTH, length=LENGTH, height=1.5, # TODO make the hyperparameters
             steering_angle_range=(-0.5, 0.5), steering_velocity_range=(-0.5, 0.5),
             speed_range=(-10, 100), accel_range=(-1, 1), physics=None
         )
@@ -240,7 +241,7 @@ class CarParking(gym.Env):
             if self.curr_vehicle_box.intersects(obstacle.polygon.exterior):
                 return True
         return False
-    
+
     def _detect_outbound(self):
         vehicle_box = np.array(self._coord_transform(self.curr_vehicle_box))
         if vehicle_box[:, 0].min() < 0:
@@ -261,7 +262,7 @@ class CarParking(gym.Env):
             # print('arrive!!: ',union_area / dest_box.area)
             return True
         return False
-    
+
     def _check_time_exceeded(self):
         return self.n_step < STEP_LIMIT
 
@@ -296,9 +297,8 @@ class CarParking(gym.Env):
             math.exp(-prev_dist_diff/dist_norm_ratio)
         angle_reward = math.exp(-angle_diff/angle_norm_ratio) - \
             math.exp(-prev_angle_diff/angle_norm_ratio)
-        
+
         return time_cost+dist_reward+angle_reward
-        
 
     def step(self, action: Union[np.ndarray, int] = None):
         '''
@@ -379,21 +379,21 @@ class CarParking(gym.Env):
         capture = pygame.transform.rotate(surface, np.rad2deg(angle))
         rotate = pygame.Surface((VIDEO_W, VIDEO_H))
         rotate.blit(capture, capture.get_rect(center=old_center))
-        
+
         vehicle_center = np.array(self._coord_transform(self.curr_vehicle_box.centroid)[0])
         dx = (vehicle_center[0]-old_center[0])*np.cos(angle) \
             + (vehicle_center[1]-old_center[1])*np.sin(angle)
         dy = -(vehicle_center[0]-old_center[0])*np.sin(angle) \
             + (vehicle_center[1]-old_center[1])*np.cos(angle)
-        
+
         # align the center of the observation with the center of the vehicle
         observation = pygame.Surface((VIDEO_W, VIDEO_H))
-    
+
         observation.fill(BG_COLOR)
         observation.blit(rotate, (int(-dx), int(-dy)))
         observation = observation.subsurface((
             (VIDEO_W-STATE_W)/2, (VIDEO_H-STATE_H)/2), (STATE_W, STATE_H))
-    
+
         obs_str = pygame.image.tostring(observation, "RGB")
         observation = np.frombuffer(obs_str, dtype=np.uint8)
         observation = observation.reshape(self.observation_space['img'].shape)
@@ -405,7 +405,7 @@ class CarParking(gym.Env):
              self.agent.current_state.heading)
         lidar_view = self.lidar.get_observation(ego_pos, obs_list)
         return lidar_view
-    
+
     def _get_targt_repr(self,):
         # target position representation
         dest_pos = (self.map.dest.loc.x, self.map.dest.loc.y, self.map.dest.heading)
