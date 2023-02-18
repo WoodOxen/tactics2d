@@ -18,7 +18,8 @@ except ImportError:
         "pygame is not installed, run `pip install pygame`"
     )
 
-from tactics2d.map.element import Area, Map
+from tactics2d.map.element.area import Area
+from tactics2d.map.element.map import Map
 from tactics2d.map.generator.generate_parking_lot import Position, \
     gene_bay_park, gene_parallel_park, VEHICLE_BOX
 from tactics2d.render.lidar_simulator import LidarSimlator

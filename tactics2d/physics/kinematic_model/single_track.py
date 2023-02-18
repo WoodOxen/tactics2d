@@ -1,10 +1,10 @@
 import numpy as np
 
-from tactics2d.vehicle_dynamics.base.dynamics import Dynamics
-from tactics2d.vehicle_dynamics.base.state import State
+from tactics2d.physics.kinematic_model.base import KinematicsBase
+from tactics2d.trajectory.element import State
 
 
-class KSModel(object):
+class KSModel(KinematicsBase):
     """An implementation of the Kinematic Single-Track Model.
 
     Use the center of vehicle's rear wheels as the origin of local coordinate system.

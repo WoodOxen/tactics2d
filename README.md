@@ -52,7 +52,7 @@ The available scenario types include
 
 Some modified maps from the following track datasets are available in `Tactics2D`. They are provided in the Lanelet2 format.
 
-- [HighD](https://www.highd-dataset.com/)
-- [InD](https://www.ind-dataset.com/)
-- [RounD](https://www.round-dataset.com/)
-- [INTERACTION](https://interaction-dataset.com/)
+  - [HighD](https://www.highd-dataset.com/)
+  - [InD](https://www.ind-dataset.com/)
+  - [RounD](https://www.round-dataset.com/)
+  - [INTERACTION](https://interaction-dataset.com/)

@@ -1,8 +1,8 @@
 import pygame
 
-from tactics2d.traffic.scenario import Scenario
+# from tactics2d.traffic.scenario import Scenario
 from tactics2d.render.sensors import SensorBase
-from tactics2d.render.sensors import TopDownCamera, SingleLineLidar
+# from tactics2d.render.sensors import TopDownCamera, SingleLineLidar
 
 
 class RenderManager(object):

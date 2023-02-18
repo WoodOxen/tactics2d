@@ -1,8 +1,6 @@
 import gym
 
-from tactics2d.map_base.lane import Lane
-from tactics2d.map_base.area import Area
-from tactics2d.map_base.map import Map
+# from tactics2d.map.element import Map
 
 
 class UrbanEnv(gym.Env):

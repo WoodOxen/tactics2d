@@ -10,8 +10,9 @@ from gym import spaces
 
 from tactics2d.utils.get_circle import get_circle
 from tactics2d.utils.bezier import Bezier
-from tactics2d.map.element import Lane, Map
-from tactics2d.participant.element import Vehicle, Pedestrian
+from tactics2d.map.element.lane import Lane
+from tactics2d.map.element.map import Map
+from tactics2d.participant.element import Vehicle
 from tactics2d.traffic.traffic_event import TrafficEvent
 
 
@@ -340,7 +341,7 @@ class CarRacing(gym.Env):
             action = DISCRETE_ACTION[action]
         
         self.agent.update(action)
-        position = self._locate(self.agent)
+        # position = self._locate(self.agent)
 
         observation = self._get_observation()
         status = self._check_status()

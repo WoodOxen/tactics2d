@@ -114,6 +114,7 @@ class TopDownCamera(SensorBase):
                     self.window_size[0] / self.perception_width, 
                     self.window_size[1] / self.perception_height
                 )
+
                 self.transform_matrix = [
                     scale, 0, 0, scale, 
                     0.5 * (-self.perception_width+self.window_size[0]),
@@ -125,6 +126,8 @@ class TopDownCamera(SensorBase):
                 self.window_size[1] / self.perception_height
             )
             theta = 3*np.pi/ 2 - self.heading if self.heading < 3*np.pi/2 else 5*np.pi/ 2 - self.heading
+
+            self.transform_matrix = [theta]
 
     def _in_perception_range(self, geometry) -> bool:
         return geometry.distance(self.position) > self.max_perception_distance
