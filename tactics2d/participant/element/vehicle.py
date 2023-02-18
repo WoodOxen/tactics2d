@@ -1,6 +1,6 @@
 from typing import Tuple
 
-import numpy as np
+# import numpy as np
 from shapely.geometry import LinearRing
 from shapely.affinity import rotate
 

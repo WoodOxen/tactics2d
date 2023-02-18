@@ -8,13 +8,13 @@ from shapely.affinity import affine_transform
 import gym
 from gym import spaces
 
-from tactics2d.common.get_circle import get_circle
-from tactics2d.common.bezier import Bezier
+from tactics2d.utils.get_circle import get_circle
+from tactics2d.utils.bezier import Bezier
 from tactics2d.map.element.lane import Lane
 from tactics2d.map.element.map import Map
-from tactics2d.participant.element.vehicle import Vehicle
-from tactics2d.participant.element.pedestrian import Pedestrian
-from tactics2d.traffic_event.status import Status
+from tactics2d.participant.element import Vehicle
+from tactics2d.traffic.traffic_event import TrafficEvent
+
 
 
 STATE_W = 128
@@ -291,42 +291,42 @@ class CarRacing(gym.Env):
     def _check_retrograde(self):
 
         
-        return Status.RETROGRADE
+        return TrafficEvent.VIOLATION_RETROGRADE
 
-    def _check_non_drivable(self, agent_bbox: LinearRing) -> bool:
+    def _check_non_drivable(self) -> bool:
         
-        return Status.NON_DRIVABLE
+        return TrafficEvent.VIOLATION_NON_DRIVABLE
 
     def _check_arrived(self):
-        return Status.ARRIVED
+        return TrafficEvent.ROUTE_COMPLETED
 
-    def _check_outbound(self, agent_bbox: LinearRing) -> bool:
+    def _check_outbound(self) -> bool:
         bound = self.map.boundary()
         boundary = LinearRing([
             [bound[0], bound[2]], [bound[0], bound[3]],
             [bound[1], bound[3]], [bound[1], bound[2]]
         ])
-        if agent_bbox.within(boundary):
-            return Status.NORMAL
-        return Status.OUTBOUND
+        if self.agent.pose.within(boundary):
+            return TrafficEvent.NORMAL
+        return TrafficEvent.OUTSIDE_MAP
 
     def _check_time_exceeded(self):
         if self.n_step < STEP_LIMIT:
-            return Status.NORMAL
-        return Status.OUT_TIME
+            return TrafficEvent.NORMAL
+        return TrafficEvent.TIME_EXCEED
 
-    def _check_status(self) -> Status:
-        if self._check_retrograde() == Status.RETROGRADE:
-            return Status.RETROGRADE
-        if self._check_non_drivable() == Status.NON_DRIVABLE:
-            return Status.NON_DRIVABLE
-        if self._check_arrived() == Status.ARRIVED:
-            return Status.ARRIVED
-        if self._check_outbound() == Status.OUTBOUND:
-            return Status.OUTBOUND
-        if self._check_time_exceeded() == Status.TIME_EXCEED:
-            return Status.OUT_TIME
-        return Status.NORMAL
+    def _check_status(self):
+        if self._check_retrograde() == TrafficEvent.VIOLATION_RETROGRADE:
+            return TrafficEvent.VIOLATION_RETROGRADE
+        if self._check_non_drivable() == TrafficEvent.VIOLATION_NON_DRIVABLE:
+            return TrafficEvent.VIOLATION_NON_DRIVABLE
+        if self._check_arrived() == TrafficEvent.ROUTE_COMPLETED:
+            return TrafficEvent.ROUTE_COMPLETED
+        if self._check_outbound() == TrafficEvent.OUTSIDE_MAP:
+            return TrafficEvent.OUTSIDE_MAP
+        if self._check_time_exceeded() == TrafficEvent.TIME_EXCEED:
+            return TrafficEvent.TIME_EXCEED
+        return TrafficEvent.NORMAL
 
     def _get_observation(self) -> np.ndarray:
         
@@ -341,12 +341,12 @@ class CarRacing(gym.Env):
             action = DISCRETE_ACTION[action]
         
         self.agent.update(action)
-        position = self._locate(self.agent)
+        # position = self._locate(self.agent)
 
         observation = self._get_observation()
         status = self._check_status()
-        reward = self._get_reward(status)
-        done = (status != Status.NORMAL)
+        reward = self._get_reward()
+        done = (status != TrafficEvent.NORMAL)
 
         info = {
             "status": status,

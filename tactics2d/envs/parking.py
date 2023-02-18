@@ -1,8 +1,7 @@
-import sys
-sys.path.append("../")
 from typing import Optional, Union
 import math
 from typing import OrderedDict
+from enum import Enum
 
 import numpy as np
 import gym
@@ -19,14 +18,15 @@ except ImportError:
         "pygame is not installed, run `pip install pygame`"
     )
 
-from envs.lidar_simulator import LidarSimlator
-from envs.observation_processor import Obs_Processor
-from tactics2d.envs.status import Status
-from envs.parking_base import ParkingMapNormal
-from envs.observation_processor import Obs_Processor
-from object_base.position import Position
-from tactics2d.object_base.vehicle import Vehicle
-from tactics2d.object_base.state import State
+from tactics2d.map.element.area import Area
+from tactics2d.map.element.map import Map
+from tactics2d.map.generator.generate_parking_lot import Position, \
+    gene_bay_park, gene_parallel_park, VEHICLE_BOX
+from tactics2d.render.lidar_simulator import LidarSimlator
+# from tactics2d.traffic.traffic_event import TrafficEvent
+from tactics2d.participant.element import Vehicle
+from tactics2d.trajectory.element import State
+
 
 WHEEL_BASE = 2.8  # wheelbase
 FRONT_HANG = 0.96  # front hang length
@@ -66,32 +66,80 @@ OBSTACLE_COLOR = (150, 150, 150, 255)
 TRAJ_COLOR = (10, 10, 150, 255)
 VEHICLE_COLOR = (30, 144, 255, 255)
 
+class Status(Enum):
+    NORMAL = 1
+    ARRIVED = 2
+    COLLIDED = 3
+    OUTBOUND = 4
+    OUTTIME = 5
 
 def State2Position(state:State)->Position:
     return Position([state.x, state.y, state.heading])
 
+class ParkingMapNormal(Map):
+    def __init__(self,name="CarParking", scenario_type="parking"):
+        super().__init__(name, scenario_type)
+
+        self.start: Position = None
+        self.dest: Position = None
+        self.start_box:LinearRing = None
+        self.dest_box:LinearRing = None
+        self.xmin, self.xmax = 0, 0
+        self.ymin, self.ymax = 0, 0
+        self.n_obstacle = 0
+        self.obstacles:list[Area] = []
+        self.vehicle_box:LinearRing = None
+        self.case_id = 0
+
+    def set_vehicle(self, vehicle_box):
+        self.vehicle_box = vehicle_box
+
+    def reset(self) -> Position:
+        if np.random.random() > 0.5:
+            start, dest, obstacles = gene_bay_park(self.vehicle_box)
+            self.case_id = 0
+        else:
+            start, dest, obstacles = gene_parallel_park(self.vehicle_box)
+            self.case_id = 1
+
+        self.start = Position(start)
+        self.start_box = self.start.create_box(self.vehicle_box)
+        self.dest = Position(dest)
+        self.dest_box = self.dest.create_box(self.vehicle_box)
+        self.xmin = np.floor(min(self.start.loc.x, self.dest.loc.x) - 10)
+        self.xmax = np.ceil(max(self.start.loc.x, self.dest.loc.x) + 10)
+        self.ymin = np.floor(min(self.start.loc.y, self.dest.loc.y) - 10)
+        self.ymax = np.ceil(max(self.start.loc.y, self.dest.loc.y) + 10)
+        # self.set_boundary([self.xmin, self.ymin, self.xmax, self.ymax])
+        idx = 0
+        for obs in obstacles:
+            idx += 1
+            obs_area = Area('%s'%idx, Polygon(obs),line_ids=None, subtype='obstcale')
+            self.add_area(obs_area)
+            self.obstacles.append(obs_area)
+        self.n_obstacle = len(self.obstacles)
+
+        return self.start
 
 class CarParking(gym.Env):
     """
     Description:
-    
-    Args:
-        
+        Unconstructed parking environment.
     """
 
     metadata = {
         "render_mode": [
-            "human", 
+            "human",
             "rgb_array",
         ]
     }
 
     def __init__(
-        self, 
+        self,
         render_mode: Optional[str] = "human",
         render_fps: int = FPS,
-        verbose: bool =True, 
-        continuous: bool =True,
+        verbose: bool = True,
+        continuous: bool = True,
         use_lidar_observation: bool = True,
         use_img_observation: bool = True,
     ):
@@ -114,22 +162,19 @@ class CarParking(gym.Env):
         self.matrix = None
         self.clock = None
         self.is_open = True
-        self.t = 0.0
+        self.n_step = 0.0
         self.k = None
         self.tgt_repr_size = 5 # relative_distance, cos(theta), sin(theta), cos(phi), sin(phi)
 
         self.map = ParkingMapNormal()
-        self.agent = Vehicle( 
-            id="0", type="vehicle:racing", width=1.8, length=5, height=1.5, # TODO make the hyperparameters
+        self.agent = Vehicle(id_=0, type_="vehicle:racing",
+            width=WIDTH, length=LENGTH, height=1.5, # TODO make the hyperparameters
             steering_angle_range=(-0.5, 0.5), steering_velocity_range=(-0.5, 0.5),
-            speed_range=(-10, 100), accel_range=(-1, 1), physics=None
+            speed_range=(-10, 100), accel_range=(-1, 1)
         )
-        self.raw_vehicle_box = LinearRing([
-            (-REAR_HANG, -WIDTH/2), 
-            (FRONT_HANG + WHEEL_BASE, -WIDTH/2), 
-            (FRONT_HANG + WHEEL_BASE,  WIDTH/2),
-            (-REAR_HANG,  WIDTH/2)])
+        self.raw_vehicle_box = VEHICLE_BOX
         self.curr_vehicle_box = None
+        self.map.set_vehicle(self.raw_vehicle_box)
         self.lidar = LidarSimlator(LIDAR_RANGE, LIDAR_NUM)
         self.reward = 0.0
 
@@ -144,18 +189,14 @@ class CarParking(gym.Env):
             ) # steer, speed
         else:
             self.action_space = spaces.Discrete(5) # do nothing, left, right, gas, brake
-       
         self.observation_space = {'lidar':None, 'img':None, 'target':None}
         if self.use_img_observation:
-            self.img_processor = Obs_Processor()
-            self.observation_space['img'] = spaces.Box(low=0, high=255, 
-                shape=(STATE_W//self.img_processor.downsample_rate, STATE_H//self.img_processor.downsample_rate, 
-                self.img_processor.n_channels), dtype=np.uint8
-            )
+            self.observation_space['img'] = spaces.Box(low=0, high=255,
+                shape=(STATE_W, STATE_H, 3), dtype=np.uint8)
         if self.use_lidar_observation:
             # the observation is composed of lidar points and target representation
             # the target representation is (relative_distance, cos(theta), sin(theta), cos(phi), sin(phi))
-            # where the theta indicates the relative angle of parking lot, and phi means the heading of 
+            # where the theta indicates the relative angle of parking lot, and phi means the heading of
             # parking lit in the polar coordinate of the ego car's view
             low_bound, high_bound = np.zeros((LIDAR_NUM)), np.ones((LIDAR_NUM))*LIDAR_RANGE
             self.observation_space['lidar'] = spaces.Box(
@@ -173,8 +214,8 @@ class CarParking(gym.Env):
 
         initial_pos = self.map.reset()
         state = State(
-            timestamp=self.n_step, heading=initial_pos.heading, 
-            x = initial_pos.loc.x, y = initial_pos.loc.y, vx=0, vy=0
+            frame=self.n_step, heading=initial_pos.heading,
+            x = initial_pos.loc.x, y = initial_pos.loc.y
         )
         self.agent.reset(state)
         self.matrix = self._coord_transform_matrix()
@@ -184,25 +225,22 @@ class CarParking(gym.Env):
     def _coord_transform_matrix(self) -> list:
         """Get the transform matrix that convert the real world coordinate to the pygame coordinate.
         """
-        # k1 = WIN_W/ (self.map.xmax - self.map.xmin)
-        # k2 = WIN_H / (self.map.ymax - self.map.ymin)
         k = K
         bx = 0.5 * (VIDEO_W - k * (self.map.xmax + self.map.xmin))
         by = 0.5 * (VIDEO_H - k * (self.map.ymax + self.map.ymin))
         self.k = k
         return [k, 0, 0, k, bx, by]
 
-    def _coord_transform(self, object) -> list:
-        transformed = affine_transform(object, self.matrix)
+    def _coord_transform(self, obj) -> list:
+        transformed = affine_transform(obj, self.matrix)
         return list(transformed.coords)
 
     def _detect_collision(self):
-        # return False
         for obstacle in self.map.obstacles:
-            if self.curr_vehicle_box.intersects(obstacle.shape):
+            if self.curr_vehicle_box.intersects(obstacle.polygon.exterior):
                 return True
         return False
-    
+
     def _detect_outbound(self):
         vehicle_box = np.array(self._coord_transform(self.curr_vehicle_box))
         if vehicle_box[:, 0].min() < 0:
@@ -223,11 +261,12 @@ class CarParking(gym.Env):
             # print('arrive!!: ',union_area / dest_box.area)
             return True
         return False
-    
+
     def _check_time_exceeded(self):
         return self.n_step < STEP_LIMIT
 
     def _check_status(self):
+        # TODO: merge the status into traffic event
         if self._detect_collision():
             return Status.COLLIDED
         if self._detect_outbound():
@@ -235,12 +274,12 @@ class CarParking(gym.Env):
         if self._check_arrived():
             return Status.ARRIVED
         if self._check_time_exceeded():
-            return Status.OUT_TIME
+            return Status.OUTTIME
         return Status.NORMAL
 
     def _get_reward(self, prev_state: Position, curr_state: Position):
         # time penalty
-        time_cost = - np.tanh(self.t / (10*MAX_STEP))
+        time_cost = - np.tanh(self.n_step / (10*MAX_STEP))
 
         # Euclidean distance reward & angle reward
         def get_angle_diff(angle1, angle2):
@@ -257,9 +296,8 @@ class CarParking(gym.Env):
             math.exp(-prev_dist_diff/dist_norm_ratio)
         angle_reward = math.exp(-angle_diff/angle_norm_ratio) - \
             math.exp(-prev_angle_diff/angle_norm_ratio)
-        
+
         return time_cost+dist_reward+angle_reward
-        
 
     def step(self, action: Union[np.ndarray, int] = None):
         '''
@@ -269,12 +307,10 @@ class CarParking(gym.Env):
 
         Returns:
         ----------
-        ``obsercation`` (Dict): 
+        ``obsercation`` (Dict):
             the observation of image based surroundings, lidar view and target representation.
-            If `use_lidar_observation` is `True`, then `obsercation['img'] = None`.
-            If `use_lidar_observation` is `False`, then `obsercation['lidar'] = None`. 
 
-        ``reward`` (float): the reward considering the distance and angle difference between 
+        ``reward`` (float): the reward considering the distance and angle difference between
                 current state and destination.
         `status` (`Status`): represent the state of vehicle, including:
                 `NORMAL`, `ARRIVED`, `COLLIDED`, `OUTBOUND`, `OUT_TIME`
@@ -286,14 +322,14 @@ class CarParking(gym.Env):
         prev_state = self.agent.current_state
         if action is not None:
             if self.continuous:
-                self.agent.update(action) # TODO unimplemented function
+                self.agent.update_state(action)
             else:
                 if not self.action_space.contains(action):
                     raise InvalidAction(
                         f"you passed the invalid action `{action}`. "
                         f"The supported action_space is `{self.action_space}`"
                     )
-                self.agent.update(DISCRETE_ACTION[action]) # TODO unimplemented function
+                self.agent.update_state(DISCRETE_ACTION[action])
 
         # update vehicle box
         self.curr_vehicle_box = \
@@ -318,20 +354,20 @@ class CarParking(gym.Env):
         surface.fill(BG_COLOR)
         for obstacle in self.map.obstacles:
             pygame.draw.polygon(
-                surface, OBSTACLE_COLOR, self._coord_transform(obstacle.shape))
+                surface, OBSTACLE_COLOR, self._coord_transform(obstacle.polygon.exterior))
 
         pygame.draw.polygon(
             surface, START_COLOR, self._coord_transform(self.map.start_box), width=1)
         pygame.draw.polygon(
             surface, DEST_COLOR, self._coord_transform(self.map.dest_box))#, width=1
-        
+
         pygame.draw.polygon(
             surface, VEHICLE_COLOR, self._coord_transform(self.curr_vehicle_box))
 
-        if len(self.agent.history_state) > 1:
+        if len(self.agent.trajectory) > 1: # TODO undefined trajectory
             pygame.draw.lines(
-                surface, TRAJ_COLOR, False, 
-                self._coord_transform(LineString(self.agent.trajectory)) # TODO convert the history to trajectory
+                surface, TRAJ_COLOR, False,
+                self._coord_transform(LineString(self.agent.trajectory))
             )
 
     def _get_img_observation(self, surface: pygame.Surface):
@@ -342,47 +378,33 @@ class CarParking(gym.Env):
         capture = pygame.transform.rotate(surface, np.rad2deg(angle))
         rotate = pygame.Surface((VIDEO_W, VIDEO_H))
         rotate.blit(capture, capture.get_rect(center=old_center))
-        
+
         vehicle_center = np.array(self._coord_transform(self.curr_vehicle_box.centroid)[0])
         dx = (vehicle_center[0]-old_center[0])*np.cos(angle) \
             + (vehicle_center[1]-old_center[1])*np.sin(angle)
         dy = -(vehicle_center[0]-old_center[0])*np.sin(angle) \
             + (vehicle_center[1]-old_center[1])*np.cos(angle)
-        
+
         # align the center of the observation with the center of the vehicle
         observation = pygame.Surface((VIDEO_W, VIDEO_H))
-    
+
         observation.fill(BG_COLOR)
         observation.blit(rotate, (int(-dx), int(-dy)))
         observation = observation.subsurface((
             (VIDEO_W-STATE_W)/2, (VIDEO_H-STATE_H)/2), (STATE_W, STATE_H))
-    
+
         obs_str = pygame.image.tostring(observation, "RGB")
         observation = np.frombuffer(obs_str, dtype=np.uint8)
         observation = observation.reshape(self.observation_space['img'].shape)
         return observation
 
-    def _process_img_observation(self, img):
-        '''
-        Process the img into channels of different information.
-
-        Parameters
-        ------
-        img (np.ndarray): RGB image of shape (OBS_W, OBS_H, 3)
-
-        Returns
-        ------
-        processed img (np.ndarray): shape (OBS_W//downsample_rate, OBS_H//downsample_rate, n_channels )
-        '''
-        return self.img_processor.process_img(img)
-
     def _get_lidar_observation(self,):
-        obs_list = [obs.shape for obs in self.map.obstacles]
+        obs_list = [obs.polygon.exterior for obs in self.map.obstacles]
         ego_pos = (self.agent.current_state.x, self.agent.current_state.y,\
              self.agent.current_state.heading)
         lidar_view = self.lidar.get_observation(ego_pos, obs_list)
         return lidar_view
-    
+
     def _get_targt_repr(self,):
         # target position representation
         dest_pos = (self.map.dest.loc.x, self.map.dest.loc.y, self.map.dest.heading)
@@ -393,7 +415,7 @@ class CarParking(gym.Env):
         rel_dest_heading = dest_pos[2] - ego_pos[2]
         tgt_repr = np.array([rel_distance, math.cos(rel_angle), math.sin(rel_angle),\
             math.cos(rel_dest_heading), math.cos(rel_dest_heading)])
-        return tgt_repr 
+        return tgt_repr
 
     def render(self, mode: str = "human"):
         assert mode in self.metadata["render_mode"]
@@ -412,14 +434,13 @@ class CarParking(gym.Env):
         self._render(self.screen)
         observation = {'img':None, 'lidar':None, 'target':None}
         if self.use_img_observation:
-            raw_observation = self._get_img_observation(self.screen)
-            observation['img'] = self._process_img_observation(raw_observation)
+            observation['img'] = self._get_img_observation(self.screen)
         if self.use_lidar_observation:
             observation['lidar'] = self._get_lidar_observation()
         observation['target'] = self._get_targt_repr()
         pygame.display.update()
         self.clock.tick(self.render_fps)
-        
+
         return observation
 
     def close(self):

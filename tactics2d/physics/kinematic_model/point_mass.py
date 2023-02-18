@@ -2,11 +2,11 @@ from typing import Tuple
 
 import numpy as np
 
-from tactics2d.vehicle_dynamics.base.dynamics import Dynamics
-from tactics2d.vehicle_dynamics.base.state import State
+from tactics2d.physics.kinematic_model.base import KinematicsBase
+from tactics2d.trajectory.element import State
 
 
-class PointMass(Dynamics):
+class PointMass(KinematicsBase):
     """An implementation of the point-mass model. 
     
     The implementation is specified for the purpose of updating and verifying the vehicle's state.

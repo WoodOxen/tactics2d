@@ -114,6 +114,7 @@ class TopDownCamera(SensorBase):
                     self.window_size[0] / self.perception_width, 
                     self.window_size[1] / self.perception_height
                 )
+
                 self.transform_matrix = [
                     scale, 0, 0, scale, 
                     0.5 * (-self.perception_width+self.window_size[0]),
@@ -126,10 +127,7 @@ class TopDownCamera(SensorBase):
             )
             theta = 3*np.pi/ 2 - self.heading if self.heading < 3*np.pi/2 else 5*np.pi/ 2 - self.heading
 
-    def update(self, position = None, location = None):
-        self.position = position
-        self.location = location
-        self._update_transform_matrix()
+            self.transform_matrix = [theta]
 
     def _in_perception_range(self, geometry) -> bool:
         return geometry.distance(self.position) > self.max_perception_distance
@@ -141,7 +139,7 @@ class TopDownCamera(SensorBase):
                     continue
 
             color = AREA_COLOR[area.subtype] \
-                if color.subtype in AREA_COLOR else AREA_COLOR["default"]
+                if area.subtype in AREA_COLOR else AREA_COLOR["default"]
             color = color if area.color is None else area.color
             polygon = affine_transform(area.polygon, self.transform_matrix)
             outer_points = list(polygon.exterior.coords)
@@ -205,7 +203,11 @@ class TopDownCamera(SensorBase):
 
             pygame.draw.circle(self.surface, color, point, radius)
 
-    def update(self, map_, vehicles, pedestrians):
+    def update(self, map_, vehicles, pedestrians, position = None, location = None):
+        self.position = position
+        self.location = location
+        self._update_transform_matrix(map_)
+
         self._render_areas(map_.areas.values())
         self._render_lanes(map_.lanes.values())
         self._render_roadlines(map_.roadlines.values())
@@ -213,3 +215,6 @@ class TopDownCamera(SensorBase):
         self._render_pedestrians(pedestrians)
 
 
+class SingleLineLidar(SensorBase):
+    def __init__(self, sensor_id):
+        super().__init__(sensor_id)

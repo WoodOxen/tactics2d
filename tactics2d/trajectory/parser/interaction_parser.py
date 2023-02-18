@@ -1,22 +1,24 @@
 import os
 import pandas as pd
 
-from tactics2d.object.element.vehicle import Vehicle
-from tactics2d.object.element.vehicle import Pedestrian
-from tactics2d.object.element.cyclist import Cyclist
+from tactics2d.participant.element.vehicle import Vehicle
+from tactics2d.participant.element.vehicle import Pedestrian
+from tactics2d.participant.element.cyclist import Cyclist
 from tactics2d.trajectory.element.state import State
 from tactics2d.trajectory.element.trajectory import Trajectory
 
 
-def _get_vehicle_type(self, length: float, width: float) -> str:
+def _get_vehicle_type(length: float, width: float) -> str:
     return 
 
 
-def _get_pedestrian_type(self, trajectory: Trajectory) -> str:
+def _get_pedestrian_type(trajectory: Trajectory) -> str:
     return
 
 
 class InteractionParser(object):
+    """
+    """
 
     @staticmethod
     def parse_vehicle(file_id, folder_path, stamp_range):

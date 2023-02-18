@@ -5,9 +5,9 @@ from pyproj import Proj
 from shapely.geometry import Point, LineString, Polygon
 
 from tactics2d.map.element.node import Node
+from tactics2d.map.element.roadline import RoadLine
 from tactics2d.map.element.lane import Lane
 from tactics2d.map.element.area import Area
-from tactics2d.map.element.roadline import RoadLine
 from tactics2d.map.element.regulatory import RegulatoryElement
 from tactics2d.map.element.map import Map
 
@@ -53,7 +53,7 @@ def _get_tags(xml_node: ET.Element) -> dict:
     tags["custom_tags"] = dict()
     for tag in xml_node.findall("tag"):
         if tag.get("k") == "type":
-            tags["type"] = tag.get("v")
+            tags["type_"] = tag.get("v")
         elif tag.get("k") == "subtype":
             tags["subtype"] = tag.get("v")
         elif tag.get("k") == "width": # only for roadline
@@ -115,11 +115,11 @@ def _load_roadline(xml_node: ET.Element, map_: Map) -> Lane:
     line_tags = _get_tags(xml_node)
 
     if "lane_change" not in line_tags:
-        if line_tags["type"] in LANE_CHANGE_MAPPING:
+        if line_tags["type_"] in LANE_CHANGE_MAPPING:
             if ("subtype" in line_tags) \
-                and (line_tags["subtype"] in LANE_CHANGE_MAPPING[line_tags["type"]]):
+                and (line_tags["subtype"] in LANE_CHANGE_MAPPING[line_tags["type_"]]):
                 line_tags["lane_change"] = \
-                    LANE_CHANGE_MAPPING[line_tags["type"]][line_tags["subtype"]]
+                    LANE_CHANGE_MAPPING[line_tags["type_"]][line_tags["subtype"]]
 
     return RoadLine(line_id, linestring, **line_tags)
 
@@ -247,49 +247,54 @@ def _get_map_bounds(nodes: dict):
     return x_min, x_max, y_min, y_max
 
 
-def parse(xml_root: ET.ElementTree, map_config: dict) -> Map:
+class Lanelet2Parser(object):
 
-    map_name = map_config["map_name"] # update map name
-    map_info = map_name.split("_")
-    scenario_type = map_info[0]
-    country = map_info[3]
+    @staticmethod
+    def parse(xml_root: ET.ElementTree, map_config: dict) -> Map:
 
-    map_ = Map(map_name, scenario_type, country)
+        map_name = map_config["map_name"] # update map name
+        map_info = map_name.split("_")
+        scenario_type = map_info[0]
+        country = map_info[3]
 
-    projector = Proj(**map_config["project_rule"])
-    origin = projector(
-    map_config["gps_origin"][0], map_config["gps_origin"][1])
+        map_ = Map(map_name, scenario_type, country)
 
-    for xml_node in xml_root.findall("node"):
-        if xml_node.get("action") == "delete":
-            continue
-        node = _load_node(xml_node, projector, origin)
-        map_.add_node(node)
-    
-    for xml_node in xml_root.findall("way"):
-        if xml_node.get("action") == "delete":
-            continue
-        roadline = _load_roadline(xml_node, map_)
-        map_.add_roadline(roadline)
-    
-    for xml_node in xml_root.findall("relation"):
-        if xml_node.get("action") == "delete":
-            continue
-        for tag in xml_node.findall("tag"):
-            if tag.get("v") == "lanelet":
-                lane = _load_lane(xml_node, map_)
-                map_.add_lane(lane)
-            elif tag.get("v") in ["multipolygon", "area"]:
-                area = _load_area(xml_node, map_)
-                map_.add_area(area)
+        projector = Proj(**map_config["project_rule"])
+        origin = projector(
+        map_config["gps_origin"][0], map_config["gps_origin"][1])
 
-    for xml_node in xml_root.findall("relation"):
-        if xml_node.get("action") == "delete":
-            continue
-        for tag in xml_node.findall("tag"):
-            if tag.get("v") == "regulatory_element":
-                regulatory = _load_regulatory(xml_node)
-                map_.add_regulatory(regulatory)
+        for xml_node in xml_root.findall("node"):
+            if xml_node.get("action") == "delete":
+                continue
+            node = _load_node(xml_node, projector, origin)
+            map_.add_node(node)
+        
+        for xml_node in xml_root.findall("way"):
+            if xml_node.get("action") == "delete":
+                continue
+            roadline = _load_roadline(xml_node, map_)
+            map_.add_roadline(roadline)
+        
+        for xml_node in xml_root.findall("relation"):
+            if xml_node.get("action") == "delete":
+                continue
+            for tag in xml_node.findall("tag"):
+                if tag.get("v") == "lanelet":
+                    lane = _load_lane(xml_node, map_)
+                    map_.add_lane(lane)
+                elif tag.get("v") in ["multipolygon", "area"]:
+                    area = _load_area(xml_node, map_)
+                    map_.add_area(area)
 
-    x_min, x_max, y_min, y_max = _get_map_bounds(map_.nodes)
-    map_.boundary = [x_min-10, x_max+10, y_min-10, y_max+10]
+        for xml_node in xml_root.findall("relation"):
+            if xml_node.get("action") == "delete":
+                continue
+            for tag in xml_node.findall("tag"):
+                if tag.get("v") == "regulatory_element":
+                    regulatory = _load_regulatory(xml_node)
+                    map_.add_regulatory(regulatory)
+
+        x_min, x_max, y_min, y_max = _get_map_bounds(map_.nodes)
+        map_.boundary = [x_min-10, x_max+10, y_min-10, y_max+10]
+
+        return map_
