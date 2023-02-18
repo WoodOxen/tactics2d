@@ -3,6 +3,7 @@ sys.path.append("../")
 from typing import Optional, Union
 import math
 from typing import OrderedDict
+from enum import Enum
 
 import numpy as np
 import gym
@@ -19,12 +20,13 @@ except ImportError:
         "pygame is not installed, run `pip install pygame`"
     )
 
-from tactics2d.envs.lidar_simulator import LidarSimlator
-from tactics2d.envs.status import Status
-from tactics2d.envs.parking_base import ParkingMapNormal
-from tactics2d.object_base.position import Position
-from tactics2d.object_base.vehicle import Vehicle
-from tactics2d.object_base.state import State
+from tactics2d.map.element.map import Map
+from tactics2d.map.element.area import Area
+from tactics2d.map.generator.generate_parking_lot import *
+from tactics2d.render.lidar_simulator import LidarSimlator
+# from tactics2d.traffic.traffic_event import TrafficEvent
+from tactics2d.participant.element.vehicle import Vehicle
+from tactics2d.trajectory.element.state import State
 
 WHEEL_BASE = 2.8  # wheelbase
 FRONT_HANG = 0.96  # front hang length
@@ -64,15 +66,64 @@ OBSTACLE_COLOR = (150, 150, 150, 255)
 TRAJ_COLOR = (10, 10, 150, 255)
 VEHICLE_COLOR = (30, 144, 255, 255)
 
+class Status(Enum):
+    NORMAL = 1
+    ARRIVED = 2
+    COLLIDED = 3
+    OUTBOUND = 4
+    OUTTIME = 5
 
 def State2Position(state:State)->Position:
     return Position([state.x, state.y, state.heading])
 
+class ParkingMapNormal(Map):
+    def __init__(self,name="CarParking", scenario_type="parking"):
+        super().__init__(name, scenario_type)
+
+        self.start: Position = None
+        self.dest: Position = None
+        self.start_box:LinearRing = None
+        self.dest_box:LinearRing = None
+        self.xmin, self.xmax = 0, 0
+        self.ymin, self.ymax = 0, 0
+        self.n_obstacle = 0
+        self.obstacles:list[Area] = []
+        self.vehicle_box:LinearRing = None
+    
+    def set_vehicle(self, vehicle_box):
+        self.vehicle_box = vehicle_box
+
+    def reset(self) -> Position:
+        if np.random.random() > 0.5:
+            start, dest, obstacles = gene_bay_park(self.vehicle_box)
+            self.case_id = 0
+        else:
+            start, dest, obstacles = gene_parallel_park(self.vehicle_box)
+            self.case_id = 1
+
+        self.start = Position(start)
+        self.start_box = self.start.create_box(self.vehicle_box)
+        self.dest = Position(dest)
+        self.dest_box = self.dest.create_box(self.vehicle_box)
+        self.xmin = np.floor(min(self.start.loc.x, self.dest.loc.x) - 10)
+        self.xmax = np.ceil(max(self.start.loc.x, self.dest.loc.x) + 10)
+        self.ymin = np.floor(min(self.start.loc.y, self.dest.loc.y) - 10)
+        self.ymax = np.ceil(max(self.start.loc.y, self.dest.loc.y) + 10)
+        # self.set_boundary([self.xmin, self.ymin, self.xmax, self.ymax])
+        idx = 0
+        for obs in obstacles:
+            idx += 1
+            obs_area = Area('%s'%idx, Polygon(obs), subtype='obstcale')
+            self.add_area(obs_area)
+            self.obstacles.append(obs_area)
+        self.n_obstacle = len(self.obstacles)
+
+        return self.start
 
 class CarParking(gym.Env):
     """
     Description:
-    Args:
+        Unconstructed parking environment.
     """
 
     metadata = {
@@ -116,16 +167,13 @@ class CarParking(gym.Env):
 
         self.map = ParkingMapNormal()
         self.agent = Vehicle(
-            id="0", type="vehicle:racing", width=1.8, length=5, height=1.5, # TODO make the hyperparameters
+            id="0", type="vehicle:racing", width=WIDTH, length=LENGTH, height=1.5, # TODO make the hyperparameters
             steering_angle_range=(-0.5, 0.5), steering_velocity_range=(-0.5, 0.5),
             speed_range=(-10, 100), accel_range=(-1, 1), physics=None
         )
-        self.raw_vehicle_box = LinearRing([
-            (-REAR_HANG, -WIDTH/2),
-            (FRONT_HANG + WHEEL_BASE, -WIDTH/2),
-            (FRONT_HANG + WHEEL_BASE,  WIDTH/2),
-            (-REAR_HANG,  WIDTH/2)])
+        self.raw_vehicle_box = VEHICLE_BOX
         self.curr_vehicle_box = None
+        self.map.set_vehicle(self.raw_vehicle_box)
         self.lidar = LidarSimlator(LIDAR_RANGE, LIDAR_NUM)
         self.reward = 0.0
 
@@ -176,8 +224,6 @@ class CarParking(gym.Env):
     def _coord_transform_matrix(self) -> list:
         """Get the transform matrix that convert the real world coordinate to the pygame coordinate.
         """
-        # k1 = WIN_W/ (self.map.xmax - self.map.xmin)
-        # k2 = WIN_H / (self.map.ymax - self.map.ymin)
         k = K
         bx = 0.5 * (VIDEO_W - k * (self.map.xmax + self.map.xmin))
         by = 0.5 * (VIDEO_H - k * (self.map.ymax + self.map.ymin))
@@ -189,9 +235,8 @@ class CarParking(gym.Env):
         return list(transformed.coords)
 
     def _detect_collision(self):
-        # return False
         for obstacle in self.map.obstacles:
-            if self.curr_vehicle_box.intersects(obstacle.shape):
+            if self.curr_vehicle_box.intersects(obstacle.polygon.exterior):
                 return True
         return False
     
@@ -220,6 +265,7 @@ class CarParking(gym.Env):
         return self.n_step < STEP_LIMIT
 
     def _check_status(self):
+        # TODO: merge the status into traffic event
         if self._detect_collision():
             return Status.COLLIDED
         if self._detect_outbound():
@@ -227,7 +273,7 @@ class CarParking(gym.Env):
         if self._check_arrived():
             return Status.ARRIVED
         if self._check_time_exceeded():
-            return Status.OUT_TIME
+            return Status.OUTTIME
         return Status.NORMAL
 
     def _get_reward(self, prev_state: Position, curr_state: Position):
@@ -276,14 +322,14 @@ class CarParking(gym.Env):
         prev_state = self.agent.current_state
         if action is not None:
             if self.continuous:
-                self.agent.update(action) # TODO unimplemented function
+                self.agent.update_state(action)
             else:
                 if not self.action_space.contains(action):
                     raise InvalidAction(
                         f"you passed the invalid action `{action}`. "
                         f"The supported action_space is `{self.action_space}`"
                     )
-                self.agent.update(DISCRETE_ACTION[action]) # TODO unimplemented function
+                self.agent.update_state(DISCRETE_ACTION[action])
 
         # update vehicle box
         self.curr_vehicle_box = \
@@ -308,7 +354,7 @@ class CarParking(gym.Env):
         surface.fill(BG_COLOR)
         for obstacle in self.map.obstacles:
             pygame.draw.polygon(
-                surface, OBSTACLE_COLOR, self._coord_transform(obstacle.shape))
+                surface, OBSTACLE_COLOR, self._coord_transform(obstacle.polygon.exterior))
 
         pygame.draw.polygon(
             surface, START_COLOR, self._coord_transform(self.map.start_box), width=1)
@@ -318,10 +364,10 @@ class CarParking(gym.Env):
         pygame.draw.polygon(
             surface, VEHICLE_COLOR, self._coord_transform(self.curr_vehicle_box))
 
-        if len(self.agent.history_state) > 1:
+        if len(self.agent.trajectory) > 1: # TODO undefined trajectory
             pygame.draw.lines(
                 surface, TRAJ_COLOR, False,
-                self._coord_transform(LineString(self.agent.trajectory)) # TODO convert the history to trajectory
+                self._coord_transform(LineString(self.agent.trajectory))
             )
 
     def _get_img_observation(self, surface: pygame.Surface):
@@ -353,7 +399,7 @@ class CarParking(gym.Env):
         return observation
 
     def _get_lidar_observation(self,):
-        obs_list = [obs.shape for obs in self.map.obstacles]
+        obs_list = [obs.polygon.exterior for obs in self.map.obstacles]
         ego_pos = (self.agent.current_state.x, self.agent.current_state.y,\
              self.agent.current_state.heading)
         lidar_view = self.lidar.get_observation(ego_pos, obs_list)
