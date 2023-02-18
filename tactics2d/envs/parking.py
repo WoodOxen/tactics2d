@@ -1,5 +1,3 @@
-import sys
-sys.path.append("../")
 from typing import Optional, Union
 import math
 from typing import OrderedDict
@@ -20,14 +18,14 @@ except ImportError:
         "pygame is not installed, run `pip install pygame`"
     )
 
-from tactics2d.map.element.map import Map
-from tactics2d.map.element.area import Area
+from tactics2d.map.element import Area, Map
 from tactics2d.map.generator.generate_parking_lot import Position, \
     gene_bay_park, gene_parallel_park, VEHICLE_BOX
 from tactics2d.render.lidar_simulator import LidarSimlator
 # from tactics2d.traffic.traffic_event import TrafficEvent
-from tactics2d.participant.element.vehicle import Vehicle
-from tactics2d.trajectory.element.state import State
+from tactics2d.participant.element import Vehicle
+from tactics2d.trajectory.element import State
+
 
 WHEEL_BASE = 2.8  # wheelbase
 FRONT_HANG = 0.96  # front hang length

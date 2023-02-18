@@ -4,8 +4,7 @@ import numpy as np
 from shapely.geometry import LinearRing
 from shapely.affinity import rotate
 
-from tactics2d.trajectory.element.state import State
-from tactics2d.trajectory.element.trajectory import Trajectory
+from tactics2d.trajectory.element import State, Trajectory
 
 
 class Vehicle(object):
