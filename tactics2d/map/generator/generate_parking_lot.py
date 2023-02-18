@@ -340,7 +340,7 @@ def gene_parallel_park(vehicle_box:LinearRing):
 
     # merge two kind of obstacles
     obstacles.extend(other_obstcales)
-    
+
     # generate start position
     start_box_valid = False
     valid_start_x_range = (origin[0]-bay_half_len/2, origin[0]+bay_half_len/2)
@@ -359,7 +359,7 @@ def gene_parallel_park(vehicle_box:LinearRing):
         # check overlap with dest box
         if dest_box.intersects(start_box):
             start_box_valid = False
-    
+
     # flip the dest box so that the orientation of start matches the dest
     if cos(start_yaw)<0:
         dest_box_center = np.mean(np.array(dest_box.coords[:-1]), axis=0)

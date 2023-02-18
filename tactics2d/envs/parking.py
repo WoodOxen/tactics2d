@@ -169,7 +169,7 @@ class CarParking(gym.Env):
 
         self.map = ParkingMapNormal()
         self.agent = Vehicle(
-            id_=0, type_="vehicle:racing", width=WIDTH, length=LENGTH, height=1.5, # TODO make the hyperparameters
+            0, "vehicle:racing", width=WIDTH, length=LENGTH, height=1.5, # TODO make the hyperparameters
             steering_angle_range=(-0.5, 0.5), steering_velocity_range=(-0.5, 0.5),
             speed_range=(-10, 100), accel_range=(-1, 1), physics=None
         )
