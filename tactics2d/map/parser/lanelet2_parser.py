@@ -296,3 +296,5 @@ class Lanelet2Parser(object):
 
         x_min, x_max, y_min, y_max = _get_map_bounds(map_.nodes)
         map_.boundary = [x_min-10, x_max+10, y_min-10, y_max+10]
+
+        return map_
