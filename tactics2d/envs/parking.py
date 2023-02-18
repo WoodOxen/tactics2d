@@ -139,8 +139,8 @@ class CarParking(gym.Env):
         self,
         render_mode: Optional[str] = "human",
         render_fps: int = FPS,
-        verbose: bool =True,
-        continuous: bool =True,
+        verbose: bool = True,
+        continuous: bool = True,
         use_lidar_observation: bool = True,
         use_img_observation: bool = True,
     ):
@@ -361,7 +361,7 @@ class CarParking(gym.Env):
             surface, START_COLOR, self._coord_transform(self.map.start_box), width=1)
         pygame.draw.polygon(
             surface, DEST_COLOR, self._coord_transform(self.map.dest_box))#, width=1
-        
+
         pygame.draw.polygon(
             surface, VEHICLE_COLOR, self._coord_transform(self.curr_vehicle_box))
 
