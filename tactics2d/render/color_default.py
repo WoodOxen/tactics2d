@@ -1,26 +1,44 @@
-from tactics2d.render.color_dict import COLORS
+from pygame.colordict import THECOLORS
 
 
 LANE_COLOR = {
-    "road": COLORS["darkgray"],
-    "highway": COLORS["dimgray"],
-    "play_street": COLORS["slategray"],
-    "emergency_lane": COLORS["red4"],
-    "bus_lane": COLORS["dodgerblue4"],
-    "bicycle_lane": COLORS["darkgreen"],
-    "exit": COLORS["palegreen4"],
-    "walkway": COLORS["azure3"],
-    "shared_walkway": COLORS["darkgray"],
-    "crosswalk": COLORS["silver"],
-    "stairs": COLORS["lightslategray"]
+    "default": THECOLORS["darkgray"],
+    "road": THECOLORS["darkgray"],
+    "highway": THECOLORS["dimgray"],
+    "play_street": THECOLORS["slategray"],
+    "emergency_lane": THECOLORS["red4"],
+    "bus_lane": THECOLORS["dodgerblue4"],
+    "bicycle_lane": THECOLORS["darkgreen"],
+    "exit": THECOLORS["palegreen4"],
+    "walkway": THECOLORS["azure3"],
+    "shared_walkway": THECOLORS["darkgray"],
+    "crosswalk": THECOLORS["silver"],
+    "stairs": THECOLORS["lightslategray"],
 }
 
 
 AREA_COLOR = {
-    "parking": COLORS["darkgray"],
-    "freespace": COLORS["slategray"],
-    "vegetation": COLORS["springgreen2"],
-    "keepout": COLORS["red2"],
-    "building": COLORS["steelblue1"],
-    "traffic_island": COLORS["silver"],
+    "default": THECOLORS["slategray"],
+    "hole": THECOLORS["white"],
+    "parking": THECOLORS["darkgray"],
+    "freespace": THECOLORS["slategray"],
+    "vegetation": THECOLORS["springgreen2"],
+    "keepout": THECOLORS["red2"],
+    "building": THECOLORS["steelblue1"],
+    "traffic_island": THECOLORS["silver"],
+}
+
+
+ROADLINE_COLOR = {
+    "default": THECOLORS["white"],
+}
+
+
+VEHICLE_COLOR = {
+    "default": THECOLORS["turquoise1"],
+}
+
+
+PEDESTRIAN_COLOR = {
+    "default": THECOLORS["lightpink"],
 }

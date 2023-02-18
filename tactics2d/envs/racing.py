@@ -2,17 +2,19 @@ from typing import Optional, Union
 import time
 
 import numpy as np
-from shapely.geometry import Point, LineString, Polygon
+from shapely.geometry import Point, LineString, LinearRing
+from shapely.affinity import affine_transform
+# import gymnasium as gym
 import gym
 from gym import spaces
 
-from tactics2d.common.get_circle import get_circle
-from tactics2d.common.bezier import Bezier
-from tactics2d.map_base.lane import Lane
-from tactics2d.map_base.map import Map
-from tactics2d.object_base.vehicle import Vehicle
-from tactics2d.object_base.state import State
-from tactics2d.envs.status import Status
+from tactics2d.utils.get_circle import get_circle
+from tactics2d.utils.bezier import Bezier
+from tactics2d.map.element.lane import Lane
+from tactics2d.map.element.map import Map
+from tactics2d.participant.element import Vehicle
+from tactics2d.traffic.traffic_event import TrafficEvent
+
 
 
 STATE_W = 128
@@ -72,11 +74,11 @@ class CarRacing(gym.Env):
     }
     def __init__(
         self, render_mode: Optional[str] = "human", render_fps: int = FPS,
-        verbose: bool =True, continuous: bool = True
+        verbose: bool = True, continuous: bool = True
     ):
 
         self.render_mode = render_mode
-        if self.render_mode not in self.metadata["render_mode"]:
+        if self.render_mode not in self.metadata["render_modes"]:
             raise NotImplementedError
         self.render_fps = render_fps
         if render_fps > MAX_FPS:
@@ -87,8 +89,8 @@ class CarRacing(gym.Env):
 
         if self.continuous:
             self.action_space = spaces.Box(
-                np.array([-0.5, -1.].astype(np.float32),
-                np.array(0.5, 1.).astype(np.float32))
+                np.array([-0.5, -1.]).astype(np.float32),
+                np.array([0.5, 1.]).astype(np.float32)
             )
         else:
             self.action_space = spaces.Discrete(5) # do nothing, left, right, gas, brake
@@ -99,9 +101,9 @@ class CarRacing(gym.Env):
         self.bezier_generator = Bezier(2, 50)
         self.map = Map(name="CarRacing", scenario_type="racing")
         self.agent = Vehicle(
-            id="0", type="vehicle:racing", width=1.8, length=5, height=1.5,
+            id_="0", type_="vehicle:racing", length=5, width=1.8, height=1.5,
             steering_angle_range=(-0.5, 0.5), steering_velocity_range=(-0.5, 0.5),
-            speed_range=(-10, 100), accel_range=(-1, 1), physics=None
+            speed_range=(-10, 100), accel_range=(-1, 1)
         )
 
     def _create_checkpoints(self):
@@ -148,7 +150,7 @@ class CarRacing(gym.Env):
                 else:
                     glued_cnt += 1
                     control_points.append([pt1_, pt3_])
-            
+
             if glued_cnt == n_checkpoint:
                 success = True
                 break
@@ -159,7 +161,19 @@ class CarRacing(gym.Env):
     def _create_map(self, center: LineString):
         self.map.reset()
 
+        # set map boundary
+        bbox = center.bounds
+        boundary = [bbox[0]-50, bbox[2]+50, bbox[1]-50,  bbox[3]+50]
+        shift_matrix = [1,0,0,1,-boundary[0], -boundary[2]]
+        center = affine_transform(center, shift_matrix)
+        boundary = [
+            boundary[0]-boundary[0], boundary[1]-boundary[0],
+            boundary[2] - boundary[2], boundary[3]-boundary[2]
+        ]
+        self.map.boundary = boundary
+
         # split the track into tiles
+        
         distance = center.length
         n_tile = int(np.ceil(distance/TILE_LENGTH))
 
@@ -180,20 +194,20 @@ class CarRacing(gym.Env):
                 k = TRACK_WIDTH / 2 / Point(pt1).distance(Point(pt2))
                 left_points.append([pt1.x - k*y_diff, pt1.y + k*x_diff])
                 right_points.append([pt1.x + k*y_diff, pt1.y - k*x_diff])
+        left_points.append(left_points[0])
+        right_points.append(right_points[0])
         
         # generate map
         for i in range(n_tile):
             tile = Lane(
-                id="%04d" % i,
+                id_="%04d" % i,
                 left_side=LineString([left_points[i], left_points[i+1]]),
                 right_side=LineString([right_points[i], right_points[i+1]]),
-                subtype="road", inferred_participants=["vehicle:car", "vehicle:racingcar"]
+                subtype="road", inferred_participants=["vehicle:car", "vehicle:racing"]
             )
             self.map.add_lane(tile)
 
-        bbox = center.bounds
-        boundary = [bbox[0]-50, bbox[2]+50, bbox[1]-50,  bbox[3]+50]
-        self.map.set_boundary(boundary)
+        return n_tile
 
     def _reset_map(self):
         """Reset the map by generating a new one with random track configurations.
@@ -235,17 +249,19 @@ class CarRacing(gym.Env):
 
         # create the new map by the centerline
         center = LineString([start_point] + points + [start_point])
-        self._create_map(center)
+        n_tile = self._create_map(center)
 
         # record time cost
         t2 = time.time()
         if self.verbose:
             print("Generating process takes %.4fs." % (t2-t1))
 
+        return n_tile
+
     def _reset_vehicle(self):
         heading_direction = [
-            np.mean(list(self.finish_line.coords)),
-            np.mean(list(self.start_line.coords))
+            np.mean(list(self.finish_line.coords), axis=0),
+            np.mean(list(self.start_line.coords), axis=0)
         ]
         heading_vec = heading_direction[1] - heading_direction[0]
         heading_angle = np.arctan2(heading_vec[1], heading_vec[0])
@@ -253,56 +269,64 @@ class CarRacing(gym.Env):
         start_loc = heading_direction.interpolate(heading_direction.length - self.agent.length/2)
 
         state = State(
-            timestamp=self.n_step, heading=heading_angle, 
+            timestamp = self.n_step, heading = heading_angle, 
             x = start_loc.x, y = start_loc.y, vx=0, vy=0
         )
         self.agent.reset(state)
         if self.verbose:
-            print("The racing car starts at .")
+            print("The racing car starts at (%.3f, %.3f), heading to %.3f rad." \
+                % (start_loc.x, start_loc.y, heading_angle))
     
     def reset(self):
         self.n_step = 0
-        self.reward = 0.
-        self.tile_visited.clear()
+        n_tile = self._reset_map()
+        self.tile_visited = [False] * n_tile
         self.tile_visited_count = 0
-        self._reset_map()
-        self.start_tile = self.map.get_lane("0000")
+        self.start_tile = self.map.lanes["0000"]
         self.start_line = LineString(self.start_tile.get_ends())
         self.finish_line = LineString(self.start_tile.get_starts())
         self._reset_vehicle()
+        self.window.set_size(int(self.map.boundary[1]), int(self.map.boundary[3]))
 
     def _check_retrograde(self):
-        
-        return Status.RETROGRADE
 
-    def _check_non_drivable(self, agent_shape: Polygon, ):
-        return Status.NON_DRIVABLE
+        
+        return TrafficEvent.VIOLATION_RETROGRADE
+
+    def _check_non_drivable(self) -> bool:
+        
+        return TrafficEvent.VIOLATION_NON_DRIVABLE
 
     def _check_arrived(self):
-        return Status.ARRIVED
+        return TrafficEvent.ROUTE_COMPLETED
 
-    def _check_outbound(self, agent_shape: Polygon, boundary: Polygon):
-        if agent_shape.within(boundary):
-            return Status.NORMAL
-        return Status.OUTBOUND
+    def _check_outbound(self) -> bool:
+        bound = self.map.boundary()
+        boundary = LinearRing([
+            [bound[0], bound[2]], [bound[0], bound[3]],
+            [bound[1], bound[3]], [bound[1], bound[2]]
+        ])
+        if self.agent.pose.within(boundary):
+            return TrafficEvent.NORMAL
+        return TrafficEvent.OUTSIDE_MAP
 
     def _check_time_exceeded(self):
         if self.n_step < STEP_LIMIT:
-            return Status.NORMAL
-        return Status.OUT_TIME
+            return TrafficEvent.NORMAL
+        return TrafficEvent.TIME_EXCEED
 
-    def _check_status(self) -> Status:
-        if self._check_retrograde() == Status.RETROGRADE:
-            return Status.RETROGRADE
-        if self._check_non_drivable() == Status.NON_DRIVABLE:
-            return Status.NON_DRIVABLE
-        if self._check_arrived() == Status.ARRIVED:
-            return Status.ARRIVED
-        if self._check_outbound() == Status.OUTBOUND:
-            return Status.OUTBOUND
-        if self._check_time_exceeded() == Status.OUT_TIME:
-            return Status.OUT_TIME
-        return Status.NORMAL
+    def _check_status(self):
+        if self._check_retrograde() == TrafficEvent.VIOLATION_RETROGRADE:
+            return TrafficEvent.VIOLATION_RETROGRADE
+        if self._check_non_drivable() == TrafficEvent.VIOLATION_NON_DRIVABLE:
+            return TrafficEvent.VIOLATION_NON_DRIVABLE
+        if self._check_arrived() == TrafficEvent.ROUTE_COMPLETED:
+            return TrafficEvent.ROUTE_COMPLETED
+        if self._check_outbound() == TrafficEvent.OUTSIDE_MAP:
+            return TrafficEvent.OUTSIDE_MAP
+        if self._check_time_exceeded() == TrafficEvent.TIME_EXCEED:
+            return TrafficEvent.TIME_EXCEED
+        return TrafficEvent.NORMAL
 
     def _get_observation(self) -> np.ndarray:
         
@@ -317,12 +341,12 @@ class CarRacing(gym.Env):
             action = DISCRETE_ACTION[action]
         
         self.agent.update(action)
-        location = self._locate(self.agent)
+        # position = self._locate(self.agent)
 
         observation = self._get_observation()
-        status = self._check_status(location)
-        reward = self._get_reward(status)
-        done = (status != Status.NORMAL)
+        status = self._check_status()
+        reward = self._get_reward()
+        done = (status != TrafficEvent.NORMAL)
 
         info = {
             "status": status,
@@ -341,8 +365,6 @@ class CarRacing(gym.Env):
 
 
 if __name__ == "__main__":
-    import pygame
-
     action = np.array([0., 0.])
     
     def register_input():

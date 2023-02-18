@@ -1,8 +1,10 @@
 # custom
+tactics2d/data/trajectory_raw
+tactics2d/data/trajectory_processed
+
 #  vscode
 *.code-workspace
 .VSCodeCounter/
-
 
 # Gitignore Template for Python
 # Byte-compiled / optimized / DLL files
