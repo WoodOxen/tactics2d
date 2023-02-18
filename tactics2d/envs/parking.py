@@ -22,7 +22,8 @@ except ImportError:
 
 from tactics2d.map.element.map import Map
 from tactics2d.map.element.area import Area
-from tactics2d.map.generator.generate_parking_lot import *
+from tactics2d.map.generator.generate_parking_lot import Position, \
+    gene_bay_park, gene_parallel_park, VEHICLE_BOX
 from tactics2d.render.lidar_simulator import LidarSimlator
 # from tactics2d.traffic.traffic_event import TrafficEvent
 from tactics2d.participant.element.vehicle import Vehicle
@@ -89,7 +90,7 @@ class ParkingMapNormal(Map):
         self.n_obstacle = 0
         self.obstacles:list[Area] = []
         self.vehicle_box:LinearRing = None
-    
+
     def set_vehicle(self, vehicle_box):
         self.vehicle_box = vehicle_box
 
@@ -113,7 +114,7 @@ class ParkingMapNormal(Map):
         idx = 0
         for obs in obstacles:
             idx += 1
-            obs_area = Area('%s'%idx, Polygon(obs), subtype='obstcale')
+            obs_area = Area('%s'%idx, Polygon(obs),line_ids=None, subtype='obstcale')
             self.add_area(obs_area)
             self.obstacles.append(obs_area)
         self.n_obstacle = len(self.obstacles)
@@ -167,7 +168,7 @@ class CarParking(gym.Env):
 
         self.map = ParkingMapNormal()
         self.agent = Vehicle(
-            id="0", type="vehicle:racing", width=WIDTH, length=LENGTH, height=1.5, # TODO make the hyperparameters
+            id_="0", type="vehicle:racing", width=WIDTH, length=LENGTH, height=1.5, # TODO make the hyperparameters
             steering_angle_range=(-0.5, 0.5), steering_velocity_range=(-0.5, 0.5),
             speed_range=(-10, 100), accel_range=(-1, 1), physics=None
         )
@@ -213,8 +214,8 @@ class CarParking(gym.Env):
 
         initial_pos = self.map.reset()
         state = State(
-            timestamp=self.n_step, heading=initial_pos.heading,
-            x = initial_pos.loc.x, y = initial_pos.loc.y, vx=0, vy=0
+            frame=self.n_step, heading=initial_pos.heading,
+            x = initial_pos.loc.x, y = initial_pos.loc.y
         )
         self.agent.reset(state)
         self.matrix = self._coord_transform_matrix()

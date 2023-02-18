@@ -106,7 +106,7 @@ def _gene_bay_left_obst(dest_pos, vehicle_box):
 
 def _gene_bay_right_obst(dest_pos, vehicle_box, obstacle_left):
     '''generate the obstacle on right of destination'''
-    dest_box = Position(dest_pos).create_box()
+    dest_box = Position(dest_pos).create_box(vehicle_box)
     car_rb, car_rf, _, _ = _get_box_coords(dest_pos, vehicle_box)
     generate_success = True
     dist_dest_to_left_obst = dest_box.distance(obstacle_left)
@@ -149,7 +149,7 @@ def gene_bay_park(vehicle_box:LinearRing):
 
     # generate dest
     dest_pos = _gene_bay_park_dest(vehicle_box)
-    dest_box = Position(dest_pos).create_box()
+    dest_box = Position(dest_pos).create_box(vehicle_box)
 
     # generate obstacle on left
     # the obstacle can be another vehicle or just a simple obstacle
@@ -256,7 +256,7 @@ def _gene_parallel_left_obst(dest_pos, vehicle_box):
 
 def _gene_parallel_right_obst(dest_pos, vehicle_box, obstacle_left):
     '''generate the obstacle on right of destination'''
-    dest_box = Position(dest_pos).create_box()
+    dest_box = Position(dest_pos).create_box(vehicle_box)
     _, car_rf, car_lf, _  = _get_box_coords(dest_pos, vehicle_box)
     dist_dest_to_left_obst = dest_box.distance(obstacle_left)
     min_dist_to_obst = max(MIN_PARA_PARK_LOT_LEN-LENGTH-dist_dest_to_left_obst, 0)+MIN_DIST_TO_OBST
@@ -286,7 +286,7 @@ def _gene_parallel_right_obst(dest_pos, vehicle_box, obstacle_left):
 def gene_parallel_park(vehicle_box:LinearRing):
     '''
     Generate the parameters that a parallel parking case need.
-    
+
     Returns
     ----------
         `start` (list): [x, y, yaw]
@@ -299,7 +299,7 @@ def gene_parallel_park(vehicle_box:LinearRing):
     # generate dest
     dest_pos = _gene_parallel_dest(vehicle_box)
     dest_x, dest_y, dest_yaw = dest_pos
-    dest_box = Position(dest_pos).create_box()
+    dest_box = Position(dest_pos).create_box(vehicle_box)
     # generate obstacle on left
     # the obstacle can be another vehicle or just a simple obstacle
     obstacle_left = _gene_parallel_left_obst(dest_pos, vehicle_box)
