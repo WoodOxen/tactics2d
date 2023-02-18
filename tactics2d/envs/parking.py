@@ -171,7 +171,7 @@ class CarParking(gym.Env):
         self.agent = Vehicle(id_=0, type_="vehicle:racing",
             width=WIDTH, length=LENGTH, height=1.5, # TODO make the hyperparameters
             steering_angle_range=(-0.5, 0.5), steering_velocity_range=(-0.5, 0.5),
-            speed_range=(-10, 100), accel_range=(-1, 1), physics=None
+            speed_range=(-10, 100), accel_range=(-1, 1)
         )
         self.raw_vehicle_box = VEHICLE_BOX
         self.curr_vehicle_box = None
@@ -441,7 +441,7 @@ class CarParking(gym.Env):
         observation['target'] = self._get_targt_repr()
         pygame.display.update()
         self.clock.tick(self.render_fps)
-        
+
         return observation
 
     def close(self):
