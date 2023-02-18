@@ -1,2 +1,6 @@
-pandas>=1.3.5
+gym==0.26.2
+numpy==1.24.2
+pandas==1.5.3
+pygame==2.1.2
 pyproj==3.4.1
+shapely==2.0.1
