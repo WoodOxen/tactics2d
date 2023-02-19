@@ -34,8 +34,7 @@ class LevelXParser(object):
 
         self.dataset = dataset
 
-    @staticmethod
-    def type_mapping(type_name: str):
+    def type_mapping(self, type_name: str):
         return TYPE_MAPPING[type_name]
 
     def _calibrate_location(self, x: float, y: float):

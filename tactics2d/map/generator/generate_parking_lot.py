@@ -1,5 +1,3 @@
-'unconstructed parking scenario generator'
-
 from math import pi, cos, sin
 
 import numpy as np
@@ -7,17 +5,7 @@ from numpy.random import randn, random
 from shapely.geometry import LinearRing, Point
 from shapely.affinity import affine_transform
 
-WHEEL_BASE = 2.8  # wheelbase
-FRONT_HANG = 0.96  # front hang length
-REAR_HANG = 0.929  # rear hang length
-LENGTH = WHEEL_BASE+FRONT_HANG+REAR_HANG
-WIDTH = 1.942  # width
-# TODO match the vehicle center
-VEHICLE_BOX = LinearRing([
-    (-REAR_HANG, -WIDTH/2),
-    (FRONT_HANG + WHEEL_BASE, -WIDTH/2),
-    (FRONT_HANG + WHEEL_BASE,  WIDTH/2),
-    (-REAR_HANG,  WIDTH/2)])
+
 MIN_DIST_TO_OBST = 0.1
 MIN_PARA_PARK_LOT_LEN = LENGTH*1.25
 MIN_BAY_PARK_LOT_WIDTH = WIDTH + 1.2

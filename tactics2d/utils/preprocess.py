@@ -60,22 +60,36 @@ class DLPPreprocess(object):
     def process_instances(self):
         if not self._valid_agents():
             print("Warning: The agent token in the scene and the agent files are inconsistent.")
+        if not self._valid_obstacles():
+            print("Warning: The obstacle token in the scene and the obstacle files are inconsistent.")
 
         df = pd.DataFrame(columns=[
-            "sceneId", "frame", "timeStamp", "type", "width", "length", "mode",
+            "sceneId", "trackId", "frame", "timeStamp", "type", "width", "length", "mode",
             "xCenter", "yCenter", "heading", "speed", "xAccel", "yAccel"
         ])
 
         idx = 0
         frame = 0
+        id_cnt = 0
+        track_ids = {}
 
         for frame_info in self.frames.values():
             timestamp_ms = int(frame_info["timestamp"] * 1000)
+
+            for obstacle_info in self.obstacles.values():
+                if obstacle_info["obstacle_token"] not in track_ids:
+                    track_ids[obstacle_info["obstacle_token"]] = id_cnt
+                    id_cnt += 1
+
             for instance_token in frame_info["instances"]:
                 instance_info = self.instances[instance_token]
                 agent_info = self.agents[instance_info["agent_token"]]
+                if instance_info["agent_token"] not in track_ids:
+                    track_ids[instance_info["agent_token"]] = id_cnt
+                    id_cnt += 1
+
                 df_line = [
-                    self.scene_id, frame, timestamp_ms, 
+                    self.scene_id, track_ids[instance_info["agent_token"]], frame, timestamp_ms, 
                     agent_info["type"], agent_info["size"][1], agent_info["size"][0], 
                     instance_info["mode"], instance_info["coords"][0], instance_info["coords"][1], 
                     instance_info["heading"], instance_info["speed"],
@@ -83,6 +97,17 @@ class DLPPreprocess(object):
                 ]
                 df.loc[idx] = df_line
                 idx += 1
+
+            for obstacle_info in self.obstacles.values():
+                df_line = [
+                    self.scene_id, track_ids[obstacle_info["obstacle_token"]], frame, timestamp_ms, 
+                    obstacle_info["type"], obstacle_info["size"][1], obstacle_info["size"][0], 
+                    "obstacle", obstacle_info["coords"][0], obstacle_info["coords"][1], 
+                    obstacle_info["heading"], 0, 0, 0
+                ]
+                df.loc[idx] = df_line
+                idx += 1
+
             frame += 1
 
         return df
@@ -103,19 +128,19 @@ if __name__ == "__main__":
     if not os.path.exists(target_path):
         os.makedirs(target_path)
 
-    def sub_process(i):
-        processor.load(i+1, source_path)
-        print("Start processing scene %02d" % int(i+1))
-        # print("Processing the obstacles in scene %02d" % int(i+1))
-        df_obstacle = processor.process_obstacles()
-        # print("Processing the agents in scene %02d" % int(i+1))
-        df_track = processor.process_instances()
-        df_obstacle.to_csv(target_path+"%04d_obstacles.csv" % int(i+1), index=False)
-        df_track.to_csv(target_path+"%04d_tracks.csv" % int(i+1), index=False)
-        print("Finished processing scene %02d" % int(i+1))
+    # def sub_process(i):
+    #     processor.load(i+1, source_path)
+    #     print("Start processing scene %02d" % int(i+1))
+    #     df_track = processor.process_instances()
+    #     df_track.to_csv(target_path+"%04d_tracks.csv" % int(i+1), index=False)
+    #     print("Finished processing scene %02d" % int(i+1))
 
-    n_process = min(16, multiprocessing.cpu_count())
-    pool = multiprocessing.Pool(processes=n_process)
-    tasks = list(range(30))
+    # n_process = min(16, multiprocessing.cpu_count())
+    # pool = multiprocessing.Pool(processes=n_process)
+    # tasks = list(range(30))
 
-    pool.map(sub_process, tasks)
+    processor.load(1, source_path)
+    df_track = processor.process_instances()
+    df_track.to_csv(target_path+"%04d_tracks.csv" % int(1), index=False)
+
+    # pool.map(sub_process, tasks)

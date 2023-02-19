@@ -3,10 +3,20 @@ from tactics2d.trajectory.element.trajectory import Trajectory
 
 
 class Pedestrian(object):
-    def __init__(self, id_: int):
+    def __init__(
+        self, id_: int, 
+        length: float = None, width: float = None, height: float = None,
+        trajectory = None
+        ):
+
         self.id_ = id_
+        self.length = length
+        self.width = width
+        self.height = height
         self.trajectory = None
         self.controller = None
+
+        self.bind_trajectory(trajectory)
 
     def _verify_state(self, state1, state2, time_interval) -> bool:
         return True

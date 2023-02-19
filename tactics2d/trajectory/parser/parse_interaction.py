@@ -8,19 +8,10 @@ from tactics2d.trajectory.element.state import State
 from tactics2d.trajectory.element.trajectory import Trajectory
 
 
-def _get_vehicle_type(length: float, width: float) -> str:
-    return 
-
-
-def _get_pedestrian_type(trajectory: Trajectory) -> str:
-    return
-
-
 class InteractionParser(object):
     """
     """
 
-    @staticmethod
     def parse_vehicle(file_id, folder_path, stamp_range):
         df_vehicle = pd.read_csv(os.path.join(folder_path, "vehicle_tracks_%03d.csv" % file_id))
 
@@ -55,10 +46,9 @@ class InteractionParser(object):
         
         return vehicles
 
-    @staticmethod
-    def parse_pedestrians(file_id, folder_path, stamp_range):
+    def parse_pedestrians(self):
 
-        pedestrian_path = os.path.join(folder_path, "pedestrian_tracks_%03d.csv" % file_id)
+        pedestrian_path = os.path.join(self.folder_path, "pedestrian_tracks_%03d.csv" % self.file_id)
         if os.path.exists(pedestrian_path):
             df_pedestrian = pd.read_csv(pedestrian_path)
         else:
@@ -69,7 +59,7 @@ class InteractionParser(object):
         trajectories = dict()
 
         for _, state_info in df_pedestrian.iterrows():
-            if state_info["frame_id"] < stamp_range[0] or state_info["frame_id"] > stamp_range[1]:
+            if state_info["frame_id"] < self.stamp_range[0] or state_info["frame_id"] > self.stamp_range[1]:
                 continue
 
             trajectory_id = int(state_info["frame_id"][1:])
@@ -90,8 +80,10 @@ class InteractionParser(object):
 
         return pedestrians, cyclists
 
-    @staticmethod
-    def parse(file_id, folder_path, stamp_range):
-        InteractionParser.parse_vehicle(file_id, folder_path, stamp_range)
-        InteractionParser.parse_pedestrians(file_id, folder_path, stamp_range)
-        return
+    def parse(self, file_id, folder_path, stamp_range):
+        self.file_id = file_id
+        self.folder_path = folder_path
+        self.stamp_range = stamp_range
+        vehicles = self.parse_vehicle()
+        self.parse_pedestrians()
+        return 

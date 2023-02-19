@@ -10,17 +10,20 @@ class State(object):
         y (float, optional): _description_. Defaults to 0.
         heading (float, optional): The heading direction of an object. The heading information is parsed in an 2D Cardinal coordinate system counterclockwise. The default unit is radian. Defaults to 0.
     """
-    def __init__(self, frame: int, x: float = 0, y: float = 0, heading: float = 0):
+    def __init__(
+            self, frame: int, x: float = 0, y: float = 0, heading: float = 0,
+            vx: float = None, vy: float = None, ax: float = None, ay: float = None
+        ):
         
         self.frame = frame
         self.x = x
         self.y = y
         self.heading = heading
-        self.vx = None
-        self.vy = None
+        self.vx = vx
+        self.vy = vy
         self.v_norm = None
-        self.ax = None
-        self.ay = None
+        self.ax = ax
+        self.ay = ay
         self.a_norm = None
 
     @property

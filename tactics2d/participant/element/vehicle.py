@@ -4,16 +4,17 @@ from typing import Tuple
 from shapely.geometry import LinearRing
 from shapely.affinity import rotate
 
+from tactics2d.participant.element.participant_base import ParticipantBase
 from tactics2d.trajectory.element.state import State
 from tactics2d.trajectory.element.trajectory import Trajectory
 
 
-class Vehicle(object):
+class Vehicle(ParticipantBase):
     """_summary_
 
     Attributes:
         id_ ():
-        type_ ():
+        type_ (str, optional):
         length (float, optional): The length of the vehicle. The default unit is meter (m).
         width (float, optional): The width of the vehicle. The default unit is meter (m).
         height (float, optional): The height of the vehicle. The default unit is meter (m).
@@ -25,21 +26,18 @@ class Vehicle(object):
         body_type ()
     """
     def __init__(
-        self, id_: int, type_: str,
+        self, id_: int, type_: str = None,
         length: float = None, width: float = None, height: float = None, color = None,
         steering_angle_range: Tuple[float, float] = None,
         steering_velocity_range: Tuple[float, float] = None,
         speed_range: Tuple[float, float] = None,
         accel_range: Tuple[float, float] = None,
         comfort_accel_range: Tuple[float, float] = None,
-        body_type = None, trajectory = None
+        body_type = None, trajectory: Trajectory = None
     ):
+        
+        super().__init__(id_, type_, length, width, height)
 
-        self.id_ = id_
-        self.type_ = type_
-        self.length = length
-        self.width = width
-        self.height = height
         self.color = color
         self.steering_angle_range = steering_angle_range
         self.steering_velocity_range = steering_velocity_range
@@ -85,7 +83,7 @@ class Vehicle(object):
         """The vehicle's bounding box which is rotated and moved based on the current state."""
         return rotate(self.bbox, self.heading, origin = self.location)
 
-    def _verify_state(self, state1, state2, time_interval) -> bool:
+    def _verify_state(self, prev_state, curr_state, time_interval) -> bool:
         """Check if the state change is allowed by the vehicle's physical model.
 
         Args:
