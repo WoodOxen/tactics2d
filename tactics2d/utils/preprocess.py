@@ -128,19 +128,15 @@ if __name__ == "__main__":
     if not os.path.exists(target_path):
         os.makedirs(target_path)
 
-    # def sub_process(i):
-    #     processor.load(i+1, source_path)
-    #     print("Start processing scene %02d" % int(i+1))
-    #     df_track = processor.process_instances()
-    #     df_track.to_csv(target_path+"%04d_tracks.csv" % int(i+1), index=False)
-    #     print("Finished processing scene %02d" % int(i+1))
+    def sub_process(i):
+        processor.load(i+1, source_path)
+        print("Start processing scene %02d" % int(i+1))
+        df_track = processor.process_instances()
+        df_track.to_csv(target_path+"%04d_tracks.csv" % int(i+1), index=False)
+        print("Finished processing scene %02d" % int(i+1))
 
-    # n_process = min(16, multiprocessing.cpu_count())
-    # pool = multiprocessing.Pool(processes=n_process)
-    # tasks = list(range(30))
+    n_process = min(16, multiprocessing.cpu_count())
+    pool = multiprocessing.Pool(processes=n_process)
+    tasks = list(range(30))
 
-    processor.load(1, source_path)
-    df_track = processor.process_instances()
-    df_track.to_csv(target_path+"%04d_tracks.csv" % int(1), index=False)
-
-    # pool.map(sub_process, tasks)
+    pool.map(sub_process, tasks)
