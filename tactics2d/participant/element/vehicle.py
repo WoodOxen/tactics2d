@@ -44,7 +44,7 @@ class Vehicle(ParticipantBase):
         self.speed_range = speed_range
         self.accel_range = accel_range
         self.comfort_accel_range = comfort_accel_range
-        self.bind_physics(body_type)
+        self.body_type = body_type
         self.bind_trajectory(trajectory)
 
         self.bbox = LinearRing([
@@ -83,7 +83,7 @@ class Vehicle(ParticipantBase):
         """The vehicle's bounding box which is rotated and moved based on the current state."""
         return rotate(self.bbox, self.heading, origin = self.location)
 
-    def _verify_state(self, prev_state, curr_state, time_interval) -> bool:
+    def _verify_state(self) -> bool:
         """Check if the state change is allowed by the vehicle's physical model.
 
         Args:
@@ -95,17 +95,15 @@ class Vehicle(ParticipantBase):
             bool: _description_
         """
         return True
+    
+    def _verify_trajectory(self, trajectory: Trajectory) -> bool:
+        return True
 
     def bind_trajectory(self, trajectory: Trajectory):
         if self._verify_trajectory(trajectory):
             self.trajectory = trajectory
         else:
             raise RuntimeError()
-
-    def bind_physics(self, body_type = None):
-        self.body_type = self.body_type if body_type is None else body_type
-        if self.body_type:
-            pass
 
     def update_state(self, action):
         """_summary_

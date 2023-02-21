@@ -1,10 +1,12 @@
+from typing import Tuple
 import os
-import json
 import math
 
 import pandas as pd
 
 from tactics2d.participant.element.vehicle import Vehicle
+from tactics2d.participant.element.cyclist import Cyclist
+from tactics2d.participant.element.pedestrian import Pedestrian
 from tactics2d.trajectory.element.state import State
 from tactics2d.trajectory.element.trajectory import Trajectory
 
@@ -26,21 +28,37 @@ TYPE_MAPPING = {
     "pedestrian": "pedestrian"
 }
 
+CLASS_MAPPING = {
+    "car": Vehicle,
+    "Car": Vehicle,
+    "van": Vehicle,
+    "truck": Vehicle,
+    "Truck": Vehicle,
+    "truck_bus": Vehicle,
+    "bus": Vehicle,
+    "trailer": Vehicle,
+    "motorcycle": Cyclist,
+    "bicycle": Cyclist,
+    "cycle": Cyclist,
+    "pedestrian": Pedestrian
+}
+
 
 class LevelXParser(object):
-    def __init__(self, dataset: str):
+    def __init__(self, dataset: str = ""):
         if dataset not in REGISTERED_DATASET:
-            raise KeyError(f"{dataset} is not an available LevelX-series dataset.")
+            raise KeyError(f"{dataset} is not an available LevelX-series dataset. The available datasets are {REGISTERED_DATASET}.")
 
         self.dataset = dataset
-
-    def type_mapping(self, type_name: str):
-        return TYPE_MAPPING[type_name]
 
     def _calibrate_location(self, x: float, y: float):
         return x, y
 
-    def parse(self, file_id, folder_path, stamp_range):
+    def parse(
+            self, file_id: int, folder_path: str, 
+            stamp_range: Tuple[float, float] = (-float("inf"), float("inf"))
+        ):
+
         df_track_chunk = pd.read_csv(
             os.path.join(folder_path, "%02d_tracks.csv" % file_id), iterator=True, chunksize=10000)
         df_track_meta = pd.read_csv(
@@ -49,57 +67,69 @@ class LevelXParser(object):
             os.path.join(folder_path, "%02d_recordingMeta.csv" % file_id))
 
         # load the vehicles that have frame in the arbitrary range
-        vehicles = dict()
+        participants = dict()
 
-        for _, vehicle_info in df_track_meta.iterrows():
-            if vehicle_info["initialFrame"] < stamp_range[0] or vehicle_info["finalFrame"] > stamp_range[-1]:
+        id_key = "id" if self.dataset == "highD" else "trackId"
+
+        for _, participant_info in df_track_meta.iterrows():
+            first_stamp = participant_info["initialFrame"] / 25.
+            last_stamp = participant_info["finalFrame"] / 25.
+
+            if last_stamp < stamp_range[0] or first_stamp > stamp_range[1]:
                 continue
             
-            vehicle_id = vehicle_info["id"] if self.dataset == "highD" else vehicle_info["trackId"]
+            id_ = participant_info[id_key]
+            class_ = CLASS_MAPPING[participant_info["class"]]
+            type_ = TYPE_MAPPING[participant_info["class"]]
+
             if self.dataset == "highD":
-                vehicle = Vehicle(
-                    id_=vehicle_id, type_=LevelXParser.type_mapping(vehicle_info["class"]),
-                    length=vehicle_info["width"], width=vehicle_info["height"]
+                participant = class_(
+                    id_=id_, type_=type_,
+                    length=participant_info["width"], width=participant_info["height"]
                 )
             else:
-                vehicle = Vehicle(
-                    id_=vehicle_id, type_=LevelXParser.type_mapping(vehicle_info["class"]),
-                    length=vehicle_info["length"], width=vehicle_info["width"]
+                participant = class_(
+                    id_=id_, type_=type_,
+                    length=participant_info["length"], width=participant_info["width"]
                 )
 
-            vehicles[vehicle_id] = vehicle
+            participants[id_] = participant
 
-        # parse the corresponding trajectory to each vehicle and bind them
+        # parse the corresponding trajectory to each participant and bind them
         trajectories = dict()
 
         for chunk in df_track_chunk:
 
-            first_vehicle_id = chunk.iloc[0]["id"] if self.dataset == "highD" else chunk.iloc[0]["trackId"]
-            last_vehicle_id = chunk.iloc[-1]["id"] if self.dataset == "highD" else chunk.iloc[-1]["trackId"]
-            if first_vehicle_id not in vehicles and last_vehicle_id not in vehicles:
+            first_participant_id = int(chunk.iloc[0][id_key])
+            last_participant_id = int(chunk.iloc[-1][id_key])
+
+            if first_participant_id not in participants and last_participant_id not in participants:
                 continue
 
             for _, state_info in chunk.iterrows():
-                if state_info["frame"] < stamp_range[0] or state_info["frame"] > stamp_range[-1]:
+                time_stamp = state_info["frame"] / 25.
+                frame = round(time_stamp * 1000)
+
+                if time_stamp < stamp_range[0] or time_stamp > stamp_range[1]:
                     continue
 
-                trajectory_id = state_info["id"] if self.dataset == "highD" else state_info["trackId"]
+                trajectory_id = int(state_info[id_key])
                 if trajectory_id not in trajectories:
-                    trajectories[trajectory_id] = Trajectory(trajectory_id)
+                    trajectories[trajectory_id] = Trajectory(id_=trajectory_id, fps=25.)
 
                 if self.dataset == "highD":
                     x, y = self._calibrate_location(state_info["x"], state_info["y"])
                     heading = round(math.atan2(state_info["xVelocity"], state_info["yVelocity"]), 5)
-                    state = State(frame=state_info["frame"], x=x, y=y, heading=heading)
+                    state = State(frame, x=x, y=y, heading=heading)
                 else:
                     x, y = self._calibrate_location(state_info["xCenter"], state_info["yCenter"])
-                    state = State(frame=state_info["frame"], x=x, y=y,heading=state_info["heading"])
+                    state = State(frame, x=x, y=y, heading=state_info["heading"])
                 state.set_velocity(state_info["xVelocity"], state_info["yVelocity"])
                 state.set_accel(state_info["xAcceleration"], state_info["yAcceleration"])
 
                 trajectories[trajectory_id].append_state(state)
 
-        for vehicle_id in vehicles.keys():
-            vehicles[vehicle_id].bind_trajectory(trajectories[vehicle_id])
+        for participant_id in participants.keys():
+            participants[participant_id].bind_trajectory(trajectories[participant_id])
 
-        return vehicles
+        return participants

@@ -11,10 +11,10 @@ from tactics2d.trajectory.element.trajectory import Trajectory
 
 
 TYPE_MAPPING = {
-    "Car": "medium_car",
-    "Medium Vehicle": "medium_car",
+    "Car": "car",
+    "Medium Vehicle": "car",
     "Bus": "bus",
-    "Pedestrian": "pedestrian/male",
+    "Pedestrian": "pedestrian",
     "Undefined": "other",
 }
 
@@ -40,29 +40,28 @@ class DLPParser(object):
         if self.processed:
             participant = class_(
                 id_=id_, type_=type_,
-                length=instance["size"][0], width=instance["size"][1],
-                trajectory=Trajectory(id_=id_)
+                length=instance["length"], width=instance["width"],
+                trajectory=Trajectory(id_=id_, fps=25.)
             )
         else:
             participant = class_(
                 id_=id_, type_=type_,
-                length=instance["length"], width=instance["width"],
-                trajectory=Trajectory(id_=id_)
+                length=instance["size"][0], width=instance["size"][1],
+                trajectory=Trajectory(id_=id_, fps=25.)
             )
-
         return participant
 
     def _parse_unprocessed(self):
         """The subparser for the raw DLP data.
         """
 
-        with open("%s/DJI_%04d_agents.json", "r") as f_agent:
+        with open("%s/DJI_%04d_agents.json" % (self.folder_path, self.file_id), "r") as f_agent:
             df_agent = json.load(f_agent)
-        with open("%s/DJI_%04d_frames.json", "r") as f_frame:
+        with open("%s/DJI_%04d_frames.json" % (self.folder_path, self.file_id), "r") as f_frame:
             df_frame = json.load(f_frame)
-        with open("%s/DJI_%04d_instances.json", "r") as f_instance:
+        with open("%s/DJI_%04d_instances.json" % (self.folder_path, self.file_id), "r") as f_instance:
             df_instance = json.load(f_instance)
-        with open("%s/DJI_%04d_obstacles.json", "r") as f_obstacle:
+        with open("%s/DJI_%04d_obstacles.json" % (self.folder_path, self.file_id), "r") as f_obstacle:
             df_obstacle = json.load(f_obstacle)
 
         participants = {}
@@ -73,19 +72,19 @@ class DLPParser(object):
                 continue
 
             for obstacle in df_obstacle.values():
-                state = State(frame=int(frame["timestamp"] * 1000))
+                state = State(frame=round(frame["timestamp"] * 1000))
 
                 if obstacle["obstacle_token"] not in participants:
                     participants[obstacle["obstacle_token"]] = \
                         self._generate_participant(obstacle, id_cnt)
                     id_cnt += 1
 
-                participants[obstacle["obstacle_token"]].trajectory.append(state)
+                participants[obstacle["obstacle_token"]].trajectory.append_state(state)
 
             for instance_token in frame["instances"]:
                 instance = df_instance[instance_token]
                 state = State(
-                    frame=int(frame["timestamp"] * 1000), 
+                    frame=round(frame["timestamp"] * 1000), 
                     x=instance["coords"][0], y=instance["coords"][1], heading=instance["heading"],
                     ax=instance["acceleration"], ay=instance["acceleration"]
                 )
@@ -131,8 +130,8 @@ class DLPParser(object):
         return participants
 
     def parse(
-            self, file_id: int, folder_path: str, stamp_range: Tuple[float, float] = None,
-            processed: bool = True
+            self, file_id: int, folder_path: str,
+            stamp_range: Tuple[float, float] = (-float("inf"), float("inf")), processed: bool = True
         ):
         """_summary_
 
@@ -146,8 +145,6 @@ class DLPParser(object):
         self.file_id = file_id
         self.folder_path = folder_path
 
-        if any(stamp_range) < 0:
-            raise ValueError("The stamp range should be positive.")
         self.stamp_range = stamp_range
 
         self.processed = processed

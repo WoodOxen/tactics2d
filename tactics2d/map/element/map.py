@@ -7,6 +7,10 @@ from tactics2d.map.element.area import Area
 from tactics2d.map.element.regulatory import RegulatoryElement
 
 
+class  MapKeyError(KeyError):
+    pass
+
+
 class Map(object):
     def __init__(
         self, name: str = None, scenario_type: str = None, country: str = None
@@ -30,7 +34,7 @@ class Map(object):
             if node.id_ in self.nodes:
                 warnings.warn(f"Node {node.id_} already exists! Replaced the node with new data.")
             else:
-                raise ValueError(f"The id of Node {node.id_} is used by the other road element.")
+                raise MapKeyError(f"The id of Node {node.id_} is used by the other road element.")
         self.nodes[node.id_] = node
 
     def add_roadline(self, roadline: RoadLine):
@@ -38,7 +42,7 @@ class Map(object):
             if roadline.id_ in self.roadlines:
                 warnings.warn(f"Roadline {roadline.id_} already exists! Replaced the roadline with new data.")
             else:
-                raise ValueError(f"The id of Roadline {roadline.id_} is used by the other road element.")
+                raise MapKeyError(f"The id of Roadline {roadline.id_} is used by the other road element.")
         self.ids.add(roadline.id_)
         self.roadlines[roadline.id_] = roadline
 
@@ -47,7 +51,7 @@ class Map(object):
             if lane.id_ in self.lanes:
                 warnings.warn(f"Lane {lane.id_} already exists! Replacing the lane with new data.")
             else:
-                raise ValueError(f"The id of Lane {lane.id_} is used by the other road element.")
+                raise MapKeyError(f"The id of Lane {lane.id_} is used by the other road element.")
         self.ids.add(lane.id_)
         self.lanes[lane.id_] = lane
 
@@ -56,7 +60,7 @@ class Map(object):
             if area.id_ in self.areas:
                 warnings.warn(f"Area {area.id_} already exists! Replacing the area with new data.")
             else:
-                raise ValueError(f"The id of Area {area.id_} is used by the other road element.")
+                raise MapKeyError(f"The id of Area {area.id_} is used by the other road element.")
         self.ids.add(area.id_)
         self.areas[area.id_] = area
 
@@ -65,7 +69,7 @@ class Map(object):
             if regulatory.id_ in self.regulations:
                 warnings.warn()
             else:
-                raise ValueError()
+                raise MapKeyError()
         self.ids.add(regulatory.id_)
         self.regulations[regulatory.id_] = regulatory
 

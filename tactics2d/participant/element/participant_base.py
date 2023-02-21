@@ -29,6 +29,9 @@ class ParticipantBase(object):
             bool: _description_
         """
         raise NotImplementedError
+    
+    def _verify_trajectory(self):
+        raise NotImplementedError
 
     def bind_trajectory(self, trajectory: Trajectory):
         self.trajectory = trajectory

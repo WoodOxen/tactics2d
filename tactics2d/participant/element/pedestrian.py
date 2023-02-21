@@ -1,19 +1,17 @@
+from tactics2d.participant.element.participant_base import ParticipantBase
 from tactics2d.trajectory.element.state import State
 from tactics2d.trajectory.element.trajectory import Trajectory
 
 
-class Pedestrian(object):
+class Pedestrian(ParticipantBase):
     def __init__(
-        self, id_: int, 
+        self, id_: int, type_: str = None,
         length: float = None, width: float = None, height: float = None,
         trajectory = None
         ):
 
-        self.id_ = id_
-        self.length = length
-        self.width = width
-        self.height = height
-        self.trajectory = None
+        super().__init__(id_, type_, length, width, height)
+
         self.controller = None
 
         self.bind_trajectory(trajectory)
@@ -28,6 +26,9 @@ class Pedestrian(object):
     @property
     def location(self):
         return self.current_state.location
+
+    def _verify_trajectory(self, trajectory: Trajectory):
+        return True
 
     def bind_trajectory(self, trajectory: Trajectory):
         if self._verify_trajectory(trajectory):

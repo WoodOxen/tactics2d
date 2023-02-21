@@ -56,18 +56,6 @@ CAR_MODEL = {
         "max_accel": 0,
         "max_decel": 0,
     },
-    "large_car": {
-        # Prototype: Volkswagen Passat (B8) (Magotan) (https://en.wikipedia.org/wiki/Volkswagen_Passat_(B8))
-        "length": 4.866,
-        "width": 1.832,
-        "height": 1.464,
-        "wheel_base": 2.871,
-        "front_hang": 0,
-        "rear_hang": 0,
-        "max_speed": 0,
-        "max_accel": 0,
-        "max_decel": 0,
-    },
     "executive_car": {
         # Prototype: Audi A6 (https://en.wikipedia.org/wiki/Audi_A6#C8_(Typ_4K,_2018%E2%80%93present))
         "length": 4.939,
@@ -107,11 +95,19 @@ CAR_MODEL = {
 }
 
 TRUCK_MODEL = {
-
+    "truck": {
+        "length": 0,
+        "width": 0,
+        "height": 0,
+    }
 }
     
 BUS_MODEL = {
-
+    "bus": {
+        "length": 0,
+        "width": 0,
+        "height": 0,
+    }
 }
 
 

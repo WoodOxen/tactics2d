@@ -10,39 +10,13 @@ from tactics2d.map.element.lane import Lane
 from tactics2d.map.element.area import Area
 from tactics2d.map.element.regulatory import RegulatoryElement
 from tactics2d.map.element.map import Map
-
-
-LANE_CHANGE_MAPPING = {
-    "line_thin": {
-        "solid": (False, False),
-        "solid_solid": (False, False),
-        "dashed": (True, True),
-        "dashed_solid": (True, False), # left->right: yes
-        "solid_dashed": (False, True), # right->left: yes
-    },
-    "line_thick": {
-        "solid": (False, False),
-        "solid_solid": (False, False),
-        "dashed": (True, True),
-        "dashed_solid": (True, False), # left->right: yes
-        "solid_dashed": (False, True), # right->left: yes
-    },
-    "curbstone": {
-        "high": (False, False),
-        "low":  (False, False),
-    }
-}
-
-
-class MapParseWarning(Warning): ...
-
-
-class MapParseError(Exception): ...
+from tactics2d.map.element import LANE_CHANGE_MAPPING
+from tactics2d.map.parser import MapParseWarning, MapParseError
 
 
 def _load_node(xml_node: ET.Element, projector: Proj, origin: Point) -> Node:
-    node_id = xml_node.get("id")
-    x, y = projector(xml_node.get("lon"), xml_node.get("lat"))
+    node_id = xml_node.attrib["id"]
+    x, y = projector(xml_node.attrib["lon"], xml_node.attrib["lat"])
     proj_x = x - origin[0]
     proj_y = y - origin[1]
     return Node(node_id, proj_x, proj_y)
@@ -52,64 +26,50 @@ def _get_tags(xml_node: ET.Element) -> dict:
     tags = dict()
     tags["custom_tags"] = dict()
     for tag in xml_node.findall("tag"):
-        if tag.get("k") == "type":
-            tags["type_"] = tag.get("v")
-        elif tag.get("k") == "subtype":
-            tags["subtype"] = tag.get("v")
-        elif tag.get("k") == "width": # only for roadline
-            tags["width"] = tag.get("v")
-        elif tag.get("k") == "height": # only for roadline
-            tags["height"] = tag.get("v")
-        elif tag.get("k") == "temporary": # only for roadline
-            tags["temporary"] = (tag.get("v")=="yes")
-        elif tag.get("k") == "lane_change": # only for roadline
-            if "lane_change" not in tags:
-                if tags.get("v") == "yes":
-                    tags["lane_change"] = (True, True)
-                else:
-                    tags["lane_change"] = (False, False)
-            else:
+        if tag.attrib["k"] == "type":
+            tags["type_"] = tag.attrib["v"]
+        elif tag.attrib["k"] == "subtype":
+            tags["subtype"] = tag.attrib["v"]
+        elif tag.attrib["k"] == "width": # only for roadline
+            tags["width"] = tag.attrib["v"]
+        elif tag.attrib["k"] == "height": # only for roadline
+            tags["height"] = tag.attrib["v"]
+        elif tag.attrib["k"] == "temporary": # only for roadline
+            tags["temporary"] = (tag.attrib["v"]=="yes")
+        elif  "lane_change" in tag.attrib["k"]: # only for roadline
+            if "lane_change" in tags:
                 raise MapParseError("Conflict tags on lane changing property.")
-        elif tag.get("k") == "lane_change:left": # only for roadline
-            if "lane_change" not in tags:
-                if tags.get("v") == "yes":
-                    tags["lane_change"] = (True, False)
-                else:
-                    tags["lane_change"] = (False, False)
             else:
-                raise MapParseError("Conflict tags on lane changing property.")
-        elif tag.get("k") == "lane_change:right": # only for roadline
-            if "lane_change" not in tags:
-                if tags.get("v") == "yes":
-                    tags["lane_change"] = (False, True)
-                else:
-                    tags["lane_change"] = (False, False)
-            else:
-                raise MapParseError("Conflict tags on lane changing property.")
-        elif tag.get("k") == "location": # lane or area
-            tags["location"] = tag.get("v")
-        elif tag.get("k") == "inferred_participants": # lane or area
-            tags["inferred_participants"] = tag.get("v")
-        elif tag.get("k") == "speed_limit": # lane or area
-            tags["speed_limit"] = tag.get("v")
-        elif tag.get("k") == "speed_limit_mandatory": # lane or area
-            tags["speed_limit_mandatory"] = (tag.get("v")=="yes")
-        elif tag.get("k") == "color":
-            tags["color"] = tag.get("v")
-        elif tag.get("k") == "dynamic": # only for regulatory
-            tags["dynamic"] = tag.get("v")=="yes"
-        elif tag.get("k") == "fallback": # only for regulatory
-            tags["fallback"] = tag.get("v")=="yes"
+                if tag.attrib["k"] == "lane_change":
+                    tags["lane_change"] = (True, True) if tag.attrib["v"] == "yes" else (False, False)
+                elif tag.attrib["k"] == "lane_change:left":
+                    tags["lane_change"] = (True, False) if tag.attrib["v"] == "yes" else (False, False)
+                elif tag.attrib["k"] == "lane_change:right":
+                    tags["lane_change"] = (False, True) if tag.attrib["v"] == "yes" else (False, False)
+        elif tag.attrib["k"] == "location": # lane or area
+            tags["location"] = tag.attrib["v"]
+        elif tag.attrib["k"] == "inferred_participants": # lane or area
+            tags["inferred_participants"] = tag.attrib["v"]
+        elif tag.attrib["k"] == "speed_limit": # lane or area
+            tags["speed_limit"] = tag.attrib["v"]
+        elif tag.attrib["k"] == "speed_limit_mandatory": # lane or area
+            tags["speed_limit_mandatory"] = (tag.attrib["v"]=="yes")
+        elif tag.attrib["k"] == "color":
+            tags["color"] = tag.attrib["v"]
+        elif tag.attrib["k"] == "dynamic": # only for regulatory
+            tags["dynamic"] = (tag.attrib["v"]=="yes")
+        elif tag.attrib["k"] == "fallback": # only for regulatory
+            tags["fallback"] = (tag.attrib["v"]=="yes")
         else:
-            tags["custom_tags"][tag.get("k")] = tag.get("v")
+            tags["custom_tags"][tag.attrib["k"]] = tag.attrib["v"]
     return tags
 
 
-def _load_roadline(xml_node: ET.Element, map_: Map) -> Lane:
-    line_id = xml_node.get("id")
+def _load_roadline(xml_node: ET.Element, map_: Map) -> RoadLine:
+    line_id = xml_node.attrib["id"]
     point_list = []
     for node in xml_node.findall("nd"):
-        point_list.append(map_.nodes[node.get("ref")].location)
+        point_list.append(map_.nodes[node.attrib["ref"]].location)
     linestring = LineString(point_list)
 
     line_tags = _get_tags(xml_node)
@@ -135,22 +95,22 @@ def _append_point_list(point_list, new_points, component_id):
     elif point_list[-1] == new_points[-1]:
         new_points.reverse()
     else:
-        raise MapParseError("Points on the side of relation %s is not continuous." % component_id)
+        raise MapParseError(f"Points on the side of relation {component_id} is not continuous.")
 
     point_list += new_points[1:]
 
 
 def _load_lane(xml_node: ET.Element, map_: Map) -> Lane:
-    lane_id = xml_node.get("id")
+    lane_id = xml_node.attrib["id"]
     line_ids = dict(left=[], right=[])
     regulatory_id_list = []
     for member in xml_node.findall("member"):
-        if member.get("role") == "left":
-            line_ids["left"].append(member.get("ref"))
-        elif member.get("role") == "right":
-            line_ids["right"].append(member.get("ref"))
-        elif member.get("role") == "regulatory_element":
-            regulatory_id_list.append(member.get("ref"))
+        if member.attrib["role"] == "left":
+            line_ids["left"].append(member.attrib["ref"])
+        elif member.attrib["role"] == "right":
+            line_ids["right"].append(member.attrib["ref"])
+        elif member.attrib["role"] == "regulatory_element":
+            regulatory_id_list.append(member.attrib["ref"])
 
     point_list = dict()
     for side in ["left", "right"]:
@@ -172,7 +132,7 @@ def _load_lane(xml_node: ET.Element, map_: Map) -> Lane:
         right_side = LineString(point_list["right"])
 
     if left_side.crosses(right_side):
-        warnings.warn("The sides of lane %s is intersected." % lane_id, MapParseWarning)
+        warnings.warn(f"The sides of lane {lane_id} is intersected.", MapParseWarning)
 
     lane_tags = _get_tags(xml_node)
 
@@ -180,23 +140,23 @@ def _load_lane(xml_node: ET.Element, map_: Map) -> Lane:
 
 
 def _load_area(xml_node: ET.Element, map_: Map) -> Area:
-    area_id = xml_node.get("id")
+    area_id = xml_node.attrib["id"]
     line_ids = dict(inner=[],outer=[])
     regulatory_id_list = []
     for member in xml_node.findall("member"):
-        if member.get("role") == "outer":
-            line_ids["outer"].append(member.get("ref"))
-        elif member.get("role") == "inner":
-            line_ids["inner"].append(member.get("ref"))
-        elif member.get("role") == "regulatory_element":
-            regulatory_id_list.append(member.get("ref"))
+        if member.attrib["role"] == "outer":
+            line_ids["outer"].append(member.attrib["ref"])
+        elif member.attrib["role"] == "inner":
+            line_ids["inner"].append(member.attrib["ref"])
+        elif member.attrib["role"] == "regulatory_element":
+            regulatory_id_list.append(member.attrib["ref"])
 
     outer_point_list = list(map_.roadlines[line_ids["outer"][0]].linestring.coords)
     for line_id in line_ids["outer"][1:]:
         new_points = list(map_.roadlines[line_id].linestring.coords)
         _append_point_list(outer_point_list, new_points, area_id)
     if outer_point_list[0] != outer_point_list[-1]:
-        warnings.warn("The outer boundary of area %s is not closed." % area_id, MapParseWarning)
+        warnings.warn(f"The outer boundary of area {area_id} is not closed.", MapParseWarning)
 
     inner_point_list = [[]]
     inner_idx = 0
@@ -213,7 +173,7 @@ def _load_area(xml_node: ET.Element, map_: Map) -> Area:
         del(inner_point_list[-1])
     else:
         if inner_point_list[-1][0] != inner_point_list[-1][-1]:
-            warnings.warn("The inner boundary of area %s is not closed." % area_id, MapParseWarning)
+            warnings.warn(f"The inner boundary of area {area_id} is not closed.", MapParseWarning)
     polygon = Polygon(outer_point_list, inner_point_list)
 
     area_tags = _get_tags(xml_node)
@@ -222,14 +182,14 @@ def _load_area(xml_node: ET.Element, map_: Map) -> Area:
 
 
 def _load_regulatory(xml_node: ET.Element) -> RegulatoryElement:
-    regulatory_id = xml_node.get("id")
+    regulatory_id = xml_node.attrib["id"]
     relation_list = []
     lane_list = []
     for member in xml_node.findall("member"):
-        if member.get("type") == "relation":
-            relation_list.append((member.get("ref"), member.get("role")))
-        elif member.get("type") == "way":
-            lane_list.append((member.get("ref"), member.get("role")))
+        if member.attrib["type"] == "relation":
+            relation_list.append((member.attrib["ref"], member.attrib["role"]))
+        elif member.attrib["type"] == "way":
+            lane_list.append((member.attrib["ref"], member.attrib["role"]))
 
     regulatory_tags = _get_tags(xml_node)
     return RegulatoryElement(regulatory_id, relation_list, lane_list, **regulatory_tags)
@@ -279,10 +239,10 @@ class Lanelet2Parser(object):
             if xml_node.get("action") == "delete":
                 continue
             for tag in xml_node.findall("tag"):
-                if tag.get("v") == "lanelet":
+                if tag.attrib["v"] == "lanelet":
                     lane = _load_lane(xml_node, map_)
                     map_.add_lane(lane)
-                elif tag.get("v") in ["multipolygon", "area"]:
+                elif tag.attrib["v"] in ["multipolygon", "area"]:
                     area = _load_area(xml_node, map_)
                     map_.add_area(area)
 
@@ -290,7 +250,7 @@ class Lanelet2Parser(object):
             if xml_node.get("action") == "delete":
                 continue
             for tag in xml_node.findall("tag"):
-                if tag.get("v") == "regulatory_element":
+                if tag.attrib["v"] == "regulatory_element":
                     regulatory = _load_regulatory(xml_node)
                     map_.add_regulatory(regulatory)
 

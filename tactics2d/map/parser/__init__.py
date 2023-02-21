@@ -1,3 +1,6 @@
-from .lanelet2_parser import Lanelet2Parser
+class MapParseWarning(SyntaxWarning):
+    pass
 
-__all__ = ["Lanelet2Parser"]
+
+class MapParseError(SyntaxError):
+    pass

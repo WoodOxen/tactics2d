@@ -37,27 +37,12 @@ class DLPPreprocess(object):
         obstacle_tokens_ = set(self.obstacles.keys())
         return len(obstacle_tokens.difference(obstacle_tokens_))  == 0
 
-    def process_obstacles(self):
-        if not self._valid_obstacles():
-            print("Warning: The obstacle token in the scene and the obstacle files are inconsistent.")
-
-        df = pd.DataFrame(
-            columns=["sceneId", "type", "width", "length", "xCenter", "yCenter", "heading"])
-        idx = 0
-        for info in self.obstacles.values():
-            df.loc[idx] = [
-                self.scene_id, info["type"], info["size"][1], info["size"][0], 
-                info["coords"][0], info["coords"][1], info["heading"]
-            ]
-            idx += 1
-        return df
-
     def _valid_agents(self):
         agent_tokens = set(self.scene["agents"])
         agent_tokens_ = set(self.agents.keys())
         return len(agent_tokens.difference(agent_tokens_)) == 0
 
-    def process_instances(self):
+    def process_tracks(self) -> pd.DataFrame:
         if not self._valid_agents():
             print("Warning: The agent token in the scene and the agent files are inconsistent.")
         if not self._valid_obstacles():
@@ -74,7 +59,7 @@ class DLPPreprocess(object):
         track_ids = {}
 
         for frame_info in self.frames.values():
-            timestamp_ms = int(frame_info["timestamp"] * 1000)
+            timestamp_ms = round(frame_info["timestamp"] * 1000)
 
             for obstacle_info in self.obstacles.values():
                 if obstacle_info["obstacle_token"] not in track_ids:
