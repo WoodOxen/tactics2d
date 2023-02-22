@@ -1,9 +1,10 @@
 import sys
-sys.path.append(".")
 sys.path.append("..")
+import os
 import json
 import logging
 logging.basicConfig(level=logging.DEBUG)
+from zipfile import ZipFile
 import xml.etree.ElementTree as ET
 
 import pytest
@@ -87,10 +88,17 @@ def test_interaction_parser():
     ]
 )
 def test_dlp_parser(file_id, stamp_range, expected: int):
-    file_path = f"./tactics2d/data/trajectory_sample/DLP/"
+    zip_path = "./tactics2d/data/trajectory_sample/DLP.zip"
+    unzip_path = "./tactics2d/data/trajectory_sample"
+    file_path = "./tactics2d/data/trajectory_sample/DLP"
+
+    with ZipFile(zip_path, "r") as zipObj:
+        zipObj.extractall(unzip_path)
 
     trajectory_parser = DLPParser()
 
     participants = trajectory_parser.parse(
         file_id, file_path, stamp_range)
     assert (len(participants)) == expected
+
+    os.remove(file_path)
