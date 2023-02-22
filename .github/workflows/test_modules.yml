@@ -20,10 +20,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Test with pytest
-      run: /
-        pytest -m map ./tests/test_parser.py
-        pytest -m trajectory ./tests/test_parser.py
+    - name: Run unit tests
+      run: python -m pytest --import-mode=append tests/
 
   test-modules-ubuntu20:
     runs-on: ubuntu-20.04
@@ -42,7 +40,5 @@ jobs:
         python -m pip install --upgrade pip
         pip install pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Test with pytest
-      run: /
-        pytest -m map ./tests/test_parser.py
-        pytest -m trajectory ./tests/test_parser.py
+    - name: Run unit tests
+      run: python -m pytest --import-mode=append tests/
