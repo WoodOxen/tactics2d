@@ -6,19 +6,24 @@ import pandas as pd
 from tactics2d.participant.element.vehicle import Vehicle
 from tactics2d.participant.element.pedestrian import Pedestrian
 from tactics2d.participant.element.cyclist import Cyclist
+from tactics2d.participant.guess_type import GuessType
 from tactics2d.trajectory.element.state import State
 from tactics2d.trajectory.element.trajectory import Trajectory
 
 
-class InteractionParser(object):
+class InteractionParser:
     """
     """
 
-    def parse_vehicle(self, file_id, folder_path, stamp_range):
+    @staticmethod
+    def parse_vehicle(
+        file_id: int, folder_path: str, 
+        stamp_range: Tuple[float, float] = (-float("inf"), float("inf"))
+    ):
         df_vehicle = pd.read_csv(os.path.join(folder_path, "vehicle_tracks_%03d.csv" % file_id))
 
-        vehicles = dict()
-        trajectories = dict()
+        vehicles = {}
+        trajectories = {}
 
         for _, state_info in df_vehicle.iterrows():
             if state_info["frame_id"] < stamp_range[0] or state_info["frame_id"] > stamp_range[1]:
@@ -26,9 +31,8 @@ class InteractionParser(object):
             
             vehicle_id =  state_info["track_id"]
             if vehicle_id not in vehicles:
-                vehicle_type = _get_vehicle_type(state_info["length"], state_info["width"])
                 vehicle = Vehicle(
-                    id_=vehicle_id, type_=vehicle_type,
+                    id_=vehicle_id, type_=state_info["agent_type"],
                     length=state_info["length"], width=state_info["width"]
                 )
                 vehicles[vehicle_id] = vehicle
@@ -38,57 +42,59 @@ class InteractionParser(object):
 
             state = State(
                 frame=state_info["frame_id"], x=state_info["x"], y=state_info["y"],
-                heading=state_info["psi_rad"]
+                heading=state_info["psi_rad"], vx=state_info["vx"], vy=state_info["vy"]
             )
-            state.set_velocity(state_info["vx"], state_info["vy"])
-            trajectories[vehicle_id].add_state(state)
+            trajectories[vehicle_id].append_state(state)
         
         for vehicle_id, vehicle in vehicles.items():
             vehicles[vehicle_id].bind_trajectory(trajectories[vehicle_id])
         
         return vehicles
 
-    def parse_pedestrians(self):
+    @staticmethod
+    def parse_pedestrians(
+        participants: dict, file_id: int, folder_path: str, 
+        stamp_range: Tuple[float, float] = (-float("inf"), float("inf"))
+    ):
 
-        pedestrian_path = os.path.join(self.folder_path, "pedestrian_tracks_%03d.csv" % self.file_id)
+        pedestrian_path = os.path.join(folder_path, "pedestrian_tracks_%03d.csv" % file_id)
         if os.path.exists(pedestrian_path):
             df_pedestrian = pd.read_csv(pedestrian_path)
         else:
-            return dict(), dict()
+            return {}
 
-        pedestrians = dict()
-        cyclists = dict()
-        trajectories = dict()
+        trajectories = {}
+        pedestrian_ids = {}
+        id_cnt = max(list(participants.keys())) + 1
 
         for _, state_info in df_pedestrian.iterrows():
-            if state_info["frame_id"] < self.stamp_range[0] or state_info["frame_id"] > self.stamp_range[1]:
+            time_stamp = float(state_info["frame_id"]) / 100.
+            if time_stamp < stamp_range[0] or time_stamp > stamp_range[1]:
                 continue
 
-            trajectory_id = int(state_info["frame_id"][1:])
-            if trajectory_id not in trajectories:
-                trajectories[trajectory_id] = Trajectory(trajectory_id)
+            if state_info["track_id"] not in pedestrian_ids:
+                pedestrian_ids[state_info["track_id"]] = id_cnt
+                trajectories[id_cnt] = Trajectory(id_cnt, fps=10)
+                id_cnt += 1
 
-            state = State(frame=state_info["frame_id"], x=state_info["x"], y=state_info["y"])
-            state.set_velocity(state_info["vx"], state_info["vy"])
-            trajectories[trajectory_id].add_state(state)
+            state = State(
+                frame=state_info["frame_id"], x=state_info["x"], y=state_info["y"], 
+                vx=state_info["vx"], vy=state_info["vy"])
+            trajectories[pedestrian_ids[state_info["track_id"]]].append_state(state)
 
         for trajectory_id, trajectory in trajectories.items():
-            if _get_pedestrian_type(trajectory) == "pedestrians":
-                pedestrians[trajectory_id] = Pedestrian(trajectory_id)
-                pedestrians[trajectory_id].set_trajectory(trajectory)
-            else:
-                cyclists[trajectory_id] = Cyclist(trajectory_id)
-                cyclists[trajectory_id].set_trajectory(trajectory)
+            type_ = GuessType.guess_by_trajectory(trajectory, hint_type="pedestrian")
+            class_ = Pedestrian if type == "pedestrian" else Cyclist
+            participants[trajectory_id] = class_(trajectory_id, type_, trajectory=trajectory)
 
-        return pedestrians, cyclists
+        return participants
 
+    @staticmethod
     def parse(
-            self, file_id: int, folder_path: str, 
+            file_id: int, folder_path: str, 
             stamp_range: Tuple[float, float] = (-float("inf"), float("inf"))
         ):
-        self.file_id = file_id
-        self.folder_path = folder_path
-        self.stamp_range = stamp_range
-        vehicles = self.parse_vehicle()
-        self.parse_pedestrians()
-        return 
+        participants = InteractionParser.parse_vehicle(file_id, folder_path, stamp_range)
+        participants = InteractionParser.parse_pedestrians(
+            participants, file_id, folder_path, stamp_range)
+        return participants

@@ -1,5 +1,5 @@
 import sys
-sys.append(".")
+sys.path.append(".")
 sys.path.append("..")
 import os
 import json
@@ -54,19 +54,21 @@ def test_lanelet2_parser():
 @pytest.mark.parametrize(
     "dataset, file_id, stamp_range, expected",
     [
-    ("highD", 1, (-float("inf"), float("inf")), 1047),
-    ("inD", 0, (-float("inf"), float("inf")), 384),
-    ("rounD", 0, (-float("inf"), float("inf")), 348),
-    ("exiD", 1, (-float("inf"), float("inf")), 871),
-    ("uniD", 0, (-float("inf"), float("inf")), 362),
-    ("highD", 1, (100., 400.), 386),
-    ("inD", 0, (100., 400.), 134),
-    ("rounD", 0, (100., 400.), 113),
-    ("exiD", 1, (100., 300.), 312),
-    ("uniD", 0, (100., 300.), 229)
+        ("highD", 1, (-float("inf"), float("inf")), 1047),
+        ("inD", 0, (-float("inf"), float("inf")), 384),
+        ("rounD", 0, (-float("inf"), float("inf")), 348),
+        ("exiD", 1, (-float("inf"), float("inf")), 871),
+        ("uniD", 0, (-float("inf"), float("inf")), 362),
+        ("highD", 1, (100., 400.), 386),
+        ("inD", 0, (100., 400.), 134),
+        ("rounD", 0, (100., 400.), 113),
+        ("exiD", 1, (100., 300.), 312),
+        ("uniD", 0, (100., 300.), 229)
     ],
 )
-def test_levelx_parser(dataset: str, file_id: int, stamp_range, expected: int):
+def test_levelx_parser(
+    dataset: str, file_id: int, stamp_range: tuple, expected: int):
+
     file_path = f"./tactics2d/data/trajectory_sample/{dataset}/data/"
 
     trajectory_parser = LevelXParser(dataset)
@@ -76,19 +78,31 @@ def test_levelx_parser(dataset: str, file_id: int, stamp_range, expected: int):
 
 
 @pytest.mark.trajectory_parser
-def test_interaction_parser():
-    return
+@pytest.mark.parametrize(
+"file_id, stamp_range, expected",
+[
+    (0, (-float("inf"), float("inf")), 97),
+    (0, (100., 400.), 12)
+]
+)
+def test_interaction_parser(file_id: int, stamp_range: tuple, expected: int):
+    folder_path = "./tactics2d/data/trajectory_sample/interaction/recorded_trackfiles/DR_USA_Intersection_EP0"
+
+    trajectory_parser = InteractionParser()
+
+    participants = trajectory_parser.parse(file_id, folder_path, stamp_range)
+    assert len(participants) == expected
 
 
 @pytest.mark.trajectory_parser
 @pytest.mark.parametrize(
     "file_id, stamp_range, expected",
     [
-    (12, (-float("inf"), float("inf")), 342),
-    (12, (100., 400.), 317)
+        (12, (-float("inf"), float("inf")), 342),
+        (12, (100., 400.), 317)
     ]
 )
-def test_dlp_parser(file_id, stamp_range, expected: int):
+def test_dlp_parser(file_id: int, stamp_range: tuple, expected: int):
     zip_path = "./tactics2d/data/trajectory_sample/DLP.zip"
     unzip_path = "./tactics2d/data/trajectory_sample"
     file_path = "./tactics2d/data/trajectory_sample/DLP"
@@ -101,5 +115,3 @@ def test_dlp_parser(file_id, stamp_range, expected: int):
     participants = trajectory_parser.parse(
         file_id, file_path, stamp_range)
     assert (len(participants)) == expected
-
-    os.remove(file_path)
