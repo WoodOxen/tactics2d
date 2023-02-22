@@ -95,15 +95,14 @@ class LevelXParser(object):
 
             participants[id_] = participant
 
+        participant_ids = set(participants.keys())
+
         # parse the corresponding trajectory to each participant and bind them
         trajectories = dict()
 
         for chunk in df_track_chunk:
-
-            first_participant_id = int(chunk.iloc[0][id_key])
-            last_participant_id = int(chunk.iloc[-1][id_key])
-
-            if first_participant_id not in participants and last_participant_id not in participants:
+            chunk_ids = set(pd.unique(chunk[id_key]))
+            if len(chunk_ids.union(participant_ids)) == 0:
                 continue
 
             for _, state_info in chunk.iterrows():

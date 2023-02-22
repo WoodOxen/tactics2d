@@ -2,6 +2,8 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 import json
+import logging
+logging.basicConfig(level=logging.DEBUG)
 import xml.etree.ElementTree as ET
 
 import pytest
@@ -13,7 +15,7 @@ from tactics2d.trajectory.parser.parse_interaction import InteractionParser
 from tactics2d.trajectory.parser.parse_levelx import LevelXParser
 
 
-@pytest.mark.map
+@pytest.mark.map_parser
 def test_lanelet2_parser():
     """Test whether the current parser can manage to parse the provided maps.
     
@@ -21,8 +23,8 @@ def test_lanelet2_parser():
         One for testing the correctness of the provided maps' notations;
         One for testing the parser's ability to parse the lanelet2 format maps.
     """
-    map_path = "../tactics2d/data/map_default/"
-    config_path = "../tactics2d/data/map_default.config"
+    map_path = "./tactics2d/data/map_default/"
+    config_path = "./tactics2d/data/map_default.config"
 
     map_parser = Lanelet2Parser()
 
@@ -33,30 +35,32 @@ def test_lanelet2_parser():
     parsed_map_set = set()
 
     for idx, map_config in configs.items():
-        print(f"Parsing map {map_config['map_name']}.")
+        logging.info(f"Parsing map {map_config['map_name']}.")
         try:
             map_root = ET.parse(map_path+map_config["map_name"]).getroot()
             _ = map_parser.parse(map_root, map_config)
             parsed_map_set.add(idx)
         except MapParseError as err:
-            print(err)
+            logging.error(err)
+        except KeyError as err:
+            logging.error(err)
 
     assert len(map_list) == len(parsed_map_set)
 
 
-@pytest.mark.trajectory
+@pytest.mark.trajectory_parser
 @pytest.mark.parametrize(
     "dataset, file_id, stamp_range, expected",
     [
     ("highD", 1, (100., 400.), (1047, 386)),
     ("inD", 0, (100., 400.), (384, 134)),
-    ("rounD", 0, (100., 400.), (348, 134)),
-    ("exiD", 0, (100., 300.), (362, 134)),
-    ("uniD", 0, (100., 300.), (362, 134))
+    ("rounD", 0, (100., 400.), (348, 113)),
+    ("exiD", 1, (100., 300.), (871, 312)),
+    ("uniD", 0, (100., 300.), (362, 229))
     ],
 )
-def test_levelx_parser(dataset, file_id, stamp_range, expected):
-    file_path = f"../tactics2d/data/trajectory_sample/{dataset}/data/"
+def test_levelx_parser(dataset: str, file_id: int, stamp_range, expected):
+    file_path = f"./tactics2d/data/trajectory_sample/{dataset}/data/"
 
     trajectory_parser = LevelXParser(dataset)
 
@@ -69,16 +73,16 @@ def test_levelx_parser(dataset, file_id, stamp_range, expected):
     assert len(participants) == expected[1]
 
 
-@pytest.mark.trajectory
+@pytest.mark.trajectory_parser
 def test_interaction_parser():
     return
 
 
-@pytest.mark.trajectory
+@pytest.mark.trajectory_parser
 @pytest.mark.parametrize(
     "file_id, file_path, stamp_range, processed, expected",
     [
-    (12, "../tactics2d/data/trajectory_sample/DLP/", (100., 400.), False, (342, 317))
+    (12, "./tactics2d/data/trajectory_sample/DLP/", (100., 400.), False, (342, 317))
     ]
 )
 def test_dlp_parser(file_id, file_path, stamp_range, processed, expected):

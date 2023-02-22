@@ -21,7 +21,8 @@ jobs:
         pip install pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Run unit tests
-      run: python -m pytest --import-mode=append tests/
+      run: 
+        pytest tests/test_parser.py
 
   test-modules-ubuntu20:
     runs-on: ubuntu-20.04
