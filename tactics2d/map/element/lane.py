@@ -115,7 +115,7 @@ class Lane(object):
             relationship (Relationship): the relationship of the lanes
         """
         if id_ == self.id_:
-            UserWarning("Lane %d cannot be a related lane to itself." % self.id_)
+            warnings.warn(f"Lane {self.id_} cannot be a related lane to itself.")
             return
         if relationship == Relationship.PREDECESSOR:
             self.predecessors.add(id_)

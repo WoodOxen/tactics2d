@@ -1,6 +1,6 @@
 LEGAL_SPEED_UNIT = ["km/h", "mi/h", "m/s"]
 
-DEFAULT_LANE = {
+LANE_CONFIG = {
     "road": {
         "inferred_participants": [],
         "speed_limit": 20,
@@ -59,7 +59,7 @@ DEFAULT_LANE = {
 }
 
 
-DEFAULT_LANE_CHANGE = {
+LANE_CHANGE_MAPPING = {
     "line_thin": {
         "solid": (False, False),
         "solid_solid": (False, False),

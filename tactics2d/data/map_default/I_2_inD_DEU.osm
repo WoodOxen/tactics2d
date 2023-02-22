@@ -494,6 +494,7 @@
   <way id='-105780' action='modify' visible='true'>
     <nd ref='1769934' />
     <nd ref='1769780' />
+    <tag k='type' v='virtual' />
   </way>
   <way id='1770081' visible='true' version='1'>
     <nd ref='1770177' />
@@ -3360,7 +3361,7 @@
     <tag k='type' v='lanelet' />
   </relation>
   <relation id='1769775' action='modify' visible='true' version='1'>
-    <member type='way' ref='-105780' role='' />
+    <member type='way' ref='-105780' role='outer' />
     <member type='way' ref='1770833' role='outer' />
     <member type='way' ref='1770741' role='outer' />
     <tag k='location' v='urban' />
@@ -3464,7 +3465,7 @@
     <tag k='subtype' v='road' />
     <tag k='type' v='lanelet' />
   </relation>
-  <relation id='1772190' visible='true' version='1'>
+  <relation id='1772000' visible='true' version='1'>
     <member type='way' ref='1770664' role='left' />
     <member type='way' ref='1770741' role='right' />
     <tag k='location' v='urban' />
