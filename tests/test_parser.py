@@ -52,25 +52,25 @@ def test_lanelet2_parser():
 @pytest.mark.parametrize(
     "dataset, file_id, stamp_range, expected",
     [
-    ("highD", 1, (100., 400.), (1047, 386)),
-    ("inD", 0, (100., 400.), (384, 134)),
-    ("rounD", 0, (100., 400.), (348, 113)),
-    ("exiD", 1, (100., 300.), (871, 312)),
-    ("uniD", 0, (100., 300.), (362, 229))
+    ("highD", 1, (-float("inf"), float("inf")), 1047),
+    ("inD", 0, (-float("inf"), float("inf")), 384),
+    ("rounD", 0, (-float("inf"), float("inf")), 348),
+    ("exiD", 1, (-float("inf"), float("inf")), 871),
+    ("uniD", 0, (-float("inf"), float("inf")), 362)
+    ("highD", 1, (100., 400.), 386),
+    ("inD", 0, (100., 400.), 134),
+    ("rounD", 0, (100., 400.), 113),
+    ("exiD", 1, (100., 300.), 312),
+    ("uniD", 0, (100., 300.), 229)
     ],
 )
-def test_levelx_parser(dataset: str, file_id: int, stamp_range, expected):
+def test_levelx_parser(dataset: str, file_id: int, stamp_range, expected: int):
     file_path = f"./tactics2d/data/trajectory_sample/{dataset}/data/"
 
     trajectory_parser = LevelXParser(dataset)
 
-    # test the dataset with full range
-    participants = trajectory_parser.parse(file_id, file_path)
-    assert len(participants) == expected[0]
-
-    # test the dataset with limited range
     participants = trajectory_parser.parse(file_id, file_path, stamp_range)
-    assert len(participants) == expected[1]
+    assert len(participants) == expected
 
 
 @pytest.mark.trajectory_parser
@@ -80,22 +80,17 @@ def test_interaction_parser():
 
 @pytest.mark.trajectory_parser
 @pytest.mark.parametrize(
-    "file_id, file_path, stamp_range, processed, expected",
+    "file_id, file_path, stamp_range, expected",
     [
-    (12, "./tactics2d/data/trajectory_sample/DLP/", (100., 400.), False, (342, 317))
+    (12, (-float("inf"), float("inf")), 342)
+    (12, (100., 400.), 317)
     ]
 )
-def test_dlp_parser(file_id, file_path, stamp_range, processed, expected):
-    # processed_file_path = "../tactics2d/data/trajectory_test_processed/DLP/"
+def test_dlp_parser(file_id, stamp_range, expected: int):
+    file_path = f"./tactics2d/data/trajectory_sample/DLP/"
 
     trajectory_parser = DLPParser()
 
-    # test parsing the dataset with full range
     participants = trajectory_parser.parse(
-        file_id, file_path, processed = processed)
-    assert (len(participants)) == expected[0]
-
-    # test parsing the dataset with limited range
-    participants = trajectory_parser.parse(
-        file_id, file_path, stamp_range=stamp_range, processed = processed)
-    assert (len(participants)) == expected[1]
+        file_id, file_path, stamp_range)
+    assert (len(participants)) == expected
