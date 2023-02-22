@@ -86,7 +86,7 @@ def test_levelx_parser(
 ]
 )
 def test_interaction_parser(file_id: int, stamp_range: tuple, expected: int):
-    folder_path = "./tactics2d/data/trajectory_sample/interaction/recorded_trackfiles/DR_USA_Intersection_EP0"
+    folder_path = "./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/DR_USA_Intersection_EP0"
 
     trajectory_parser = InteractionParser()
 
