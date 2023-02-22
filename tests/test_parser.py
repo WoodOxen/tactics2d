@@ -1,4 +1,5 @@
 import sys
+sys.append(".")
 sys.path.append("..")
 import os
 import json

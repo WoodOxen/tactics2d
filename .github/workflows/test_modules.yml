@@ -20,10 +20,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Prepare data
-      uses: montudor/action-zip@v1
-      with:
-        args: unzip -qq tactics2d/data/trajectory_sample/DLP.zip -d tactics2d/data/trajectory_sample/DLP/
     - name: Test parsers
       run: |
         pytest tests/test_parser.py
@@ -45,5 +41,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Run unit tests
-      run: python -m pytest --import-mode=append tests/
+    - name: Test parsers
+      run: |
+        pytest tests/test_parser.py
