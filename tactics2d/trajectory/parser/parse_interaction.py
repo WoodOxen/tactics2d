@@ -1,4 +1,6 @@
+from typing import Tuple
 import os
+
 import pandas as pd
 
 from tactics2d.participant.element.vehicle import Vehicle
@@ -80,7 +82,10 @@ class InteractionParser(object):
 
         return pedestrians, cyclists
 
-    def parse(self, file_id, folder_path, stamp_range):
+    def parse(
+            self, file_id: int, folder_path: str, 
+            stamp_range: Tuple[float, float] = (-float("inf"), float("inf"))
+        ):
         self.file_id = file_id
         self.folder_path = folder_path
         self.stamp_range = stamp_range

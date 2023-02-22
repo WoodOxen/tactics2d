@@ -56,7 +56,7 @@ def test_lanelet2_parser():
     ("inD", 0, (-float("inf"), float("inf")), 384),
     ("rounD", 0, (-float("inf"), float("inf")), 348),
     ("exiD", 1, (-float("inf"), float("inf")), 871),
-    ("uniD", 0, (-float("inf"), float("inf")), 362)
+    ("uniD", 0, (-float("inf"), float("inf")), 362),
     ("highD", 1, (100., 400.), 386),
     ("inD", 0, (100., 400.), 134),
     ("rounD", 0, (100., 400.), 113),
@@ -80,9 +80,9 @@ def test_interaction_parser():
 
 @pytest.mark.trajectory_parser
 @pytest.mark.parametrize(
-    "file_id, file_path, stamp_range, expected",
+    "file_id, stamp_range, expected",
     [
-    (12, (-float("inf"), float("inf")), 342)
+    (12, (-float("inf"), float("inf")), 342),
     (12, (100., 400.), 317)
     ]
 )
