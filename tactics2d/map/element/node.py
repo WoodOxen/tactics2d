@@ -2,6 +2,11 @@ from shapely.geometry import Point
 
 
 class Node(object):
+    """tactics2d.map.element.Node
+
+    Args:
+        object (_type_): _description_
+    """
     def __init__(self, id_: str, x: float, y: float):
         self.id_ = id_
         self.x = x

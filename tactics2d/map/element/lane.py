@@ -3,7 +3,7 @@ from enum import Enum
 
 from shapely.geometry import LineString, LinearRing
 
-from tactics2d.map.element import LEGAL_SPEED_UNIT
+from .defaults import LEGAL_SPEED_UNIT
 
 
 class Relationship(Enum):
@@ -14,7 +14,9 @@ class Relationship(Enum):
 
 
 class Lane(object):
-    """An implementation of the lanelet2-style lanelet with neighbors detected.
+    """## tactics2d.map.element.Lane
+
+    An implementation of the lanelet2-style lanelet with neighbors detected.
 
     The detailed definition of the lanelet2-style lanelet can be found here:
     https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md

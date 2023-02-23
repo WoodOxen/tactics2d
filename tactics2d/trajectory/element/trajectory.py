@@ -2,7 +2,7 @@ import warnings
 
 import numpy as np
 
-from tactics2d.trajectory.element.state import State
+from .state import State
 
 
 class TrajectoryKeyError(KeyError):

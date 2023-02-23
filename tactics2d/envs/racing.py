@@ -45,29 +45,24 @@ STEP_LIMIT = 20000 # steps
 TIME_STEP = 0.01 # state update time step: 0.01 s/step
 
 
-class CarRacing(gym.Env):
+class RacingEnv(gym.Env):
     """
-    ## Description
-    An improved version of Box2D's CarRacing gym environment
+    ## tactics2d.envs.RacingEnv
+    
+    An improved version of Box2D's CarRacing gym environment.
 
-    ## Action Space
-    If continuous there are 2 actions
-    - 0: steering, -1 is full left, +1 is full right
-    - 1: acceleration, range [-1, 1], unit m^2/s
-
-    If discrete there are 5 actions: 
-    - 0: do nothing
-    - 1: steer left
-    - 2: steer right
-    - 3: accelerate
-    - 4: decelerate
-
-    ## Observation Space
-
-    A bird-eye view 128x128 RGB image of the car and the race track.
-
-    ## Rewards
-
+    -  **Action Space**: 
+        -  If continuous there are 2 actions:
+            -  0: steering, -1 is full left, +1 is full right
+            -  1: acceleration, range [-1, 1], unit $m^2/s$
+        -  If discrete there are 5 actions: 
+            -  0: do nothing
+            -  1: steer left
+            -  2: steer right
+            -  3: accelerate
+            -  4: decelerate
+    -  **Observation Space**: A bird-eye view 128x128 RGB image of the car and the race track.
+    -  **Rewards**: [TBD]
     """
     metadata = {
         "render_modes": ["human", "rgb_array"],

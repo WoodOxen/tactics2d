@@ -3,12 +3,9 @@ import os
 
 import pandas as pd
 
-from tactics2d.participant.element.vehicle import Vehicle
-from tactics2d.participant.element.pedestrian import Pedestrian
-from tactics2d.participant.element.cyclist import Cyclist
+from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist
 from tactics2d.participant.guess_type import GuessType
-from tactics2d.trajectory.element.state import State
-from tactics2d.trajectory.element.trajectory import Trajectory
+from tactics2d.trajectory.element import State, Trajectory
 
 
 class InteractionParser:

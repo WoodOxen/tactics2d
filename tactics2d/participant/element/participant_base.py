@@ -1,5 +1,3 @@
-from typing import Tuple
-
 from tactics2d.trajectory.element.trajectory import Trajectory
 
 

@@ -1,10 +1,10 @@
 import warnings
 
-from tactics2d.map.element.node import Node
-from tactics2d.map.element.roadline import RoadLine
-from tactics2d.map.element.lane import Lane
-from tactics2d.map.element.area import Area
-from tactics2d.map.element.regulatory import RegulatoryElement
+from .area import Area
+from .lane import Lane
+from .node import Node
+from .regulatory import RegulatoryElement
+from .roadline import RoadLine
 
 
 class  MapKeyError(KeyError):
@@ -12,6 +12,13 @@ class  MapKeyError(KeyError):
 
 
 class Map(object):
+    """## tactics2d.map.element.Map
+
+    Attributes:
+        name (str, optional): _description_. Defaults to None.
+        scenario_type (str, optional): _description_. Defaults to None.
+        country (str, optional): _description_. Defaults to None.
+    """
     def __init__(
         self, name: str = None, scenario_type: str = None, country: str = None
     ):
