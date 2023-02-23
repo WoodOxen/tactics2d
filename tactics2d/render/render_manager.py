@@ -12,6 +12,7 @@ class RenderManager(object):
 
         pygame.display.init()
         self.clock = pygame.time.Clock()
+        self.surface = pygame.Surface()
         self.surfaces = []
 
         self.sensors = dict()

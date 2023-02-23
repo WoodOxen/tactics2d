@@ -4,10 +4,10 @@ from typing import Tuple, Union
 import numpy as np
 from shapely.geometry import Point
 from shapely.affinity import affine_transform
-
 import pygame
 
-from .defaults import *
+from .defaults import LANE_COLOR, AREA_COLOR, ROADLINE_COLOR
+from .defaults import VEHICLE_COLOR, PEDESTRIAN_COLOR
 
 
 class SensorBase(ABC):
@@ -65,7 +65,7 @@ class SensorBase(ABC):
 
 
 class TopDownCamera(SensorBase):
-    """Pseudo camera that provides a bird-eye view RGB semantic segmentation image of 
+    """Pseudo camera that provides a top-down view RGB semantic segmentation image of 
     the map and all the moving objects.
 
     Attributes:

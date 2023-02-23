@@ -1,7 +1,6 @@
 import sys
 sys.path.append(".")
 sys.path.append("..")
-import os
 import json
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -10,11 +9,9 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from tactics2d.map.parser.lanelet2_parser import Lanelet2Parser
+from tactics2d.map.parser import Lanelet2Parser
 from tactics2d.map.parser import MapParseError
-from tactics2d.trajectory.parser.parse_dlp import DLPParser
-from tactics2d.trajectory.parser.parse_interaction import InteractionParser
-from tactics2d.trajectory.parser.parse_levelx import LevelXParser
+from tactics2d.trajectory.parser import DLPParser, InteractionParser, LevelXParser
 
 
 @pytest.mark.map_parser

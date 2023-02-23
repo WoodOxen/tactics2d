@@ -4,7 +4,8 @@ import warnings
 from pyproj import Proj
 from shapely.geometry import Point, LineString, Polygon
 
-from tactics2d.map.element import *
+from tactics2d.map.element import Node, Lane, Area, RoadLine, RegulatoryElement, Map
+from tactics2d.map.element import LANE_CHANGE_MAPPING
 from tactics2d.map.parser import MapParseWarning, MapParseError
 
 

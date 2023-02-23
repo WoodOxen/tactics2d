@@ -12,8 +12,6 @@ TRACK_WIDTH = 15 # the width of the track is ranging in 15m
 TRACK_RAD = 800 # the maximum curvature radius
 CURVE_RAD = (10, 150) # the curvature radius is ranging in 10-150m
 TILE_LENGTH = 10 # the length of each tile
-STEP_LIMIT = 20000 # steps
-TIME_STEP = 0.01 # state update time step: 0.01 s/step
 
 
 class RacingTrackGenerator:

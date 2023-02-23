@@ -1,6 +1,5 @@
-class MapParseWarning(SyntaxWarning):
-    pass
+from .parser_base import MapParseWarning, MapParseError
+from .lanelet2_parser import Lanelet2Parser
 
 
-class MapParseError(SyntaxError):
-    pass
+__all__ = ["Lanelet2Parser", "MapParseWarning", "MapParseError"]
