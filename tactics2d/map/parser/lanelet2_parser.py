@@ -190,18 +190,6 @@ def _load_regulatory(xml_node: ET.Element) -> RegulatoryElement:
     return RegulatoryElement(regulatory_id, relation_list, lane_list, **regulatory_tags)
 
 
-def _get_map_bounds(nodes: dict):
-    x_min, x_max, y_min, y_max = float('inf'), float('-inf'), float('inf'), float('-inf')
-
-    for node in nodes.values():
-        x_min = min(x_min, node.x)
-        x_max = max(x_max, node.x)
-        y_min = min(y_min, node.y)
-        y_max = max(y_max, node.y)
-    
-    return x_min, x_max, y_min, y_max
-
-
 class Lanelet2Parser(object):
 
     @staticmethod
@@ -248,8 +236,5 @@ class Lanelet2Parser(object):
                 if tag.attrib["v"] == "regulatory_element":
                     regulatory = _load_regulatory(xml_node)
                     map_.add_regulatory(regulatory)
-
-        x_min, x_max, y_min, y_max = _get_map_bounds(map_.nodes)
-        map_.boundary = [x_min-10, x_max+10, y_min-10, y_max+10]
 
         return map_

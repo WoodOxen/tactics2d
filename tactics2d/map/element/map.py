@@ -18,6 +18,8 @@ class Map(object):
         name (str, optional): _description_. Defaults to None.
         scenario_type (str, optional): _description_. Defaults to None.
         country (str, optional): _description_. Defaults to None.
+
+        boundary (tuple, optional): (left, right, front, back). Defaults to None.
     """
     def __init__(
         self, name: str = None, scenario_type: str = None, country: str = None
@@ -34,7 +36,21 @@ class Map(object):
         self.roadlines = dict()
         self.regulations = dict()
         self.customs = dict()
-        self.boundary = None
+        self._boundary = None
+
+    @property
+    def boundary(self):
+        if self._boundary is None:
+            x_min, x_max, y_min, y_max = float('inf'), float('-inf'), float('inf'), float('-inf')
+
+            for node in self.nodes.values():
+                x_min = min(x_min, node.x)
+                x_max = max(x_max, node.x)
+                y_min = min(y_min, node.y)
+                y_max = max(y_max, node.y)
+            
+            self._boundary = (x_min-10, x_max+10, y_min-10, y_max+10)
+        return self._boundary
 
     def add_node(self, node: Node):
         if node.id_ in self.ids:
@@ -88,4 +104,4 @@ class Map(object):
         self.roadlines.clear()
         self.regulations.clear()
         self.customs.clear()
-        self.boundary = None
+        self._boundary = None

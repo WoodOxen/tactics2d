@@ -22,7 +22,7 @@ AREA_COLOR = {
     "hole": THECOLORS["white"],
     "parking": THECOLORS["darkgray"],
     "freespace": THECOLORS["slategray"],
-    "vegetation": THECOLORS["springgreen2"],
+    "vegetation": THECOLORS["forestgreen"],
     "keepout": THECOLORS["red2"],
     "building": THECOLORS["steelblue1"],
     "traffic_island": THECOLORS["silver"],

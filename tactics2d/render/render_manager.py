@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import pygame
 
 # from tactics2d.traffic.scenario import Scenario
@@ -6,17 +8,23 @@ from tactics2d.render.sensors import SensorBase
 
 
 class RenderManager(object):
-    def __init__(self, map_, participants) -> None:
+    def __init__(self, map_, participants, windows_size: Tuple[int, int] = (800, 800), fps: int = 60, off_screen: bool = False):
         self.map_ = map_
         self.participants = participants
+        self.windows_size = windows_size
+        self.fps = fps
+        self.off_screen = off_screen
 
-        pygame.display.init()
+        pygame.init()
         self.clock = pygame.time.Clock()
-        self.surface = pygame.Surface()
-        self.surfaces = []
+        self.screen = pygame.display.set_mode(
+            self.windows_size,
+            flags=pygame.HIDDEN if self.off_screen else pygame.SHOWN
+        )
 
         self.sensors = dict()
         self.bound_sensors = []
+        self.layout = None
 
     @property
     def driver(self) -> str:
@@ -26,13 +34,20 @@ class RenderManager(object):
         """The interface of tactics's renderer to set mode by pygame.display.set_mode"""
         pygame.display.set_mode(**kwargs)
 
-    def add_sensor(self, sensor: SensorBase):
+    def _rearrange_layout(self):
+        pass
+
+    def add_sensor(self, sensor: SensorBase, display=True):
         if issubclass(sensor, SensorBase):
             if sensor.sensor_id not in self.sensors:
                 self.sensors[sensor.sensor_id] = sensor
             else:
                 raise ValueError(f"ID {sensor.sensor_id} is used by the other sensor.")
-        return True
+        else:
+            raise TypeError("The sensor must be a subclass of SensorBase.")
+
+        if display:
+            self.layout = self._rearrange_layout()
 
     def bind(self, sensor_id, participant_id):
         if sensor_id in self.sensors and participant_id in self.participants:
