@@ -5,7 +5,9 @@ from shapely.geometry import LineString, Point
 
 
 class RoadLine:
-    """An implementation of the lanelet2-style linestring.
+    """tactics2d.map.element.RoadLine
+
+    An implementation of the lanelet2-style linestring.
 
     The detailed definition of the lanelet2-style linestring can be found here:
     https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md

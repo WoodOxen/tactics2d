@@ -1,13 +1,8 @@
 from typing import Tuple
 import json
 
-import pandas as pd
-
-from tactics2d.participant.element.participant_base import ParticipantBase
-from tactics2d.participant.element.vehicle import Vehicle
-from tactics2d.participant.element.pedestrian import Pedestrian
-from tactics2d.trajectory.element.state import State
-from tactics2d.trajectory.element.trajectory import Trajectory
+from tactics2d.participant.element import ParticipantBase, Vehicle, Pedestrian
+from tactics2d.trajectory.element import State, Trajectory
 
 
 TYPE_MAPPING = {
