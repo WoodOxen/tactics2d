@@ -2,7 +2,8 @@ from typing import List, Tuple
 
 
 class RegulatoryElement(object):
-    """_summary_
+    """tactics2d.map.element.RegulatoryElement
+
     The attributes of Regulatory refers to
     https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/RegulatoryElementTagging.md
     

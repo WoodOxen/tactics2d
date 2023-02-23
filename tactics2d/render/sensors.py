@@ -7,7 +7,7 @@ from shapely.affinity import affine_transform
 
 import pygame
 
-from tactics2d.render.color_default import *
+from .defaults import *
 
 
 class SensorBase(ABC):

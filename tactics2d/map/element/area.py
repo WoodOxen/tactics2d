@@ -2,11 +2,13 @@ import warnings
 
 from shapely.geometry import Polygon
 
-from tactics2d.map.element import LEGAL_SPEED_UNIT
+from .defaults import LEGAL_SPEED_UNIT
 
 
 class Area(object):
-    """An implementation of the lanelet2-style area.
+    """## tactics2d.map.element.Area
+
+    An implementation of the lanelet2-style area.
 
     The detailed definition of the lanelet2-style area can be found here:
     https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md

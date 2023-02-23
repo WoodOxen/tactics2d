@@ -1,4 +1,4 @@
-from tactics2d.participant.element.participant_base import ParticipantBase
+from .participant_base import ParticipantBase
 from tactics2d.trajectory.element.state import State
 from tactics2d.trajectory.element.trajectory import Trajectory
 
