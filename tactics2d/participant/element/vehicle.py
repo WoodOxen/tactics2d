@@ -1,12 +1,11 @@
 from typing import Tuple
 
-# import numpy as np
+import numpy as np
 from shapely.geometry import LinearRing
-from shapely.affinity import rotate
+from shapely.affinity import affine_transform
 
 from .participant_base import ParticipantBase
-from tactics2d.trajectory.element.state import State
-from tactics2d.trajectory.element.trajectory import Trajectory
+from tactics2d.trajectory.element.trajectory import State, Trajectory
 
 
 class Vehicle(ParticipantBase):
@@ -26,8 +25,8 @@ class Vehicle(ParticipantBase):
         body_type ()
     """
     def __init__(
-        self, id_: int, type_: str = None,
-        length: float = None, width: float = None, height: float = None, color = None,
+        self, id_: int, type_: str = "car",
+        length: float = 4.76, width: float = 1.85, height: float = 1.43, color = None,
         steering_angle_range: Tuple[float, float] = None,
         steering_velocity_range: Tuple[float, float] = None,
         speed_range: Tuple[float, float] = None,
@@ -55,33 +54,14 @@ class Vehicle(ParticipantBase):
         ])
 
     @property
-    def current_state(self) -> State:
-        return self.trajectory.get_state()
-
-    @property
-    def location(self):
-        return self.current_state.location
-
-    @property
-    def heading(self) -> float:
-        return self.current_state.heading
-
-    @property
-    def velocity(self):
-        return (self.current_state.vx, self.current_state.vy)
-
-    @property
-    def speed(self) -> float:
-        return self.current_state.speed
-
-    @property
-    def accel(self):
-        return self.current_state.accel
-
-    @property
     def pose(self) -> LinearRing:
         """The vehicle's bounding box which is rotated and moved based on the current state."""
-        return rotate(self.bbox, self.heading, origin = self.location)
+        transform_matrix = [
+            np.cos(self.heading), -np.sin(self.heading),
+            np.sin(self.heading), np.cos(self.heading),
+            self.location[0], self.location[1]
+        ]
+        return affine_transform(self.bbox, transform_matrix)
 
     def _verify_state(self) -> bool:
         """Check if the state change is allowed by the vehicle's physical model.

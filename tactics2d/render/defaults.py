@@ -39,6 +39,11 @@ VEHICLE_COLOR = {
 }
 
 
+CYCLIST_COLOR = {
+    "default": THECOLORS["cyan1"],
+}
+
+
 PEDESTRIAN_COLOR = {
-    "default": THECOLORS["lightpink"],
+    "default": THECOLORS["lightpink1"],
 }

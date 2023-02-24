@@ -1,4 +1,4 @@
-from tactics2d.trajectory.element.trajectory import Trajectory
+from tactics2d.trajectory.element.trajectory import State, Trajectory
 
 
 class ParticipantBase(object):
@@ -13,7 +13,30 @@ class ParticipantBase(object):
         self.length = length
         self.width = width
         self.height = height
-        self.bind_trajectory(trajectory)
+
+    @property
+    def current_state(self) -> State:
+        return self.trajectory.get_state()
+    
+    @property
+    def location(self):
+        return self.current_state.location
+    
+    @property
+    def heading(self) -> float:
+        return self.current_state.heading
+    
+    @property
+    def velocity(self):
+        return (self.current_state.vx, self.current_state.vy)
+    
+    @property
+    def speed(self) -> float:
+        return self.current_state.speed
+
+    @property
+    def accel(self):
+        return self.current_state.accel
 
     def _verify_state(self) -> bool:
         """Check if the state change is allowed by the vehicle's physical model.
@@ -32,4 +55,4 @@ class ParticipantBase(object):
         raise NotImplementedError
 
     def bind_trajectory(self, trajectory: Trajectory):
-        self.trajectory = trajectory
+        raise NotImplementedError

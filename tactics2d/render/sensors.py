@@ -8,8 +8,9 @@ from shapely.affinity import affine_transform
 import pygame
 
 from tactics2d.map.element import Map
+from tactics2d.participant.element import Vehicle, Cyclist, Pedestrian
 from .defaults import LANE_COLOR, AREA_COLOR, ROADLINE_COLOR
-from .defaults import VEHICLE_COLOR, PEDESTRIAN_COLOR
+from .defaults import VEHICLE_COLOR, CYCLIST_COLOR, PEDESTRIAN_COLOR
 
 
 class SensorBase(ABC):
@@ -46,19 +47,11 @@ class SensorBase(ABC):
         """
 
     @abstractmethod
-    def _render_vehicles(self, vehicles: list):
+    def _render_participants(self, vehicles: list):
         """_summary_
 
         Args:
             vehicles (_type_): _description_
-        """
-
-    @abstractmethod
-    def _render_pedestrians(self, pedestrians: list):
-        """_summary_
-
-        Args:
-            pedestrians (_type_): _description_
         """
 
     @abstractmethod
@@ -76,10 +69,11 @@ class TopDownCamera(SensorBase):
     """
     def __init__(
             self, sensor_id, map_: Map, perception_range: Union[float, Tuple[float]] = None,
-            window_size: Tuple[int, int] = (200, 200), 
+            window_size: Tuple[int, int] = (200, 200), off_screen: bool = False
         ):
 
         super().__init__(sensor_id, map_)
+        self.off_screen = off_screen
 
         if perception_range is None:
             width = (map_.boundary[1] - map_.boundary[0]) / 2
@@ -99,11 +93,20 @@ class TopDownCamera(SensorBase):
             max(self.perception_range[2], self.perception_range[3])
         ])
 
-        self.window_size = window_size
 
-        if perception_range is not None:
-            if self.window_size[0] / self.perception_width != self.window_size[1] / self.perception_height:
-                warnings.warn("The height-width proportion of the perception and the image is inconsistent.")
+        scale_width = window_size[0] / self.perception_width
+        scale_height = window_size[1] / self.perception_height
+        if scale_width != scale_height:
+            warnings.warn("The height-width proportion of the perception and the image is inconsistent. Use the proportion of the perception to scale the image.")
+
+            self.window_size = (
+                int(min(scale_width, scale_height) * self.perception_width), 
+                int(min(scale_width, scale_height) * self.perception_height)
+            )
+            self.scale = min(scale_width, scale_height)
+        else:
+            self.window_size = window_size
+            self.scale = scale_width
 
         self.surface = pygame.Surface(window_size)
         self.position = None
@@ -112,27 +115,23 @@ class TopDownCamera(SensorBase):
     def _update_transform_matrix(self):
         if None in [self.position, self.heading]:
             if not hasattr(self, "transform_matrix"):
-                scale = min(
-                    self.window_size[0] / self.perception_width, 
-                    self.window_size[1] / self.perception_height
-                )
-
                 x_center = 0.5 * (self.map_.boundary[0] + self.map_.boundary[1])
                 y_center = 0.5 * (self.map_.boundary[2] + self.map_.boundary[3])
 
                 self.transform_matrix = [
-                    scale, 0, 0, -scale, 
-                    0.5 * self.window_size[0] - scale * x_center,
-                    0.5 * self.window_size[1] + scale * y_center
+                    self.scale, 0, 0, -self.scale, 
+                    0.5 * self.window_size[0] - self.scale * x_center,
+                    0.5 * self.window_size[1] + self.scale * y_center
                 ]
         else:
-            scale = min(
-                self.window_size[0] / self.perception_width, 
-                self.window_size[1] / self.perception_height
-            )
-            theta = 3*np.pi/ 2 - self.heading if self.heading < 3*np.pi/2 else 5*np.pi/ 2 - self.heading
+            theta = self.heading + np.pi / 2
 
-            self.transform_matrix = [theta]
+            self.transform_matrix = [
+                np.cos(theta), -np.sin(theta),
+                np.sin(theta), -np.cos(theta),
+                self.perception_range[1] - self.position.x * np.cos(theta),
+                self.perception_range[3] + self.position.y * np.sin(theta)
+            ]
 
     def _in_perception_range(self, geometry) -> bool:
         return geometry.distance(self.position) > self.max_perception_distance
@@ -181,44 +180,50 @@ class TopDownCamera(SensorBase):
 
             pygame.draw.lines(self.surface, color, False, points, width)
 
-    def _render_vehicles(self, vehicles):
-        for vehicle in vehicles:
+    def _render_vehicle(self, vehicle: Vehicle):
+        color = VEHICLE_COLOR["default"] if vehicle.color is None else vehicle.color
+        points = list(affine_transform(vehicle.pose, self.transform_matrix).coords)
+
+        print(points)
+
+        pygame.draw.polygon(self.surface, color, points)
+
+    def _render_cyclist(self, cyclist: Cyclist):
+        color = CYCLIST_COLOR["default"] if cyclist.color is None else cyclist.color
+        points = list(affine_transform(cyclist.pose, self.transform_matrix).coords)
+
+        pygame.draw.polygon(self.surface, color, points)
+
+    def _render_pedestrian(self, pedestrian: Pedestrian):
+        color = PEDESTRIAN_COLOR["default"] if pedestrian.color is None else pedestrian.color
+        point = affine_transform(Point(pedestrian.location))
+        radius = max(1, 0.5 * self.scale)
+
+        pygame.draw.circle(self.surface, color, point, radius)
+
+    def _render_participants(self, participants: dict):
+        for participant in participants.values():
             if self.position is not None:
-                if vehicle.pose.distance(self.position) > self.max_perception_distance:
+                if Point(participant.location).distance(self.position) > self.max_perception_distance:
                     continue
 
-            color = VEHICLE_COLOR["default"] if vehicle.color is None else vehicle.color
-            points = list(affine_transform(vehicle.pose))
+            if isinstance(participant, Vehicle):
+                self._render_vehicle(participant)
+            elif isinstance(participant, Pedestrian):
+                self._render_pedestrian(participant)
+            elif isinstance(participant, Cyclist):
+                self._render_cyclist(participant)
 
-            pygame.draw.polygon(self.surface, color, points)
-
-    def _render_pedestrians(self, pedestrians):
-        radius = max(1., min(
-                self.window_size[0] / self.perception_width, 
-                self.window_size[1] / self.perception_height
-            ) / 10)
-        for pedestrian in pedestrians:
-            if self.position is not None:
-                if pedestrian.pose.distance(self.position) > self.max_perception_distance:
-                    continue
-            
-            color = PEDESTRIAN_COLOR["default"] \
-                if pedestrian.color is None else pedestrian.color
-            point = affine_transform(Point(pedestrian.location))
-
-            pygame.draw.circle(self.surface, color, point, radius)
-
-    def update(self, vehicles, pedestrians, position = None, location = None):
+    def update(self, participants, position: Point = None, heading = None):
         self.position = position
-        self.location = location
+        self.heading = heading
         self._update_transform_matrix()
 
         self.surface.fill((255, 255, 255))
         self._render_areas()
         self._render_lanes()
         self._render_roadlines()
-        self._render_vehicles(vehicles)
-        self._render_pedestrians(pedestrians)
+        self._render_participants(participants)
 
 
 class SingleLineLidar(SensorBase):
