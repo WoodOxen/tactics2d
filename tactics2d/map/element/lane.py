@@ -37,15 +37,23 @@ class Lane(object):
         left_neighbors (set):
         right_neighbors (set):
     """
-    def __init__(
-        self, id_: str, left_side: LineString, right_side: LineString, line_ids: set = None,
-        type_: str = "lanelet", subtype: str = None, color: tuple = None, location: str = None,
-        inferred_participants: list = None,
-        speed_limit: float = None, speed_limit_unit: str = "km/h",
-        speed_limit_mandatory: bool = True,
-        custom_tags: dict = None
-    ):
 
+    def __init__(
+        self,
+        id_: str,
+        left_side: LineString,
+        right_side: LineString,
+        line_ids: set = None,
+        type_: str = "lanelet",
+        subtype: str = None,
+        color: tuple = None,
+        location: str = None,
+        inferred_participants: list = None,
+        speed_limit: float = None,
+        speed_limit_unit: str = "km/h",
+        speed_limit_mandatory: bool = True,
+        custom_tags: dict = None,
+    ):
         self.id_ = id_
         self.left_side = left_side
         self.right_side = right_side
@@ -60,7 +68,9 @@ class Lane(object):
         self.speed_limit_mandatory = speed_limit_mandatory
         self.custom_tags = custom_tags
 
-        self.polygon = LinearRing(list(self.left_side.coords) + list(reversed(list(self.right_side.coords))))
+        self.polygon = LinearRing(
+            list(self.left_side.coords) + list(reversed(list(self.right_side.coords)))
+        )
 
         self.predecessors = set()
         self.successors = set()
@@ -69,29 +79,25 @@ class Lane(object):
 
     @property
     def starts(self) -> list:
-        """Return start points of the lane
-        """
+        """Return start points of the lane"""
         return [self.left_side.coords[0], self.right_side.coords[0]]
 
     @property
     def ends(self) -> list:
-        """Return the end points of the lane
-        """
+        """Return the end points of the lane"""
         return [self.left_side.coords[-1], self.right_side.coords[-1]]
 
     @property
     def shape(self) -> list:
-        """Return the shape of the lane
-        """
+        """Return the shape of the lane"""
         return list(self.polygon.coords)
 
     def is_valid(self) -> bool:
-        """
-        """
+        """ """
         if self.speed_limit_unit not in LEGAL_SPEED_UNIT:
             warnings.warn(
-                "Invalid speed limit unit %s. The legal units types are %s" % \
-                (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
+                "Invalid speed limit unit %s. The legal units types are %s"
+                % (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
             )
 
     def is_related(self, id_: str) -> Relationship:

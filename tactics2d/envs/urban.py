@@ -5,6 +5,4 @@ import gym
 
 class UrbanEnv(gym.Env):
     def __init__(self, render_mode: str = "human"):
-
         self.render_mode = render_mode
-

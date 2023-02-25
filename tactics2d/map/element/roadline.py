@@ -23,15 +23,20 @@ class RoadLine:
         height (float, optional): height of line (in m). The linestring then represents the lower outline/lowest edge of the object. Defaults to None.
         temporary (bool, optional): _description_. Defaults to False.
     """
-    def __init__(
-        self, id_: str, linestring: LineString,
-        type_: str = "virtual", subtype: str = None, color: tuple = None,
-        lane_change: Tuple[bool, bool] = (True, True),
-        width: float = None, height: float = None,
-        temporary: bool = False, 
-        custom_tags: dict = None
-    ):
 
+    def __init__(
+        self,
+        id_: str,
+        linestring: LineString,
+        type_: str = "virtual",
+        subtype: str = None,
+        color: tuple = None,
+        lane_change: Tuple[bool, bool] = (True, True),
+        width: float = None,
+        height: float = None,
+        temporary: bool = False,
+        custom_tags: dict = None,
+    ):
         self.id_ = id_
         self.linestring = linestring
         self.type_ = type_
@@ -46,13 +51,12 @@ class RoadLine:
     @property
     def head(self) -> Point:
         return shapely.get_point(self.linestring, 0)
-    
+
     @property
     def tail(self) -> Point:
         return shapely.get_point(self.linestring, -1)
 
     @property
     def shape(self) -> list:
-        """Get shape of the roadline
-        """
+        """Get shape of the roadline"""
         return list(self.linestring.coords)

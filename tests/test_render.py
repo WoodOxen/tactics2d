@@ -7,8 +7,8 @@ import xml.etree.ElementTree as ET
 from tactics2d.participant.element import Vehicle
 from tactics2d.trajectory.element import State, Trajectory
 from tactics2d.map.parser import Lanelet2Parser
-from tactics2d.render.render_manager import RenderManager
-from tactics2d.render.sensors import TopDownCamera
+from tactics2d.sensor import TopDownCamera
+from tactics2d.scenario.render_manager import RenderManager
 
 
 if __name__ == "__main__":
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     heading = 0
 
     perception_range = 100
-    camera1 = TopDownCamera(1, map_, perception_range=perception_range, window_size=(200, 200))
+    camera1 = TopDownCamera(1, map_, perception_range=perception_range, window_size=(400, 400))
 
     trajectory = Trajectory(1)
     trajectory.append_state(State(0, position[0], position[1], heading))

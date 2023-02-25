@@ -3,11 +3,14 @@ from tactics2d.trajectory.element.trajectory import State, Trajectory
 
 class ParticipantBase(object):
     def __init__(
-        self, id_: int, type_: str = None,
-        length: float = None, width: float = None, height: float = None,
-        trajectory: Trajectory = None
+        self,
+        id_: int,
+        type_: str = None,
+        length: float = None,
+        width: float = None,
+        height: float = None,
+        trajectory: Trajectory = None,
     ):
-
         self.id_ = id_
         self.type_ = type_
         self.length = length
@@ -17,19 +20,19 @@ class ParticipantBase(object):
     @property
     def current_state(self) -> State:
         return self.trajectory.get_state()
-    
+
     @property
     def location(self):
         return self.current_state.location
-    
+
     @property
     def heading(self) -> float:
         return self.current_state.heading
-    
+
     @property
     def velocity(self):
         return (self.current_state.vx, self.current_state.vy)
-    
+
     @property
     def speed(self) -> float:
         return self.current_state.speed
@@ -50,7 +53,7 @@ class ParticipantBase(object):
             bool: _description_
         """
         raise NotImplementedError
-    
+
     def _verify_trajectory(self):
         raise NotImplementedError
 

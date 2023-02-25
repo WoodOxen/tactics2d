@@ -64,18 +64,18 @@ LANE_CHANGE_MAPPING = {
         "solid": (False, False),
         "solid_solid": (False, False),
         "dashed": (True, True),
-        "dashed_solid": (True, False), # left->right: yes
-        "solid_dashed": (False, True), # right->left: yes
+        "dashed_solid": (True, False),  # left->right: yes
+        "solid_dashed": (False, True),  # right->left: yes
     },
     "line_thick": {
         "solid": (False, False),
         "solid_solid": (False, False),
         "dashed": (True, True),
-        "dashed_solid": (True, False), # left->right: yes
-        "solid_dashed": (False, True), # right->left: yes
+        "dashed_solid": (True, False),  # left->right: yes
+        "solid_dashed": (False, True),  # right->left: yes
     },
     "curbstone": {
         "high": (False, False),
-        "low":  (False, False),
-    }
+        "low": (False, False),
+    },
 }

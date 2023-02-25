@@ -6,15 +6,21 @@ from shapely.geometry import Point
 import pygame
 
 # from tactics2d.traffic.scenario import Scenario
-from tactics2d.render.sensors import SensorBase
+from tactics2d.sensor import SensorBase
+
 # from tactics2d.render.sensors import TopDownCamera, SingleLineLidar
 
 
 class RenderManager(object):
     layout_styles = {"hierarchical", "modular"}
+
     def __init__(
-        self, map_,
-        fps: int = 60, windows_size: Tuple[int, int] = (800, 800), layout_style: str = "hierarchical", off_screen: bool = False
+        self,
+        map_,
+        fps: int = 60,
+        windows_size: Tuple[int, int] = (800, 800),
+        layout_style: str = "hierarchical",
+        off_screen: bool = False,
     ):
         self.map_ = map_
         self.fps = fps
@@ -38,11 +44,12 @@ class RenderManager(object):
         return pygame.display.get_driver()
 
     def _rearrange_layout(self):
-        sensor_to_display = [sensor for sensor in self.sensors.values() if not sensor.off_screen]
+        sensor_to_display = [
+            sensor for sensor in self.sensors.values() if not sensor.off_screen
+        ]
 
         if self.screen is None and len(sensor_to_display) > 0:
-            self.screen = pygame.display.set_mode(
-                self.windows_size, flags=pygame.SHOWN)
+            self.screen = pygame.display.set_mode(self.windows_size, flags=pygame.SHOWN)
 
         if self.layout_style == "hierarchical":
             pass
@@ -52,12 +59,11 @@ class RenderManager(object):
             height = self.windows_size[1] / np.ceil(len(sensor_to_display) / n)
             for i, sensor in enumerate(self.sensors.values()):
                 scale = min(
-                    width / sensor.window_size[0], 
-                    height / sensor.window_size[1]
+                    width / sensor.window_size[0], height / sensor.window_size[1]
                 )
                 coords = (
                     (i % n) * width + (width - sensor.window_size[0] * scale) / 2,
-                    (i // n) * height + (height - sensor.window_size[1] * scale) / 2
+                    (i // n) * height + (height - sensor.window_size[1] * scale) / 2,
                 )
                 self.layouts[sensor.sensor_id] = (scale, coords)
 
@@ -72,10 +78,14 @@ class RenderManager(object):
 
     def bind(self, sensor_id, participant_id):
         if sensor_id not in self.sensors:
-            raise KeyError(f"Sensor {sensor_id} is not registered in the render manager.")
-        
+            raise KeyError(
+                f"Sensor {sensor_id} is not registered in the render manager."
+            )
+
         if sensor_id in self.bound_sensors:
-            warnings.warn(f"Sensor {sensor_id} was bound with participant {self.bound_sensors[sensor_id]}. Now it is bound with {participant_id}.")
+            warnings.warn(
+                f"Sensor {sensor_id} was bound with participant {self.bound_sensors[sensor_id]}. Now it is bound with {participant_id}."
+            )
 
         self.bound_sensors[sensor_id] = participant_id
 
@@ -87,7 +97,9 @@ class RenderManager(object):
         for sensor_id, sensor in self.sensors.items():
             if sensor_id in self.bound_sensors:
                 participant = participants[self.bound_sensors[sensor_id]]
-                sensor.update(participants, Point(participant.location), participant.heading)
+                sensor.update(
+                    participants, Point(participant.location), participant.heading
+                )
             else:
                 sensor.update(participants)
 
@@ -96,8 +108,10 @@ class RenderManager(object):
 
         blit_sequence = []
         for sensor_id, layout_info in self.layouts.items():
-            surface = pygame.transform.scale_by(self.sensors[sensor_id].surface, layout_info[0])
-        # surface = pygame.transform.scale_by(self.sensors[1].surface, 1)
+            surface = pygame.transform.scale_by(
+                self.sensors[sensor_id].surface, layout_info[0]
+            )
+            # surface = pygame.transform.scale_by(self.sensors[1].surface, 1)
             blit_sequence.append((surface, layout_info[1]))
 
         # self.screen.blit(surface, (0,0))
@@ -108,5 +122,3 @@ class RenderManager(object):
 
     def get_observation(self):
         return
-
-

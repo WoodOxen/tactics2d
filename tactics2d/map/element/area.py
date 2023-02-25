@@ -23,15 +23,22 @@ class Area(object):
         speed_limit_unit (str, optional): _description_. Defaults to "km/h".
         speed_limit_mandatory (bool, optional): _description_. Defaults to True.
     """
-    def __init__(
-        self, id_: str, polygon: Polygon, line_ids: dict,
-        type_: str = "multipolygon", subtype: str = None, color: tuple = None, location: str = None,
-        inferred_participants: list = None,
-        speed_limit: float = None, speed_limit_unit: str = "km/h",
-        speed_limit_mandatory: bool = True,
-        custom_tags: dict = None
-    ):
 
+    def __init__(
+        self,
+        id_: str,
+        polygon: Polygon,
+        line_ids: dict,
+        type_: str = "multipolygon",
+        subtype: str = None,
+        color: tuple = None,
+        location: str = None,
+        inferred_participants: list = None,
+        speed_limit: float = None,
+        speed_limit_unit: str = "km/h",
+        speed_limit_mandatory: bool = True,
+        custom_tags: dict = None,
+    ):
         self.id_ = id_
         self.polygon = polygon
         self.line_ids = line_ids
@@ -47,8 +54,7 @@ class Area(object):
 
     @property
     def shape(self, outer_only: bool = False):
-        """Get shape of the area
-        """
+        """Get shape of the area"""
         outer_shape = list(self.polygon.exterior.coords)
         if outer_only:
             return outer_shape
@@ -56,10 +62,9 @@ class Area(object):
         return outer_shape, inners_shape
 
     def is_valid(self) -> bool:
-        """
-        """
+        """ """
         if self.speed_limit_unit not in LEGAL_SPEED_UNIT:
             warnings.warn(
-                "Invalid speed limit unit %s. The legal units types are %s" % \
-                (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
+                "Invalid speed limit unit %s. The legal units types are %s"
+                % (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
             )

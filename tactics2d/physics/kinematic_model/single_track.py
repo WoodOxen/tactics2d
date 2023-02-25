@@ -11,20 +11,20 @@ class KSModel(KinematicsBase):
 
     Assume the vehicle is front-wheel-only drive.
     """
+
     def __init__(
-        self, 
+        self,
         wheel_base: float,
         step_len: float,
         n_step: int,
         speed_range: list,
-        angle_range: list
+        angle_range: list,
     ):
         self.wheel_base = wheel_base
         self.step_len = step_len
         self.n_step = n_step
         self.speed_range = speed_range
         self.angle_range = angle_range
-
 
     def step2(self, state: State, action: list) -> State:
         """Update the state of a vehicle with the Kinematic Single-Track Model.
@@ -47,15 +47,15 @@ class KSModel(KinematicsBase):
         for _ in range(self.n_step):
             x += new_state.speed * np.cos(new_state.heading) * self.step_len
             y += new_state.speed * np.sin(new_state.heading) * self.step_len
-            new_state.heading += \
-                 (new_state.speed * np.tan(new_state.steering) / self.wheel_base) * self.step_len 
+            new_state.heading += (
+                new_state.speed * np.tan(new_state.steering) / self.wheel_base
+            ) * self.step_len
             new_state.speed += accel * self.step_len
             # new_state.steering += angular_speed * self.step_len
             new_state.speed = np.clip(new_state.speed, *self.speed_range)
             # if new_state.speed<0:
             #     print(self.speed_range, new_state.speed)
 
-        
         new_state.loc = Point(x, y)
         return new_state
 
@@ -80,19 +80,21 @@ class KSModel(KinematicsBase):
         new_state.speed = np.clip(new_state.speed, *self.speed_range)
         new_state.steering = np.clip(new_state.steering, *self.angle_range)
 
-
         # TODO: check correctness
         for _ in range(self.n_step):
             x += new_state.speed * np.cos(new_state.heading) * self.step_len
             y += new_state.speed * np.sin(new_state.heading) * self.step_len
-            new_state.heading += \
-                 new_state.speed * np.tan(new_state.steering) / self.wheel_base * self.step_len 
+            new_state.heading += (
+                new_state.speed
+                * np.tan(new_state.steering)
+                / self.wheel_base
+                * self.step_len
+            )
             # new_state.speed += accel * self.step_len
             # new_state.steering += angular_speed * self.step_len
             # new_state.speed = np.clip(new_state.speed, *self.speed_range)
             # if new_state.speed<0:
             #     print(self.speed_range, new_state.speed)
 
-        
         new_state.loc = Point(x, y)
         return new_state

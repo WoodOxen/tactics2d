@@ -5,11 +5,14 @@ from tactics2d.trajectory.element.trajectory import Trajectory
 
 class Pedestrian(ParticipantBase):
     def __init__(
-        self, id_: int, type_: str = None,
-        length: float = None, width: float = None, height: float = None,
-        trajectory = None
-        ):
-
+        self,
+        id_: int,
+        type_: str = None,
+        length: float = None,
+        width: float = None,
+        height: float = None,
+        trajectory=None,
+    ):
         super().__init__(id_, type_, length, width, height)
 
         self.controller = None

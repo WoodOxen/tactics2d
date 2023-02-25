@@ -91,7 +91,7 @@ CAR_MODEL = {
         "max_speed": 0,
         "max_accel": 0,
         "max_decel": 0,
-    }
+    },
 }
 
 TRUCK_MODEL = {
@@ -101,7 +101,7 @@ TRUCK_MODEL = {
         "height": 0,
     }
 }
-    
+
 BUS_MODEL = {
     "bus": {
         "length": 0,
@@ -167,5 +167,5 @@ PEDESTRIAN_MODEL = {
         "max_speed": 0,
         "max_accel": 0,
         "max_decel": 0,
-    }
+    },
 }
