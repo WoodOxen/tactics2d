@@ -12,7 +12,7 @@ class MapKeyError(KeyError):
 
 
 class Map(object):
-    """## tactics2d.map.element.Map
+    """This class implements a map to manage the road elements.
 
     Attributes:
         name (str, optional): _description_. Defaults to None.

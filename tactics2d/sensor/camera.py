@@ -15,8 +15,7 @@ from .defaults import VEHICLE_COLOR, CYCLIST_COLOR, PEDESTRIAN_COLOR
 
 
 class TopDownCamera(SensorBase):
-    """This class provides a mimic of a camera that provides a top-down view RGB semantic segmentation image of
-    the map and the moving objects surrounding of the .
+    """This class implements a pseudo camera with top-down view RGB semantic segmentation image.
 
     Attributes:
         perception_range (Union[float, tuple]): The distance from the sensor to its (left, right, front, back). When this value is undefined, the camera is assumed to detect the whole map. Defaults to None.
@@ -48,8 +47,10 @@ class TopDownCamera(SensorBase):
                     perception_range,
                 )
 
-        self.perception_width = self.perception_range[0] + self.perception_range[1]
-        self.perception_height = self.perception_range[2] + self.perception_range[3]
+        self.perception_width = self.perception_range[0] + \
+            self.perception_range[1]
+        self.perception_height = self.perception_range[2] + \
+            self.perception_range[3]
         self.max_perception_distance = np.linalg.norm(
             [
                 max(self.perception_range[0], self.perception_range[1]),
@@ -62,7 +63,8 @@ class TopDownCamera(SensorBase):
         self.scale = min(scale_width, scale_height)
         if scale_width != scale_height:
             warnings.warn(
-                "The height-width proportion of the perception and the image is inconsistent. Use the proportion of the perception to scale the image."
+                "The height-width proportion of the perception and the image is inconsistent. \
+                    Use the proportion of the perception to scale the image."
             )
 
             self.window_size = (
@@ -79,8 +81,10 @@ class TopDownCamera(SensorBase):
     def _update_transform_matrix(self):
         if None in [self.position, self.heading]:
             if not hasattr(self, "transform_matrix"):
-                x_center = 0.5 * (self.map_.boundary[0] + self.map_.boundary[1])
-                y_center = 0.5 * (self.map_.boundary[2] + self.map_.boundary[3])
+                x_center = 0.5 * \
+                    (self.map_.boundary[0] + self.map_.boundary[1])
+                y_center = 0.5 * \
+                    (self.map_.boundary[2] + self.map_.boundary[3])
 
                 self.transform_matrix = np.array(
                     [
@@ -131,7 +135,8 @@ class TopDownCamera(SensorBase):
 
             pygame.draw.polygon(self.surface, color, outer_points)
             for inner_points in inner_list:
-                pygame.draw.polygon(self.surface, AREA_COLOR["hole"], inner_points)
+                pygame.draw.polygon(
+                    self.surface, AREA_COLOR["hole"], inner_points)
 
     def _render_lanes(self):
         for lane in self.map_.lanes.values():
@@ -145,7 +150,8 @@ class TopDownCamera(SensorBase):
                 else LANE_COLOR["default"]
             )
             color = color if lane.color is None else lane.color
-            points = list(affine_transform(lane.polygon, self.transform_matrix).coords)
+            points = list(affine_transform(
+                lane.polygon, self.transform_matrix).coords)
 
             pygame.draw.polygon(self.surface, color, points)
 
@@ -162,7 +168,8 @@ class TopDownCamera(SensorBase):
             )
             color = color if roadline.color is None else roadline.color
             points = list(
-                affine_transform(roadline.linestring, self.transform_matrix).coords
+                affine_transform(roadline.linestring,
+                                 self.transform_matrix).coords
             )
             width = 2 if roadline.type_ == "line_thick" else 1
 
@@ -170,13 +177,15 @@ class TopDownCamera(SensorBase):
 
     def _render_vehicle(self, vehicle: Vehicle):
         color = VEHICLE_COLOR["default"] if vehicle.color is None else vehicle.color
-        points = list(affine_transform(vehicle.pose, self.transform_matrix).coords)
+        points = list(affine_transform(
+            vehicle.pose, self.transform_matrix).coords)
 
         pygame.draw.polygon(self.surface, color, points)
 
     def _render_cyclist(self, cyclist: Cyclist):
         color = CYCLIST_COLOR["default"] if cyclist.color is None else cyclist.color
-        points = list(affine_transform(cyclist.pose, self.transform_matrix).coords)
+        points = list(affine_transform(
+            cyclist.pose, self.transform_matrix).coords)
 
         pygame.draw.polygon(self.surface, color, points)
 

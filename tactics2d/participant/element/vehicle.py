@@ -12,11 +12,11 @@ class Vehicle(ParticipantBase):
     """_summary_
 
     Attributes:
-        id_ ():
+        id_ (int): The unique identifier of the vehicle.
         type_ (str, optional):
-        length (float, optional): The length of the vehicle. The default unit is meter (m).
-        width (float, optional): The width of the vehicle. The default unit is meter (m).
-        height (float, optional): The height of the vehicle. The default unit is meter (m).
+        length (float, optional): The length of the vehicle. The default unit is meter (m). Defaults to 4.76.
+        width (float, optional): The width of the vehicle. The default unit is meter (m). Defaults to 1.85.
+        height (float, optional): The height of the vehicle. The default unit is meter (m). Defaults to 1.43.
         steering_angle_range (Tuple[float, float], optional):
         steering_velocity_range (Tuple[float, float], optional):
         speed_range (Tuple[float, float], optional):
@@ -26,20 +26,14 @@ class Vehicle(ParticipantBase):
     """
 
     def __init__(
-        self,
-        id_: int,
-        type_: str = "car",
-        length: float = 4.76,
-        width: float = 1.85,
-        height: float = 1.43,
-        color=None,
+        self, id_: int, type_: str = "car",
+        length: float = 4.76, width: float = 1.85, height: float = 1.43, color=None,
         steering_angle_range: Tuple[float, float] = None,
         steering_velocity_range: Tuple[float, float] = None,
         speed_range: Tuple[float, float] = None,
         accel_range: Tuple[float, float] = None,
         comfort_accel_range: Tuple[float, float] = None,
-        body_type=None,
-        trajectory: Trajectory = None,
+        body_type=None, trajectory: Trajectory = None,
     ):
         super().__init__(id_, type_, length, width, height)
 
@@ -57,10 +51,7 @@ class Vehicle(ParticipantBase):
                 [0.5 * self.length, -0.5 * self.width],
                 [0.5 * self.length, 0.5 * self.width],
                 [-0.5 * self.length, 0.5 * self.width],
-                [
-                    -0.5 * self.length,
-                    -0.5 * self.width,
-                ],
+                [-0.5 * self.length, -0.5 * self.width],
             ]
         )
 
@@ -68,29 +59,16 @@ class Vehicle(ParticipantBase):
     def pose(self) -> LinearRing:
         """The vehicle's bounding box which is rotated and moved based on the current state."""
         transform_matrix = [
-            np.cos(self.heading),
-            -np.sin(self.heading),
-            np.sin(self.heading),
-            np.cos(self.heading),
-            self.location[0],
-            self.location[1],
+            np.cos(self.heading), -np.sin(self.heading),
+            np.sin(self.heading), np.cos(self.heading),
+            self.location[0], self.location[1],
         ]
         return affine_transform(self.bbox, transform_matrix)
 
-    def _verify_state(self) -> bool:
-        """Check if the state change is allowed by the vehicle's physical model.
-
-        Args:
-            state1 (_type_): _description_
-            state2 (_type_): _description_
-            time_interval (_type_): _description_
-
-        Returns:
-            bool: _description_
-        """
+    def _verify_state(self, curr_state: State, prev_state: State, interval: float) -> bool:
         return True
 
-    def _verify_trajectory(self, trajectory: Trajectory) -> bool:
+    def _verify_trajectory(self, trajectory: Trajectory):
         return True
 
     def bind_trajectory(self, trajectory: Trajectory):

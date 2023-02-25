@@ -1,15 +1,23 @@
 # Python API
 
-::: tactics2d.envs.RacingEnv
+::: tactics2d.envs
 
-::: tactics2d.map.element.Area
+## map
 
-::: tactics2d.map.element.Lane
+::: tactics2d.map.converter
+    options:
+        heading_level: 3
 
-::: tactics2d.map.element.Map
+::: tactics2d.map.element
+    options:
+        heading_level: 3
 
-::: tactics2d.map.element.Node
+## participant
 
-::: tactics2d.map.element.RegulatoryElement
+::: tactics2d.participant.element
+    options:
+        heading_level: 3
 
-::: tactics2d.map.element.RoadLine
+::: tactics2d.scenario
+
+::: tactics2d.sensor

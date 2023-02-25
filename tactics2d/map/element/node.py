@@ -2,10 +2,12 @@ from shapely.geometry import Point
 
 
 class Node(object):
-    """tactics2d.map.element.Node
+    """Implementation of a node.
 
-    Args:
-        object (_type_): _description_
+    Attributes:
+        id_ (str): The id of the node.
+        x (float): The x coordinate of the node.
+        y (float): The y coordinate of the node.
     """
 
     def __init__(self, id_: str, x: float, y: float):

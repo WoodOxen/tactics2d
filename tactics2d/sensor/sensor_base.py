@@ -1,12 +1,17 @@
 from abc import ABC, abstractmethod
+from typing import Iterable
+
+from shapely.geometry import Point
 
 from tactics2d.map.element import Map
 
 
 class SensorBase(ABC):
-    """The base of all the pseudo sensors provided in tactics2d.
+    """This class define an interface for all the pseudo sensors provided in tactics2d.
 
     Attributes:
+        sensor_id (str): The unique identifier of the sensor.
+        map_ (Map): The map that the sensor is attached to.
     """
 
     def __init__(self, sensor_id, map_: Map):
@@ -14,37 +19,21 @@ class SensorBase(ABC):
         self.map_ = map_
 
     @abstractmethod
-    def _render_areas(self, areas: list):
-        """_summary_
-
-        Args:
-            areas (_type_): _description_
-        """
+    def _render_areas(self, areas: Iterable):
+        """Render the areas from the viewpoint of the sensor. Private class method."""
 
     @abstractmethod
-    def _render_lanes(self, lanes: list):
-        """_summary_
-
-        Args:
-            lanes (_type_): _description_
-        """
+    def _render_lanes(self, lanes: Iterable):
+        """Render the lanes from the viewpoint of the sensor. Private class method."""
 
     @abstractmethod
-    def _render_roadlines(self, roadlines: list):
-        """_summary_
-
-        Args:
-            roadlines (_type_): _description_
-        """
+    def _render_roadlines(self, roadlines: Iterable):
+        """Render the roadlines from the viewpoint of the sensor. Private class method."""
 
     @abstractmethod
-    def _render_participants(self, vehicles: list):
-        """_summary_
-
-        Args:
-            vehicles (_type_): _description_
-        """
+    def _render_participants(self, participants: Iterable):
+        """Render the traffic participants from the viewpoint of the sensor. Private class method."""
 
     @abstractmethod
-    def update(self):
-        """_summary_"""
+    def update(self, participants, position: Point = None, heading: float = None):
+        """Sync the sensor to a new viewpoint. Update the observation of the sensor."""
