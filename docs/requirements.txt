@@ -1,3 +1,3 @@
-mkdocs == 1.3
-mkdocs-material == 8.5.11
+mkdocs == 1.4.2
+mkdocs-material == 9.0.14
 mkdocstrings-python == 0.8.3
