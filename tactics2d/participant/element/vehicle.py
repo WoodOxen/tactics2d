@@ -20,18 +20,18 @@ class Vehicle(ParticipantBase):
             Defaults to 1.85 m.
         height (float, optional): The height of the vehicle. The default unit is meter (m). 
             Defaults to 1.43 m.
+        color (tuple, optional)
         steering_angle_range (Tuple[float, float], optional):
         steering_velocity_range (Tuple[float, float], optional):
         speed_range (Tuple[float, float], optional):
         accel_range (Tuple[float, float], optional):
         comfort_accel_range (Tuple[float, float], optional):
         body_type ()
-        pose (LineString): The vehicle's bounding box which is rotated and moved based on the current state.
     """
 
     def __init__(
         self, id_: int, type_: str = "car",
-        length: float = 4.76, width: float = 1.85, height: float = 1.43, color=None,
+        length: float = 4.76, width: float = 1.85, height: float = 1.43, color: tuple = None,
         steering_angle_range: Tuple[float, float] = None,
         steering_velocity_range: Tuple[float, float] = None,
         speed_range: Tuple[float, float] = None,
@@ -59,12 +59,15 @@ class Vehicle(ParticipantBase):
             ]
         )
 
-    @property
-    def pose(self) -> LinearRing:
+    def get_pose(self, frame: int = None) -> LinearRing:
+        """Get the vehicle's bounding box which is rotated and moved based on the current state.
+        """
+        state = self.trajectory.get_state(frame)
         transform_matrix = [
-            np.cos(self.heading), -np.sin(self.heading),
-            np.sin(self.heading), np.cos(self.heading),
-            self.location[0], self.location[1],
+            np.cos(state.heading), -np.sin(state.heading),
+            np.sin(state.heading), np.cos(state.heading),
+            np.cos(state.heading) * state.location[0] - np.sin(state.heading) * state.location[1],
+            np.sin(state.heading) * state.location[0] + np.cos(state.heading) * state.location[1],
         ]
         return affine_transform(self.bbox, transform_matrix)
 

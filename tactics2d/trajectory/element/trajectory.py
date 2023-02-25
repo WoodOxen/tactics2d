@@ -37,6 +37,14 @@ class Trajectory(object):
         return self.history_states[self.frames[-1]]
 
     @property
+    def first_frame(self):
+        return self.frames[0]
+    
+    @property
+    def last_frame(self):
+        return self.frames[-1]
+
+    @property
     def trace(self):
         trace = []
         for frame in self.frames:
@@ -47,7 +55,7 @@ class Trajectory(object):
     def average_speed(self):
         return np.mean([state.speed for state in self.history_states.values()])
 
-    def get_state(self, frame: float = None) -> State:
+    def get_state(self, frame: int = None) -> State:
         """Obtain the object's state at the requested time stamp.
 
         If the time stamp is not specified, the function will return current state.
@@ -55,7 +63,7 @@ class Trajectory(object):
         """
         if frame is None:
             return self.current_state
-        if frame not in self.history_state:
+        if frame not in self.history_states:
             raise TrajectoryKeyError(
                 f"Time stamp {frame} is not found in the trajectory {self.id_}."
             )

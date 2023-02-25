@@ -52,6 +52,11 @@ class ParticipantBase(ABC):
     @property
     def accel(self):
         return self.current_state.accel
+    
+    def is_alive(self, frame: int) -> bool:
+        if frame < self.trajectory.first_frame or frame > self.trajectory.last_frame:
+            return False
+        return True
 
     @abstractmethod
     def _verify_state(self, curr_state: State, prev_state: State, interval: float) -> bool:

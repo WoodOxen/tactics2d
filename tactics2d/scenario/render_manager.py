@@ -62,26 +62,64 @@ class RenderManager:
                 self.windows_size, flags=pygame.SHOWN)
 
         if self.layout_style == "hierarchical":
-            pass
+            if not hasattr(self, "main_sensor"):
+                self.main_sensor = list(self.sensors.keys())[0]
+
+            sub_sensor_size = {}
+
+            for sensor in sensor_to_display:
+                if sensor.sensor_id != self.main_sensor:
+                    sub_sensor_size[sensor.sensor_id] = sensor.window_size
+
+            if len(sub_sensor_size) == 0:
+                sub_height = 0
+            else:
+                sub_max_height = max([size[1] for size in sub_sensor_size.values()])
+                height_scale = dict((sensor_id, size[1] / sub_max_height) \
+                    for sensor_id, size in sub_sensor_size.items())
+                total_width = np.sum([size[0] * scale \
+                    for size, scale in zip(sub_sensor_size.values(), height_scale.values())])
+                sub_scale = self.windows_size[0] / total_width
+                sub_height = sub_max_height * sub_scale
+                width_cnt = 0
+
+            for sensor in sensor_to_display:
+                if sensor.sensor_id == self.main_sensor:
+                    scale = min(
+                        self.windows_size[0] / sensor.window_size[0],
+                        (self.windows_size[1] - sub_height) / sensor.window_size[1]
+                    )
+                    coords = (
+                        0.5 * (self.windows_size[0] - scale * sensor.window_size[0]),
+                        0.5 * (self.windows_size[1] - scale * sensor.window_size[1] - sub_height)
+                    )
+                else:
+                    scale = sub_scale * height_scale[sensor.sensor_id]
+                    coords = (width_cnt, self.windows_size[1] - sub_height)
+                    width_cnt += sub_sensor_size[sensor.sensor_id][0] * scale
+
+                self.layouts[sensor.sensor_id] = (scale, coords)
+
         elif self.layout_style == "modular":
             n = int(np.ceil(np.sqrt(len(sensor_to_display))))
             width = self.windows_size[0] / n
             height = self.windows_size[1] / np.ceil(len(sensor_to_display) / n)
             for i, sensor in enumerate(self.sensors.values()):
-                scale = min(
-                    width /
-                    sensor.window_size[0], height / sensor.window_size[1]
-                )
+                scale = min(width / sensor.window_size[0], height / sensor.window_size[1])
                 coords = (
-                    (i % n) * width +
-                    (width - sensor.window_size[0] * scale) / 2,
-                    (i // n) * height + (height -
-                                         sensor.window_size[1] * scale) / 2,
+                    (i % n) * width + (width - sensor.window_size[0] * scale) / 2,
+                    (i // n) * height + (height - sensor.window_size[1] * scale) / 2,
                 )
                 self.layouts[sensor.sensor_id] = (scale, coords)
 
-    def add_sensor(self, sensor: SensorBase):
+    def add(self, sensor: SensorBase, main_sensor: bool = False):
         """Add a sensor instance to the manager.
+
+        Args:
+            sensor (SensorBase): The sensor instance to be added.
+            main_sensor (bool, optional): Whether the sensor is the main sensor for display. 
+                This argument only take effect when the the layout style is hierarchical. 
+                Defaults to False.
 
         Raises:
             KeyError: If the sensor has conflicted id with registered sensors.
@@ -91,6 +129,9 @@ class RenderManager:
         else:
             raise KeyError(
                 f"ID {sensor.sensor_id} is used by the other sensor.")
+
+        if main_sensor:
+            self.main_sensor = sensor.sensor_id
 
         if not sensor.off_screen:
             self._rearrange_layout()
@@ -118,13 +159,31 @@ class RenderManager:
 
         self.bound_sensors[sensor_id] = participant_id
 
-    def remove_sensor(self, sensor_id):
+    def unbind(self, sensor_id):
+        """Unbind a registered sensor from its bound participant.
+
+        Args:
+            sensor_id (int): The id of the sensor.
+
+        Raises:
+            KeyError: If the sensor is not registered in the manager.
+        """
+        if sensor_id not in self.sensors:
+            raise KeyError(
+                f"Sensor {sensor_id} is not registered in the render manager."
+            )
+
+        if sensor_id in self.bound_sensors:
+            self.bound_sensors.pop(sensor_id)
+
+    def remove(self, sensor_id):
         """Remove a registered sensor from the manager."""
         if sensor_id in self.sensors:
             self.sensors.pop(sensor_id)
 
-    def update(self, participants: dict):
-        """_summary_
+    def update(self, participants: dict, frame = None):
+        """Sync the viewpoint of the sensors with their bound participants. Update the 
+            observation of all the sensors.
 
         Args:
             participants (dict): _description_
@@ -132,12 +191,10 @@ class RenderManager:
         for sensor_id, sensor in self.sensors.items():
             if sensor_id in self.bound_sensors:
                 participant = participants[self.bound_sensors[sensor_id]]
-                sensor.update(
-                    participants, Point(
-                        participant.location), participant.heading
-                )
+                state = participant.trajectory.get_state(frame)
+                sensor.update(participants, frame, Point(state.location), state.heading)
             else:
-                sensor.update(participants)
+                sensor.update(participants, frame)
 
     def render(self):
         self.clock.tick(self.fps)
