@@ -9,9 +9,12 @@ class ParticipantBase(ABC):
     Attributes:
         id_ (int): The unique identifier of the traffic participant.
         type_ (str): The type of the traffic participant. Defaults to None.
-        length (float): The length of the traffic participant. The default unit is meter (m). Defaults to None.
-        width (float): The width of the traffic participant. The default unit is meter (m). Defaults to None.
-        height (float): The height of the traffic participant. The default unit is meter (m). Defaults to None.
+        length (float): The length of the traffic participant. The default unit is meter (m). 
+            Defaults to None.
+        width (float): The width of the traffic participant. The default unit is meter (m). 
+            Defaults to None.
+        height (float): The height of the traffic participant. The default unit is meter (m). 
+            Defaults to None.
         trajectory (Trajectory): The trajectory of the traffic participant. Defaults to None.
     """
 

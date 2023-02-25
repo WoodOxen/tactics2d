@@ -2,7 +2,7 @@
 
 ::: tactics2d.envs
 
-## map
+::: tactics2d.map
 
 ::: tactics2d.map.converter
     options:
@@ -12,7 +12,7 @@
     options:
         heading_level: 3
 
-## participant
+::: tactics2d.participant
 
 ::: tactics2d.participant.element
     options:

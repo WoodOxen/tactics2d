@@ -13,7 +13,7 @@ nav:
   - Install: "install.md"
   - Python_API: "python_api.md"
 
-theme: "readthedocs"
+theme: "material"
 
 plugins:
   - mkdocstrings:

@@ -18,16 +18,15 @@ class TopDownCamera(SensorBase):
     """This class implements a pseudo camera with top-down view RGB semantic segmentation image.
 
     Attributes:
-        perception_range (Union[float, tuple]): The distance from the sensor to its (left, right, front, back). When this value is undefined, the camera is assumed to detect the whole map. Defaults to None.
+        perception_range (Union[float, tuple]): The distance from the sensor to its 
+            (left, right, front, back). When this value is undefined, the camera is assumed to 
+            detect the whole map. Defaults to None.
     """
 
     def __init__(
-        self,
-        sensor_id,
-        map_: Map,
-        perception_range: Union[float, Tuple[float]] = None,
-        window_size: Tuple[int, int] = (200, 200),
-        off_screen: bool = False,
+        self, sensor_id,
+        map_: Map, perception_range: Union[float, Tuple[float]] = None,
+        window_size: Tuple[int, int] = (200, 200), off_screen: bool = False,
     ):
         super().__init__(sensor_id, map_)
         self.off_screen = off_screen

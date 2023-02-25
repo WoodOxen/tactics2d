@@ -4,18 +4,20 @@ from typing import List, Tuple
 class RegulatoryElement(object):
     """Implementation of the lanelet2-style regulatory element.
 
-    The attributes of RegulatoryElement refers to
-    https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/RegulatoryElementTagging.md
+    Detailed definition of lanelet2-style regulatory element:
+        <https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/RegulatoryElementTagging.md>
 
     Attributes:
         id_ (str): The unique identifier of the regulatory element.
         relation_ids ():
         way_ids ():
-        type_ (str): The type of the regulatory element. The default value is "regulatory_element".
+        type_ (str): The type of the regulatory element. The default value is 
+            "regulatory_element".
         subtype (): By default it is one of [traffic_sign, traffic_light, speed_limit,
             right_of_way, all_way_stop]
         dynamic (bool): Whether the RegulatoryElement will be changed by time or not.
-        fallback (bool): Whether the Regulatory Element has a lower priority than other RegulatoryElements.
+        fallback (bool): Whether the Regulatory Element has a lower priority than other 
+            RegulatoryElements. 
         custom_tags (dict): 
     """
 

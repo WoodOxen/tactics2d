@@ -7,8 +7,8 @@ from shapely.geometry import LineString, Point
 class RoadLine:
     """Implementation of the lanelet2-style roadline (linestring).
 
-    The detailed definition of the lanelet2-style roadline(linestring) can be found here:
-    https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md
+    Detailed definition of lanelet2-style roadline:
+        <https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md>
 
     Attributes:
         id_ (str): The unique identifier of the roadline.
@@ -17,8 +17,10 @@ class RoadLine:
         subtype (str, optional): The subtype of the line. Defaults to None.
         color (tuple, optional): The color of the lane marking. Defaults to None.
         lane_change (Tuple[bool, bool], optional): _description_. Defaults to (True, True).
-        width (float, optional): The width of the line (in m). The linestring then represents the centerline of the object. Defaults to None.
-        height (float, optional): The height of line (in m). The linestring then represents the lower outline/lowest edge of the object. Defaults to None.
+        width (float, optional): The width of the line (in m). The linestring then represents 
+            the centerline of the object. Defaults to None.
+        height (float, optional): The height of line (in m). The linestring then represents the 
+            lower outline/lowest edge of the object. Defaults to None.
         temporary (bool, optional): _description_. Defaults to False.
         custom_tags (dict, optional): _description_. Defaults to None.
     """

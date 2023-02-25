@@ -39,10 +39,7 @@ DISCRETE_ACTION = np.array(
 
 
 class RacingEnv(gym.Env):
-    """
-    ## tactics2d.envs.RacingEnv
-
-    An improved version of Box2D's CarRacing gym environment.
+    """An improved version of Box2D's CarRacing gym environment.
 
     -  **Action Space**:
         -  If continuous there are 2 actions:
@@ -123,7 +120,8 @@ class RacingEnv(gym.Env):
         straight_lens = []
         for i in range(n_checkpoints):
             straight_lens.append(
-                Point(control_points[i][0]).distance(Point(control_points[i - 1][1]))
+                Point(control_points[i][0]).distance(
+                    Point(control_points[i - 1][1]))
             )
         sorted_id = sorted(
             range(n_checkpoints), key=lambda i: straight_lens[i], reverse=True
@@ -198,7 +196,8 @@ class RacingEnv(gym.Env):
         self.start_line = LineString(self.start_tile.get_ends())
         self.finish_line = LineString(self.start_tile.get_starts())
         self._reset_vehicle()
-        self.window.set_size(int(self.map.boundary[1]), int(self.map.boundary[3]))
+        self.window.set_size(
+            int(self.map.boundary[1]), int(self.map.boundary[3]))
 
     def _check_retrograde(self):
         return TrafficEvent.VIOLATION_RETROGRADE
@@ -293,7 +292,8 @@ if __name__ == "__main__":
                 if event.key == pygame.K_UP:
                     action[1] = -0.1
                 if event.key == pygame.K_DOWN:
-                    action[1] = -0.1  # set 1.0 for wheels to block to zero rotation
+                    # set 1.0 for wheels to block to zero rotation
+                    action[1] = -0.1
                 if event.key == pygame.K_RETURN:
                     global restart
                     restart = True

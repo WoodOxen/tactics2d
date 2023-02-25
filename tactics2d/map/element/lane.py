@@ -16,8 +16,8 @@ class Relationship(Enum):
 class Lane(object):
     """Implementation of the lanelet2-style lanelet with neighbors detected.
 
-    The detailed definition of the lanelet2-style lanelet can be found here:
-    https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md
+    Detailed definition of lanelet2-style lane:
+        <https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md>
 
     Attributes:
         id_ (str): The unique identifier of the lane.
@@ -26,16 +26,25 @@ class Lane(object):
         line_ids (set, optional): the ids of the roadline components. Defaults to None.
         type_ (str): The type of the lane. The default value is "lanelet".
         subtype (str, optional): The subtype of the lane. Defaults to None.
-        location (str, optional): The location of the lane (urban, nonurban, etc.). Defaults to None.
-        inferred_participants (list, optional): The allowing type of traffic participants that can pass the lane. Defaults to None.
+        location (str, optional): The location of the lane (urban, nonurban, etc.). Defaults to 
+            None.
+        inferred_participants (list, optional): The allowing type of traffic participants that 
+            can pass the lane. Defaults to None.
         speed_limit (float, optional): The speed limit in this lane. Defaults to None.
-        speed_limit_unit (str, optional): The unit of speed limit in this lane. Defaults to "km/h".
-        speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or not. Defaults to True.
+        speed_limit_unit (str, optional): The unit of speed limit in this lane. Defaults to 
+            "km/h".
+        speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or 
+            not. Defaults to True.
         custom_tags (dict, optional): The custom tags of the lane. Defaults to None.
         predecessors (set): The ids of the available lanes before entering the current lane.
         successors (set): The ids of the available lanes after exiting the current lane.
-        left_neighbors (set): The ids of the available lanes on the left side of the current lane.
-        right_neighbors (set): The ids of the available lanes on the right side of the current lane.
+        left_neighbors (set): The ids of the available lanes on the left side of the current
+            lane.
+        right_neighbors (set): The ids of the available lanes on the right side of the current
+            lane.
+        start (list): The start points of the lane.
+        end (list): The end points of the lane.
+        shape (list): The shape of the lane.
     """
 
     def __init__(
@@ -60,6 +69,12 @@ class Lane(object):
         self.speed_limit_mandatory = speed_limit_mandatory
         self.custom_tags = custom_tags
 
+        if self.speed_limit_unit not in LEGAL_SPEED_UNIT:
+            warnings.warn(
+                "Invalid speed limit unit %s. The legal units types are %s"
+                % (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
+            )
+
         self.polygon = LinearRing(
             list(self.left_side.coords) +
             list(reversed(list(self.right_side.coords)))
@@ -72,26 +87,15 @@ class Lane(object):
 
     @property
     def starts(self) -> list:
-        """Return start points of the lane"""
         return [self.left_side.coords[0], self.right_side.coords[0]]
 
     @property
     def ends(self) -> list:
-        """Return the end points of the lane"""
         return [self.left_side.coords[-1], self.right_side.coords[-1]]
 
     @property
     def shape(self) -> list:
-        """Return the shape of the lane"""
         return list(self.polygon.coords)
-
-    def is_valid(self) -> bool:
-        """ """
-        if self.speed_limit_unit not in LEGAL_SPEED_UNIT:
-            warnings.warn(
-                "Invalid speed limit unit %s. The legal units types are %s"
-                % (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
-            )
 
     def is_related(self, id_: str) -> Relationship:
         """Check if a given lane is related to the lane

@@ -14,15 +14,19 @@ class Vehicle(ParticipantBase):
     Attributes:
         id_ (int): The unique identifier of the vehicle.
         type_ (str, optional):
-        length (float, optional): The length of the vehicle. The default unit is meter (m). Defaults to 4.76.
-        width (float, optional): The width of the vehicle. The default unit is meter (m). Defaults to 1.85.
-        height (float, optional): The height of the vehicle. The default unit is meter (m). Defaults to 1.43.
+        length (float, optional): The length of the vehicle. The default unit is meter (m). 
+            Defaults to 4.76 m.
+        width (float, optional): The width of the vehicle. The default unit is meter (m). 
+            Defaults to 1.85 m.
+        height (float, optional): The height of the vehicle. The default unit is meter (m). 
+            Defaults to 1.43 m.
         steering_angle_range (Tuple[float, float], optional):
         steering_velocity_range (Tuple[float, float], optional):
         speed_range (Tuple[float, float], optional):
         accel_range (Tuple[float, float], optional):
         comfort_accel_range (Tuple[float, float], optional):
         body_type ()
+        pose (LineString): The vehicle's bounding box which is rotated and moved based on the current state.
     """
 
     def __init__(
@@ -57,7 +61,6 @@ class Vehicle(ParticipantBase):
 
     @property
     def pose(self) -> LinearRing:
-        """The vehicle's bounding box which is rotated and moved based on the current state."""
         transform_matrix = [
             np.cos(self.heading), -np.sin(self.heading),
             np.sin(self.heading), np.cos(self.heading),
@@ -84,7 +87,7 @@ class Vehicle(ParticipantBase):
 
     def reset(self, state: State = None):
         """Reset the object to a given state. If the initial state is not specified, the object
-        will be reset to the same initial state as previous.
+                will be reset to the same initial state as previous.
         """
         if state is not None:
             self.current_state = state
