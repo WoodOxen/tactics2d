@@ -146,7 +146,6 @@ class TopDownCamera(SensorBase):
                         self.position.x * np.sin(theta) + self.position.y * np.cos(theta),
                 ]
             )
-            print(self.position, self.transform_matrix)
 
     def _in_perception_range(self, geometry) -> bool:
         return geometry.distance(self.position) > self.max_perception_distance
@@ -212,9 +211,6 @@ class TopDownCamera(SensorBase):
             (points[1] + points[2]) / 2,
             (points[3] + points[0]) / 2,
         ]
-
-        if self.sensor_id == 2:
-            print(points)
 
         pygame.draw.polygon(self.surface, color, points)
         pygame.draw.polygon(self.surface, (0,0,0), triangle, width=1)
