@@ -1,6 +1,5 @@
 name: Test Modules
-
-on: [pull_request]
+on: pull_request
 
 jobs:
   test-modules-ubuntu18:
