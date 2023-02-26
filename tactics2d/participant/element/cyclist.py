@@ -21,10 +21,8 @@ class Cyclist(ParticipantBase):
 
         self.bbox = LinearRing(
             [
-                [0.5 * self.length, -0.5 * self.width],
-                [0.5 * self.length, 0.5 * self.width],
-                [-0.5 * self.length, 0.5 * self.width],
-                [-0.5 * self.length, -0.5 * self.width],
+                [0.5 * self.length, -0.5 * self.width], [0.5 * self.length, 0.5 * self.width],
+                [-0.5 * self.length, 0.5 * self.width], [-0.5 * self.length, -0.5 * self.width],
             ]
         )
 
@@ -35,8 +33,7 @@ class Cyclist(ParticipantBase):
         transform_matrix = [
             np.cos(state.heading), -np.sin(state.heading),
             np.sin(state.heading), np.cos(state.heading),
-            np.cos(state.heading) * state.location[0] - np.sin(state.heading) * state.location[1],
-            np.sin(state.heading) * state.location[0] + np.cos(state.heading) * state.location[1],
+            state.location[0], state.location[1],
         ]
         return affine_transform(self.bbox, transform_matrix)
 

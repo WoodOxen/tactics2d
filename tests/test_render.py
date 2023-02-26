@@ -7,13 +7,15 @@ import xml.etree.ElementTree as ET
 import json
 
 from tactics2d.map.parser import Lanelet2Parser
-from tactics2d.trajectory.parser import LevelXParser
+# from tactics2d.trajectory.parser import LevelXParser
+from tactics2d.trajectory.parser import InteractionParser
 from tactics2d.scenario.render_manager import RenderManager
 from tactics2d.sensor import TopDownCamera
 
 
 def test_camera():
-    map_path = "./tactics2d/data/map_default/I_0_inD_DEU.osm"
+    # map_path = "./tactics2d/data/map_default/I_0_inD_DEU.osm"
+    map_path = "./tactics2d/data/map_default/I_5_INTERACTION_USA.osm"
     config_path = "./tactics2d/data/map_default.config"
 
     with open(config_path, "r") as f:
@@ -21,15 +23,13 @@ def test_camera():
 
     map_parser = Lanelet2Parser()
     map_root = ET.parse(map_path).getroot()
-    map_ = map_parser.parse(map_root, configs["I_0"])
-
-
+    map_ = map_parser.parse(map_root, configs["I_5"])
 
 
 if __name__ == "__main__":
 
-    map_path = "./tactics2d/data/map_default/I_0_inD_DEU.osm"
-    trajectory_path = "./tactics2d/data/trajectory_sample/inD/data"
+    map_path = "./tactics2d/data/map_default/I_5_INTERACTION_USA.osm"
+    trajectory_path = "./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/DR_USA_Intersection_EP0"
     config_path = "./tactics2d/data/map_default.config"
 
     with open(config_path, "r") as f:
@@ -37,13 +37,16 @@ if __name__ == "__main__":
 
     map_parser = Lanelet2Parser()
     map_root = ET.parse(map_path).getroot()
-    map_ = map_parser.parse(map_root, configs["I_0"])
+    map_ = map_parser.parse(map_root, configs["I_5"])
 
-    trajectory_parser = LevelXParser("inD")
+    # trajectory_parser = LevelXParser("inD")
+    trajectory_parser = InteractionParser()
     participants = trajectory_parser.parse(0, trajectory_path, (0., 100.))
 
+    print(participants[1].trajectory.frames)
+
     render_manager = RenderManager(
-        map_, fps=1, windows_size=(800, 800), layout_style="hierarchical")
+        map_, fps=50, windows_size=(1200, 1200), layout_style="hierarchical")
 
     perception_range = (30, 30, 45, 15)
     main_camera = TopDownCamera(1, map_, window_size=(800, 800))
@@ -57,8 +60,15 @@ if __name__ == "__main__":
     render_manager.bind(3, 2)
 
 
-    for step in range(100):
-        frame = int(step / 25 * 1000)
+    for step in range(1, 100):
+        active_participant = set()
+        for participant in participants.values():
+            if participant.is_alive(int(step * 100)):
+                active_participant.add(participant.id_)
+            else:
+                active_participant.discard(participant.id_)
+        print(active_participant)
+        frame = int(step * 100)
         render_manager.update(participants, frame)
         render_manager.render()
 

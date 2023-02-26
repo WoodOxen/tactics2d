@@ -5,7 +5,7 @@ class State(object):
     """_summary_
 
     Attributes:
-        frame (int): _description_
+        frame (int): The time stamp of the state. The default unit is millisecond (ms).
         x (float, optional): _description_. Defaults to 0.
         y (float, optional): _description_. Defaults to 0.
         heading (float, optional): The heading direction of an object. The heading information is parsed in an 2D Cardinal coordinate system counterclockwise. The default unit is radian. Defaults to 0.
