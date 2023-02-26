@@ -1,7 +1,7 @@
 from typing import Tuple
 import json
 
-from tactics2d.participant.element import ParticipantBase, Vehicle, Pedestrian
+from tactics2d.participant.element import Vehicle, Pedestrian, Other
 from tactics2d.trajectory.element import State, Trajectory
 
 
@@ -18,7 +18,7 @@ CLASS_MAPPING = {
     "Medium Vehicle": Vehicle,
     "Bus": Vehicle,
     "Pedestrian": Pedestrian,
-    "Undefined": ParticipantBase,
+    "Undefined": Other,
 }
 
 
