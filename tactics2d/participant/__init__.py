@@ -8,15 +8,15 @@ PEDESTRIAN_TYPE = {"pedestrian", "walker"}
 OBJECT_SIZE = {
     "bicycle": [1.6, 0.65, 1.7],
     "motorcycle": [2.2, 0.9, 1.5],
-    "car": [5, 1.8, 1.5], # passenger
-    "van": [4.7, 1.9, 1.73], # passenger/van
+    "car": [5, 1.8, 1.5],  # passenger
+    "van": [4.7, 1.9, 1.73],  # passenger/van
     "truck": [7.1, 2.4, 2.4],
-    "trailer": [18.75, 2.55, 4], # truck/trailer
-    "bus": [12, 2.5, 3.4]
+    "trailer": [18.75, 2.55, 4],  # truck/trailer
+    "bus": [12, 2.5, 3.4],
 }
 
 # unit: km/h
-OBJECT_SPEED_LIMIT= {
+OBJECT_SPEED_LIMIT = {
     "pedestrian": 10,
     "bicycle": 20,
     "motorcycle": 200,
@@ -24,7 +24,7 @@ OBJECT_SPEED_LIMIT= {
     "van": 200,
     "truck": 130,
     "trailer": 130,
-    "bus": 85
+    "bus": 85,
 }
 
 # unit: m/s^2
@@ -36,7 +36,7 @@ OBJECT_MAX_ACCEL = {
     "van": 2.6,
     "truck": 1.3,
     "trailer": 1,
-    "bus": 1.2
+    "bus": 1.2,
 }
 
 # The max deceleration considering the passengers' comfort
@@ -48,7 +48,7 @@ OBJECT_MAX_DECEL = {
     "van": -4.5,
     "truck": -4,
     "trailer": -4,
-    "bus": -4
+    "bus": -4,
 }
 
 OBJECT_EMERGENCY_DECEL = {
@@ -59,5 +59,5 @@ OBJECT_EMERGENCY_DECEL = {
     "van": -9,
     "truck": -7,
     "trailer": -7,
-    "bus": -7
+    "bus": -7,
 }

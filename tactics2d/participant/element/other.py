@@ -3,7 +3,7 @@ from tactics2d.trajectory.element.state import State
 from tactics2d.trajectory.element.trajectory import Trajectory
 
 
-class Pedestrian(ParticipantBase):
+class Other(ParticipantBase):
     def __init__(
         self, id_: int,
         type_: str = None,

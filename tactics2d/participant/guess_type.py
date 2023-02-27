@@ -8,10 +8,10 @@ DEFAULT_GUESS_TYPE = {
     "pedestrian": "pedestrian",
 }
 
-class GuessType:
 
+class GuessType:
     @staticmethod
-    def guess_by_size(size_info:tuple, hint_type: str):
+    def guess_by_size(size_info: tuple, hint_type: str):
         return DEFAULT_GUESS_TYPE[hint_type]
 
     @staticmethod

@@ -5,16 +5,23 @@ class State(object):
     """_summary_
 
     Attributes:
-        frame (int): _description_
+        frame (int): The time stamp of the state. The default unit is millisecond (ms).
         x (float, optional): _description_. Defaults to 0.
         y (float, optional): _description_. Defaults to 0.
         heading (float, optional): The heading direction of an object. The heading information is parsed in an 2D Cardinal coordinate system counterclockwise. The default unit is radian. Defaults to 0.
     """
+
     def __init__(
-            self, frame: int, x: float = 0, y: float = 0, heading: float = 0,
-            vx: float = None, vy: float = None, ax: float = None, ay: float = None
-        ):
-        
+        self,
+        frame: int,
+        x: float = 0,
+        y: float = 0,
+        heading: float = 0,
+        vx: float = None,
+        vy: float = None,
+        ax: float = None,
+        ay: float = None,
+    ):
         self.frame = frame
         self.x = x
         self.y = y
@@ -28,13 +35,13 @@ class State(object):
 
     @property
     def location(self):
-          return (self.x, self.y)
-    
+        return (self.x, self.y)
+
     @property
     def velocity(self):
         if None in [self.vx, self.vy]:
             self.get_velocity()
-            
+
         return (self.vx, self.vy)
 
     @property
@@ -45,7 +52,7 @@ class State(object):
             self.v_norm = np.linalg.norm([self.vx, self.vy])
             return self.v_norm
         return None
-    
+
     @property
     def accel(self):
         if self.a_norm is not None:

@@ -2,38 +2,42 @@ from typing import List, Tuple
 
 
 class RegulatoryElement(object):
-    """tactics2d.map.element.RegulatoryElement
+    """Implementation of the lanelet2-style regulatory element.
 
-    The attributes of Regulatory refers to
-    https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/RegulatoryElementTagging.md
-    
-    Attrs:
-        subtype (str): By default it is one of [traffic_sign, traffic_light, speed_limit,
+    Detailed definition of lanelet2-style regulatory element:
+        <https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/RegulatoryElementTagging.md>
+
+    Attributes:
+        id_ (str): The unique identifier of the regulatory element.
+        relation_ids ():
+        way_ids ():
+        type_ (str): The type of the regulatory element. The default value is 
+            "regulatory_element".
+        subtype (): By default it is one of [traffic_sign, traffic_light, speed_limit,
             right_of_way, all_way_stop]
-        member_list
-        dynamic (bool): Indicates that this Regulatory Element might change its meaning based
-            on a condition.
-        fallback (bool): Indicates that this Regulatory Element has a lower priority than another
-            Regulatory Element.
+        dynamic (bool): Whether the RegulatoryElement will be changed by time or not.
+        fallback (bool): Whether the Regulatory Element has a lower priority than other 
+            RegulatoryElements. 
+        custom_tags (dict): 
     """
-    # TODO: Process Regulatory Information
+
     def __init__(
-        self, id_: str, 
-        relation_list: List[Tuple[str, str]] = None, way_list: List[Tuple[str, str]] = None,
-        type_: str = "regulatory_element", subtype: str = None, location: str = None,
-        dynamic: bool = False, fallback: bool = False,
-        custom_tags: dict = None
+        self, id_: str, relation_ids: set = None, way_ids: set = None,
+        type_: str = "regulatory_element", subtype: str = None,
+        location: str = None, dynamic: bool = False, fallback: bool = False,
+        custom_tags: dict = None,
     ):
-        
         if subtype is None:
-            raise ValueError("The subtype of RegulatoryElement %s is not defined!" % id_)
+            raise ValueError(
+                "The subtype of RegulatoryElement %s is not defined!" % id_
+            )
 
         self.id_ = id_
+        self.relation_ids = relation_ids
+        self.way_ids = way_ids
         self.type_ = type_
         self.subtype = subtype
         self.location = location
-        self.relation_list = relation_list
-        self.way_list = way_list
         self.dynamic = dynamic
         self.fallback = fallback
         self.custom_tags = custom_tags
