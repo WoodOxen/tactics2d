@@ -18,16 +18,9 @@ class ParticipantBase(ABC):
         trajectory (Trajectory): The trajectory of the traffic participant. Defaults to None.
     """
 
-    def __init__(
-        self, id_: int, type_: str = None,
-        length: float = None, width: float = None, height: float = None,
-        trajectory: Trajectory = None,
-    ):
+    def __init__(self, id_: int, type_: str):
         self.id_ = id_
         self.type_ = type_
-        self.length = length
-        self.width = width
-        self.height = height
 
     @property
     def current_state(self) -> State:

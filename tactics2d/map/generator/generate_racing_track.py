@@ -1,8 +1,12 @@
+from typing import Tuple, List
+import time
+import logging
+
 import numpy as np
 from shapely.geometry import Point, LineString, LinearRing
 from shapely.affinity import affine_transform
 
-from tactics2d.utils.get_circle import get_circle
+from tactics2d.math import Bezier, Circle
 from tactics2d.map.element import Lane, Map
 
 
@@ -15,7 +19,20 @@ TILE_LENGTH = 10  # the length of each tile
 
 
 class RacingTrackGenerator:
-    def _create_checkpoints(self):
+    """Generate a racing track with random configurations.
+
+    Attributes:
+        bezier_generator (Bezier): The Bezier line generator.
+        verbose (bool, optional): Whether to print the generation process. Defaults to False.
+    """
+
+    def __init__(self, bezier_param: Tuple[int, int] = (2, 50), verbose: bool = False):
+
+        self.bezier_generator = Bezier(*bezier_param)
+        self.verbose = verbose
+
+    def _get_checkpoints(self) -> Tuple[List[np.ndarray], List[np.ndarray], bool]:
+
         n_checkpoint = np.random.randint(*N_CHECKPOINT)
         noise = np.random.uniform(0, 2 * np.pi / n_checkpoint, n_checkpoint)
         alpha = 2 * np.pi * np.arange(n_checkpoint) / n_checkpoint + noise
@@ -25,6 +42,7 @@ class RacingTrackGenerator:
         success = False
         control_points = []
 
+        # try generating checkpoints for 100
         for _ in range(100):
             glued_cnt = 0
             control_points.clear()
@@ -39,7 +57,7 @@ class RacingTrackGenerator:
                 t2 = np.random.uniform(low=1 / 4, high=1 / 2)
                 pt1_ = (1 - t1) * pt2 + t1 * pt1
                 pt3_ = (1 - t2) * pt2 + t2 * pt3
-                _, radius = get_circle(pt1_, pt2, pt3_)
+                _, radius = Circle.from_three_points(pt1_, pt2, pt3_)
                 if radius < CURVE_RAD[0]:
                     if rad[i] > rad[next_i]:
                         rad[next_i] += np.random.uniform(0.0, 10.0)
@@ -69,38 +87,67 @@ class RacingTrackGenerator:
                 break
 
         success = success and all(alpha == sorted(alpha))
+
         return checkpoints, control_points, success
+    
+    def _get_start_point(
+            self, n_checkpoint: int, control_points: List[np.ndarray]
+        ) -> Tuple[Point, int]:
 
-    def _create_map(self, center: LineString):
-        self.map.reset()
+        # get the lengths of the straight track
+        straight_lens = []
+        for i in range(n_checkpoint):
+            straight_lens.append(
+                np.linalg.norm([control_points[i][0], control_points[i-1][1]]))
+        # find the first three longest straight track
+        sorted_id = sorted(
+            range(n_checkpoint), key=lambda i: straight_lens[i], reverse=True)
+        start_id = None
+        for i in range(3):
+            start_id = sorted_id[i]
+            if straight_lens[start_id] < 200:
+                break
+        # get the start point from the track[start_id] at 1/3
+        start_point = LineString(
+            [control_points[start_id][0], control_points[start_id - 1][1]]
+        ).interpolate(straight_lens[start_id] / 3)
 
-        # set map boundary
-        bbox = center.bounds
-        boundary = [bbox[0] - 50, bbox[2] + 50, bbox[1] - 50, bbox[3] + 50]
-        shift_matrix = [1, 0, 0, 1, -boundary[0], -boundary[2]]
-        center = affine_transform(center, shift_matrix)
-        boundary = [
-            boundary[0] - boundary[0],
-            boundary[1] - boundary[0],
-            boundary[2] - boundary[2],
-            boundary[3] - boundary[2],
-        ]
-        self.map.boundary = boundary
+        return start_point, start_id
+    
+    def _get_center_line(
+            self, start_point: Point, start_id: int, 
+            checkpoints: List[np.ndarray], control_points: List[np.ndarray]
+        ) -> LineString:
 
-        # split the track into tiles
-
-        distance = center.length
-        n_tile = int(np.ceil(distance / TILE_LENGTH))
-
-        if self.verbose:
-            print(
-                "The track is %dm long and has %d tiles." % (int(distance), n_tile),
-                end=" ",
+        points = []
+        # get the center line by Bezier curve generator
+        for i in range(checkpoints.shape[1]):
+            points += self.bezier_generator.get_points(
+                np.array([
+                    control_points[start_id - i - 1][1],
+                    checkpoints[:, start_id - i - 1],
+                    control_points[start_id - i - 1][0],
+                ])
             )
+        # create the new map by the centerline
+        center_line = LineString([start_point] + points + [start_point])
 
+        return center_line
+    
+    def _get_tiles(self, n_tile: int, center_line: LineString) -> List[]:
+        tiles = []
         center_points = []
         left_points = []
         right_points = []
+
+        # refresh the center line to a new  equidistance distance 
+
+        for i in range(n_tile + 1):
+            tiles.append(
+                center_line.interpolate(TILE_LENGTH * i).buffer(TRACK_WIDTH / 2))
+        return tiles
+
+    def _create_map(self, n_tile: int, center_line: LineString):
 
         for i in range(n_tile + 1):
             center_points.append(center.interpolate(TILE_LENGTH * i))
@@ -121,9 +168,37 @@ class RacingTrackGenerator:
                 id_="%04d" % i,
                 left_side=LineString([left_points[i], left_points[i + 1]]),
                 right_side=LineString([right_points[i], right_points[i + 1]]),
-                subtype="road",
-                inferred_participants=["vehicle:car", "vehicle:racing"],
+                subtype="lane",
+                inferred_participants=["sports_car"],
             )
             self.map.add_lane(tile)
 
         return n_tile
+
+    def generate_track_tiles(self) -> List[LinearString]:
+        """_summary_
+        """
+        t1 = time.time()
+
+        # generate the checkpoints
+        success = False
+        while not success:
+            checkpoints, control_points, success = self._get_checkpoints()
+
+        n_checkpoints = checkpoints.shape[1]
+        logging.info(f"Generated a new track with {n_checkpoints} checkpoints.")
+
+        start_point, start_id = self._get_start_point(n_checkpoints, control_points)
+
+        center_line = self._get_center_line(start_point, start_id, checkpoints, control_points)
+
+        distance = center_line.length
+        n_tile = int(np.ceil(distance / TILE_LENGTH))
+        tiles = self._get_tiles(n_tile, center_line)
+        logging.info(f"The track is {int(distance)}m long and has {n_tile} tiles.")
+
+        # record time cost
+        t2 = time.time()
+        logging.info("The generation process takes %.4fs." % (t2 - t1))
+
+        return tiles

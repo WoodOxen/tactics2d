@@ -7,7 +7,7 @@ The parameters of the pedestrians are referred to the data provided by ChatGPT.
 """
 
 
-CAR_MODEL = {
+VEHICLE_MODEL = {
     "mini_car": {
         # Prototype: Volkswagen Up! (https://en.wikipedia.org/wiki/Volkswagen_Up)
         "length": 3.540,
@@ -26,6 +26,17 @@ CAR_MODEL = {
         "width": 1.751,
         "height": 1.438,
         "wheel_base": 2.548,
+        "front_hang": 0,
+        "rear_hang": 0,
+        "max_speed": 0,
+        "max_accel": 0,
+        "max_decel": 0,
+    },
+    "sedan": {
+        "length": 4.668,
+        "width": 1.825,
+        "height": 1.481,
+        "wheel_base": 2.700,
         "front_hang": 0,
         "rear_hang": 0,
         "max_speed": 0,
@@ -92,6 +103,19 @@ CAR_MODEL = {
         "max_accel": 0,
         "max_decel": 0,
     },
+    "sports_car": {
+        # Prototype: Ferrari 488 (https://en.wikipedia.org/wiki/Ferrari_488)
+        "length": 4.568,
+        "width": 1.952,
+        "height": 1.213,
+        "kerb_weight": 1500,
+        "wheel_base": 2.65,
+        "front_hang": 0,
+        "rear_hang": 0,
+        "max_speed": 0,
+        "max_accel": 0,
+        "max_decel": 0,
+    }
 }
 
 TRUCK_MODEL = {

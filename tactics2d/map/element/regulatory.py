@@ -1,6 +1,3 @@
-from typing import List, Tuple
-
-
 class RegulatoryElement(object):
     """Implementation of the lanelet2-style regulatory element.
 

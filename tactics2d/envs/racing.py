@@ -1,18 +1,20 @@
-from typing import Optional, Union
+from typing import Union
 import time
+import logging
+logging.basicConfig(level=logging.WARNING)
 
 import numpy as np
 from shapely.geometry import Point, LineString, LinearRing
 
-# import gymnasium as gym
-import gym
+import gymnasium as gym
+# import gym
 from gym import spaces
 
-from tactics2d.utils.bezier import Bezier
+from tactics2d.math import Bezier
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
-from tactics2d.trajectory.element import State, Trajectory
-from tactics2d.traffic.traffic_event import TrafficEvent
+from tactics2d.trajectory.element import State
+from tactics2d.map.generator import RacingTrackGenerator
 
 
 STATE_W = 128
@@ -22,7 +24,7 @@ VIDEO_H = 400
 WIN_W = 1000
 WIN_H = 1000
 
-FPS = 100
+FPS = 60
 MAX_FPS = 200
 STEP_LIMIT = 20000  # steps
 TIME_STEP = 0.01  # state update time step: 0.01 s/step
@@ -53,6 +55,11 @@ class RacingEnv(gym.Env):
             -  4: decelerate
     -  **Observation Space**: A bird-eye view 128x128 RGB image of the car and the race track.
     -  **Rewards**: [TBD]
+
+    Attributes:
+        render_mode (str, optional): The rendering mode. Can be "human" or "rgb_array". Defaults to "human".
+        render_fps (int, optional): The expected FPS for rendering. Defaults to 60.
+        continuous (bool, optional): Whether to use continuous action space. Defaults to True.
     """
 
     metadata = {
@@ -60,20 +67,20 @@ class RacingEnv(gym.Env):
     }
 
     def __init__(
-        self,
-        render_mode: Optional[str] = "human",
-        render_fps: int = FPS,
-        verbose: bool = True,
+        self, render_mode: str = "human", render_fps: int = FPS,
         continuous: bool = True,
     ):
-        self.render_mode = render_mode
+
         if self.render_mode not in self.metadata["render_modes"]:
-            raise NotImplementedError
+            raise NotImplementedError(f"Render_mode {self.render_mode} is not supported.")
+        else:
+            self.render_mode = render_mode
+
         self.render_fps = render_fps
         if render_fps > MAX_FPS:
-            raise UserWarning()
+            self.render_fps = MAX_FPS
+            logging.warning(f"The input rendering FPS is too high. The upper limit of FPS is {MAX_FPS}.")
 
-        self.verbose = verbose
         self.continuous = continuous
 
         if self.continuous:
@@ -82,35 +89,25 @@ class RacingEnv(gym.Env):
                 np.array([0.5, 1.0]).astype(np.float32),
             )
         else:
-            self.action_space = spaces.Discrete(
-                5
-            )  # do nothing, left, right, gas, brake
+            self.action_space = spaces.Discrete(5)
         self.observation_space = spaces.Box(
-            low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8
+            low=0, high=255, shape=(STATE_H, STATE_W, 3), 
+            dtype=np.uint8
         )
 
-        self.bezier_generator = Bezier(2, 50)
         self.map = Map(name="CarRacing", scenario_type="racing")
+        self.map_generator = RacingTrackGenerator()
         self.agent = Vehicle(
-            id_="0",
-            type_="vehicle:racing",
-            length=5,
-            width=1.8,
-            height=1.5,
+            id_=0, type_="sports",
             steering_angle_range=(-0.5, 0.5),
             steering_velocity_range=(-0.5, 0.5),
-            speed_range=(-10, 100),
-            accel_range=(-1, 1),
+            speed_range=(-10, 100), accel_range=(-1, 1),
         )
 
     def _reset_map(self):
-        """Reset the map by generating a new one with random track configurations."""
-        t1 = time.time()
+        """Generate a new map with random track configurations."""
 
-        # generate checkpoints of the track
-        success = False
-        while not success:
-            checkpoints, control_points, success = self._create_checkpoints()
+            
         n_checkpoints = checkpoints.shape[1]
 
         if self.verbose:
@@ -153,11 +150,6 @@ class RacingEnv(gym.Env):
         center = LineString([start_point] + points + [start_point])
         n_tile = self._create_map(center)
 
-        # record time cost
-        t2 = time.time()
-        if self.verbose:
-            print("Generating process takes %.4fs." % (t2 - t1))
-
         return n_tile
 
     def _reset_vehicle(self):
@@ -187,7 +179,10 @@ class RacingEnv(gym.Env):
                 % (start_loc.x, start_loc.y, heading_angle)
             )
 
-    def reset(self):
+    def reset(self, seed: int = None):
+
+        super().reset(seed=seed)
+
         self.n_step = 0
         n_tile = self._reset_map()
         self.tile_visited = [False] * n_tile

@@ -7,6 +7,8 @@ from shapely.affinity import affine_transform
 from .participant_base import ParticipantBase
 from tactics2d.trajectory.element.trajectory import State, Trajectory
 
+from .defaults import VEHICLE_MODEL
+
 
 class Vehicle(ParticipantBase):
     """_summary_
@@ -14,13 +16,15 @@ class Vehicle(ParticipantBase):
     Attributes:
         id_ (int): The unique identifier of the vehicle.
         type_ (str, optional):
+        color (tuple, optional): The color of the vehicle. Expressed by a tuple with 3 integers.
         length (float, optional): The length of the vehicle. The default unit is meter (m). 
-            Defaults to 4.76 m.
+            Defaults to None.
         width (float, optional): The width of the vehicle. The default unit is meter (m). 
-            Defaults to 1.85 m.
+            Defaults to None.
         height (float, optional): The height of the vehicle. The default unit is meter (m). 
-            Defaults to 1.43 m.
-        color (tuple, optional)
+            Defaults to None.
+        kerb_weight: (float, optional): The weight of the vehicle. The default unit is 
+            kilogram (kg). Defaults to None.
         steering_angle_range (Tuple[float, float], optional):
         steering_velocity_range (Tuple[float, float], optional):
         speed_range (Tuple[float, float], optional):
@@ -30,8 +34,9 @@ class Vehicle(ParticipantBase):
     """
 
     def __init__(
-        self, id_: int, type_: str = "car",
-        length: float = 4.76, width: float = 1.85, height: float = 1.43, color: tuple = None,
+        self, id_: int, type_: str = "sedan", color: tuple = None, kerb_weight: float = None,
+        length: float = None, width: float = None, height: float = None,
+        wheel_base: float = None, front_hang: float = None, rear_hang: float = None,
         steering_angle_range: Tuple[float, float] = None,
         steering_velocity_range: Tuple[float, float] = None,
         speed_range: Tuple[float, float] = None,
@@ -39,15 +44,25 @@ class Vehicle(ParticipantBase):
         comfort_accel_range: Tuple[float, float] = None,
         body_type=None, trajectory: Trajectory = None,
     ):
-        super().__init__(id_, type_, length, width, height)
+        super().__init__(id_, type_)
 
         self.color = color
-        self.steering_angle_range = steering_angle_range
-        self.steering_velocity_range = steering_velocity_range
-        self.speed_range = speed_range
-        self.accel_range = accel_range
-        self.comfort_accel_range = comfort_accel_range
-        self.body_type = body_type
+
+        attribs = [
+            "length", "width", "height", "kerb_weight",
+            "wheel_base", "front_hang", "rear_hang",
+            "steering_angle_range", "steering_velocity_range", "speed_range",
+            "accel_range","comfort_accel_range"
+        ]
+        for attrib in attribs:
+            if locals()[attrib] is None:
+                if self.type_ in VEHICLE_MODEL and attrib in VEHICLE_MODEL[type_]:
+                    setattr(self, attrib, VEHICLE_MODEL[type_][attrib])
+                else:
+                    setattr(self, attrib, None)
+            else:
+                setattr(self, attrib, locals()[attrib])
+
         self.bind_trajectory(trajectory)
 
         self.bbox = LinearRing(
