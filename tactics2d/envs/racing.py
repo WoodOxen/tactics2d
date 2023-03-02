@@ -10,11 +10,11 @@ import gymnasium as gym
 # import gym
 from gym import spaces
 
-from tactics2d.math import Bezier
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.trajectory.element import State
 from tactics2d.map.generator import RacingTrackGenerator
+from tactics2d.scenario import TrafficEvent
 
 STATE_W = 128
 STATE_H = 128
@@ -42,21 +42,21 @@ DISCRETE_ACTION = np.array(
 class RacingEnv(gym.Env):
     """An improved version of Box2D's CarRacing gym environment.
 
-    -  **Action Space**:
-        -  If continuous there are 2 actions:
-            -  0: steering, -1 is full left, +1 is full right
-            -  1: acceleration, range [-1, 1], unit $m^2/s$
-        -  If discrete there are 5 actions:
-            -  0: do nothing
-            -  1: steer left
-            -  2: steer right
-            -  3: accelerate
-            -  4: decelerate
-    -  **Observation Space**: A bird-eye view 128x128 RGB image of the car and the race track.
-    -  **Rewards**: [TBD]
-
     Attributes:
-        render_mode (str, optional): The rendering mode. Can be "human" or "rgb_array". Defaults to "human".
+        action_space (gym.spaces): The action space is either continuous or discrete.
+            When continuous, it is a Box(2,). The first action is steering. Its value range is 
+            [-0.5, 0.5]. The unit of steering is radius. The second action is acceleration. 
+            Its value range is [-1, 1]. The unit of acceleration is $m^2/s$.
+            When discrete, it is a Discrete(5). The action space is defined above:
+                -  0: do nothing
+                -  1: steer left
+                -  2: steer right
+                -  3: accelerate
+                -  4: decelerate
+        observation_space (gym.spaces): The observation space is represented as a top-down
+            view 128x128 RGB image of the car and the race track. It is a Box(128, 128, 3).
+        render_mode (str, optional): The rendering mode. Possible choices are "human" or 
+            "rgb_array". Defaults to "human".
         render_fps (int, optional): The expected FPS for rendering. Defaults to 60.
         continuous (bool, optional): Whether to use continuous action space. Defaults to True.
     """
@@ -66,9 +66,7 @@ class RacingEnv(gym.Env):
     }
 
     def __init__(
-        self, render_mode: str = "human", render_fps: int = FPS,
-        continuous: bool = True,
-    ):
+        self, render_mode: str = "human", render_fps: int = FPS, continuous: bool = True):
 
         if self.render_mode not in self.metadata["render_modes"]:
             raise NotImplementedError(f"Render_mode {self.render_mode} is not supported.")
@@ -78,7 +76,8 @@ class RacingEnv(gym.Env):
         self.render_fps = render_fps
         if render_fps > MAX_FPS:
             self.render_fps = MAX_FPS
-            logging.warning(f"The input rendering FPS is too high. The upper limit of FPS is {MAX_FPS}.")
+            logging.warning(f"The input rendering FPS is too high. \
+                            Set the FPS with the upper limit {MAX_FPS}.")
 
         self.continuous = continuous
 
@@ -94,148 +93,55 @@ class RacingEnv(gym.Env):
             dtype=np.uint8
         )
 
-        self.map = Map(name="CarRacing", scenario_type="racing")
+        self.map_ = Map(name="CarRacing", scenario_type="racing")
         self.map_generator = RacingTrackGenerator()
         self.agent = Vehicle(
-            id_=0, type_="sports",
+            id_=0, type_="sports_car",
             steering_angle_range=(-0.5, 0.5),
             steering_velocity_range=(-0.5, 0.5),
             speed_range=(-10, 100), accel_range=(-1, 1),
         )
+        self.step_interval = int(1000 / self.render_fps)
 
     def _reset_map(self):
         """Generate a new map with random track configurations."""
 
-            
-        n_checkpoints = checkpoints.shape[1]
+        self.map_.reset()
+        self.map_.lanes = self.map_generator.generate_map()
 
-        if self.verbose:
-            print("Generated a new track.", end=" ")
-
-        # find the start-finish straight and the start point
-        straight_lens = []
-        for i in range(n_checkpoints):
-            straight_lens.append(
-                Point(control_points[i][0]).distance(
-                    Point(control_points[i - 1][1]))
-            )
-        sorted_id = sorted(
-            range(n_checkpoints), key=lambda i: straight_lens[i], reverse=True
-        )
-        start_id = None
-        for i in range(3):
-            start_id = sorted_id[i]
-            if straight_lens[start_id] < 200:
-                break
-
-        start_point = LineString(
-            [control_points[start_id][0], control_points[start_id - 1][1]]
-        ).interpolate(straight_lens[start_id] / 3)
-
-        # get center line
-        points = []
-        for i in range(n_checkpoints):
-            points += self.bezier_generator.get_points(
-                np.array(
-                    [
-                        control_points[start_id - i - 1][1],
-                        checkpoints[:, start_id - i - 1],
-                        control_points[start_id - i - 1][0],
-                    ]
-                )
-            )
-
-        # create the new map by the centerline
-        center = LineString([start_point] + points + [start_point])
-        n_tile = self._create_map(center)
-
-        return n_tile
+        self.n_tile = len(self.map_.lanes)
+        self.tile_visited = [False] * self.n_tile
+        self.tile_visited_cnt = 0
+        self.start_tile = self.map.lanes["0000"]
+        self.start_line = LineString(self.start_tile.get_ends())
+        self.finish_line = LineString(self.start_tile.get_starts())
 
     def _reset_vehicle(self):
-        heading_direction = [
-            np.mean(list(self.finish_line.coords), axis=0),
-            np.mean(list(self.start_line.coords), axis=0),
-        ]
-        heading_vec = heading_direction[1] - heading_direction[0]
-        heading_angle = np.arctan2(heading_vec[1], heading_vec[0])
-        heading_direction = LineString(heading_direction)
-        start_loc = heading_direction.interpolate(
-            heading_direction.length - self.agent.length / 2
+        # get the initial state
+        vec = self.start_line[1] - self.start_line[0]
+        heading = np.arctan2(-vec[1], vec[0])
+        start_loc = np.mean(self.start_line, axis=0) \
+            - self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
+        state = State(
+            timestamp=self.n_step, heading=heading,
+            x=start_loc[0], y=start_loc.y[1], vx=0, vy=0,
         )
 
-        state = State(
-            timestamp=self.n_step,
-            heading=heading_angle,
-            x=start_loc.x,
-            y=start_loc.y,
-            vx=0,
-            vy=0,
-        )
+        #reset the vehicle with the initial state
         self.agent.reset(state)
-        if self.verbose:
-            print(
-                "The racing car starts at (%.3f, %.3f), heading to %.3f rad."
-                % (start_loc.x, start_loc.y, heading_angle)
-            )
+        logging.info(
+            "The racing car starts at (%.3f, %.3f), heading to %.3f rad." \
+                % (start_loc.x, start_loc.y, heading)
+        )
 
     def reset(self, seed: int = None):
 
         super().reset(seed=seed)
 
         self.n_step = 0
-        n_tile = self._reset_map()
-        self.tile_visited = [False] * n_tile
-        self.tile_visited_count = 0
-        self.start_tile = self.map.lanes["0000"]
-        self.start_line = LineString(self.start_tile.get_ends())
-        self.finish_line = LineString(self.start_tile.get_starts())
+
+        self._reset_map()
         self._reset_vehicle()
-        self.window.set_size(
-            int(self.map.boundary[1]), int(self.map.boundary[3]))
-
-    def _check_retrograde(self):
-        return TrafficEvent.VIOLATION_RETROGRADE
-
-    def _check_non_drivable(self) -> bool:
-        return TrafficEvent.VIOLATION_NON_DRIVABLE
-
-    def _check_arrived(self):
-        return TrafficEvent.ROUTE_COMPLETED
-
-    def _check_outbound(self) -> bool:
-        bound = self.map.boundary()
-        boundary = LinearRing(
-            [
-                [bound[0], bound[2]],
-                [bound[0], bound[3]],
-                [bound[1], bound[3]],
-                [bound[1], bound[2]],
-            ]
-        )
-        if self.agent.pose.within(boundary):
-            return TrafficEvent.NORMAL
-        return TrafficEvent.OUTSIDE_MAP
-
-    def _check_time_exceeded(self):
-        if self.n_step < STEP_LIMIT:
-            return TrafficEvent.NORMAL
-        return TrafficEvent.TIME_EXCEED
-
-    def _check_status(self):
-        if self._check_retrograde() == TrafficEvent.VIOLATION_RETROGRADE:
-            return TrafficEvent.VIOLATION_RETROGRADE
-        if self._check_non_drivable() == TrafficEvent.VIOLATION_NON_DRIVABLE:
-            return TrafficEvent.VIOLATION_NON_DRIVABLE
-        if self._check_arrived() == TrafficEvent.ROUTE_COMPLETED:
-            return TrafficEvent.ROUTE_COMPLETED
-        if self._check_outbound() == TrafficEvent.OUTSIDE_MAP:
-            return TrafficEvent.OUTSIDE_MAP
-        if self._check_time_exceeded() == TrafficEvent.TIME_EXCEED:
-            return TrafficEvent.TIME_EXCEED
-        return TrafficEvent.NORMAL
-
-    def _get_observation(self) -> np.ndarray:
-        return
 
     def _get_reward(self):
         return
@@ -244,25 +150,17 @@ class RacingEnv(gym.Env):
         if not self.continuous:
             action = DISCRETE_ACTION[action]
 
-        self.agent.update(action)
-        # position = self._locate(self.agent)
+        self.n_step += 1
 
         observation = self._get_observation()
         status = self._check_status()
         reward = self._get_reward()
-        done = status != TrafficEvent.NORMAL
 
         info = {
             "status": status,
         }
 
-        if done and self.verbose:
-            print(
-                "The vehicle stops after %d steps. Stop reason: %s"
-                % (self.n_step, str(status))
-            )
-
-        return observation, reward, done, info
+        # return observation, reward, done, info
 
     def render(self):
         if self.render_mode == "human":

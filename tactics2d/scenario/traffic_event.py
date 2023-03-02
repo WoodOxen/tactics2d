@@ -2,7 +2,7 @@ from enum import Enum
 
 
 class TrafficEvent(Enum):
-    """All the possible traffic events of an agent during driving.
+    """All the possible traffic status in the scenario.
 
     - 1 (Normal): The agent behaves normally.
     - 2 (Collision_static): The agent collides into a static object, such as a building.
