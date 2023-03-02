@@ -6,7 +6,7 @@ import numpy as np
 from shapely.geometry import Point, LineString, LinearRing
 from shapely.affinity import affine_transform
 
-from tactics2d.math import Bezier, Circle
+from tactics2d.utils.get_circle import get_circle
 from tactics2d.map.element import Lane, Map
 
 
@@ -19,20 +19,7 @@ TILE_LENGTH = 10  # the length of each tile
 
 
 class RacingTrackGenerator:
-    """Generate a racing track with random configurations.
-
-    Attributes:
-        bezier_generator (Bezier): The Bezier line generator.
-        verbose (bool, optional): Whether to print the generation process. Defaults to False.
-    """
-
-    def __init__(self, bezier_param: Tuple[int, int] = (2, 50), verbose: bool = False):
-
-        self.bezier_generator = Bezier(*bezier_param)
-        self.verbose = verbose
-
-    def _get_checkpoints(self) -> Tuple[List[np.ndarray], List[np.ndarray], bool]:
-
+    def _create_checkpoints(self):
         n_checkpoint = np.random.randint(*N_CHECKPOINT)
         noise = np.random.uniform(0, 2 * np.pi / n_checkpoint, n_checkpoint)
         alpha = 2 * np.pi * np.arange(n_checkpoint) / n_checkpoint + noise
@@ -42,7 +29,6 @@ class RacingTrackGenerator:
         success = False
         control_points = []
 
-        # try generating checkpoints for 100
         for _ in range(100):
             glued_cnt = 0
             control_points.clear()
@@ -57,7 +43,7 @@ class RacingTrackGenerator:
                 t2 = np.random.uniform(low=1 / 4, high=1 / 2)
                 pt1_ = (1 - t1) * pt2 + t1 * pt1
                 pt3_ = (1 - t2) * pt2 + t2 * pt3
-                _, radius = Circle.from_three_points(pt1_, pt2, pt3_)
+                _, radius = get_circle(pt1_, pt2, pt3_)
                 if radius < CURVE_RAD[0]:
                     if rad[i] > rad[next_i]:
                         rad[next_i] += np.random.uniform(0.0, 10.0)

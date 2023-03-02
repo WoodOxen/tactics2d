@@ -16,7 +16,6 @@ from tactics2d.participant.element import Vehicle
 from tactics2d.trajectory.element import State
 from tactics2d.map.generator import RacingTrackGenerator
 
-
 STATE_W = 128
 STATE_H = 128
 VIDEO_W = 600
