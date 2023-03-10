@@ -10,6 +10,7 @@ class ScenarioManager(object):
     """
     def __init__(self, map_, participants, max_step):
         self.map_ = map_
+        
         self.participants = participants
         self.max_step = max_step
 

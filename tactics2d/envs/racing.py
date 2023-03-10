@@ -1,5 +1,4 @@
 from typing import Union
-import time
 import logging
 logging.basicConfig(level=logging.WARNING)
 
@@ -7,7 +6,6 @@ import numpy as np
 from shapely.geometry import Point, LineString, LinearRing
 
 import gymnasium as gym
-# import gym
 from gym import spaces
 
 from tactics2d.map.element import Map
@@ -66,18 +64,20 @@ class RacingEnv(gym.Env):
     }
 
     def __init__(
-        self, render_mode: str = "human", render_fps: int = FPS, continuous: bool = True):
+        self, render_mode: str = "human", render_fps: int = FPS, continuous: bool = True
+    ):
 
-        if self.render_mode not in self.metadata["render_modes"]:
-            raise NotImplementedError(f"Render_mode {self.render_mode} is not supported.")
+        if render_mode not in self.metadata["render_modes"]:
+            raise NotImplementedError(f"Render_mode {render_mode} is not supported.")
         else:
             self.render_mode = render_mode
 
-        self.render_fps = render_fps
         if render_fps > MAX_FPS:
             self.render_fps = MAX_FPS
             logging.warning(f"The input rendering FPS is too high. \
                             Set the FPS with the upper limit {MAX_FPS}.")
+        else:
+            self.render_fps = render_fps
 
         self.continuous = continuous
 
@@ -123,7 +123,7 @@ class RacingEnv(gym.Env):
         start_loc = np.mean(self.start_line, axis=0) \
             - self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
         state = State(
-            timestamp=self.n_step, heading=heading,
+            self.n_step, heading=heading,
             x=start_loc[0], y=start_loc.y[1], vx=0, vy=0,
         )
 

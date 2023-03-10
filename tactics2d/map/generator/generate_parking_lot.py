@@ -5,6 +5,8 @@ from numpy.random import randn, random
 from shapely.geometry import LinearRing, Point
 from shapely.affinity import affine_transform
 
+from tactics2d.trajectory.element import State
+
 
 MIN_DIST_TO_OBST = 0.1
 MIN_PARA_PARK_LOT_LEN = LENGTH * 1.25
@@ -16,39 +18,18 @@ origin = (0.0, 0.0)
 bay_half_len = 18.0
 
 
-class Position:
-    "A simpler representation of State which only consider (x, y, heading)."
+class ParkingLotGenerator:
+    """Generate a random parking lot scenario with determined start and destination.
+    """
+    def __init__(self) -> None:
+        pass``
 
-    def __init__(self, raw_state: list):
-        self.loc: Point = Point(raw_state[:2])  # (x,y)
-        self.heading: float = raw_state[2]
+    def _create_obstacle(self):
 
-    def create_box(self, VehicleBox: LinearRing) -> LinearRing:
-        cos_theta = np.cos(self.heading)
-        sin_theta = np.sin(self.heading)
-        mat = [cos_theta, -sin_theta, sin_theta, cos_theta, self.loc.x, self.loc.y]
-        return affine_transform(VehicleBox, mat)
+        pass
 
-    def get_pos(
-        self,
-    ):
-        return (self.loc.x, self.loc.y, self.heading)
-
-
-def _get_box_coords(pos: list, vehicle_box: LinearRing):
-    vehicle_box = Position(pos).create_box(vehicle_box)
-    return list(vehicle_box.coords)[:-1]
-
-
-def _random_gaussian_num(mean, std, clip_low, clip_high):
-    rand_num = randn() * std + mean
-    return np.clip(rand_num, clip_low, clip_high)
-
-
-def _random_uniform_num(clip_low, clip_high):
-    rand_num = random() * (clip_high - clip_low) + clip_low
-    return rand_num
-
+    def get_parking_scenario(self):
+        return
 
 def _get_rand_pos(origin_x, origin_y, angle_min, angle_max, radius_min, radius_max):
     angle_mean = (angle_max + angle_min) / 2

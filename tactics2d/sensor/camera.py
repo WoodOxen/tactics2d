@@ -65,17 +65,21 @@ class TopDownCamera(SensorBase):
     """This class implements a pseudo camera with top-down view RGB semantic segmentation image.
 
     Attributes:
-        perception_range (Union[float, tuple]): The distance from the sensor to its 
+        sensor_id (str): The unique identifier of the sensor.
+        map_ (Map): The map that the sensor is attached to.
+        perception_range (Union[float, tuple]): The distance from the sensor to its maximum detection range in
             (left, right, front, back). When this value is undefined, the camera is assumed to 
             detect the whole map. Defaults to None.
     """
 
     def __init__(
-        self, sensor_id,
-        map_: Map, perception_range: Union[float, Tuple[float]] = None,
+        self, sensor_id, map_: Map,
+        perception_range: Union[float, Tuple[float]] = None,
         window_size: Tuple[int, int] = (200, 200), off_screen: bool = False,
     ):
+
         super().__init__(sensor_id, map_)
+
         self.off_screen = off_screen
 
         if perception_range is None:
@@ -247,7 +251,11 @@ class TopDownCamera(SensorBase):
             elif isinstance(participant, Cyclist):
                 self._render_cyclist(participant, frame)
 
-    def update(self, participants, frame: int = None, position: Point = None, heading=None):
+    def update(
+            self, participants, frame: int = None, 
+            position: Point = None, heading: float = None
+        ):
+
         self.position = position
         self.heading = heading
         self._update_transform_matrix()

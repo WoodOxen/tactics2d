@@ -1,21 +1,15 @@
 from typing import Optional, Union
 import math
 from typing import OrderedDict
-from enum import Enum
+import logging
+logging.basicConfig(level=logging.WARNING)
 
 import numpy as np
-import gym
+import gymnasium as gym
 from gym import spaces
 from gym.error import DependencyNotInstalled, InvalidAction
 from shapely.geometry import LineString, LinearRing, Polygon
 from shapely.affinity import affine_transform
-
-try:
-    # As pygame is necessary for using the environment (reset and step) even without a render mode
-    #   therefore, pygame is a necessary import for the environment.
-    import pygame
-except ImportError:
-    raise DependencyNotInstalled("pygame is not installed, run `pip install pygame`")
 
 from tactics2d.map.element.area import Area
 from tactics2d.map.element.map import Map
@@ -25,37 +19,35 @@ from tactics2d.map.generator.generate_parking_lot import (
     gene_parallel_park,
     VEHICLE_BOX,
 )
-from tactics2d.render.lidar_simulator import LidarSimlator
 
-# from tactics2d.traffic.traffic_event import TrafficEvent
 from tactics2d.participant.element import Vehicle
 from tactics2d.trajectory.element import State
+from tactics2d.scenario import TrafficEvent
 
-
-WHEEL_BASE = 2.8  # wheelbase
-FRONT_HANG = 0.96  # front hang length
-REAR_HANG = 0.929  # rear hang length
-LENGTH = WHEEL_BASE + FRONT_HANG + REAR_HANG
-WIDTH = 1.942  # width
-
-DISCRETE_ACTION = np.array(
-    [
-        [0, 0],  # do nothing
-        [-0.6, 0],  # steer left
-        [0.6, 0],  # steer right
-        [0, 0.2],  # accelerate
-        [0, -0.8],  # decelerate
-    ]
-)
-FPS = 100
-MAX_FPS = 200
 STATE_W = 256
 STATE_H = 256
 VIDEO_W = 600
 VIDEO_H = 400
-K = 12
+WIN_W = 1000
+WIN_H = 1000
+
+FPS = 60
+MAX_FPS = 200
 STEP_LIMIT = 20000  # steps
-MAX_STEP = 200
+
+DISCRETE_ACTION = np.array(
+    [
+        [0, 0],  # do nothing
+        [-0.3, 0],  # steer left
+        [0.3, 0],  # steer right
+        [0, 0.2],  # accelerate
+        [0, -0.8],  # decelerate
+    ]
+)
+
+
+K = 12
+
 
 LIDAR_RANGE = 10.0
 LIDAR_NUM = 120
@@ -73,20 +65,14 @@ TRAJ_COLOR = (10, 10, 150, 255)
 VEHICLE_COLOR = (30, 144, 255, 255)
 
 
-class Status(Enum):
-    NORMAL = 1
-    ARRIVED = 2
-    COLLIDED = 3
-    OUTBOUND = 4
-    OUTTIME = 5
-
-
-def State2Position(state: State) -> Position:
-    return Position([state.x, state.y, state.heading])
-
-
 class ParkingMapNormal(Map):
     def __init__(self, name="CarParking", scenario_type="parking"):
+        """_summary_
+
+        Args:
+            name (str, optional): _description_. Defaults to "CarParking".
+            scenario_type (str, optional): _description_. Defaults to "parking".
+        """
         super().__init__(name, scenario_type)
 
         self.start: Position = None
@@ -132,42 +118,35 @@ class ParkingMapNormal(Map):
 
 
 class CarParking(gym.Env):
-    """
+    """ 
     Description:
         Unconstructed parking environment.
     """
 
     metadata = {
-        "render_mode": [
-            "human",
-            "rgb_array",
-        ]
+        "render_modes": ["human", "rgb_array"],
     }
 
     def __init__(
-        self,
-        render_mode: Optional[str] = "human",
-        render_fps: int = FPS,
-        verbose: bool = True,
-        continuous: bool = True,
-        use_lidar_observation: bool = True,
-        use_img_observation: bool = True,
+        self, render_mode: str = "human", render_fps: int = FPS,
+        continuous: bool = True
     ):
         super().__init__()
 
-        self.render_mode = render_mode
-        if self.render_mode not in self.metadata["render_mode"]:
-            raise NotImplementedError
-        self.render_fps = render_fps
-        if render_fps > MAX_FPS:
-            raise UserWarning()
+        if render_mode not in self.metadata["render_modes"]:
+            raise NotImplementedError(f"Render_mode {render_mode} is not supported.")
+        else:
+            self.render_mode = render_mode
 
-        self.verbose = verbose
+        if render_fps > MAX_FPS:
+            self.render_fps = MAX_FPS
+            logging.warning(f"The input rendering FPS is too high. \
+                            Set the FPS with the upper limit {MAX_FPS}.")
+        else:
+            self.render_fps = render_fps
+
         self.continuous = continuous
-        if not continuous:
-            raise NotImplementedError(
-                "parking environment only support continuous action space !"
-            )
+
         self.use_lidar_observation = use_lidar_observation
         self.use_img_observation = use_img_observation
         self.screen: Optional[pygame.Surface] = None

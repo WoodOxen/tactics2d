@@ -17,7 +17,7 @@ TILE_LENGTH = 10  # the length of each tile
 
 
 class RacingTrackGenerator:
-    """Generate a racing track with random configurations.
+    """Generate a random racing track.
 
     Attributes:
         bezier_generator (Bezier): The Bezier curve generator
