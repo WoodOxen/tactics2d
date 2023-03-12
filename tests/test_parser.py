@@ -12,7 +12,7 @@ import pytest
 from tactics2d.map.parser import Lanelet2Parser
 from tactics2d.map.parser import MapParseError
 from tactics2d.trajectory.parser import DLPParser, InteractionParser, LevelXParser
-
+from tactics2d.participant.guess_type import GuessType
 
 @pytest.mark.map_parser
 def test_lanelet2_parser():
@@ -22,6 +22,7 @@ def test_lanelet2_parser():
         One for testing the correctness of the provided maps' notations;
         One for testing the parser's ability to parse the lanelet2 format maps.
     """
+    
     map_path = "./tactics2d/data/map_default/"
     config_path = "./tactics2d/data/map_default.config"
 
@@ -84,10 +85,11 @@ def test_levelx_parser(
 )
 def test_interaction_parser(file_id: int, stamp_range: tuple, expected: int):
     folder_path = "./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/DR_USA_Intersection_EP0"
-
+    clf = GuessType.get_svm_model("svm_model2.m")
     trajectory_parser = InteractionParser()
 
-    participants = trajectory_parser.parse(file_id, folder_path, stamp_range)
+    participants = trajectory_parser.parse(file_id, folder_path, clf, stamp_range)
+    print(len(participants))
     assert len(participants) == expected
 
 
