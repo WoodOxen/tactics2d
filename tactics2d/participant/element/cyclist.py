@@ -10,14 +10,11 @@ from tactics2d.trajectory.element.trajectory import Trajectory
 class Cyclist(ParticipantBase):
     def __init__(
         self, id_: int, type_: str = None,
-        length: float = 1.60, width: float = 0.65, height: float = 1.70, color: tuple = None,
+        length: float = 1.60, width: float = 0.65, height: float = 1.70,
         trajectory: Trajectory = None,
     ):
 
         super().__init__(id_, type_, length, width, height)
-
-        self.color = color
-        self.bind_trajectory(trajectory)
 
         self.bbox = LinearRing(
             [

@@ -5,14 +5,11 @@ from tactics2d.trajectory.element.trajectory import Trajectory
 
 class Other(ParticipantBase):
     def __init__(
-        self, id_: int,
-        type_: str = None,
-        length: float = None,
-        width: float = None,
-        height: float = None,
+        self, id_: int, type_: str = None,
+        length: float = None, width: float = None, height: float = None,
         trajectory=None,
     ):
-        super().__init__(id_, type_, length, width, height)
+        super().__init__(id_, type_, length, width, height, trajectory)
 
         self.controller = None
 
@@ -29,7 +26,7 @@ class Other(ParticipantBase):
     def _verify_state(self, curr_state: State, prev_state: State, interval: float) -> bool:
         return True
 
-    def _verify_trajectory(self, trajectory: Trajectory):
+    def _verify_trajectory(self, trajectory: Trajectory) -> bool:
         return True
 
     def bind_trajectory(self, trajectory: Trajectory):

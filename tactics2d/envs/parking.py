@@ -13,6 +13,7 @@ from shapely.affinity import affine_transform
 
 from tactics2d.map.element.area import Area
 from tactics2d.map.element.map import Map
+from tactics2d.scenario import ScenarioManager, RenderManager
 from tactics2d.map.generator.generate_parking_lot import (
     Position,
     gene_bay_park,
@@ -38,16 +39,14 @@ STEP_LIMIT = 20000  # steps
 DISCRETE_ACTION = np.array(
     [
         [0, 0],  # do nothing
-        [-0.3, 0],  # steer left
-        [0.3, 0],  # steer right
+        [-0.6, 0],  # steer left
+        [0.6, 0],  # steer right
         [0, 0.2],  # accelerate
         [0, -0.8],  # decelerate
     ]
 )
 
-
 K = 12
-
 
 LIDAR_RANGE = 10.0
 LIDAR_NUM = 120
@@ -64,6 +63,95 @@ OBSTACLE_COLOR = (150, 150, 150, 255)
 TRAJ_COLOR = (10, 10, 150, 255)
 VEHICLE_COLOR = (30, 144, 255, 255)
 
+
+
+
+
+class ParkingEnv(gym.Env):
+    """
+
+    Attributes:
+        action_space (gym.spaces): The action space is either continuous or discrete.
+            When continuous, it is a Box(2,). The first action is steering. Its value range is
+
+    Raises:
+        NotImplementedError: _description_
+        InvalidAction: _description_
+
+    Returns:
+        _type_: _description_
+    """
+
+    metadata = {
+        "render_modes": ["human", "rgb_array"],
+    }
+
+    def __init__(
+        self, render_mode: str = "human", render_fps: int = FPS,
+        continuous: bool = True
+    ):
+
+        super().__init__()
+
+        if render_mode not in self.metadata["render_modes"]:
+            raise NotImplementedError(f"Render_mode {render_mode} is not supported.")
+        else:
+            self.render_mode = render_mode
+
+        if render_fps > MAX_FPS:
+            self.render_fps = MAX_FPS
+            logging.warning(f"The input rendering FPS is too high. \
+                            Set the FPS with the upper limit {MAX_FPS}.")
+        else:
+            self.render_fps = render_fps
+
+        self.step_interval = int(1000 / self.render_fps)
+
+        self.continuous = continuous
+
+        if continuous:
+            self.action_space = spaces.Box(
+                np.array([-0.75, -1.0]), np.array([0.75, 1.0]), dtype=np.float32)
+        else:
+            self.action_space = spaces.Discrete(5)
+
+        self.observation_space = spaces.Box(
+            0, 255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
+
+        self.map_ = None
+        self.agent = Vehicle(
+            id_=0, type_="",
+            steering_angle_range=(-0.5, 0.5),
+            steering_velocity_range=(-0.5, 0.5),
+            speed_range=(-10, 100), accel_range=(-1, 1)
+        )
+
+    def _reset_map(self):
+        return
+
+    def _reset_agent(self):
+        return
+
+    def reset(self, *, seed: int = None):
+
+        super().reset(seed=seed)
+
+        self.n_step = 0
+
+        self._reset_map()
+        self._reset_agent()
+
+    def step(self):
+        self.n_step += 1
+        action = action if self.continuous else DISCRETE_ACTION[action]
+
+    
+
+    def render(self):
+        if self.render_mode == "human":
+            return
+        elif self.render_mode == "rgb_array":
+            return
 
 class ParkingMapNormal(Map):
     def __init__(self, name="CarParking", scenario_type="parking"):

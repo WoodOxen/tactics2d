@@ -22,9 +22,9 @@ class Area(object):
         inferred_participants (list, optional): The allowing type of traffic participants that 
             can pass the area. Defaults to None.
         speed_limit (float, optional): The speed limit in this area. Defaults to None.
-        speed_limit_unit (str, optional): The unit of speed limit in this area. Defaults to 
+        speed_limit_unit (str, optional): The unit of speed limit in this area. Defaults to
             "km/h".
-        speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or 
+        speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or
             not. Defaults to True.
         custom_tags (dict, optional): The custom tags of the area. Defaults to None.
         shape (list): The shape of the area.

@@ -16,9 +16,12 @@ class Lidar(SensorBase):
     Attributes:
         sensor_id (str): The unique identifier of the sensor.
         map_ (Map): The map that the sensor is attached to.
-        perception_range (float): The distance from the sensor to its maximum detection range. Defaults to 12.0 meters.
-        freq_scan (float): The frequency of the lidar scanning a full round. Defaults to 10.0 Hz.
-        freq_detect (float): The frequency of the lidar emitting and receiving the signal. Defaults to 5000.0 Hz.
+        perception_range (float): The distance from the sensor to its maximum detection 
+            range. Defaults to 12.0 meters.
+        freq_scan (float): The frequency of the lidar scanning a full round. Defaults to 
+            10.0 Hz.
+        freq_detect (float): The frequency of the lidar emitting and receiving the signal. 
+            Defaults to 5000.0 Hz.
     """
     def __init__(
             self, sensor_id, map_: Map,

@@ -6,7 +6,7 @@ class Circle:
     @staticmethod
     def from_three_points(pt1, pt2, pt3):
         """Derive a circle by three points. 
-        
+
         Returns:
             center:
             radius (float): The radius of the circle

@@ -16,14 +16,14 @@ class Vehicle(ParticipantBase):
     Attributes:
         id_ (int): The unique identifier of the vehicle.
         type_ (str, optional):
+        length (float, optional): The length of the vehicle. The default unit is meter (m).
+            Defaults to None.
+        width (float, optional): The width of the vehicle. The default unit is meter (m).
+            Defaults to None.
+        height (float, optional): The height of the vehicle. The default unit is meter (m).
+            Defaults to None.
         color (tuple, optional): The color of the vehicle. Expressed by a tuple with 3 integers.
-        length (float, optional): The length of the vehicle. The default unit is meter (m). 
-            Defaults to None.
-        width (float, optional): The width of the vehicle. The default unit is meter (m). 
-            Defaults to None.
-        height (float, optional): The height of the vehicle. The default unit is meter (m). 
-            Defaults to None.
-        kerb_weight: (float, optional): The weight of the vehicle. The default unit is 
+        kerb_weight: (float, optional): The weight of the vehicle. The default unit is
             kilogram (kg). Defaults to None.
         steering_angle_range (Tuple[float, float], optional):
         steering_velocity_range (Tuple[float, float], optional):
@@ -34,36 +34,28 @@ class Vehicle(ParticipantBase):
     """
 
     def __init__(
-        self, id_: int, type_: str = "sedan", color: tuple = None, kerb_weight: float = None,
+        self, id_: int, type_: str, 
         length: float = None, width: float = None, height: float = None,
-        wheel_base: float = None, front_hang: float = None, rear_hang: float = None,
-        steering_angle_range: Tuple[float, float] = None,
-        steering_velocity_range: Tuple[float, float] = None,
-        speed_range: Tuple[float, float] = None,
-        accel_range: Tuple[float, float] = None,
-        comfort_accel_range: Tuple[float, float] = None,
-        body_type=None, trajectory: Trajectory = None,
+        params: dict = None, body_type=None, trajectory: Trajectory = None,
     ):
-        super().__init__(id_, type_)
-
-        self.color = color
+        super().__init__(id_, type_, length, width, height, trajectory)
 
         attribs = [
-            "length", "width", "height", "kerb_weight",
+            "color", "kerb_weight",
             "wheel_base", "front_hang", "rear_hang",
             "steering_angle_range", "steering_velocity_range", "speed_range",
             "accel_range","comfort_accel_range"
         ]
         for attrib in attribs:
-            if locals()[attrib] is None:
+            if attrib not in params:
                 if self.type_ in VEHICLE_MODEL and attrib in VEHICLE_MODEL[type_]:
                     setattr(self, attrib, VEHICLE_MODEL[type_][attrib])
                 else:
                     setattr(self, attrib, None)
             else:
-                setattr(self, attrib, locals()[attrib])
+                setattr(self, attrib, [attrib])
 
-        self.bind_trajectory(trajectory)
+        self.body_type = body_type
 
         self.bbox = LinearRing(
             [
@@ -73,8 +65,7 @@ class Vehicle(ParticipantBase):
         )
 
     def get_pose(self, frame: int = None) -> LinearRing:
-        """Get the vehicle's bounding box which is rotated and moved based on the current state.
-        """
+
         state = self.trajectory.get_state(frame)
         transform_matrix = [
             np.cos(state.heading), -np.sin(state.heading),
@@ -83,8 +74,18 @@ class Vehicle(ParticipantBase):
         ]
         return affine_transform(self.bbox, transform_matrix)
 
-    def _verify_state(self, curr_state: State, prev_state: State, interval: float) -> bool:
+    def _verify_state(self, curr_state: State, frame: int = None) -> bool:
+        if self.current_state is None:
+            return True
+
         return True
+
+    def add_state(self, state: State):
+        if self._verify_state(state):
+            self.trajectory.append_state(state)
+            self.current_state = state
+        else:
+            raise RuntimeError()
 
     def _verify_trajectory(self, trajectory: Trajectory):
         return True
@@ -95,18 +96,7 @@ class Vehicle(ParticipantBase):
         else:
             raise RuntimeError()
 
-    def update_state(self, action):
-        """_summary_"""
+    def update(self, action: np.ndarray):
+        """Update the agent's state with the given action."""
         self.current_state = self.physics.update(self.current_state, action)
         self.add_state(self.current_state)
-
-    def reset(self, state: State = None):
-        """Reset the object to a given state. If the initial state is not specified, the object
-                will be reset to the same initial state as previous.
-        """
-        if state is not None:
-            self.current_state = state
-            self.initial_state = state
-        else:
-            self.current_state = self.initial_state
-        self.history_state.clear()

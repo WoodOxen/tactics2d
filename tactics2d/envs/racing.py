@@ -12,6 +12,7 @@ from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.trajectory.element import State
 from tactics2d.map.generator import RacingTrackGenerator
+from tactics2d.scenario import ScenarioManager, RenderManager
 from tactics2d.scenario import TrafficEvent
 
 STATE_W = 128
@@ -23,8 +24,8 @@ WIN_H = 1000
 
 FPS = 60
 MAX_FPS = 200
-STEP_LIMIT = 20000  # steps
 TIME_STEP = 0.01  # state update time step: 0.01 s/step
+MAX_STEP = 20000  # steps
 
 DISCRETE_ACTION = np.array(
     [
@@ -35,6 +36,83 @@ DISCRETE_ACTION = np.array(
         [0, -0.8],  # decelerate
     ]
 )
+
+
+class RacingScenarioManager(ScenarioManager):
+    def __init__(self, max_step: int = MAX_STEP):
+        super().__init__(max_step)
+
+        self.map_ = Map(name="CarRacing", scenario_type="racing")
+        self.map_generator = RacingTrackGenerator()
+        self.agent = Vehicle(
+            id_=0, type_="sports_car",
+            steering_angle_range=(-0.5, 0.5),
+            steering_velocity_range=(-0.5, 0.5),
+            speed_range=(-10, 100), accel_range=(-1, 1)
+        )
+
+        self.tile_visited = None
+        self.tile_visited_cnt = 0
+        self.start_line = None
+        self.end_line = None
+
+    def _reset_map(self):
+        self.map_.reset()
+
+        self.map_generator.generate(self.map_)
+        self.n_tile = len(self.map_.lanes)
+        self.tile_visited = [False] * self.n_tile
+        self.tile_visited_cnt = 0
+        start_tile = self.map.lanes["0000"]
+        self.start_line = LineString(start_tile.get_ends())
+        self.end_line = LineString(start_tile.get_starts())
+
+    def _reset_agent(self):
+        vec = self.start_line[1] - self.start_line[0]
+        heading = np.arctan2(-vec[1], vec[0])
+        start_loc = np.mean(self.start_line, axis=0) \
+            - self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
+        state = State(
+            self.n_step, heading=heading,
+            x=start_loc[0], y=start_loc.y[1], vx=0, vy=0,
+        )
+
+        self.agent.reset(state)
+        logging.info(
+            "The racing car starts at (%.3f, %.3f), heading to %.3f rad." \
+                % (start_loc.x, start_loc.y, heading)
+        )
+
+    def update(self, action: np.ndarray) -> TrafficEvent:
+        """Update the state of the agent by the action instruction.
+        """
+        self.n_step += 1
+        self.agent.update(action)
+
+    def _check_complete(self):
+        if self.tile_visited_cnt == self.n_tile:
+            self.status = TrafficEvent.COMPLETE
+
+    def check_status(self) -> TrafficEvent:
+        check_list = [
+            self._check_time_exceeded,
+            self._check_retrograde,
+            self._check_non_drivable,
+            self._check_complete
+        ]
+
+        for checker in check_list:
+            checker()
+            if self.status != TrafficEvent.NORMAL:
+                break
+
+        return self.status
+
+    def reset(self):
+        self.n_step = 0
+        self.status = TrafficEvent.NORMAL
+        self._reset_map()
+        self._reset_agent()
 
 
 class RacingEnv(gym.Env):
@@ -66,6 +144,7 @@ class RacingEnv(gym.Env):
     def __init__(
         self, render_mode: str = "human", render_fps: int = FPS, continuous: bool = True
     ):
+        super().__init__()
 
         if render_mode not in self.metadata["render_modes"]:
             raise NotImplementedError(f"Render_mode {render_mode} is not supported.")
@@ -79,81 +158,37 @@ class RacingEnv(gym.Env):
         else:
             self.render_fps = render_fps
 
+        self.step_interval = int(1000 / self.render_fps)
+
         self.continuous = continuous
 
         if self.continuous:
             self.action_space = spaces.Box(
-                np.array([-0.5, -1.0]).astype(np.float32),
-                np.array([0.5, 1.0]).astype(np.float32),
-            )
+                np.array([-0.5, -1.0]), np.array([0.5, 1.0]), dtype=np.float32)
         else:
             self.action_space = spaces.Discrete(5)
+
         self.observation_space = spaces.Box(
-            low=0, high=255, shape=(STATE_H, STATE_W, 3), 
-            dtype=np.uint8
-        )
+            0, 255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
 
-        self.map_ = Map(name="CarRacing", scenario_type="racing")
-        self.map_generator = RacingTrackGenerator()
-        self.agent = Vehicle(
-            id_=0, type_="sports_car",
-            steering_angle_range=(-0.5, 0.5),
-            steering_velocity_range=(-0.5, 0.5),
-            speed_range=(-10, 100), accel_range=(-1, 1),
-        )
-        self.step_interval = int(1000 / self.render_fps)
-
-    def _reset_map(self):
-        """Generate a new map with random track configurations."""
-
-        self.map_.reset()
-        self.map_.lanes = self.map_generator.generate_map()
-
-        self.n_tile = len(self.map_.lanes)
-        self.tile_visited = [False] * self.n_tile
-        self.tile_visited_cnt = 0
-        self.start_tile = self.map.lanes["0000"]
-        self.start_line = LineString(self.start_tile.get_ends())
-        self.finish_line = LineString(self.start_tile.get_starts())
-
-    def _reset_vehicle(self):
-        # get the initial state
-        vec = self.start_line[1] - self.start_line[0]
-        heading = np.arctan2(-vec[1], vec[0])
-        start_loc = np.mean(self.start_line, axis=0) \
-            - self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
-        state = State(
-            self.n_step, heading=heading,
-            x=start_loc[0], y=start_loc.y[1], vx=0, vy=0,
-        )
-
-        #reset the vehicle with the initial state
-        self.agent.reset(state)
-        logging.info(
-            "The racing car starts at (%.3f, %.3f), heading to %.3f rad." \
-                % (start_loc.x, start_loc.y, heading)
-        )
+        self.scenario_manager = RacingScenarioManager()
+        self.render_manger = RenderManager()
 
     def reset(self, seed: int = None):
-
         super().reset(seed=seed)
-
-        self.n_step = 0
-
-        self._reset_map()
-        self._reset_vehicle()
+        self.scenario_manager.reset()
 
     def _get_reward(self):
+
         return
 
     def step(self, action: Union[np.array, int]):
-        if not self.continuous:
-            action = DISCRETE_ACTION[action]
+        action = action if self.continuous else DISCRETE_ACTION[action]
 
-        self.n_step += 1
+        self.scenario_manager.update(action)
+        status = self.scenario_manager.check_status()
 
         observation = self._get_observation()
-        status = self._check_status()
         reward = self._get_reward()
 
         info = {

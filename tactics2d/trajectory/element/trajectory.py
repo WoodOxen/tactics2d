@@ -92,3 +92,8 @@ class Trajectory(object):
         self.frames.append(state.frame)
         self.history_states[state.frame] = state
         self.current_state = state
+
+    def reset(self):
+        self.current_state = None
+        self.history_states.clear()
+        self.frames.clear()

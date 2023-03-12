@@ -6,7 +6,7 @@ import numpy as np
 from shapely.geometry import Point, LineString
 
 from tactics2d.math import Bezier, Circle
-from tactics2d.map.element import Lane
+from tactics2d.map.element import Lane, LaneRelationship
 
 # Track related configurations
 N_CHECKPOINT = (10, 20)  # the number of turns is ranging in 10-20
@@ -162,13 +162,18 @@ class RacingTrackGenerator:
                 subtype="road",
                 inferred_participants=["sports_car"],
             )
+
+            tile.add_related_lane("%04d" % (i - 1), LaneRelationship.PREDECESSOR)
+            if i < n_tile:
+                tile.add_related_lane("%04d" % (i + 1), LaneRelationship.SUCCESSOR)
+            else:
+                tile.add_related_lane("%04d" % 0, LaneRelationship.SUCCESSOR)
+
             tiles[tile.id_] = tile
 
         return tiles
 
-    def get_track_tiles(self) -> Dict[Lane]:
-        """
-        """
+    def generate(self) -> Dict[Lane]:
         t1 = time.time()
 
         # generate the checkpoints

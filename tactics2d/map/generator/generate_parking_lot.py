@@ -22,7 +22,7 @@ class ParkingLotGenerator:
     """Generate a random parking lot scenario with determined start and destination.
     """
     def __init__(self) -> None:
-        pass``
+        pass
 
     def _create_obstacle(self):
 
