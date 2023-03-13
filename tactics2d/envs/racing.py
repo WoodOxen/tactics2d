@@ -91,9 +91,15 @@ class RacingScenarioManager(ScenarioManager):
         self.n_step += 1
         self.agent.update(action)
 
+    def _check_retrograde(self):
+        pass
+
+    def _check_non_drivable(self):
+        pass
+
     def _check_complete(self):
         if self.tile_visited_cnt == self.n_tile:
-            self.status = TrafficEvent.COMPLETE
+            self.status = TrafficEvent.COMPLETED
 
     def check_status(self) -> TrafficEvent:
         check_list = [

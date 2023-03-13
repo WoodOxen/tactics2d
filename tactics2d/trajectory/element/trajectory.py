@@ -97,8 +97,8 @@ class Trajectory(object):
         if len(self.history_states) > 1:
             current_interval = state.frame - self.frames[-1]
             last_interval = self.frames[-1] - self.frames[-2]
-            if current_interval != last_interval and self.fixed_freq:
-                self.fixed_freq = False
+            if current_interval != last_interval and self.stable_freq:
+                self.stable_freq = False
                 warnings.warn(
                     f"The time interval of the trajectory {self.id_} is uneven."
                 )
@@ -107,7 +107,16 @@ class Trajectory(object):
         self.history_states[state.frame] = state
         self.current_state = state
 
-    def reset(self):
-        self.current_state = None
-        self.history_states.clear()
-        self.frames.clear()
+    def reset(self, state: State = None, keep_history: bool = False):
+        if state is None:
+            initial_state = self.initial_state
+            if not keep_history:
+                self.history_states.clear()
+                self.frames.clear()
+                self.append_state(initial_state)
+            else:
+                self.current_state = initial_state
+        else:
+            self.history_states.clear()
+            self.frames.clear()
+            self.append_state(state)

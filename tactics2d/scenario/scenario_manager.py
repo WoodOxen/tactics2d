@@ -43,15 +43,16 @@ class ScenarioManager(ABC):
         if self.n_step > self.max_step:
             self.status = TrafficEvent.TIME_EXCEED
 
+    @abstractmethod
     def _check_retrograde(self):
         """Check if the agent is driving in the opposite direction of the lane.
         """
-        return TrafficEvent.VIOLATION_RETROGRADE
-    
+
+    @abstractmethod
     def _check_non_drivable(self):
         """Check if the agent is driving on the non-drivable area.
         """
-        return TrafficEvent.VIOLATION_NON_DRIVABLE
+        pass
     
     def _check_outbound(self):
         """Check if the agent is outside the map boundary.

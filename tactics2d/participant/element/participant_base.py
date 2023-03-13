@@ -64,19 +64,6 @@ class ParticipantBase(ABC):
         return True
 
     @abstractmethod
-    def _verify_state(self, curr_state: State, prev_state: State, interval: float) -> bool:
-        """Check if the state change is allowed by the participant's physical constraints.
-
-        Args:
-            curr_state (State): 
-            prev_state (State):
-            interval (float): The time interval between the current state and the previous state.
-
-        Returns:
-            bool: True if the state change is valid, False otherwise.
-        """
-
-    @abstractmethod
     def _verify_trajectory(self, trajectory: Trajectory):
         """Check if the trajectory is allowed by the participant's physical constraints.
 
@@ -104,12 +91,4 @@ class ParticipantBase(ABC):
                 not None, the trajectory will be reset to the new state.
                 Defaults to False.
         """
-        if state is None:
-            self.current_state = self.initial_state
-            if not keep_trajectory:
-                self.trajectory.reset()
-        else:
-            self.initial_state = state
-            self.current_state = state
-            self.trajectory.reset()
-            self.trajectory.append_state(state)
+        self.trajectory.reset(state, keep_trajectory)

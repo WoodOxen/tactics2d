@@ -1,10 +1,10 @@
 import numpy as np
 
-from tactics2d.physics.kinematic_model.base import KinematicsBase
+from .base import VehiclePhysicsBase
 from tactics2d.trajectory.element import State
 
 
-class KSModel(KinematicsBase):
+class KSModel(VehiclePhysicsBase):
     """An implementation of the Kinematic Single-Track Model.
 
     Use the center of vehicle's rear wheels as the origin of local coordinate system.
@@ -98,3 +98,6 @@ class KSModel(KinematicsBase):
 
         new_state.loc = Point(x, y)
         return new_state
+    
+    def verify_state(self, curr_state: State, prev_state: State, interval: float) -> bool:
+        return super().verify_state(curr_state, prev_state, interval)
