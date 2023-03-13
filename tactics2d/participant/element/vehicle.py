@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import numpy as np
 from shapely.geometry import LinearRing
 from shapely.affinity import affine_transform
@@ -65,7 +63,6 @@ class Vehicle(ParticipantBase):
         )
 
     def get_pose(self, frame: int = None) -> LinearRing:
-
         state = self.trajectory.get_state(frame)
         transform_matrix = [
             np.cos(state.heading), -np.sin(state.heading),
@@ -73,12 +70,6 @@ class Vehicle(ParticipantBase):
             state.location[0], state.location[1],
         ]
         return affine_transform(self.bbox, transform_matrix)
-
-    def _verify_state(self, curr_state: State, frame: int = None) -> bool:
-        if self.current_state is None:
-            return True
-
-        return True
 
     def add_state(self, state: State):
         if self._verify_state(state):
@@ -88,6 +79,13 @@ class Vehicle(ParticipantBase):
             raise RuntimeError()
 
     def _verify_trajectory(self, trajectory: Trajectory):
+        for i in range(1, len(trajectory)):
+            if not self.body_type.verify_state(
+                trajectory.get_state(trajectory.frames[i]),
+                trajectory.get_state(trajectory.frames[i-1]),
+                trajectory.frames[i] - trajectory.frames[i-1]
+            ):
+                return False
         return True
 
     def bind_trajectory(self, trajectory: Trajectory):

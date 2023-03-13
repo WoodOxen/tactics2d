@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Iterable
 
 from shapely.geometry import Point
 from pygame.colordict import THECOLORS

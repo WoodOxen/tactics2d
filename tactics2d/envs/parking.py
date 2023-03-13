@@ -595,6 +595,8 @@ class CarParking(gym.Env):
 if __name__ == "__main__":
     a = np.array([0.0, 0.0])
 
+    import pygame
+
     def register_input():
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:

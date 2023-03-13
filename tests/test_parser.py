@@ -18,7 +18,7 @@ from tactics2d.trajectory.parser import DLPParser, InteractionParser, LevelXPars
 def test_lanelet2_parser():
     """Test whether the current parser can manage to parse the provided maps.
     
-    [TODO] split this test to two part: 
+    [TODO] split this test to two part:
         One for testing the correctness of the provided maps' notations;
         One for testing the parser's ability to parse the lanelet2 format maps.
     """

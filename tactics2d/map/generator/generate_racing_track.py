@@ -20,14 +20,14 @@ class RacingTrackGenerator:
     """Generate a random racing track.
 
     Attributes:
-        bezier_generator (Bezier): The Bezier curve generator
+        bezier_generator (Bezier): The Bezier curve generator. The default parameters for
+            the generator are (2, 50), i.e., 2nd order, 50 interpolation points.
     """
 
-    def __init__(self, bezier_param: tuple):
+    def __init__(self, bezier_param: tuple = (2, 50)):
         self.bezier_generator = Bezier(*bezier_param)
 
     def _create_checkpoints(self) -> Tuple[List[np.ndarray], List[np.ndarray], bool]:
-
         n_checkpoint = np.random.randint(*N_CHECKPOINT)
         noise = np.random.uniform(0, 2 * np.pi / n_checkpoint, n_checkpoint)
         alpha = 2 * np.pi * np.arange(n_checkpoint) / n_checkpoint + noise
@@ -173,7 +173,7 @@ class RacingTrackGenerator:
 
         return tiles
 
-    def generate(self) -> Dict[Lane]:
+    def generate_tiles(self) -> Dict[Lane]:
         t1 = time.time()
 
         # generate the checkpoints

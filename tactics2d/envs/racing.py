@@ -15,6 +15,7 @@ from tactics2d.map.generator import RacingTrackGenerator
 from tactics2d.scenario import ScenarioManager, RenderManager
 from tactics2d.scenario import TrafficEvent
 
+
 STATE_W = 128
 STATE_H = 128
 VIDEO_W = 600
@@ -58,11 +59,12 @@ class RacingScenarioManager(ScenarioManager):
 
     def _reset_map(self):
         self.map_.reset()
+        self.map_.lanes = self.map_generator.generate_tiles()
 
-        self.map_generator.generate(self.map_)
         self.n_tile = len(self.map_.lanes)
         self.tile_visited = [False] * self.n_tile
         self.tile_visited_cnt = 0
+
         start_tile = self.map.lanes["0000"]
         self.start_line = LineString(start_tile.get_ends())
         self.end_line = LineString(start_tile.get_starts())
@@ -187,6 +189,7 @@ class RacingEnv(gym.Env):
 
         self.scenario_manager.update(action)
         status = self.scenario_manager.check_status()
+        done = status == TrafficEvent.COMPLETED
 
         observation = self._get_observation()
         reward = self._get_reward()
@@ -195,7 +198,7 @@ class RacingEnv(gym.Env):
             "status": status,
         }
 
-        # return observation, reward, done, info
+        return observation, reward, done, info
 
     def render(self):
         if self.render_mode == "human":

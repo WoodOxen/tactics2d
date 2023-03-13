@@ -24,7 +24,7 @@ def test_camera():
 
     map_parser = Lanelet2Parser()
     map_root = ET.parse(map_path).getroot()
-    map_ = map_parser.parse(map_root, configs["I_5"])
+    # map_ = map_parser.parse(map_root, configs["I_5"])
 
 
 if __name__ == "__main__":

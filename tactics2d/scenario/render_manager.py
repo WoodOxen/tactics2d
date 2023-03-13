@@ -12,14 +12,14 @@ from tactics2d.sensor import SensorBase
 class RenderManager:
     """This class manages the rendering of the scenario.
 
-    By RenderManager, the sensors are registered and can be bound to the participants. 
+    By RenderManager, the sensors are registered and can be bound to the participants.
         The rendering is done by the pygame library.
 
     Attributes:
         map_ (Map): The map of the scenario.
         fps (int): The frame rate of the rendering. Defaults to 60.
         windows_size (Tuple[int, int]): The size of the rendering window. Defaults to (800, 800).
-        layout_style (str): The style of the layout of the rendering window. The available 
+        layout_style (str): The style of the layout of the rendering window. The available
             choices are ["hierarchical", "modular"]. Defaults to "hierarchical".
         off_screen (bool): Whether to render the scenario off screen. Defaults to False.
     """
@@ -109,8 +109,8 @@ class RenderManager:
 
         Args:
             sensor (SensorBase): The sensor instance to be added.
-            main_sensor (bool, optional): Whether the sensor is the main sensor for display. 
-                This argument only take effect when the the layout style is hierarchical. 
+            main_sensor (bool, optional): Whether the sensor is the main sensor for display.
+                This argument only take effect when the the layout style is hierarchical.
                 Defaults to False.
 
         Raises:
@@ -167,7 +167,7 @@ class RenderManager:
 
     def remove(self, sensor_id: int):
         """Remove a registered sensor from the manager.
-        
+
         Args:
             sensor_id (int): The id of the sensor.
         """
@@ -188,11 +188,11 @@ class RenderManager:
             observation of all the sensors.
 
         Args:
-            participants (dict): The dictionary of all participants. The render manager 
+            participants (dict): The dictionary of all participants. The render manager
                 will detect which of them is alive.
-            frame (int): Update the sensors to the given frame. If None, the sensors 
-                will update to the current frame. The default unit is millisecond. 
-                Defaults to None. 
+            frame (int): Update the sensors to the given frame. If None, the sensors
+                will update to the current frame. The default unit is millisecond.
+                Defaults to None.
         """
         to_remove = []
         for sensor_id, sensor in self.sensors.items():

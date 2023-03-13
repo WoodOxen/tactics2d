@@ -9,7 +9,7 @@ from tactics2d.trajectory.element import State, Trajectory
 
 
 class InteractionParser:
-    """This class provides pure static methods to parse trajectory data from the 
+    """This class provides pure static methods to parse trajectory data from the
         INTERACTION dataset.
     """
 
