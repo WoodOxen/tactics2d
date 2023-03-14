@@ -6,7 +6,7 @@ import numpy as np
 from shapely.geometry import Point, LineString
 
 from tactics2d.math import Bezier, Circle
-from tactics2d.map.element import Lane, LaneRelationship
+from tactics2d.map.element import Lane, LaneRelationship, Map
 
 # Track related configurations
 N_CHECKPOINT = (10, 20)  # the number of turns is ranging in 10-20
@@ -163,17 +163,19 @@ class RacingTrackGenerator:
                 inferred_participants=["sports_car"],
             )
 
-            tile.add_related_lane("%04d" % (i - 1), LaneRelationship.PREDECESSOR)
-            if i < n_tile:
+            if i > 0:
+                tile.add_related_lane("%04d" % (i - 1), LaneRelationship.PREDECESSOR)
+            if i < n_tile - 1:
                 tile.add_related_lane("%04d" % (i + 1), LaneRelationship.SUCCESSOR)
-            else:
-                tile.add_related_lane("%04d" % 0, LaneRelationship.SUCCESSOR)
 
             tiles[tile.id_] = tile
 
+        tiles["%04d" % 0].add_related_lane("%04d" % (n_tile - 1), LaneRelationship.PREDECESSOR)
+        tiles["%04d" % (n_tile - 1)].add_related_lane("%04d" % 0, LaneRelationship.SUCCESSOR)
+
         return tiles
 
-    def generate_tiles(self) -> Dict[Lane]:
+    def generate(self, map_: Map) -> Dict[Lane]:
         t1 = time.time()
 
         # generate the checkpoints
@@ -192,11 +194,9 @@ class RacingTrackGenerator:
         # generate tiles
         distance = center_line.length
         n_tile = int(np.ceil(distance / TILE_LENGTH))
-        tiles = self._get_tiles(n_tile, center_line)
+        self.map_.lanes = self._get_tiles(n_tile, center_line)
         logging.info(f"The track is {int(distance)}m long and has {n_tile} tiles.")
 
         # record time cost
         t2 = time.time()
         logging.info("The generating process takes %.4fs." % (t2 - t1))
-
-        return tiles

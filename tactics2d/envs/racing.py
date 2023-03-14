@@ -3,10 +3,9 @@ import logging
 logging.basicConfig(level=logging.WARNING)
 
 import numpy as np
-from shapely.geometry import Point, LineString, LinearRing
+from shapely.geometry import LineString
 import gymnasium as gym
-from gym import spaces
-from gym import InvalidAction
+from gym import spaces, InvalidAction
 
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
@@ -67,7 +66,7 @@ class RacingScenarioManager(ScenarioManager):
 
     def _reset_map(self):
         self.map_.reset()
-        self.map_.lanes = self.map_generator.generate_tiles()
+        self.map_generator.generate(self.map_)
 
         self.n_tile = len(self.map_.lanes)
         self.tile_visited = [False] * self.n_tile
@@ -119,11 +118,11 @@ class RacingEnv(gym.Env):
             [-0.5, 0.5]. The unit of steering is radius. The second action is acceleration. 
             Its value range is [-1, 1]. The unit of acceleration is $m^2/s$.
             When discrete, it is a Discrete(5). The action space is defined above:
-                -  0: do nothing
-                -  1: steer left
-                -  2: steer right
-                -  3: accelerate
-                -  4: decelerate
+            -  0: do nothing
+            -  1: steer left
+            -  2: steer right
+            -  3: accelerate
+            -  4: decelerate
         observation_space (gym.spaces): The observation space is represented as a top-down
             view 128x128 RGB image of the car and the race track. It is a Box(128, 128, 3).
         render_mode (str, optional): The rendering mode. Possible choices are "human" or 

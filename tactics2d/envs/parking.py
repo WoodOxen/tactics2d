@@ -3,16 +3,15 @@ import logging
 logging.basicConfig(level=logging.WARNING)
 
 import numpy as np
-from shapely.geometry import Point, LineString, LinearRing, Polygon
+from shapely.geometry import Point
 import gymnasium as gym
-from gym import spaces
-from gym import InvalidAction
+from gym import spaces, InvalidAction
 
 from tactics2d.map.element import Map
-from tactics2d.map.generator import ParkingLotGenerator
 from tactics2d.participant.element import Vehicle, Other
+from tactics2d.trajectory.element import State
+from tactics2d.map.generator import ParkingLotGenerator
 from tactics2d.scenario import ScenarioManager, RenderManager
-from tactics2d.trajectory.element import State, Trajectory
 from tactics2d.scenario import TrafficEvent
 
 
@@ -34,7 +33,7 @@ DISCRETE_ACTION = np.array(
         [-0.6, 0],  # steer left
         [0.6, 0],  # steer right
         [0, 0.2],  # accelerate
-        [0, -0.8],  # decelerate
+        [0, -0.2],  # decelerate
     ]
 )
 
@@ -82,12 +81,12 @@ class ParkingScenarioManager(ScenarioManager):
 
     def reset(self):
         self.map_.reset()
+        self.obstacles = self.map_generator.generate(self.map_)
 
-        self.start_state, self.target_state, self.obstacles = self.map_generator.generate_parking_scenario()
+        self.dist_norm_ratio = max(
+            Point(self.start_state.location).distance(Point(self.target_state.location)), 10.0)
 
-        self.dist_norm_ratio = max(Point(self.start_state.location).distance(Point(self.target_state.location)), 10.0)
-
-        self.agent.reset()
+        self.agent.reset(self.start_state)
 
     def update(self, action: np.ndarray) -> TrafficEvent:
         self.n_step += 1
@@ -120,7 +119,16 @@ class ParkingEnv(gym.Env):
 
     Attributes:
         action_space (gym.spaces): The action space is either continuous or discrete.
-            When continuous, it is a Box(2,). The first action is steering. Its value range is [-0.75, 0.75].
+            When continuous, it is a Box(2,). The first action is steering. Its value range is 
+            [-0.75, 0.75]. The second action is acceleration. Its value range is [-1, 1]. The unit of acceleration is $m^2/s$.
+            When discrete, it is a Discrete(5). The action value is 0, 1, 2, 3, 4, which means
+            - 0: do nothing
+            - 1: steer left
+            - 2: steer right
+            - 3: accelerate
+            - 4: decelerate
+        observation_space ():
+        render_mode 
     """
 
     metadata = {
@@ -128,7 +136,8 @@ class ParkingEnv(gym.Env):
     }
 
     def __init__(
-        self, render_mode: str = "human", render_fps: int = FPS,
+        self, scenario: str = "bay",
+        render_mode: str = "human", render_fps: int = FPS,
         continuous: bool = True
     ):
 
