@@ -70,10 +70,10 @@ class Trajectory(object):
         return np.mean([state.speed for state in self.history_states.values()])
 
     def get_state(self, frame: int = None) -> State:
-        """Obtain the object's state at the requested time stamp.
+        """Obtain the object's state at the requested frame.
 
-        If the time stamp is not specified, the function will return current state.
-        If the time stamp is given but not found, the function will return None.
+        If the frame is not specified, the function will return the current state.
+        If the frame is given but not found, the function will raise a TrajectoryKeyError.
         """
         if frame is None:
             return self.current_state

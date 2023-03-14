@@ -1,4 +1,3 @@
-from typing import Tuple
 import warnings
 
 import numpy as np
@@ -27,7 +26,7 @@ class RenderManager:
     layout_styles = {"hierarchical", "modular"}
 
     def __init__(
-        self, map_: Map, fps: int = 60, windows_size: Tuple[int, int] = (800, 800),
+        self, map_: Map, fps: int = 60, windows_size: tuple[int, int] = (800, 800),
         layout_style: str = "hierarchical", off_screen: bool = False,
     ):
 

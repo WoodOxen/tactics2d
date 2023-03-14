@@ -28,6 +28,8 @@ class ScenarioManager(ABC):
         self.participants = None
         self.agent = None
 
+        self.status_checklist = []
+
     @abstractmethod
     def update(self):
         """Update the state of the traffic participants.
@@ -43,17 +45,16 @@ class ScenarioManager(ABC):
         if self.n_step > self.max_step:
             self.status = TrafficEvent.TIME_EXCEED
 
-    @abstractmethod
     def _check_retrograde(self):
         """Check if the agent is driving in the opposite direction of the lane.
         """
+        raise NotImplementedError
 
-    @abstractmethod
     def _check_non_drivable(self):
         """Check if the agent is driving on the non-drivable area.
         """
-        pass
-    
+        raise NotImplementedError
+
     def _check_outbound(self):
         """Check if the agent is outside the map boundary.
         """
@@ -69,26 +70,13 @@ class ScenarioManager(ABC):
 
     def _check_collision(self):
         """Check if the agent collides with other participants or the static obstacles."""
-        agent_pose = self.agent.get_pose(self.n_step)
-
-        for participant in self.participants:
-            participant_pose = participant.get_pose()
-            if agent_pose.intersection(participant_pose).area > 0:
-                if participant.type_ == "pedestrian":
-                    self.status = TrafficEvent.COLLISION_PEDESTRIAN
-                    return
-                elif participant.type_ == "vehicle":
-                    self.status = TrafficEvent.COLLISION_VEHICLE
-                    return
-
-        return TrafficEvent.NORMAL
+        raise NotImplementedError
 
     @abstractmethod
-    def _check_complete(self):
+    def _check_completed(self):
         """Check if the goal of this scenario is reached.
         """
 
-    @abstractmethod
     def check_status(self) -> TrafficEvent:
         """Detect different traffic events and return the status.
 
@@ -96,3 +84,10 @@ class ScenarioManager(ABC):
             will be terminated and the status will be returned. If multiple traffic events
             happen at the same step, only the event with the highest priority will be returned.
         """
+
+        for checker in self.status_checklist:
+            checker()
+            if self.status != TrafficEvent.NORMAL:
+                break
+
+        return self.status

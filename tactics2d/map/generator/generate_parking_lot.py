@@ -1,11 +1,10 @@
-from math import pi, cos, sin
+from typing import Tuple
 
 import numpy as np
-from numpy.random import randn, random
 from shapely.geometry import LinearRing, Point
 from shapely.affinity import affine_transform
 
-from tactics2d.trajectory.element import State
+from tactics2d.math.random import truncnorm
 
 
 MIN_DIST_TO_OBST = 0.1
@@ -18,34 +17,64 @@ origin = (0.0, 0.0)
 bay_half_len = 18.0
 
 
+def get_random_position(
+        origin: Point, angle_range: Tuple[float], radius_range: Tuple[float]
+     ):
+    """Get a random position in a circle with given origin and radius range.
+
+    Args:
+        origin (Point): The origin of the circle.
+        angle_range (Tuple[float, float]): The range of angle.
+        radius_range (Tuple[float, float]): The range of radius.
+
+    Returns:
+        Point: The random position.
+    """
+    angle = truncnorm(
+        np.mean(angle_range), np.std(angle_range), angle_range[0], angle_range[1]
+    )
+    radius = truncnorm(
+        np.mean(radius_range), np.std(radius_range), radius_range[0], radius_range[1]
+    )
+
+    return Point(origin.x + radius * np.cos(angle), origin.y + radius * np.sin(angle))
+
+
 class ParkingLotGenerator:
     """Generate a random parking lot scenario with determined start and destination.
     """
-    def __init__(self) -> None:
-        pass
+
+    mode = {"bay", "parallel", "mixed"}
+
+    def __init__(self, mode  = "bay"):
+        if mode not in self.mode:
+            raise NotImplementedError(f"Mode {mode} is not implemented yet.")
+        self.mode = mode
 
     def _create_obstacle(self):
 
         pass
 
-    def get_parking_scenario(self):
+    def _get_destination(self):
+        return
+    
+    def _generate_bay_park_scenario(self):
+        return
+    
+    def _generate_parallel_park_scenario(self):
         return
 
-def _get_rand_pos(origin_x, origin_y, angle_min, angle_max, radius_min, radius_max):
-    angle_mean = (angle_max + angle_min) / 2
-    angle_std = (angle_max - angle_min) / 4
-    angle_rand = _random_gaussian_num(angle_mean, angle_std, angle_min, angle_max)
-    radius_rand = _random_gaussian_num(
-        (radius_min + radius_max) / 2,
-        (radius_max - radius_min) / 4,
-        radius_min,
-        radius_max,
-    )
-    return (
-        origin_x + cos(angle_rand) * radius_rand,
-        origin_y + sin(angle_rand) * radius_rand,
-    )
 
+    def generate_parking_scenario(self):
+        if self.mode == "bay":
+            return self._generate_bay_park_scenario()
+        if self.mode == "parallel":
+            return self._generate_parallel_park_scenario()
+        if self.mode == "mixed":
+            if np.random.rand() < 0.5:
+                return self._generate_bay_park_scenario()
+            else:
+                return self._generate_parallel_park_scenario()
 
 def _gene_park_back_obst():
     """generate the obstacle on back of destination"""

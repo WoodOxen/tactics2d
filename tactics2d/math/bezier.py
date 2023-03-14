@@ -1,5 +1,4 @@
 from copy import deepcopy
-from typing import List
 
 import numpy as np
 
@@ -9,7 +8,7 @@ class Bezier:
         self.order = order
         self.n_interpolation = n_interpolation
 
-    def _second_order(self, control_points: np.ndarray) -> List[np.ndarray]:
+    def _second_order(self, control_points: np.ndarray) -> list[np.ndarray]:
         points = []
         for n in range(self.n_interpolation + 1):
             t = n / self.n_interpolation
@@ -33,7 +32,7 @@ class Bezier:
             points.append(Ps[0])
         return points
 
-    def get_points(self, control_points: np.ndarray) -> List[np.ndarray]:
+    def get_points(self, control_points: np.ndarray) -> list[np.ndarray]:
         if control_points.shape[0] - 1 != self.order:
             raise ValueError
 

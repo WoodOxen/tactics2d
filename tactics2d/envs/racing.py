@@ -4,9 +4,9 @@ logging.basicConfig(level=logging.WARNING)
 
 import numpy as np
 from shapely.geometry import Point, LineString, LinearRing
-
 import gymnasium as gym
 from gym import spaces
+from gym import InvalidAction
 
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
@@ -43,7 +43,7 @@ class RacingScenarioManager(ScenarioManager):
     def __init__(self, max_step: int = MAX_STEP):
         super().__init__(max_step)
 
-        self.map_ = Map(name="CarRacing", scenario_type="racing")
+        self.map_ = Map(name="RacingTrack", scenario_type="racing")
         self.map_generator = RacingTrackGenerator()
         self.agent = Vehicle(
             id_=0, type_="sports_car",
@@ -52,10 +52,18 @@ class RacingScenarioManager(ScenarioManager):
             speed_range=(-10, 100), accel_range=(-1, 1)
         )
 
+        self.n_step = 0
         self.tile_visited = None
         self.tile_visited_cnt = 0
         self.start_line = None
         self.end_line = None
+
+        self.status_checklist = [
+            self._check_time_exceeded,
+            self._check_retrograde,
+            self._check_non_drivable,
+            self._check_complete
+        ]
 
     def _reset_map(self):
         self.map_.reset()
@@ -91,30 +99,9 @@ class RacingScenarioManager(ScenarioManager):
         self.n_step += 1
         self.agent.update(action)
 
-    def _check_retrograde(self):
-        pass
-
-    def _check_non_drivable(self):
-        pass
-
-    def _check_complete(self):
+    def _check_completed(self):
         if self.tile_visited_cnt == self.n_tile:
             self.status = TrafficEvent.COMPLETED
-
-    def check_status(self) -> TrafficEvent:
-        check_list = [
-            self._check_time_exceeded,
-            self._check_retrograde,
-            self._check_non_drivable,
-            self._check_complete
-        ]
-
-        for checker in check_list:
-            checker()
-            if self.status != TrafficEvent.NORMAL:
-                break
-
-        return self.status
 
     def reset(self):
         self.n_step = 0
@@ -155,18 +142,13 @@ class RacingEnv(gym.Env):
         super().__init__()
 
         if render_mode not in self.metadata["render_modes"]:
-            raise NotImplementedError(f"Render_mode {render_mode} is not supported.")
-        else:
-            self.render_mode = render_mode
+            raise NotImplementedError(f"Render mode {render_mode} is not supported.")
+        self.render_mode = render_mode
 
         if render_fps > MAX_FPS:
-            self.render_fps = MAX_FPS
             logging.warning(f"The input rendering FPS is too high. \
                             Set the FPS with the upper limit {MAX_FPS}.")
-        else:
-            self.render_fps = render_fps
-
-        self.step_interval = int(1000 / self.render_fps)
+        self.render_fps = min(render_fps, MAX_FPS)
 
         self.continuous = continuous
 
@@ -191,6 +173,9 @@ class RacingEnv(gym.Env):
         return
 
     def step(self, action: Union[np.array, int]):
+
+        if not self.action_space.contains(action):
+            raise InvalidAction(f"Action {action} is invalid.")
         action = action if self.continuous else DISCRETE_ACTION[action]
 
         self.scenario_manager.update(action)

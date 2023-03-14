@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import numpy as np
 
 from .base import VehiclePhysicsBase
@@ -25,9 +23,9 @@ class PointMass(VehiclePhysicsBase):
     def __init__(
         self,
         time_step: float,
-        steering_angle_range: Tuple[float, float] = None,
-        speed_range: Tuple[float, float] = None,
-        accel_range: Tuple[float, float] = None,
+        steering_angle_range: tuple[float, float] = None,
+        speed_range: tuple[float, float] = None,
+        accel_range: tuple[float, float] = None,
     ):
         super().__init__(time_step, steering_angle_range, speed_range, accel_range)
 

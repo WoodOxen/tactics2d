@@ -77,7 +77,10 @@ class ParticipantBase(ABC):
 
     @abstractmethod
     def get_pose(self, frame: int = None):
-        """Get the traffic participant's pose at the given frame.
+        """Get the traffic participant's pose at the requested frame.
+
+        If the frame is not specified, the function will return the current pose.
+        If the frame is given but not found, the function will raise a TrajectoryKeyError.
         """
 
     def reset(self, state: State = None, keep_trajectory: bool = False):
