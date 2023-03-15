@@ -25,7 +25,7 @@ class Map(object):
         areas (dict): The areas in the map.
         roadlines (dict): The roadlines in the map.
         regulations (dict): The regulations in the map.
-        boundary (tuple, optional): The boundary of the map expressed in the form of 
+        boundary (tuple, optional): The boundary of the map expressed in the form of
             (left, right, front, back). This attribute is automatically calculated when requested.
     """
 

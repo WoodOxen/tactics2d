@@ -1,5 +1,5 @@
 """
-This script provides parameters for building models of traffic participants. 
+This script provides parameters for building models of traffic participants.
 
 The definition of vehicle types is based on the European Emissions Standards (EEC, https://en.wikipedia.org/wiki/Vehicle_size_class) due to its clarity and simplicity. To obtain the parameters, we chose one specific vehicle from each type of vehicle based on typical (highest selling) vehicles and available data found online. These choices were made to ensure the data used is as representative and accurate as possible.
 
@@ -7,9 +7,9 @@ The parameters of the pedestrians are referred to the data provided by ChatGPT.
 """
 
 
-CAR_MODEL = {
-    "microcar":{
-    # Prototype: Smart Fortwo (W453) (https://en.wikipedia.org/wiki/Smart_Fortwo)
+VEHICLE_MODEL = {
+    "microcar": {
+        # Prototype: Smart Fortwo (W453) (https://en.wikipedia.org/wiki/Smart_Fortwo)
         "length": 2.695,
         "width": 1.663,
         "height": 1.555,
@@ -255,5 +255,5 @@ PEDESTRIAN_MODEL = {
         "max_speed": 16.7,
         "max_accel": 4,
         "max_decel": -7.5,
-    }
+    },
 }

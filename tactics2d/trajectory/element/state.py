@@ -11,9 +11,9 @@ class State(object):
         y (float, optional): The y-axis coordinate of an object. The default unit is
             meter (m). Defaults to 0.
         heading (float, optional): The heading direction of an object. The heading information
-            is parsed in an 2D Cardinal coordinate system counterclockwise. The default unit 
+            is parsed in an 2D Cardinal coordinate system counterclockwise. The default unit
             is radian. Defaults to 0.
-        vx (float, optional): The velocity in the x-axis. The default unit is 
+        vx (float, optional): The velocity in the x-axis. The default unit is
             meter per second (m/s). Defaults to None.
         vy (float, optional): The velocity in the y-axis. The default unit is
             meter per second (m/s). Defaults to None.
@@ -24,10 +24,15 @@ class State(object):
     """
 
     def __init__(
-        self, frame: int,
-        x: float = 0, y: float = 0, heading: float = 0,
-        vx: float = None, vy: float = None,
-        ax: float = None, ay: float = None,
+        self,
+        frame: int,
+        x: float = 0,
+        y: float = 0,
+        heading: float = 0,
+        vx: float = None,
+        vy: float = None,
+        ax: float = None,
+        ay: float = None,
     ):
         self.frame = frame
         self.x = x

@@ -51,16 +51,18 @@ class LevelXParser(object):
         self.dataset = dataset
 
     def _calibrate_location(self, x: float, y: float):
-
         return x, y
 
     def parse(
-        self, file_id: int, folder_path: str,
+        self,
+        file_id: int,
+        folder_path: str,
         stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
     ):
         df_track_chunk = pd.read_csv(
             os.path.join(folder_path, "%02d_tracks.csv" % file_id),
-            iterator=True, chunksize=10000,
+            iterator=True,
+            chunksize=10000,
         )
         df_track_meta = pd.read_csv(
             os.path.join(folder_path, "%02d_tracksMeta.csv" % file_id)

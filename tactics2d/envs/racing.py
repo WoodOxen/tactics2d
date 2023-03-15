@@ -1,5 +1,6 @@
 from typing import Union
 import logging
+
 logging.basicConfig(level=logging.WARNING)
 
 import numpy as np
@@ -45,10 +46,12 @@ class RacingScenarioManager(ScenarioManager):
         self.map_ = Map(name="RacingTrack", scenario_type="racing")
         self.map_generator = RacingTrackGenerator()
         self.agent = Vehicle(
-            id_=0, type_="sports_car",
+            id_=0,
+            type_="sports_car",
             steering_angle_range=(-0.5, 0.5),
             steering_velocity_range=(-0.5, 0.5),
-            speed_range=(-10, 100), accel_range=(-1, 1)
+            speed_range=(-10, 100),
+            accel_range=(-1, 1),
         )
 
         self.n_step = 0
@@ -61,7 +64,7 @@ class RacingScenarioManager(ScenarioManager):
             self._check_time_exceeded,
             self._check_retrograde,
             self._check_non_drivable,
-            self._check_complete
+            self._check_complete,
         ]
 
     def _reset_map(self):
@@ -79,22 +82,26 @@ class RacingScenarioManager(ScenarioManager):
     def _reset_agent(self):
         vec = self.start_line[1] - self.start_line[0]
         heading = np.arctan2(-vec[1], vec[0])
-        start_loc = np.mean(self.start_line, axis=0) \
-            - self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
+        start_loc = np.mean(
+            self.start_line, axis=0
+        ) - self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
         state = State(
-            self.n_step, heading=heading,
-            x=start_loc[0], y=start_loc.y[1], vx=0, vy=0,
+            self.n_step,
+            heading=heading,
+            x=start_loc[0],
+            y=start_loc.y[1],
+            vx=0,
+            vy=0,
         )
 
         self.agent.reset(state)
         logging.info(
-            "The racing car starts at (%.3f, %.3f), heading to %.3f rad." \
-                % (start_loc.x, start_loc.y, heading)
+            "The racing car starts at (%.3f, %.3f), heading to %.3f rad."
+            % (start_loc.x, start_loc.y, heading)
         )
 
     def update(self, action: np.ndarray) -> TrafficEvent:
-        """Update the state of the agent by the action instruction.
-        """
+        """Update the state of the agent by the action instruction."""
         self.n_step += 1
         self.agent.update(action)
 
@@ -114,8 +121,8 @@ class RacingEnv(gym.Env):
 
     Attributes:
         action_space (gym.spaces): The action space is either continuous or discrete.
-            When continuous, it is a Box(2,). The first action is steering. Its value range is 
-            [-0.5, 0.5]. The unit of steering is radius. The second action is acceleration. 
+            When continuous, it is a Box(2,). The first action is steering. Its value range is
+            [-0.5, 0.5]. The unit of steering is radius. The second action is acceleration.
             Its value range is [-1, 1]. The unit of acceleration is $m^2/s$.
             When discrete, it is a Discrete(5). The action space is defined above:
             -  0: do nothing
@@ -125,7 +132,7 @@ class RacingEnv(gym.Env):
             -  4: decelerate
         observation_space (gym.spaces): The observation space is represented as a top-down
             view 128x128 RGB image of the car and the race track. It is a Box(128, 128, 3).
-        render_mode (str, optional): The rendering mode. Possible choices are "human" or 
+        render_mode (str, optional): The rendering mode. Possible choices are "human" or
             "rgb_array". Defaults to "human".
         render_fps (int, optional): The expected FPS for rendering. Defaults to 60.
         continuous (bool, optional): Whether to use continuous action space. Defaults to True.
@@ -145,20 +152,24 @@ class RacingEnv(gym.Env):
         self.render_mode = render_mode
 
         if render_fps > MAX_FPS:
-            logging.warning(f"The input rendering FPS is too high. \
-                            Set the FPS with the upper limit {MAX_FPS}.")
+            logging.warning(
+                f"The input rendering FPS is too high. \
+                            Set the FPS with the upper limit {MAX_FPS}."
+            )
         self.render_fps = min(render_fps, MAX_FPS)
 
         self.continuous = continuous
 
         if self.continuous:
             self.action_space = spaces.Box(
-                np.array([-0.5, -1.0]), np.array([0.5, 1.0]), dtype=np.float32)
+                np.array([-0.5, -1.0]), np.array([0.5, 1.0]), dtype=np.float32
+            )
         else:
             self.action_space = spaces.Discrete(5)
 
         self.observation_space = spaces.Box(
-            0, 255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
+            0, 255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8
+        )
 
         self.scenario_manager = RacingScenarioManager()
         self.render_manger = RenderManager()
@@ -168,11 +179,9 @@ class RacingEnv(gym.Env):
         self.scenario_manager.reset()
 
     def _get_reward(self):
-
         return
 
     def step(self, action: Union[np.array, int]):
-
         if not self.action_space.contains(action):
             raise InvalidAction(f"Action {action} is invalid.")
         action = action if self.continuous else DISCRETE_ACTION[action]

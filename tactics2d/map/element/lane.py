@@ -28,7 +28,7 @@ class Lane(object):
         subtype (str, optional): The subtype of the lane. Defaults to None.
         location (str, optional): The location of the lane (urban, nonurban, etc.). Defaults to
             None.
-        inferred_participants (list, optional): The allowing type of traffic participants that 
+        inferred_participants (list, optional): The allowing type of traffic participants that
             can pass the lane. Defaults to None.
         speed_limit (float, optional): The speed limit in this lane. Defaults to None.
         speed_limit_unit (str, optional): The unit of speed limit in this lane. Defaults to
@@ -48,10 +48,18 @@ class Lane(object):
     """
 
     def __init__(
-        self, id_: str, left_side: LineString, right_side: LineString, line_ids: set = None,
-        type_: str = "lanelet", subtype: str = None, color: tuple = None,
-        location: str = None, inferred_participants: list = None,
-        speed_limit: float = None, speed_limit_unit: str = "km/h",
+        self,
+        id_: str,
+        left_side: LineString,
+        right_side: LineString,
+        line_ids: set = None,
+        type_: str = "lanelet",
+        subtype: str = None,
+        color: tuple = None,
+        location: str = None,
+        inferred_participants: list = None,
+        speed_limit: float = None,
+        speed_limit_unit: str = "km/h",
         speed_limit_mandatory: bool = True,
         custom_tags: dict = None,
     ):
@@ -76,8 +84,7 @@ class Lane(object):
             )
 
         self.polygon = LinearRing(
-            list(self.left_side.coords) +
-            list(reversed(list(self.right_side.coords)))
+            list(self.left_side.coords) + list(reversed(list(self.right_side.coords)))
         )
 
         self.predecessors = set()
@@ -120,8 +127,7 @@ class Lane(object):
             relationship (LaneRelationship): The relationship of the lanes
         """
         if id_ == self.id_:
-            warnings.warn(
-                f"Lane {self.id_} cannot be a related lane to itself.")
+            warnings.warn(f"Lane {self.id_} cannot be a related lane to itself.")
             return
         if relationship == LaneRelationship.PREDECESSOR:
             self.predecessors.add(id_)

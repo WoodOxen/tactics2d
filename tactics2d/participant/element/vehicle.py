@@ -1,9 +1,9 @@
 import numpy as np
 from shapely.geometry import LinearRing
-from shapely.affinity import affine_transform
 
 from .participant_base import ParticipantBase
 from tactics2d.trajectory.element.trajectory import State, Trajectory
+from tactics2d.vehicle_physics import KinematicSingleTrack
 
 from .defaults import VEHICLE_MODEL
 
@@ -32,47 +32,62 @@ class Vehicle(ParticipantBase):
     """
 
     def __init__(
-        self, id_: int, type_: str, 
-        length: float = None, width: float = None, height: float = None,
-        params: dict = None, body_type=None, trajectory: Trajectory = None,
+        self,
+        id_: int,
+        type_: str,
+        length: float = None,
+        width: float = None,
+        height: float = None,
+        params: dict = dict(),
+        body_type=None,
+        trajectory: Trajectory = None,
     ):
         super().__init__(id_, type_, length, width, height, trajectory)
 
         attribs = [
-            "color", "kerb_weight",
-            "wheel_base", "front_hang", "rear_hang",
-            "steering_angle_range", "steering_velocity_range", "speed_range",
-            "accel_range","comfort_accel_range"
+            "color",
+            "kerb_weight",
+            "wheel_base",
+            "front_hang",
+            "rear_hang",
+            "steering_angle_range",
+            "steering_velocity_range",
+            "speed_range",
+            "accel_range",
+            "comfort_accel_range",
         ]
         for attrib in attribs:
             if attrib not in params:
                 if self.type_ in VEHICLE_MODEL and attrib in VEHICLE_MODEL[type_]:
                     setattr(self, attrib, VEHICLE_MODEL[type_][attrib])
                 else:
-                    setattr(self, attrib, None)
+                    setattr(self, attrib, 0.0)
             else:
                 setattr(self, attrib, [attrib])
 
-        self.body_type = body_type
+        self.body_type = (
+            KinematicSingleTrack(
+                self.wheel_base, 0.001, 10, self.speed_range, self.steering_angle_range
+            )
+            if body_type is None
+            else body_type
+        )
 
         self.bbox = LinearRing(
             [
-                [0.5 * self.length, -0.5 * self.width], [0.5 * self.length, 0.5 * self.width],
-                [-0.5 * self.length, 0.5 * self.width], [-0.5 * self.length, -0.5 * self.width],
+                [0.5 * self.length, -0.5 * self.width],
+                [0.5 * self.length, 0.5 * self.width],
+                [-0.5 * self.length, 0.5 * self.width],
+                [-0.5 * self.length, -0.5 * self.width],
             ]
         )
 
-    def get_pose(self, frame: int = None) -> LinearRing:
-        state = self.trajectory.get_state(frame)
-        transform_matrix = [
-            np.cos(state.heading), -np.sin(state.heading),
-            np.sin(state.heading), np.cos(state.heading),
-            state.location[0], state.location[1],
-        ]
-        return affine_transform(self.bbox, transform_matrix)
-
     def add_state(self, state: State):
-        if self._verify_state(state):
+        if self.body_type.verify_state(
+            state,
+            self.trajectory.current_state,
+            self.trajectory.frames[-1] - self.trajectory.frames[-2],
+        ):
             self.trajectory.append_state(state)
             self.current_state = state
         else:
@@ -82,8 +97,8 @@ class Vehicle(ParticipantBase):
         for i in range(1, len(trajectory)):
             if not self.body_type.verify_state(
                 trajectory.get_state(trajectory.frames[i]),
-                trajectory.get_state(trajectory.frames[i-1]),
-                trajectory.frames[i] - trajectory.frames[i-1]
+                trajectory.get_state(trajectory.frames[i - 1]),
+                trajectory.frames[i] - trajectory.frames[i - 1],
             ):
                 return False
         return True

@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import shapely
 from shapely.geometry import LineString, Point
 
@@ -24,9 +26,13 @@ class RoadLine:
     """
 
     def __init__(
-        self, id_: str, linestring: LineString,
-        type_: str = "virtual", subtype: str = None, color: tuple = None,
-        lane_change: tuple[bool, bool] = (True, True),
+        self,
+        id_: str,
+        linestring: LineString,
+        type_: str = "virtual",
+        subtype: str = None,
+        color: tuple = None,
+        lane_change: Tuple[bool, bool] = (True, True),
         width: float = None,
         height: float = None,
         temporary: bool = False,

@@ -10,12 +10,13 @@ from tactics2d.trajectory.element import State, Trajectory
 
 class InteractionParser:
     """This class provides pure static methods to parse trajectory data from the
-        INTERACTION dataset.
+    INTERACTION dataset.
     """
 
     @staticmethod
     def parse_vehicle(
-        file_id: int, folder_path: str,
+        file_id: int,
+        folder_path: str,
         stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
     ):
         df_vehicle = pd.read_csv(
@@ -35,8 +36,10 @@ class InteractionParser:
             vehicle_id = state_info["track_id"]
             if vehicle_id not in vehicles:
                 vehicle = Vehicle(
-                    id_=vehicle_id, type_=state_info["agent_type"],
-                    length=state_info["length"], width=state_info["width"],
+                    id_=vehicle_id,
+                    type_=state_info["agent_type"],
+                    length=state_info["length"],
+                    width=state_info["width"],
                 )
                 vehicles[vehicle_id] = vehicle
 
@@ -44,8 +47,12 @@ class InteractionParser:
                 trajectories[vehicle_id] = Trajectory(vehicle_id)
 
             state = State(
-                frame=state_info["timestamp_ms"], x=state_info["x"], y=state_info["y"],
-                heading=state_info["psi_rad"], vx=state_info["vx"], vy=state_info["vy"],
+                frame=state_info["timestamp_ms"],
+                x=state_info["x"],
+                y=state_info["y"],
+                heading=state_info["psi_rad"],
+                vx=state_info["vx"],
+                vy=state_info["vy"],
             )
             trajectories[vehicle_id].append_state(state)
 
@@ -56,7 +63,9 @@ class InteractionParser:
 
     @staticmethod
     def parse_pedestrians(
-        participants: dict, file_id: int, folder_path: str,
+        participants: dict,
+        file_id: int,
+        folder_path: str,
         stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
     ):
         pedestrian_path = os.path.join(
@@ -82,8 +91,11 @@ class InteractionParser:
                 id_cnt += 1
 
             state = State(
-                frame=state_info["timestamp_ms"], x=state_info["x"], y=state_info["y"],
-                vx=state_info["vx"], vy=state_info["vy"],
+                frame=state_info["timestamp_ms"],
+                x=state_info["x"],
+                y=state_info["y"],
+                vx=state_info["vx"],
+                vy=state_info["vy"],
             )
             trajectories[pedestrian_ids[state_info["track_id"]]].append_state(state)
 
@@ -98,7 +110,8 @@ class InteractionParser:
 
     @staticmethod
     def parse(
-        file_id: int, folder_path: str,
+        file_id: int,
+        folder_path: str,
         stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
     ):
         participants = InteractionParser.parse_vehicle(

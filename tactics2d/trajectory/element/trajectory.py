@@ -16,14 +16,14 @@ class Trajectory(object):
     Attributes:
         id_ (int): The id of the trajectory.
         fps (float, optional): The frequency of the trajectory. Defaults to None.
-        stable_freq (bool, optional): Whether the trajectory has a stable frequency. 
+        stable_freq (bool, optional): Whether the trajectory has a stable frequency.
             Defaults to True.
         current_state (State, optional): The current state of the trajectory. This attribute
             will automatically update when the trajectory is appended with a new state.
         history_states (dict, optional): The history states of the trajectory. The key is the
             frame of the state and the value is the state itself.
         frames (list, optional): The list of frames of the trajectory. The value of frames
-            must be monotonically increasing. The frames are integers and the default unit is 
+            must be monotonically increasing. The frames are integers and the default unit is
             millisecond (ms).
     """
 
@@ -53,7 +53,7 @@ class Trajectory(object):
     @property
     def first_frame(self):
         return self.frames[0]
-    
+
     @property
     def last_frame(self):
         return self.frames[-1]

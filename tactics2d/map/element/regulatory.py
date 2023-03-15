@@ -14,14 +14,20 @@ class RegulatoryElement(object):
             right_of_way, all_way_stop]
         dynamic (bool): Whether the regulatory element will be changed by time or not.
         fallback (bool): Whether the regulatory element has a lower priority than other
-            RegulatoryElements. 
+            RegulatoryElements.
         custom_tags (dict): The custom tags of the regulatory element. Defaults to None.
     """
 
     def __init__(
-        self, id_: str, relation_ids: set = None, way_ids: set = None,
-        type_: str = "regulatory_element", subtype: str = None,
-        location: str = None, dynamic: bool = False, fallback: bool = False,
+        self,
+        id_: str,
+        relation_ids: set = None,
+        way_ids: set = None,
+        type_: str = "regulatory_element",
+        subtype: str = None,
+        location: str = None,
+        dynamic: bool = False,
+        fallback: bool = False,
         custom_tags: dict = None,
     ):
         if subtype is None:

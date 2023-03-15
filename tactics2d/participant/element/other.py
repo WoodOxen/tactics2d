@@ -3,7 +3,6 @@ from shapely.geometry import LinearRing
 from shapely.affinity import affine_transform
 
 from .participant_base import ParticipantBase
-from tactics2d.trajectory.element.state import State
 from tactics2d.trajectory.element.trajectory import Trajectory
 
 
@@ -13,9 +12,14 @@ class Other(ParticipantBase):
     Attributes:
 
     """
+
     def __init__(
-        self, id_: int, type_: str = None,
-        length: float = None, width: float = None, height: float = None,
+        self,
+        id_: int,
+        type_: str = None,
+        length: float = None,
+        width: float = None,
+        height: float = None,
         shape: LinearRing = None,
         trajectory=None,
     ):
@@ -28,8 +32,10 @@ class Other(ParticipantBase):
         if self._shape is None:
             self._shape = LinearRing(
                 [
-                    [0.5 * self.length, -0.5 * self.width], [0.5 * self.length, 0.5 * self.width],
-                    [-0.5 * self.length, 0.5 * self.width], [-0.5 * self.length, -0.5 * self.width],
+                    [0.5 * self.length, -0.5 * self.width],
+                    [0.5 * self.length, 0.5 * self.width],
+                    [-0.5 * self.length, 0.5 * self.width],
+                    [-0.5 * self.length, -0.5 * self.width],
                 ]
             )
         return self._shape
@@ -42,12 +48,15 @@ class Other(ParticipantBase):
             self.trajectory = trajectory
         else:
             raise RuntimeError()
-        
+
     def get_pose(self, frame: int = None) -> LinearRing:
         state = self.trajectory.get_state(frame)
         transform_matrix = [
-            np.cos(state.heading), -np.sin(state.heading),
-            np.sin(state.heading), np.cos(state.heading),
-            state.location[0], state.location[1],
+            np.cos(state.heading),
+            -np.sin(state.heading),
+            np.sin(state.heading),
+            np.cos(state.heading),
+            state.location[0],
+            state.location[1],
         ]
         return affine_transform(self.shape, transform_matrix)

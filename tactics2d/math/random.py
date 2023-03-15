@@ -1,9 +1,10 @@
 import numpy as np
 
-def truncate_gaussian(mean, std, min, max, size = None):
+
+def truncate_gaussian(mean, std, min, max, size=None):
     """Return a random number from a truncated gaussian distribution.
 
-    The distribution is truncated to the interval [min, max]. The distribution is defined 
+    The distribution is truncated to the interval [min, max]. The distribution is defined
         by the mean and standard deviation of the gaussian distribution.
 
     Args:
