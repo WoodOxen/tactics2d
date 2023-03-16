@@ -29,9 +29,7 @@ class Map(object):
             (left, right, front, back). This attribute is automatically calculated when requested.
     """
 
-    def __init__(
-        self, name: str = None, scenario_type: str = None, country: str = None
-    ):
+    def __init__(self, name: str = None, scenario_type: str = None, country: str = None):
         self.name = name
         self.scenario_type = scenario_type
         self.country = country

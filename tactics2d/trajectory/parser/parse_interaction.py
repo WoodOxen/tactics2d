@@ -114,9 +114,7 @@ class InteractionParser:
         folder_path: str,
         stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
     ):
-        participants = InteractionParser.parse_vehicle(
-            file_id, folder_path, stamp_range
-        )
+        participants = InteractionParser.parse_vehicle(file_id, folder_path, stamp_range)
         participants = InteractionParser.parse_pedestrians(
             participants, file_id, folder_path, stamp_range
         )

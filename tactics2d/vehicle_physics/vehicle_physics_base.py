@@ -8,9 +8,7 @@ class VehiclePhysicsBase(ABC):
         super().__init__()
 
     @abstractmethod
-    def verify_state(
-        self, curr_state: State, prev_state: State, interval: float
-    ) -> bool:
+    def verify_state(self, curr_state: State, prev_state: State, interval: float) -> bool:
         """Check if the state change is allowed by the participant's physical constraints.
 
         Args:

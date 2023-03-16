@@ -86,9 +86,7 @@ class ParkingScenarioManager(ScenarioManager):
         self.obstacles = self.map_generator.generate()
 
         self.dist_norm_ratio = max(
-            Point(self.start_state.location).distance(
-                Point(self.target_state.location)
-            ),
+            Point(self.start_state.location).distance(Point(self.target_state.location)),
             10.0,
         )
 
@@ -196,9 +194,7 @@ class ParkingEnv(gym.Env):
         prev_dist = Point(prev_state.location).distance(
             Point(self.scenario_manager.target_state.location)
         )
-        distance_reward = (
-            prev_dist - curr_dist
-        ) / self.scenario_manager.dist_norm_ratio
+        distance_reward = (prev_dist - curr_dist) / self.scenario_manager.dist_norm_ratio
 
         curr_angle_diff = truncate_angle(
             curr_state.heading - self.scenario_manager.target_state.heading

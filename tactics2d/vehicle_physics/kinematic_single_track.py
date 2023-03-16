@@ -106,7 +106,5 @@ class KinematicSingleTrack(VehiclePhysicsBase):
         new_state.loc = Point(x, y)
         return new_state
 
-    def verify_state(
-        self, curr_state: State, prev_state: State, interval: float
-    ) -> bool:
+    def verify_state(self, curr_state: State, prev_state: State, interval: float) -> bool:
         return True

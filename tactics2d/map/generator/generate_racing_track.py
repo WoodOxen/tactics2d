@@ -138,9 +138,7 @@ class RacingTrackGenerator:
         return center_line
 
     def _get_tiles(self, n_tile: int, center_line: LineString) -> Dict[Lane]:
-        center_points = [
-            center_line.interpolate(TILE_LENGTH * i) for i in range(n_tile)
-        ]
+        center_points = [center_line.interpolate(TILE_LENGTH * i) for i in range(n_tile)]
 
         # generate tracks with the same length
         left_points = []

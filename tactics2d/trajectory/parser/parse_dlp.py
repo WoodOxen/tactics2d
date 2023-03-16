@@ -82,19 +82,16 @@ class DLPParser(object):
         id_cnt = 0
 
         for frame in df_frame.values():
-            if (
-                frame["timestamp"] < stamp_range[0]
-                or frame["timestamp"] > stamp_range[1]
-            ):
+            if frame["timestamp"] < stamp_range[0] or frame["timestamp"] > stamp_range[1]:
                 continue
 
             for obstacle in df_obstacle.values():
                 state = State(frame=round(frame["timestamp"] * 1000))
 
                 if obstacle["obstacle_token"] not in participants:
-                    participants[
-                        obstacle["obstacle_token"]
-                    ] = self._generate_participant(obstacle, id_cnt)
+                    participants[obstacle["obstacle_token"]] = self._generate_participant(
+                        obstacle, id_cnt
+                    )
                     id_cnt += 1
 
                 participants[obstacle["obstacle_token"]].trajectory.append_state(state)

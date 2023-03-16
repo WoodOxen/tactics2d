@@ -31,9 +31,7 @@ class RegulatoryElement(object):
         custom_tags: dict = None,
     ):
         if subtype is None:
-            raise ValueError(
-                "The subtype of RegulatoryElement %s is not defined!" % id_
-            )
+            raise ValueError("The subtype of RegulatoryElement %s is not defined!" % id_)
 
         self.id_ = id_
         self.relation_ids = relation_ids

@@ -1,13 +1,16 @@
 import sys
+
 sys.path.append(".")
 sys.path.append("..")
 import logging
+
 logging.basicConfig(level=logging.DEBUG)
 import xml.etree.ElementTree as ET
 import json
 import time
 
 from tactics2d.map.parser import Lanelet2Parser
+
 # from tactics2d.trajectory.parser import LevelXParser
 from tactics2d.trajectory.parser import InteractionParser
 from tactics2d.scenario.render_manager import RenderManager
@@ -28,7 +31,6 @@ def test_camera():
 
 
 if __name__ == "__main__":
-
     map_path = "./tactics2d/data/map_default/I_5_INTERACTION_USA.osm"
     trajectory_path = "./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/DR_USA_Intersection_EP0"
     config_path = "./tactics2d/data/map_default.config"
@@ -42,15 +44,20 @@ if __name__ == "__main__":
 
     # trajectory_parser = LevelXParser("inD")
     trajectory_parser = InteractionParser()
-    participants = trajectory_parser.parse(0, trajectory_path, (0., 200.))
+    participants = trajectory_parser.parse(0, trajectory_path, (0.0, 200.0))
 
     render_manager = RenderManager(
-        map_, fps=200, windows_size=(1200, 1200), layout_style="hierarchical")
+        map_, fps=200, windows_size=(1200, 1200), layout_style="hierarchical"
+    )
 
     perception_range = (30, 30, 45, 15)
     main_camera = TopDownCamera(1, map_, window_size=(800, 800))
-    camera1 = TopDownCamera(2, map_, perception_range=perception_range, window_size=(200, 200))
-    camera2 = TopDownCamera(3, map_, perception_range=perception_range, window_size=(200, 200))
+    camera1 = TopDownCamera(
+        2, map_, perception_range=perception_range, window_size=(200, 200)
+    )
+    camera2 = TopDownCamera(
+        3, map_, perception_range=perception_range, window_size=(200, 200)
+    )
 
     render_manager.add(main_camera, main_sensor=True)
     # render_manager.add(camera1)
@@ -71,4 +78,4 @@ if __name__ == "__main__":
         render_manager.update(participants, frame)
         render_manager.render()
     t2 = time.time()
-    print("Average fps: ", 1//((t2 - t1)/200))
+    print("Average fps: ", 1 // ((t2 - t1) / 200))

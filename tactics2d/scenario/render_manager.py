@@ -98,9 +98,7 @@ class RenderManager:
             width = self.windows_size[0] / n
             height = self.windows_size[1] / np.ceil(len(sensor_to_display) / n)
             for i, sensor in enumerate(self.sensors.values()):
-                scale = min(
-                    width / sensor.window_size[0], height / sensor.window_size[1]
-                )
+                scale = min(width / sensor.window_size[0], height / sensor.window_size[1])
                 coords = (
                     (i % n) * width + (width - sensor.window_size[0] * scale) / 2,
                     (i // n) * height + (height - sensor.window_size[1] * scale) / 2,
@@ -143,9 +141,7 @@ class RenderManager:
         """
 
         if sensor_id not in self.sensors:
-            raise KeyError(
-                f"Sensor {sensor_id} is not registered in the render manager."
-            )
+            raise KeyError(f"Sensor {sensor_id} is not registered in the render manager.")
 
         if sensor_id in self.bound_sensors:
             warnings.warn(

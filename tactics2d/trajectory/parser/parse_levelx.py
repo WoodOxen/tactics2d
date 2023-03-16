@@ -123,9 +123,7 @@ class LevelXParser(object):
 
                 trajectory_id = int(state_info[id_key])
                 if trajectory_id not in trajectories:
-                    trajectories[trajectory_id] = Trajectory(
-                        id_=trajectory_id, fps=25.0
-                    )
+                    trajectories[trajectory_id] = Trajectory(id_=trajectory_id, fps=25.0)
 
                 if self.dataset == "highD":
                     x, y = self._calibrate_location(state_info["x"], state_info["y"])
@@ -139,9 +137,7 @@ class LevelXParser(object):
                     )
                     state = State(frame, x=x, y=y, heading=state_info["heading"])
                 state.set_velocity(state_info["xVelocity"], state_info["yVelocity"])
-                state.set_accel(
-                    state_info["xAcceleration"], state_info["yAcceleration"]
-                )
+                state.set_accel(state_info["xAcceleration"], state_info["yAcceleration"])
 
                 trajectories[trajectory_id].append_state(state)
 

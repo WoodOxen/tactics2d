@@ -247,9 +247,7 @@ class TopDownCamera(SensorBase):
 
     def _render_pedestrian(self, pedestrian: Pedestrian, frame: int = None):
         color = (
-            PEDESTRIAN_COLOR["default"]
-            if pedestrian.color is None
-            else pedestrian.color
+            PEDESTRIAN_COLOR["default"] if pedestrian.color is None else pedestrian.color
         )
         point = affine_transform(Point(pedestrian.trajectory.get_state(frame).location))
         radius = max(1, 0.5 * self.scale)
