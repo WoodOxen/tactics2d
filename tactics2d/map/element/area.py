@@ -14,6 +14,7 @@ class Area(object):
     Attributes:
         id_ (str): The unique identifier of the area.
         polygon (Polygon): The shape of the area expressed in geometry format.
+        line_ids (dict, optional): The ids of the lines that circle this area. Defaults to None.
         type_ (str): The type of the area. The default value is "multipolygon".
         subtype (str, optional): The subtype of the area. Defaults to None.
         color (tuple, optional): The color of the area. Defaults to None.
@@ -34,7 +35,7 @@ class Area(object):
         self,
         id_: str,
         polygon: Polygon,
-        line_ids: dict,
+        line_ids: dict = None,
         type_: str = "multipolygon",
         subtype: str = None,
         color: tuple = None,
@@ -64,7 +65,6 @@ class Area(object):
                 % (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
             )
 
-    @property
     def shape(self, outer_only: bool = False):
         outer_shape = list(self.polygon.exterior.coords)
         if outer_only:
