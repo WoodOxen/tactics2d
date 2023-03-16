@@ -40,24 +40,16 @@ AREA_COLOR = {
 }
 
 
-ROADLINE_COLOR = {
-    "default": THECOLORS["white"],
-}
+ROADLINE_COLOR = {"default": THECOLORS["white"]}
 
 
-VEHICLE_COLOR = {
-    "default": THECOLORS["turquoise1"],
-}
+VEHICLE_COLOR = {"default": THECOLORS["turquoise1"]}
 
 
-CYCLIST_COLOR = {
-    "default": THECOLORS["cyan1"],
-}
+CYCLIST_COLOR = {"default": THECOLORS["cyan1"]}
 
 
-PEDESTRIAN_COLOR = {
-    "default": THECOLORS["lightpink1"],
-}
+PEDESTRIAN_COLOR = {"default": THECOLORS["lightpink1"]}
 
 
 class TopDownCamera(SensorBase):

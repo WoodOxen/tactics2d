@@ -1,11 +1,7 @@
 LEGAL_SPEED_UNIT = ["km/h", "mi/h", "m/s"]
 
 LANE_CONFIG = {
-    "road": {
-        "inferred_participants": [],
-        "speed_limit": 20,
-        "speed_limit_unit": "km/h",
-    },
+    "road": {"inferred_participants": [], "speed_limit": 20, "speed_limit_unit": "km/h"},
     "highway": {
         "inferred_participants": [],
         "speed_limit": 35,
@@ -31,11 +27,7 @@ LANE_CONFIG = {
         "speed_limit": 10,
         "speed_limit_unit": "km/h",
     },
-    "exit": {
-        "inferred_participants": [],
-        "speed_limit": 5,
-        "speed_limit_unit": "km/h",
-    },
+    "exit": {"inferred_participants": [], "speed_limit": 5, "speed_limit_unit": "km/h"},
     "walkway": {
         "inferred_participants": [],
         "speed_limit": 5,
@@ -51,11 +43,7 @@ LANE_CONFIG = {
         "speed_limit": 5,
         "speed_limit_unit": "km/h",
     },
-    "stairs": {
-        "inferred_participants": [],
-        "speed_limit": 5,
-        "speed_limit_unit": "km/h",
-    },
+    "stairs": {"inferred_participants": [], "speed_limit": 5, "speed_limit_unit": "km/h"},
 }
 
 
@@ -74,8 +62,5 @@ LANE_CHANGE_MAPPING = {
         "dashed_solid": (True, False),  # left->right: yes
         "solid_dashed": (False, True),  # right->left: yes
     },
-    "curbstone": {
-        "high": (False, False),
-        "low": (False, False),
-    },
+    "curbstone": {"high": (False, False), "low": (False, False)},
 }

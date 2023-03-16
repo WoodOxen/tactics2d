@@ -135,9 +135,7 @@ class ParkingEnv(gym.Env):
         render_mode
     """
 
-    metadata = {
-        "render_modes": ["human", "rgb_array"],
-    }
+    metadata = {"render_modes": ["human", "rgb_array"]}
 
     def __init__(
         self,

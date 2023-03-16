@@ -86,12 +86,7 @@ class RacingScenarioManager(ScenarioManager):
             self.start_line, axis=0
         ) - self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
         state = State(
-            self.n_step,
-            heading=heading,
-            x=start_loc[0],
-            y=start_loc.y[1],
-            vx=0,
-            vy=0,
+            self.n_step, heading=heading, x=start_loc[0], y=start_loc.y[1], vx=0, vy=0
         )
 
         self.agent.reset(state)
@@ -138,9 +133,7 @@ class RacingEnv(gym.Env):
         continuous (bool, optional): Whether to use continuous action space. Defaults to True.
     """
 
-    metadata = {
-        "render_modes": ["human", "rgb_array"],
-    }
+    metadata = {"render_modes": ["human", "rgb_array"]}
 
     def __init__(
         self, render_mode: str = "human", render_fps: int = FPS, continuous: bool = True
@@ -193,9 +186,7 @@ class RacingEnv(gym.Env):
         observation = self._get_observation()
         reward = self._get_reward()
 
-        info = {
-            "status": status,
-        }
+        info = {"status": status}
 
         return observation, reward, done, info
 

@@ -42,11 +42,7 @@ class DLPParser(object):
 
         return participant
 
-    def load(
-        self,
-        file_id: int,
-        folder_path: str,
-    ):
+    def load(self, file_id: int, folder_path: str):
         with open("%s/DJI_%04d_agents.json" % (folder_path, file_id), "r") as f_agent:
             df_agent = json.load(f_agent)
         with open("%s/DJI_%04d_frames.json" % (folder_path, file_id), "r") as f_frame:
