@@ -6,7 +6,8 @@ logging.basicConfig(level=logging.WARNING)
 import numpy as np
 from shapely.geometry import Point
 import gymnasium as gym
-from gym import spaces, InvalidAction
+from gym import spaces
+from gym.error import InvalidAction
 
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle, Other
@@ -51,11 +52,9 @@ def truncate_angle(angle: float):
 
 
 class ParkingScenarioManager(ScenarioManager):
-    def __init__(self, max_step: int):
+    def __init__(self, max_step: int, bay_proportion: float):
         super().__init__(max_step)
 
-        self.map_ = Map(name="ParkingLot", scenario_type="parking")
-        self.map_generator = ParkingLotGenerator()
         self.agent = Vehicle(
             id_=0,
             type_="sedan",
@@ -63,6 +62,11 @@ class ParkingScenarioManager(ScenarioManager):
             steering_velocity_range=(-0.5, 0.5),
             speed_range=(-10, 100),
             accel_range=(-1, 1),
+        )
+
+        self.map_ = Map(name="ParkingLot", scenario_type="parking")
+        self.map_generator = ParkingLotGenerator(
+            (self.agent.length, self.agent.width), bay_proportion
         )
 
         self.n_step = 0
@@ -83,7 +87,7 @@ class ParkingScenarioManager(ScenarioManager):
 
     def reset(self):
         self.map_.reset()
-        self.obstacles = self.map_generator.generate()
+        self.obstacles = self.map_generator.generate(self.map_)
 
         self.dist_norm_ratio = max(
             Point(self.start_state.location).distance(Point(self.target_state.location)),
@@ -139,7 +143,7 @@ class ParkingEnv(gym.Env):
 
     def __init__(
         self,
-        scenario: str = "bay",
+        bay_proportion: float = 0.5,
         render_mode: str = "human",
         render_fps: int = FPS,
         continuous: bool = True,

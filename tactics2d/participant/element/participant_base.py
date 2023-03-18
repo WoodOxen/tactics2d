@@ -1,8 +1,5 @@
 from abc import ABC, abstractmethod
 
-import numpy as np
-from shapely.affinity import affine_transform
-
 from tactics2d.trajectory.element.trajectory import State, Trajectory
 
 
@@ -82,22 +79,13 @@ class ParticipantBase(ABC):
     def bind_trajectory(self, trajectory: Trajectory):
         """Bind a trajectory with the traffic participant."""
 
+    @abstractmethod
     def get_pose(self, frame: int = None):
         """Get the traffic participant's pose at the requested frame.
 
         If the frame is not specified, the function will return the current pose.
         If the frame is given but not found, the function will raise a TrajectoryKeyError.
         """
-        state = self.trajectory.get_state(frame)
-        transform_matrix = [
-            np.cos(state.heading),
-            -np.sin(state.heading),
-            np.sin(state.heading),
-            np.cos(state.heading),
-            state.location[0],
-            state.location[1],
-        ]
-        return affine_transform(self.bbox, transform_matrix)
 
     def reset(self, state: State = None, keep_trajectory: bool = False):
         """Reset the object to a given state. If the initial state is not specified, the object

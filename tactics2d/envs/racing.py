@@ -6,7 +6,8 @@ logging.basicConfig(level=logging.WARNING)
 import numpy as np
 from shapely.geometry import LineString
 import gymnasium as gym
-from gym import spaces, InvalidAction
+from gym import spaces
+from gym.error import InvalidAction
 
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle

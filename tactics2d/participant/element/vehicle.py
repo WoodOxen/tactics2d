@@ -1,5 +1,8 @@
+from typing import Tuple
+
 import numpy as np
 from shapely.geometry import LinearRing
+from shapely.affinity import affine_transform
 
 from .participant_base import ParticipantBase
 from tactics2d.trajectory.element.trajectory import State, Trajectory
@@ -38,14 +41,27 @@ class Vehicle(ParticipantBase):
         length: float = None,
         width: float = None,
         height: float = None,
-        params: dict = dict(),
+        color: tuple = None,
+        kerb_weight: float = None,
+        wheel_base: float = None,
+        front_hang: float = None,
+        rear_hang: float = None,
+        steering_angle_range: Tuple[float, float] = None,
+        steering_velocity_range: Tuple[float, float] = None,
+        speed_range: Tuple[float, float] = None,
+        accel_range: Tuple[float, float] = None,
+        comfort_accel_range: Tuple[float, float] = None,
         body_type=None,
         trajectory: Trajectory = None,
     ):
         super().__init__(id_, type_, length, width, height, trajectory)
 
+        self.color = color
+
         attribs = [
-            "color",
+            "length",
+            "width",
+            "height",
             "kerb_weight",
             "wheel_base",
             "front_hang",
@@ -56,14 +72,14 @@ class Vehicle(ParticipantBase):
             "accel_range",
             "comfort_accel_range",
         ]
+
         for attrib in attribs:
-            if attrib not in params:
-                if self.type_ in VEHICLE_MODEL and attrib in VEHICLE_MODEL[type_]:
-                    setattr(self, attrib, VEHICLE_MODEL[type_][attrib])
-                else:
-                    setattr(self, attrib, 0.0)
-            else:
-                setattr(self, attrib, [attrib])
+            setattr(self, attrib, locals()[attrib])
+            if getattr(self, attrib) is None:
+                try:
+                    setattr(self, attrib, VEHICLE_MODEL[self.type_][attrib])
+                except:
+                    pass
 
         self.body_type = (
             KinematicSingleTrack(
@@ -108,6 +124,18 @@ class Vehicle(ParticipantBase):
             self.trajectory = trajectory
         else:
             raise RuntimeError()
+
+    def get_pose(self, frame: int = None) -> LinearRing:
+        state = self.trajectory.get_state(frame)
+        transform_matrix = [
+            np.cos(state.heading),
+            -np.sin(state.heading),
+            np.sin(state.heading),
+            np.cos(state.heading),
+            state.location[0],
+            state.location[1],
+        ]
+        return affine_transform(self.bbox, transform_matrix)
 
     def update(self, action: np.ndarray):
         """Update the agent's state with the given action."""

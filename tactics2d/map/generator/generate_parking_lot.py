@@ -1,7 +1,10 @@
 from typing import Tuple
+import time
+import logging
 
+logging.basicConfig(level=logging.DEBUG)
 import numpy as np
-from shapely.geometry import LinearRing, Point
+from shapely.geometry import LinearRing, Point, Polygon
 from shapely.affinity import affine_transform
 
 from tactics2d.math.random import truncate_gaussian
@@ -11,7 +14,7 @@ from tactics2d.trajectory.element import State
 
 
 ORIGIN = Point(0.0, 0.0)
-SCENARIO_SIZE = (15.0, 15.0)
+SCENARIO_SIZE = (30.0, 30.0)
 HEADING_PARAMS = {
     "bay": (np.pi / 2, np.pi / 36, np.pi * 5 / 12, np.pi * 7 / 12),
     "parallel": (0, np.pi / 36, -np.pi / 12, np.pi / 12),
@@ -72,38 +75,36 @@ class ParkingLotGenerator:
 
     Attributes:
         vehicle_size
-        scenario_proportion (float): The proportion of "parallel" parking scenario in all
+        bay_proportion (float): The proportion of "bay" parking scenario in all
             generated scenarios. It should be in the range of [0, 1]. When it is 0, the
-            generator only generates bay parking scenario. When it is 1, the generator only
-            generates parallel parking scenario.
+            generator only generates parallel parking scenario. When it is 1, the generator only
+            generates bay parking scenario.
     """
 
-    def __init__(self, vehicle_size: Tuple[float, float], proportion: float = 0.5):
+    def __init__(self, vehicle_size: Tuple[float, float], bay_proportion: float = 0.5):
         self.vehicle_size = vehicle_size
-        self.proportion = proportion
+        self.bay_proportion = bay_proportion
         self.mode = None
 
     def _get_target_area(self) -> Area:
         heading = truncate_gaussian(*HEADING_PARAMS[self.mode])
 
-        top_right, _, bottom_left, bottom_right = list(
-            _get_bbox(ORIGIN, heading, *self.vehicle_size)
-        ).coords
+        top_right, _, bottom_left, bottom_right, _ = list(
+            _get_bbox(ORIGIN, heading, *self.vehicle_size).coords
+        )
         if self.mode == "bay":
             y_min = -min(bottom_right[1], bottom_left[1]) + DIST_TO_OBSTACLE[0]
         else:
             y_min = -min(bottom_right[1], top_right[1]) + DIST_TO_WALL[self.mode]
         center_point = Point(0.0, truncate_gaussian(y_min + 0.4, 0.2, y_min, y_min + 0.8))
 
-        shape = _get_bbox(center_point, heading, *self.vehicle_size)
+        shape = Polygon(_get_bbox(center_point, heading, *self.vehicle_size))
         area = Area(id_=0, polygon=shape)
 
         return area
 
     def _get_back_wall(self) -> Other:
-        shape = _get_bbox(
-            self.origin, 0, self.bay_parking_size[1] / 2, np.random.uniform(0.5, 1.5)
-        )
+        shape = _get_bbox(ORIGIN, 0, SCENARIO_SIZE[0] / 2, np.random.uniform(0.5, 1.5))
         obstacle = Other(id_=0, type_="obstacle", shape=shape)
 
         return obstacle
@@ -111,7 +112,9 @@ class ParkingLotGenerator:
     def _get_left_wall(
         self, id_: int, target_area: Area, dist_to_obstacle: Tuple[float, float]
     ) -> Other:
-        _, top_left, bottom_left, bottom_right = list(target_area.polygon.exterior).coords
+        _, top_left, bottom_left, bottom_right, _ = list(
+            target_area.polygon.exterior.coords
+        )
 
         wall_top_right = _get_random_position(
             Point(top_left) if self.mode == "bay" else Point(bottom_left),
@@ -128,8 +131,8 @@ class ParkingLotGenerator:
             [
                 wall_top_right,
                 wall_bottom_right,
-                (ORIGIN.x - SCENARIO_SIZE[0], ORIGIN.y),
-                (ORIGIN.x - SCENARIO_SIZE[0], wall_top_right.x),
+                (ORIGIN.x - SCENARIO_SIZE[0] / 2, ORIGIN.y),
+                (ORIGIN.x - SCENARIO_SIZE[0] / 2, wall_top_right.x),
             ]
         )
         obstacle = Other(id_=id_, type_="obstacle", shape=shape)
@@ -138,7 +141,9 @@ class ParkingLotGenerator:
     def _get_right_wall(
         self, id_: int, target_area: Area, dist_to_obstacle: Tuple[float, float]
     ) -> Other:
-        top_right, top_left, _, bottom_right = list(target_area.polygon.exterior).coords
+        top_right, top_left, _, bottom_right, _ = list(
+            target_area.polygon.exterior.coords
+        )
 
         wall_bottom_left = _get_random_position(
             Point(bottom_right) if self.mode == "bay" else Point(top_right),
@@ -153,8 +158,8 @@ class ParkingLotGenerator:
 
         shape = LinearRing(
             [
-                (ORIGIN.x + SCENARIO_SIZE[0], top_left.y),
-                (ORIGIN.x + SCENARIO_SIZE[0], ORIGIN.y),
+                (ORIGIN.x + SCENARIO_SIZE[0] / 2, top_left[1]),
+                (ORIGIN.x + SCENARIO_SIZE[0] / 2, ORIGIN.y),
                 wall_bottom_left,
                 wall_top_left,
             ]
@@ -179,9 +184,9 @@ class ParkingLotGenerator:
             )
 
         # get y coordinate of the side vehicle
-        top_right, _, bottom_left, bottom_right = list(
-            _get_bbox(Point(x, ORIGIN.y), heading, *self.vehicle_size)
-        ).coords
+        top_right, _, bottom_left, bottom_right, _ = list(
+            _get_bbox(Point(x, ORIGIN.y), heading, *self.vehicle_size).coords
+        )
 
         if self.mode == "bay":
             min_left_y = min(bottom_right[1], bottom_left[1]) + DIST_TO_OBSTACLE[0]
@@ -236,9 +241,14 @@ class ParkingLotGenerator:
         return not state_shape.intersects(target_area.polygon.exterior)
 
     def generate(self, map_: Map):
-        self.mode = "bay" if np.random.rand() < self.proportion else "parallel"
+        t1 = time.time()
 
+        self.mode = "bay" if np.random.rand() < self.bay_proportion else "parallel"
+        logging.info(f"Start generating a {self.mode} parking scenario.")
+
+        # get the target area
         target_area = self._get_target_area()
+        map_.areas = {target_area.id_: target_area}
 
         obstacles = []
         valid_obstacles = False
@@ -272,7 +282,7 @@ class ParkingLotGenerator:
             right_obstacle = (
                 self._get_side_vehicle(2, dist_to_obstacle, False)
                 if np.random.uniform() < 0.5
-                else self._get_right_wall(2, target_area, dist_target_to_left_obstacle)
+                else self._get_right_wall(2, target_area, dist_to_obstacle)
             )
 
             dist_target_to_right = target_area.polygon.exterior.distance(
@@ -290,7 +300,7 @@ class ParkingLotGenerator:
 
         # generate obstacles out of start range
         y_max_obstacle = (
-            max([np.max(np.array(obstacle.coords)[:, 1]) for obstacle in obstacles])
+            max([np.max(np.array(obstacle.shape.coords)[:, 1]) for obstacle in obstacles])
             + DIST_TO_OBSTACLE[0]
         )
         if np.random.uniform() < 0.2:
@@ -330,6 +340,7 @@ class ParkingLotGenerator:
             if np.random.uniform() < 0.1:
                 obstacles.remove(obstacle)
 
+        # get the start state
         valid_start_state = False
         while not valid_start_state:
             start_state = self._get_start_state()
@@ -337,4 +348,8 @@ class ParkingLotGenerator:
                 start_state, obstacles, target_area
             )
 
-        return obstacles
+        # record time cost
+        t2 = time.time()
+        logging.info("The generating process takes %.4fs." % (t2 - t1))
+
+        return start_state, obstacles

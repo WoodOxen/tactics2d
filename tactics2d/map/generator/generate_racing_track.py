@@ -2,6 +2,7 @@ from typing import Tuple, List, Dict
 import time
 import logging
 
+logging.basicConfig(level=logging.DEBUG)
 import numpy as np
 from shapely.geometry import Point, LineString
 
@@ -137,7 +138,7 @@ class RacingTrackGenerator:
 
         return center_line
 
-    def _get_tiles(self, n_tile: int, center_line: LineString) -> Dict[Lane]:
+    def _get_tiles(self, n_tile: int, center_line: LineString) -> Dict[str, Lane]:
         center_points = [center_line.interpolate(TILE_LENGTH * i) for i in range(n_tile)]
 
         # generate tracks with the same length
@@ -183,7 +184,7 @@ class RacingTrackGenerator:
 
         return tiles
 
-    def generate(self, map_: Map) -> Dict[Lane]:
+    def generate(self, map_: Map) -> Dict[str, Lane]:
         t1 = time.time()
 
         # generate the checkpoints
@@ -192,7 +193,7 @@ class RacingTrackGenerator:
             checkpoints, control_points, success = self._get_checkpoints()
 
         n_checkpoints = checkpoints.shape[1]
-        logging.info(f"Generated ew track with {n_checkpoints} checkpoints.")
+        logging.info(f"Start generating a track with {n_checkpoints} checkpoints.")
 
         start_point, start_id = self._get_start_point(n_checkpoints, control_points)
 
