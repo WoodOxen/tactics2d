@@ -95,7 +95,7 @@ class ParkingLotGenerator:
         if self.mode == "bay":
             y_min = -min(bottom_right[1], bottom_left[1]) + DIST_TO_OBSTACLE[0]
         else:
-            y_min = -min(bottom_right[1], top_right[1]) + DIST_TO_WALL[self.mode]
+            y_min = -min(bottom_right[1], top_right[1]) + DIST_TO_OBSTACLE[0]
         center_point = Point(0.0, truncate_gaussian(y_min + 0.4, 0.2, y_min, y_min + 0.8))
 
         shape = Polygon(_get_bbox(center_point, heading, *self.vehicle_size))
@@ -132,7 +132,7 @@ class ParkingLotGenerator:
                 wall_top_right,
                 wall_bottom_right,
                 (ORIGIN.x - SCENARIO_SIZE[0] / 2, ORIGIN.y),
-                (ORIGIN.x - SCENARIO_SIZE[0] / 2, wall_top_right.x),
+                (ORIGIN.x - SCENARIO_SIZE[0] / 2, wall_top_right.y),
             ]
         )
         obstacle = Other(id_=id_, type_="obstacle", shape=shape)
@@ -176,11 +176,11 @@ class ParkingLotGenerator:
         # get x coordinate of the side vehicle
         if self.mode == "bay":
             x = ORIGIN.x + side_factor * (
-                self.vehicle_size[0] + np.random.uniform(*dist_to_obstacle)
+                self.vehicle_size[1] + np.random.uniform(*dist_to_obstacle)
             )
         else:
             x = ORIGIN.x + side_factor * (
-                self.vehicle_size[1] + np.random.uniform(*dist_to_obstacle)
+                self.vehicle_size[0] + np.random.uniform(*dist_to_obstacle)
             )
 
         # get y coordinate of the side vehicle
@@ -189,9 +189,9 @@ class ParkingLotGenerator:
         )
 
         if self.mode == "bay":
-            min_left_y = min(bottom_right[1], bottom_left[1]) + DIST_TO_OBSTACLE[0]
+            min_left_y = -min(bottom_right[1], bottom_left[1]) + DIST_TO_OBSTACLE[0]
         else:
-            min_left_y = min(bottom_right[1], top_right[1]) + DIST_TO_OBSTACLE[0]
+            min_left_y = -min(bottom_right[1], top_right[1]) + DIST_TO_OBSTACLE[0]
         y = truncate_gaussian(min_left_y + 0.4, 0.2, min_left_y, min_left_y + 0.8)
 
         shape = _get_bbox(Point(x, y), heading, *self.vehicle_size)
@@ -222,11 +222,9 @@ class ParkingLotGenerator:
 
         return True
 
-    def _get_start_state(self) -> State:
-        x_range = (-SCENARIO_SIZE[0] / 2, SCENARIO_SIZE[0] / 2)
-        y_range = ()
+    def _get_start_state(self, x_range: tuple, y_range: tuple) -> State:
         location = Point(np.random.uniform(*x_range), np.random.uniform(*y_range))
-        heading = truncate_gaussian(*HEADING_PARAMS[self.mode])
+        heading = truncate_gaussian(*HEADING_PARAMS['parallel'])
         state = State(0, location.x, location.y, heading, 0.0, 0.0)
         return state
 
@@ -246,14 +244,14 @@ class ParkingLotGenerator:
         self.mode = "bay" if np.random.rand() < self.bay_proportion else "parallel"
         logging.info(f"Start generating a {self.mode} parking scenario.")
 
-        # get the target area
-        target_area = self._get_target_area()
-        map_.areas = {target_area.id_: target_area}
-
         obstacles = []
         valid_obstacles = False
-
         while not valid_obstacles:
+
+            # get the target area
+            target_area = self._get_target_area()
+            map_.areas = {target_area.id_: target_area}
+
             back_wall = self._get_back_wall()
 
             # generate a wall / static vehicle as an obstacle on the left side of the target area
@@ -275,7 +273,7 @@ class ParkingLotGenerator:
             else:
                 min_dist_to_obstacle = (
                     max(0.25 * self.vehicle_size[0] - dist_target_to_left_obstacle, 0)
-                    + DIST_TO_WALL[self.mode]
+                    + DIST_TO_OBSTACLE[0]
                 )
             dist_to_obstacle = (min_dist_to_obstacle, DIST_TO_OBSTACLE[1])
 
@@ -306,7 +304,7 @@ class ParkingLotGenerator:
         if np.random.uniform() < 0.2:
             width = np.random.uniform(0.0, 0.2)
             shape = _get_bbox(
-                Point(ORIGIN.x, y_max_obstacle + 0.7 + 0.5 * width),
+                Point(ORIGIN.x, y_max_obstacle + DIST_TO_WALL[self.mode]),
                 0,
                 SCENARIO_SIZE[0],
                 width,
@@ -315,10 +313,10 @@ class ParkingLotGenerator:
             obstacles.append(obstacle)
         else:
             bbox = _get_bbox(
-                Point(ORIGIN.x, y_max_obstacle + 0.7), 0, SCENARIO_SIZE[0], 8
+                Point(ORIGIN.x, y_max_obstacle + DIST_TO_WALL[self.mode] + 4), 0, SCENARIO_SIZE[0], 8
             )
-            x_range = (ORIGIN.x - SCENARIO_SIZE[0], ORIGIN.x + SCENARIO_SIZE[0])
-            y_range = (y_max_obstacle + 0.7 + 2, y_max_obstacle + 0.7 + 6)
+            x_range = (ORIGIN.x - SCENARIO_SIZE[0]/2, ORIGIN.x + SCENARIO_SIZE[0]/2)
+            y_range = (y_max_obstacle + DIST_TO_WALL[self.mode] + 2, y_max_obstacle + DIST_TO_WALL[self.mode]  + 6)
 
             id_ = 3
             for _ in range(3):
@@ -326,11 +324,11 @@ class ParkingLotGenerator:
                 y = np.random.uniform(*y_range)
                 heading = np.random.uniform() * 2 * np.pi
                 shape = np.array(
-                    list(_get_bbox(Point(x, y), heading, *self.vehicle_size).coords)
+                    list(_get_bbox(Point(x, y), heading, *self.vehicle_size).coords[:4])
                 )
                 shape = LinearRing(shape + 0.5 * np.random.uniform(size=shape.shape))
 
-                if bbox.contains(shape):
+                if Polygon(bbox).contains(shape):
                     obstacle = Other(id_=id_, type_="obstacle", shape=shape)
                     obstacles.append(obstacle)
                     id_ += 1
@@ -343,7 +341,8 @@ class ParkingLotGenerator:
         # get the start state
         valid_start_state = False
         while not valid_start_state:
-            start_state = self._get_start_state()
+            start_state = self._get_start_state((-SCENARIO_SIZE[0] / 2, SCENARIO_SIZE[0] / 2),
+                (y_max_obstacle + DIST_TO_OBSTACLE[0] + 2, y_max_obstacle + DIST_TO_WALL[self.mode]  -2))
             valid_start_state = self._verify_start_state(
                 start_state, obstacles, target_area
             )
