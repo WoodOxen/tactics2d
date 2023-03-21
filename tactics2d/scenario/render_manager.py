@@ -5,21 +5,19 @@ import numpy as np
 from shapely.geometry import Point
 import pygame
 
-from tactics2d.map.element import Map
 from tactics2d.sensor import SensorBase
 
 
 class RenderManager:
     """This class manages the rendering of the scenario.
 
-    By RenderManager, the sensors are registered and can be bound to the participants. 
+    By RenderManager, the sensors are registered and can be bound to the participants.
         The rendering is done by the pygame library.
 
     Attributes:
-        map_ (Map): The map of the scenario.
         fps (int): The frame rate of the rendering. Defaults to 60.
         windows_size (Tuple[int, int]): The size of the rendering window. Defaults to (800, 800).
-        layout_style (str): The style of the layout of the rendering window. The available 
+        layout_style (str): The style of the layout of the rendering window. The available
             choices are ["hierarchical", "modular"]. Defaults to "hierarchical".
         off_screen (bool): Whether to render the scenario off screen. Defaults to False.
     """
@@ -27,18 +25,18 @@ class RenderManager:
     layout_styles = {"hierarchical", "modular"}
 
     def __init__(
-        self, map_: Map, fps: int = 60, windows_size: Tuple[int, int] = (800, 800),
-        layout_style: str = "hierarchical", off_screen: bool = False,
+        self,
+        fps: int = 60,
+        windows_size: Tuple[int, int] = (800, 800),
+        layout_style: str = "hierarchical",
+        off_screen: bool = False,
     ):
-
-        self.map_ = map_
         self.fps = fps
         self.windows_size = windows_size
         self.off_screen = off_screen
 
         if layout_style not in self.layout_styles:
-            raise ValueError(
-                f"Layout style must be one of {self.layout_styles}.")
+            raise ValueError(f"Layout style must be one of {self.layout_styles}.")
         self.layout_style = layout_style
 
         pygame.init()
@@ -59,8 +57,7 @@ class RenderManager:
         ]
 
         if self.screen is None and len(sensor_to_display) > 0:
-            self.screen = pygame.display.set_mode(
-                self.windows_size, flags=pygame.SHOWN)
+            self.screen = pygame.display.set_mode(self.windows_size, flags=pygame.SHOWN)
 
         if self.layout_style == "hierarchical":
             if not hasattr(self, "main_sensor"):
@@ -72,21 +69,22 @@ class RenderManager:
                 if sensor.sensor_id == self.main_sensor:
                     scale = min(
                         self.windows_size[0] / sensor.window_size[0],
-                        self.windows_size[1] / sensor.window_size[1]
+                        self.windows_size[1] / sensor.window_size[1],
                     )
                     coords = (
-                        0.5 * (self.windows_size[0] - scale * sensor.window_size[0]), 0
+                        0.5 * (self.windows_size[0] - scale * sensor.window_size[0]),
+                        0,
                     )
                 else:
                     sub_width = self.windows_size[0] / n - 10
                     sub_height = self.windows_size[1] / n - 10
                     scale = min(
                         sub_width / sensor.window_size[0],
-                        sub_height / sensor.window_size[1]
+                        sub_height / sensor.window_size[1],
                     )
                     coords = (
                         sub_cnt * (sub_width + 10) + 5,
-                        self.windows_size[1] - sub_height + 5
+                        self.windows_size[1] - sub_height + 5,
                     )
                     sub_cnt += 1
 
@@ -109,8 +107,9 @@ class RenderManager:
 
         Args:
             sensor (SensorBase): The sensor instance to be added.
-            main_sensor (bool, optional): Whether the sensor is the main sensor for display. 
-                This argument only take effect when the the layout style is hierarchical. 
+            map_ (Map): The map that the sensor belongs to.
+            main_sensor (bool, optional): Whether the sensor is the main sensor for display.
+                This argument only take effect when the the layout style is hierarchical.
                 Defaults to False.
 
         Raises:
@@ -120,8 +119,7 @@ class RenderManager:
         if sensor.sensor_id not in self.sensors:
             self.sensors[sensor.sensor_id] = sensor
         else:
-            raise KeyError(
-                f"ID {sensor.sensor_id} is used by the other sensor.")
+            raise KeyError(f"ID {sensor.sensor_id} is used by the other sensor.")
 
         if main_sensor:
             self.main_sensor = sensor.sensor_id
@@ -141,9 +139,7 @@ class RenderManager:
         """
 
         if sensor_id not in self.sensors:
-            raise KeyError(
-                f"Sensor {sensor_id} is not registered in the render manager."
-            )
+            raise KeyError(f"Sensor {sensor_id} is not registered in the render manager.")
 
         if sensor_id in self.bound_sensors:
             warnings.warn(
@@ -167,7 +163,7 @@ class RenderManager:
 
     def remove(self, sensor_id: int):
         """Remove a registered sensor from the manager.
-        
+
         Args:
             sensor_id (int): The id of the sensor.
         """
@@ -176,23 +172,23 @@ class RenderManager:
             self.sensors.pop(sensor_id)
         except KeyError:
             warnings.warn(f"Sensor {sensor_id} does not exist.")
-        
+
         if sensor_id in self.bound_sensors:
             self.unbind(sensor_id)
-        
+
         if sensor_id in self.layouts:
             self.layouts.pop(sensor_id)
 
     def update(self, participants: dict, frame: int = None):
-        """Sync the viewpoint of the sensors with their bound participants. Update the 
+        """Sync the viewpoint of the sensors with their bound participants. Update the
             observation of all the sensors.
 
         Args:
-            participants (dict): The dictionary of all participants. The render manager 
+            participants (dict): The dictionary of all participants. The render manager
                 will detect which of them is alive.
-            frame (int): Update the sensors to the given frame. If None, the sensors 
-                will update to the current frame. The default unit is millisecond. 
-                Defaults to None. 
+            frame (int): Update the sensors to the given frame. If None, the sensors
+                will update to the current frame. The default unit is millisecond.
+                Defaults to None.
         """
         to_remove = []
         for sensor_id, sensor in self.sensors.items():
@@ -200,7 +196,9 @@ class RenderManager:
                 participant = participants[self.bound_sensors[sensor_id]]
                 try:
                     state = participant.trajectory.get_state(frame)
-                    sensor.update(participants, frame, Point(state.location), state.heading)
+                    sensor.update(
+                        participants, frame, Point(state.location), state.heading
+                    )
                 except KeyError:
                     self.unbind(sensor_id)
                     to_remove.append(sensor_id)
@@ -237,3 +235,8 @@ class RenderManager:
             observations.append(sensor.get_observation())
 
         return observations
+
+    def reset(self):
+        """Reset the render manager."""
+        for sensor_id in self.sensors:
+            self.remove(sensor_id)

@@ -1,11 +1,10 @@
-from copy import deepcopy
 from typing import List
-
+from copy import deepcopy
 
 import numpy as np
 
 
-class Bezier(object):
+class Bezier:
     def __init__(self, order: int, n_interpolation: int):
         self.order = order
         self.n_interpolation = n_interpolation

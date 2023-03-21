@@ -1,15 +1,21 @@
-import numpy as np
+import copy
 
-from tactics2d.physics.kinematic_model.base import KinematicsBase
+import numpy as np
+from shapely.geometry import Point
+
+from .vehicle_physics_base import VehiclePhysicsBase
 from tactics2d.trajectory.element import State
 
 
-class KSModel(KinematicsBase):
+class KinematicSingleTrack(VehiclePhysicsBase):
     """An implementation of the Kinematic Single-Track Model.
 
     Use the center of vehicle's rear wheels as the origin of local coordinate system.
 
     Assume the vehicle is front-wheel-only drive.
+
+    Attributes:
+
     """
 
     def __init__(
@@ -25,6 +31,7 @@ class KSModel(KinematicsBase):
         self.n_step = n_step
         self.speed_range = speed_range
         self.angle_range = angle_range
+        self.n_iter = 20
 
     def step2(self, state: State, action: list) -> State:
         """Update the state of a vehicle with the Kinematic Single-Track Model.
@@ -98,3 +105,6 @@ class KSModel(KinematicsBase):
 
         new_state.loc = Point(x, y)
         return new_state
+
+    def verify_state(self, curr_state: State, prev_state: State, interval: float) -> bool:
+        return True

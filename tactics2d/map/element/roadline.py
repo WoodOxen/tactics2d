@@ -17,17 +17,21 @@ class RoadLine:
         subtype (str, optional): The subtype of the line. Defaults to None.
         color (tuple, optional): The color of the lane marking. Defaults to None.
         lane_change (Tuple[bool, bool], optional): _description_. Defaults to (True, True).
-        width (float, optional): The width of the line (in m). The linestring then represents 
+        width (float, optional): The width of the line (in m). The linestring then represents
             the centerline of the object. Defaults to None.
-        height (float, optional): The height of line (in m). The linestring then represents the 
+        height (float, optional): The height of line (in m). The linestring then represents the
             lower outline/lowest edge of the object. Defaults to None.
         temporary (bool, optional): _description_. Defaults to False.
         custom_tags (dict, optional): _description_. Defaults to None.
     """
 
     def __init__(
-        self, id_: str, linestring: LineString,
-        type_: str = "virtual", subtype: str = None, color: tuple = None,
+        self,
+        id_: str,
+        linestring: LineString,
+        type_: str = "virtual",
+        subtype: str = None,
+        color: tuple = None,
         lane_change: Tuple[bool, bool] = (True, True),
         width: float = None,
         height: float = None,

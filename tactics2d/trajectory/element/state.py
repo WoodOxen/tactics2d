@@ -6,9 +6,21 @@ class State(object):
 
     Attributes:
         frame (int): The time stamp of the state. The default unit is millisecond (ms).
-        x (float, optional): _description_. Defaults to 0.
-        y (float, optional): _description_. Defaults to 0.
-        heading (float, optional): The heading direction of an object. The heading information is parsed in an 2D Cardinal coordinate system counterclockwise. The default unit is radian. Defaults to 0.
+        x (float, optional): The x-axis coordinate of an object. The default unit is
+            meter (m). Defaults to 0.
+        y (float, optional): The y-axis coordinate of an object. The default unit is
+            meter (m). Defaults to 0.
+        heading (float, optional): The heading direction of an object. The heading information
+            is parsed in an 2D Cardinal coordinate system counterclockwise. The default unit
+            is radian. Defaults to 0.
+        vx (float, optional): The velocity in the x-axis. The default unit is
+            meter per second (m/s). Defaults to None.
+        vy (float, optional): The velocity in the y-axis. The default unit is
+            meter per second (m/s). Defaults to None.
+        ax (float, optional): The acceleration in the x-axis. The default unit is
+            meter per second squared (m/s^2). Defaults to None.
+        ay (float, optional): The acceleration in the y-axis. The default unit is
+            meter per second squared (m/s^2). Defaults to None.
     """
 
     def __init__(
@@ -51,6 +63,7 @@ class State(object):
         if None not in [self.vx, self.vy]:
             self.v_norm = np.linalg.norm([self.vx, self.vy])
             return self.v_norm
+
         return None
 
     @property
@@ -60,6 +73,7 @@ class State(object):
         if None not in [self.ax, self.ay]:
             self.a_norm = np.linalg.norm([self.ax, self.ay])
             return self.a_norm
+
         return None
 
     def set_velocity(self, vx: float, vy: float):

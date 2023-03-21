@@ -14,27 +14,35 @@ class Area(object):
     Attributes:
         id_ (str): The unique identifier of the area.
         polygon (Polygon): The shape of the area expressed in geometry format.
+        line_ids (dict, optional): The ids of the lines that circle this area. Defaults to None.
         type_ (str): The type of the area. The default value is "multipolygon".
         subtype (str, optional): The subtype of the area. Defaults to None.
         color (tuple, optional): The color of the area. Defaults to None.
-        location (str, optional): The location of the area (urban, nonurban, etc.). Defaults to 
+        location (str, optional): The location of the area (urban, nonurban, etc.). Defaults to
             None.
-        inferred_participants (list, optional): The allowing type of traffic participants that 
+        inferred_participants (list, optional): The allowing type of traffic participants that
             can pass the area. Defaults to None.
         speed_limit (float, optional): The speed limit in this area. Defaults to None.
-        speed_limit_unit (str, optional): The unit of speed limit in this area. Defaults to 
+        speed_limit_unit (str, optional): The unit of speed limit in this area. Defaults to
             "km/h".
-        speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or 
+        speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or
             not. Defaults to True.
         custom_tags (dict, optional): The custom tags of the area. Defaults to None.
         shape (list): The shape of the area.
     """
 
     def __init__(
-        self, id_: str, polygon: Polygon, line_ids: dict,
-        type_: str = "multipolygon", subtype: str = None, color: tuple = None,
-        location: str = None, inferred_participants: list = None,
-        speed_limit: float = None, speed_limit_unit: str = "km/h",
+        self,
+        id_: str,
+        polygon: Polygon,
+        line_ids: dict = None,
+        type_: str = "multipolygon",
+        subtype: str = None,
+        color: tuple = None,
+        location: str = None,
+        inferred_participants: list = None,
+        speed_limit: float = None,
+        speed_limit_unit: str = "km/h",
         speed_limit_mandatory: bool = True,
         custom_tags: dict = None,
     ):
@@ -57,7 +65,6 @@ class Area(object):
                 % (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
             )
 
-    @property
     def shape(self, outer_only: bool = False):
         outer_shape = list(self.polygon.exterior.coords)
         if outer_only:

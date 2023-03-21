@@ -40,42 +40,39 @@ AREA_COLOR = {
 }
 
 
-ROADLINE_COLOR = {
-    "default": THECOLORS["white"],
-}
+ROADLINE_COLOR = {"default": THECOLORS["white"]}
 
 
-VEHICLE_COLOR = {
-    "default": THECOLORS["turquoise1"],
-}
+VEHICLE_COLOR = {"default": THECOLORS["turquoise1"]}
 
 
-CYCLIST_COLOR = {
-    "default": THECOLORS["cyan1"],
-}
+CYCLIST_COLOR = {"default": THECOLORS["cyan1"]}
 
 
-PEDESTRIAN_COLOR = {
-    "default": THECOLORS["lightpink1"],
-}
-
+PEDESTRIAN_COLOR = {"default": THECOLORS["lightpink1"]}
 
 
 class TopDownCamera(SensorBase):
     """This class implements a pseudo camera with top-down view RGB semantic segmentation image.
 
     Attributes:
-        perception_range (Union[float, tuple]): The distance from the sensor to its 
-            (left, right, front, back). When this value is undefined, the camera is assumed to 
+        sensor_id (str): The unique identifier of the sensor.
+        map_ (Map): The map that the sensor is attached to.
+        perception_range (Union[float, tuple]): The distance from the sensor to its maximum detection range in
+            (left, right, front, back). When this value is undefined, the camera is assumed to
             detect the whole map. Defaults to None.
     """
 
     def __init__(
-        self, sensor_id,
-        map_: Map, perception_range: Union[float, Tuple[float]] = None,
-        window_size: Tuple[int, int] = (200, 200), off_screen: bool = False,
+        self,
+        sensor_id,
+        map_: Map,
+        perception_range: Union[float, Tuple[float]] = None,
+        window_size: Tuple[int, int] = (200, 200),
+        off_screen: bool = False,
     ):
         super().__init__(sensor_id, map_)
+
         self.off_screen = off_screen
 
         if perception_range is None:
@@ -87,8 +84,10 @@ class TopDownCamera(SensorBase):
                 self.perception_range = perception_range
             else:
                 self.perception_range = (
-                    perception_range, perception_range,
-                    perception_range, perception_range,
+                    perception_range,
+                    perception_range,
+                    perception_range,
+                    perception_range,
                 )
 
         self.perception_width = self.perception_range[0] + self.perception_range[1]
@@ -105,8 +104,8 @@ class TopDownCamera(SensorBase):
         self.scale = min(scale_width, scale_height)
         if scale_width != scale_height:
             warnings.warn(
-                "The height-width proportion of the perception and the image is inconsistent. \
-                    Use the proportion of the perception to scale the image."
+                "The height-width proportion of the perception and the image is inconsistent. "
+                + "Use the proportion of the perception to scale the image."
             )
 
             self.window_size = (
@@ -128,7 +127,10 @@ class TopDownCamera(SensorBase):
 
                 self.transform_matrix = np.array(
                     [
-                        self.scale, 0, 0, -self.scale,
+                        self.scale,
+                        0,
+                        0,
+                        -self.scale,
                         0.5 * self.window_size[0] - self.scale * x_center,
                         0.5 * self.window_size[1] + self.scale * y_center,
                     ]
@@ -138,12 +140,16 @@ class TopDownCamera(SensorBase):
 
             self.transform_matrix = self.scale * np.array(
                 [
-                    np.cos(theta), np.sin(theta),
-                    np.sin(theta), - np.cos(theta),
-                    self.perception_range[0] - \
-                        self.position.x * np.cos(theta) - self.position.y * np.sin(theta),
-                    self.perception_range[2] - \
-                        self.position.x * np.sin(theta) + self.position.y * np.cos(theta),
+                    np.cos(theta),
+                    np.sin(theta),
+                    np.sin(theta),
+                    -np.cos(theta),
+                    self.perception_range[0]
+                    - self.position.x * np.cos(theta)
+                    - self.position.y * np.sin(theta),
+                    self.perception_range[2]
+                    - self.position.x * np.sin(theta)
+                    + self.position.y * np.cos(theta),
                 ]
             )
 
@@ -156,8 +162,11 @@ class TopDownCamera(SensorBase):
                 if self._in_perception_range(area.polygon):
                     continue
 
-            color = AREA_COLOR[area.subtype] \
-                if area.subtype in AREA_COLOR else AREA_COLOR["default"]
+            color = (
+                AREA_COLOR[area.subtype]
+                if area.subtype in AREA_COLOR
+                else AREA_COLOR["default"]
+            )
             color = color if area.color is None else area.color
             polygon = affine_transform(area.polygon, self.transform_matrix)
             outer_points = list(polygon.exterior.coords)
@@ -165,8 +174,7 @@ class TopDownCamera(SensorBase):
 
             pygame.draw.polygon(self.surface, color, outer_points)
             for inner_points in inner_list:
-                pygame.draw.polygon(
-                    self.surface, AREA_COLOR["hole"], inner_points)
+                pygame.draw.polygon(self.surface, AREA_COLOR["hole"], inner_points)
 
     def _render_lanes(self):
         for lane in self.map_.lanes.values():
@@ -174,11 +182,13 @@ class TopDownCamera(SensorBase):
                 if self._in_perception_range(lane.polygon):
                     continue
 
-            color = LANE_COLOR[lane.subtype] \
-                if lane.subtype in LANE_COLOR else LANE_COLOR["default"]
+            color = (
+                LANE_COLOR[lane.subtype]
+                if lane.subtype in LANE_COLOR
+                else LANE_COLOR["default"]
+            )
             color = color if lane.color is None else lane.color
-            points = list(affine_transform(
-                lane.polygon, self.transform_matrix).coords)
+            points = list(affine_transform(lane.polygon, self.transform_matrix).coords)
 
             pygame.draw.polygon(self.surface, color, points)
 
@@ -188,8 +198,11 @@ class TopDownCamera(SensorBase):
                 if self._in_perception_range(roadline.linestring):
                     continue
 
-            color = ROADLINE_COLOR[roadline.color] \
-                if roadline.subtype in ROADLINE_COLOR else ROADLINE_COLOR["default"]
+            color = (
+                ROADLINE_COLOR[roadline.color]
+                if roadline.subtype in ROADLINE_COLOR
+                else ROADLINE_COLOR["default"]
+            )
             color = color if roadline.color is None else roadline.color
             points = list(
                 affine_transform(roadline.linestring, self.transform_matrix).coords
@@ -204,8 +217,9 @@ class TopDownCamera(SensorBase):
 
     def _render_vehicle(self, vehicle: Vehicle, frame: int = None):
         color = VEHICLE_COLOR["default"] if vehicle.color is None else vehicle.color
-        points = np.array(affine_transform(
-            vehicle.get_pose(frame), self.transform_matrix).coords)
+        points = np.array(
+            affine_transform(vehicle.get_pose(frame), self.transform_matrix).coords
+        )
         triangle = [
             (points[0] + points[1]) / 2,
             (points[1] + points[2]) / 2,
@@ -213,18 +227,20 @@ class TopDownCamera(SensorBase):
         ]
 
         pygame.draw.polygon(self.surface, color, points)
-        pygame.draw.polygon(self.surface, (0,0,0), triangle, width=1)
+        pygame.draw.polygon(self.surface, (0, 0, 0), triangle, width=1)
 
     def _render_cyclist(self, cyclist: Cyclist, frame: int = None):
         color = CYCLIST_COLOR["default"] if cyclist.color is None else cyclist.color
-        points = list(affine_transform(
-            cyclist.get_pose(frame), self.transform_matrix).coords)
+        points = list(
+            affine_transform(cyclist.get_pose(frame), self.transform_matrix).coords
+        )
 
         pygame.draw.polygon(self.surface, color, points)
 
     def _render_pedestrian(self, pedestrian: Pedestrian, frame: int = None):
-        color = PEDESTRIAN_COLOR["default"] \
-            if pedestrian.color is None else pedestrian.color
+        color = (
+            PEDESTRIAN_COLOR["default"] if pedestrian.color is None else pedestrian.color
+        )
         point = affine_transform(Point(pedestrian.trajectory.get_state(frame).location))
         radius = max(1, 0.5 * self.scale)
 
@@ -247,7 +263,13 @@ class TopDownCamera(SensorBase):
             elif isinstance(participant, Cyclist):
                 self._render_cyclist(participant, frame)
 
-    def update(self, participants, frame: int = None, position: Point = None, heading=None):
+    def update(
+        self,
+        participants,
+        frame: int = None,
+        position: Point = None,
+        heading: float = None,
+    ):
         self.position = position
         self.heading = heading
         self._update_transform_matrix()

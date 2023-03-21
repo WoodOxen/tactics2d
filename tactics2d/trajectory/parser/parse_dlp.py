@@ -1,7 +1,7 @@
 from typing import Tuple
 import json
 
-from tactics2d.participant.element import Vehicle, Pedestrian, Other
+from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
 from tactics2d.trajectory.element import State, Trajectory
 
 
@@ -9,6 +9,8 @@ TYPE_MAPPING = {
     "Car": "car",
     "Medium Vehicle": "car",
     "Bus": "bus",
+    "Motorcycle": "motorcycle",
+    "Bicycle": "bicycle",
     "Pedestrian": "pedestrian",
     "Undefined": "other",
 }
@@ -17,14 +19,15 @@ CLASS_MAPPING = {
     "Car": Vehicle,
     "Medium Vehicle": Vehicle,
     "Bus": Vehicle,
+    "Motorcycle": Cyclist,
+    "Bicycle": Cyclist,
     "Pedestrian": Pedestrian,
     "Undefined": Other,
 }
 
 
 class DLPParser(object):
-    """
-    This class implements a parser of the Dragon Lake Parking Dataset.
+    """This class implements a parser of the Dragon Lake Parking Dataset.
 
     Shen, Xu, et al. "Parkpredict: Motion and intent prediction of vehicles in parking lots." 2020 IEEE Intelligent Vehicles Symposium (IV). IEEE, 2020.
     """
@@ -42,11 +45,7 @@ class DLPParser(object):
 
         return participant
 
-    def load(
-        self,
-        file_id: int,
-        folder_path: str,
-    ):
+    def load(self, file_id: int, folder_path: str):
         with open("%s/DJI_%04d_agents.json" % (folder_path, file_id), "r") as f_agent:
             df_agent = json.load(f_agent)
         with open("%s/DJI_%04d_frames.json" % (folder_path, file_id), "r") as f_frame:
@@ -82,19 +81,25 @@ class DLPParser(object):
         id_cnt = 0
 
         for frame in df_frame.values():
-            if (
-                frame["timestamp"] < stamp_range[0]
-                or frame["timestamp"] > stamp_range[1]
-            ):
+            if frame["timestamp"] < stamp_range[0] or frame["timestamp"] > stamp_range[1]:
                 continue
 
             for obstacle in df_obstacle.values():
-                state = State(frame=round(frame["timestamp"] * 1000))
+                state = State(
+                    frame=round(frame["timestamp"] * 1000),
+                    x=obstacle["coords"][0],
+                    y=obstacle["coords"][1],
+                    heading=obstacle["heading"],
+                    vx=0,
+                    vy=0,
+                    ax=0,
+                    ay=0,
+                )
 
                 if obstacle["obstacle_token"] not in participants:
-                    participants[
-                        obstacle["obstacle_token"]
-                    ] = self._generate_participant(obstacle, id_cnt)
+                    participants[obstacle["obstacle_token"]] = self._generate_participant(
+                        obstacle, id_cnt
+                    )
                     id_cnt += 1
 
                 participants[obstacle["obstacle_token"]].trajectory.append_state(state)
