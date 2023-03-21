@@ -5,7 +5,6 @@ import numpy as np
 from shapely.geometry import Point
 import pygame
 
-from tactics2d.map.element import Map
 from tactics2d.sensor import SensorBase
 
 
@@ -16,7 +15,6 @@ class RenderManager:
         The rendering is done by the pygame library.
 
     Attributes:
-        map_ (Map): The map of the scenario.
         fps (int): The frame rate of the rendering. Defaults to 60.
         windows_size (Tuple[int, int]): The size of the rendering window. Defaults to (800, 800).
         layout_style (str): The style of the layout of the rendering window. The available
@@ -28,13 +26,11 @@ class RenderManager:
 
     def __init__(
         self,
-        map_: Map,
         fps: int = 60,
         windows_size: Tuple[int, int] = (800, 800),
         layout_style: str = "hierarchical",
         off_screen: bool = False,
     ):
-        self.map_ = map_
         self.fps = fps
         self.windows_size = windows_size
         self.off_screen = off_screen
@@ -111,6 +107,7 @@ class RenderManager:
 
         Args:
             sensor (SensorBase): The sensor instance to be added.
+            map_ (Map): The map that the sensor belongs to.
             main_sensor (bool, optional): Whether the sensor is the main sensor for display.
                 This argument only take effect when the the layout style is hierarchical.
                 Defaults to False.
@@ -238,3 +235,8 @@ class RenderManager:
             observations.append(sensor.get_observation())
 
         return observations
+
+    def reset(self):
+        """Reset the render manager."""
+        for sensor_id in self.sensors:
+            self.remove(sensor_id)

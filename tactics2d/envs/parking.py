@@ -174,12 +174,15 @@ class ParkingEnv(gym.Env):
             0, 255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8
         )
 
-        self.scenario_manager = ParkingScenarioManager(MAX_STEP)
-        self.render_manager = RenderManager()
+        self.scenario_manager = ParkingScenarioManager(MAX_STEP, bay_proportion)
+        self.render_manager = RenderManager(
+            fps=self.render_fps, off_screen=(render_mode == "rgb_array")
+        )
 
     def reset(self, *, seed: int = None):
         super().reset(seed=seed)
         self.scenario_manager.reset()
+        self.render_manager.reset()
 
     def _get_rewards(self):
         time_penalty = -np.tanh(

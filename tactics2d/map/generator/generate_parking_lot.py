@@ -20,7 +20,7 @@ HEADING_PARAMS = {
     "parallel": (0, np.pi / 36, -np.pi / 12, np.pi / 12),
 }
 DIST_TO_OBSTACLE = (0.1, 1.0)
-DIST_TO_WALL = {"bay": 7.0, "parallel": 4.5}
+LEN_EMPTY_SPACE = {"bay": 7.0, "parallel": 4.5}
 
 
 def _get_random_position(
@@ -224,7 +224,7 @@ class ParkingLotGenerator:
 
     def _get_start_state(self, x_range: tuple, y_range: tuple) -> State:
         location = Point(np.random.uniform(*x_range), np.random.uniform(*y_range))
-        heading = truncate_gaussian(*HEADING_PARAMS['parallel'])
+        heading = truncate_gaussian(*HEADING_PARAMS["parallel"])
         state = State(0, location.x, location.y, heading, 0.0, 0.0)
         return state
 
@@ -247,7 +247,6 @@ class ParkingLotGenerator:
         obstacles = []
         valid_obstacles = False
         while not valid_obstacles:
-
             # get the target area
             target_area = self._get_target_area()
             map_.areas = {target_area.id_: target_area}
@@ -304,7 +303,7 @@ class ParkingLotGenerator:
         if np.random.uniform() < 0.2:
             width = np.random.uniform(0.0, 0.2)
             shape = _get_bbox(
-                Point(ORIGIN.x, y_max_obstacle + DIST_TO_WALL[self.mode]),
+                Point(ORIGIN.x, y_max_obstacle + LEN_EMPTY_SPACE[self.mode]),
                 0,
                 SCENARIO_SIZE[0],
                 width,
@@ -313,10 +312,16 @@ class ParkingLotGenerator:
             obstacles.append(obstacle)
         else:
             bbox = _get_bbox(
-                Point(ORIGIN.x, y_max_obstacle + DIST_TO_WALL[self.mode] + 4), 0, SCENARIO_SIZE[0], 8
+                Point(ORIGIN.x, y_max_obstacle + LEN_EMPTY_SPACE[self.mode] + 4),
+                0,
+                SCENARIO_SIZE[0],
+                8,
             )
-            x_range = (ORIGIN.x - SCENARIO_SIZE[0]/2, ORIGIN.x + SCENARIO_SIZE[0]/2)
-            y_range = (y_max_obstacle + DIST_TO_WALL[self.mode] + 2, y_max_obstacle + DIST_TO_WALL[self.mode]  + 6)
+            x_range = (ORIGIN.x - SCENARIO_SIZE[0] / 2, ORIGIN.x + SCENARIO_SIZE[0] / 2)
+            y_range = (
+                y_max_obstacle + LEN_EMPTY_SPACE[self.mode] + 2,
+                y_max_obstacle + LEN_EMPTY_SPACE[self.mode] + 6,
+            )
 
             id_ = 3
             for _ in range(3):
@@ -341,8 +346,13 @@ class ParkingLotGenerator:
         # get the start state
         valid_start_state = False
         while not valid_start_state:
-            start_state = self._get_start_state((-SCENARIO_SIZE[0] / 2, SCENARIO_SIZE[0] / 2),
-                (y_max_obstacle + DIST_TO_OBSTACLE[0] + 2, y_max_obstacle + DIST_TO_WALL[self.mode]  -2))
+            start_state = self._get_start_state(
+                (-SCENARIO_SIZE[0] / 2, SCENARIO_SIZE[0] / 2),
+                (
+                    y_max_obstacle + DIST_TO_OBSTACLE[0] + 2,
+                    y_max_obstacle + LEN_EMPTY_SPACE[self.mode] - 2,
+                ),
+            )
             valid_start_state = self._verify_start_state(
                 start_state, obstacles, target_area
             )

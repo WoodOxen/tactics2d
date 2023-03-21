@@ -104,8 +104,8 @@ class TopDownCamera(SensorBase):
         self.scale = min(scale_width, scale_height)
         if scale_width != scale_height:
             warnings.warn(
-                "The height-width proportion of the perception and the image is inconsistent. \
-                    Use the proportion of the perception to scale the image."
+                "The height-width proportion of the perception and the image is inconsistent. "
+                + "Use the proportion of the perception to scale the image."
             )
 
             self.window_size = (

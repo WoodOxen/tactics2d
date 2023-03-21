@@ -43,14 +43,8 @@ if __name__ == "__main__":
     for obstacle in obstacles:
         ax.add_patch(Polygon(list(obstacle.shape.coords), color="green"))
     ax.add_patch(Polygon(list(vehicle.get_pose().coords), color="blue"))
-    ax.add_patch(Polygon(map_.areas[0].shape(outer_only=True), "purple"))
+    ax.add_patch(Polygon(map_.areas[0].shape(outer_only=True), color="yellow"))
 
     ax.autoscale_view()
     ax.set_aspect("equal")
     plt.show()
-
-    print(
-        list(obstacle.shape.coords),
-        list(vehicle.get_pose().coords),
-        map_.areas[0].shape(outer_only=True),
-    )
