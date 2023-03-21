@@ -28,6 +28,7 @@ CLASS_MAPPING = {
     "Undefined": Other,
 }
 
+
 # @ray.remote
 class DLPParser(object):
     """
@@ -121,17 +122,18 @@ class DLPParser(object):
 
         return participants
 
+
 @ray.remote
 def test_dlp_parser_remote(file_id: int, stamp_range: tuple):
     file_path = "./DLP"
     print("dlp started, id = ", file_id)
     trajectory_parser = DLPParser.remote()
 
-    participants = trajectory_parser.parse.remote(
-        file_id, file_path, stamp_range)
+    participants = trajectory_parser.parse.remote(file_id, file_path, stamp_range)
     result = ray.get(participants)
     print("dlp finished, id = ", file_id)
     return result
+
 
 def test_dlp_parser(file_id: int):
     file_path = "./DLP"
@@ -139,7 +141,8 @@ def test_dlp_parser(file_id: int):
     trajectory_parser = DLPParser()
 
     participants = trajectory_parser.parse(
-        file_id, file_path, (-float("inf"), float("inf")))
+        file_id, file_path, (-float("inf"), float("inf"))
+    )
     print("dlp finished, id = ", file_id)
     print("id: ", file_id, ", lenth is ", len(participants))
     return participants
@@ -150,35 +153,38 @@ def ray_dlp_parser():
     start = time.time()
     dlpResult = [0] * 31
     participant = [0] * 31
-    for i in range(1,11):
+    for i in range(1, 11):
         file_path = "./DLP"
         print("dlp started, id = ", i)
         trajectory_parser = DLPParser.remote()
 
         dlpResult[i] = trajectory_parser.parse.remote(
-            i, file_path, (-float("inf"), float("inf")))
-    for i in range(1,11):
+            i, file_path, (-float("inf"), float("inf"))
+        )
+    for i in range(1, 11):
         participant[i] = ray.get(dlpResult[i])
-    for i in range(1,11):
+    for i in range(1, 11):
         print("id: ", i, ", lenth is ", len(participant[i]))
     end = time.time()
     elapsed = end - start
-    print ("time spend: ", elapsed)
+    print("time spend: ", elapsed)
+
 
 def future_dlp_parser(workers):
     MAX_WORKERS = workers
     start = time.time()
     workers = min(MAX_WORKERS, 30)
-    with futures.ThreadPoolExecutor(workers) as executor:  #Instantiate the thread pool
+    with futures.ThreadPoolExecutor(workers) as executor:  # Instantiate the thread pool
         # test_dlp_parser(i,(-float("inf"), float("inf")))
-        res = executor.map(test_dlp_parser, range(1,2))
+        res = executor.map(test_dlp_parser, range(1, 2))
     print(list(res)[0])
     end = time.time()
     elapsed = end - start
-    print("Time spent:",elapsed)
+    print("Time spent:", elapsed)
     result = list(res)
     return len(result)
 
-#if __name__ == "__main__":
-    # ray_dlp_parser()
-    # # future_dlp_parser(4)
+
+# if __name__ == "__main__":
+# ray_dlp_parser()
+# # future_dlp_parser(4)

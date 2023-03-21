@@ -1,56 +1,41 @@
-from tactics2d.trajectory.element.trajectory import Trajectory
-from sklearn import svm
-import joblib
-
-import sys
-sys.path.append(".")
-sys.path.append("..")
-import logging
 import numpy as np
-logging.basicConfig(level=logging.DEBUG)
+from sklearn import svm
+from sklearn.externals import joblib
+
+from tactics2d.trajectory.element.trajectory import Trajectory
 
 
-
-DEFAULT_GUESS_TYPE = {
-    "car": "car",
-    "truck": "truck",
-    "bus": "bus",
-    "cyclist": "cyclist",
-    "pedestrian": "pedestrian",
-}
+PARTICIPANT_TYPE = ["pedestrian", "cyclist", "vehicle"]
 
 
 class GuessType:
-    @staticmethod
+    trajectory_clf = joblib.load("./trajectory_classifier.m")
+
     def guess_by_size(size_info: tuple, hint_type: str):
-        return DEFAULT_GUESS_TYPE[hint_type]
+        """Guess the type of the participant by the size information with SVM model.
 
-    @staticmethod
-    def guess_by_trajectory(trajectory: Trajectory, hint_type: str):
-        return DEFAULT_GUESS_TYPE[hint_type]
-    
-    @staticmethod
-    def get_svm_model(model_name:str = "svm_model2.m"):
-        clf = joblib.load("./" + model_name)
-        return clf
-    
-    @staticmethod
-    def guess_by_svm(clf:svm._classes.SVC, trajectory: Trajectory, hint_type: str):
-        states_num = len(trajectory.history_states)
-        speed_average = trajectory.average_speed
-        speeddif_sum = 0
-        # accel_sum = 0
-        for state in trajectory.history_states.values():
-            speeddif_sum += (state.speed - speed_average)**2
-            # accel_sum += state.accel
-        speed_variance = speeddif_sum / states_num
-        # accel_average = accel_sum / states_num
+        Args:
+            size_info (tuple): _description_
+            hint_type (str): _description_
+        """
+        return
 
-        speed_max = max(state.speed for state in trajectory.history_states.values())
-        X = np.ndarray(shape=(1,3))
-        X[0][0] = speed_average
-        X[0][1] = speed_variance
-        X[0][2] = speed_max
-        svm_result = clf.predict(X)
-        logging.debug(str(svm_result[0]) + "[" + str(X[0][0]) + "," + str(X[0][1]) + "," + str(X[0][2]) + "]")
-        return "pedestrian" if svm_result == 0 else "cyclist"
+    def guess_by_trajectory(self, trajectory: Trajectory, hint_type: str):
+        """Guess the type of the participant by the trajectory with SVM model.
+
+        Args:
+            trajectory (Trajectory): _description_
+            hint_type (str): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        history_speed = [state.speed for state in trajectory.history_states.values()]
+        speed_mean = np.mean(history_speed)
+        speed_std = np.std(history_speed)
+        speed_max = np.max(history_speed)
+
+        X = np.ndarray([[speed_mean, speed_std, speed_max]])
+        svm_result = self.trajectory_clf.predict(X)
+
+        return PARTICIPANT_TYPE[svm_result]

@@ -9,6 +9,7 @@ from tactics2d.trajectory.element import State, Trajectory
 
 from sklearn import svm
 
+
 class InteractionParser:
     """This class provides pure static methods to parse trajectory data from the
     INTERACTION dataset.
@@ -64,7 +65,9 @@ class InteractionParser:
 
     @staticmethod
     def parse_pedestrians(
-        participants: dict, file_id: int, folder_path: str,
+        participants: dict,
+        file_id: int,
+        folder_path: str,
         clf: svm._classes.SVC,
         stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
     ):
@@ -110,7 +113,8 @@ class InteractionParser:
 
     @staticmethod
     def parse(
-        file_id: int, folder_path: str,
+        file_id: int,
+        folder_path: str,
         clf: svm._classes.SVC,
         stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
     ):
