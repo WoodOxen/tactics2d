@@ -7,7 +7,8 @@ from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist
 from tactics2d.participant.guess_type import GuessType
 from tactics2d.trajectory.element import State, Trajectory
 
-from sklearn import svm
+
+TYPE_MAPPING = {"cyclist": Cyclist, "pedestrian": Pedestrian}
 
 
 class InteractionParser:
@@ -68,9 +69,10 @@ class InteractionParser:
         participants: dict,
         file_id: int,
         folder_path: str,
-        clf: svm._classes.SVC,
         stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
     ):
+        type_guesser = GuessType()
+
         pedestrian_path = os.path.join(
             folder_path, "pedestrian_tracks_%03d.csv" % file_id
         )
@@ -103,8 +105,8 @@ class InteractionParser:
             trajectories[pedestrian_ids[state_info["track_id"]]].append_state(state)
 
         for trajectory_id, trajectory in trajectories.items():
-            type_ = GuessType.guess_by_svm(clf, trajectory, hint_type="pedestrian")
-            class_ = Pedestrian if type_ == "pedestrian" else Cyclist
+            type_ = type_guesser.guess_by_trajectory(trajectory)
+            class_ = TYPE_MAPPING[type_]
             participants[trajectory_id] = class_(
                 trajectory_id, type_, trajectory=trajectory
             )
@@ -115,11 +117,10 @@ class InteractionParser:
     def parse(
         file_id: int,
         folder_path: str,
-        clf: svm._classes.SVC,
         stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
     ):
         participants = InteractionParser.parse_vehicle(file_id, folder_path, stamp_range)
         participants = InteractionParser.parse_pedestrians(
-            participants, file_id, folder_path, clf, stamp_range
+            participants, file_id, folder_path, stamp_range
         )
         return participants

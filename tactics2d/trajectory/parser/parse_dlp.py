@@ -1,21 +1,17 @@
 from typing import Tuple
 import json
-import ray
-import time
-import sys
-from concurrent import futures
 
-
-from tactics2d.participant.element import Vehicle, Pedestrian, Other, Cyclist
+from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
 from tactics2d.trajectory.element import State, Trajectory
 
-# D:/study/Tactics/TacticTest/tactics2d
+
 TYPE_MAPPING = {
     "Car": "car",
     "Medium Vehicle": "car",
     "Bus": "bus",
+    "Motorcycle": "motorcycle",
+    "Bicycle": "bicycle",
     "Pedestrian": "pedestrian",
-    "Bicycle": "cyclist",
     "Undefined": "other",
 }
 
@@ -23,16 +19,15 @@ CLASS_MAPPING = {
     "Car": Vehicle,
     "Medium Vehicle": Vehicle,
     "Bus": Vehicle,
-    "Pedestrian": Pedestrian,
+    "Motorcycle": Cyclist,
     "Bicycle": Cyclist,
+    "Pedestrian": Pedestrian,
     "Undefined": Other,
 }
 
 
-# @ray.remote
 class DLPParser(object):
-    """
-    This class implements a parser of the Dragon Lake Parking Dataset.
+    """This class implements a parser of the Dragon Lake Parking Dataset.
 
     Shen, Xu, et al. "Parkpredict: Motion and intent prediction of vehicles in parking lots." 2020 IEEE Intelligent Vehicles Symposium (IV). IEEE, 2020.
     """
@@ -90,7 +85,16 @@ class DLPParser(object):
                 continue
 
             for obstacle in df_obstacle.values():
-                state = State(frame=round(frame["timestamp"] * 1000))
+                state = State(
+                    frame=round(frame["timestamp"] * 1000),
+                    x=obstacle["coords"][0],
+                    y=obstacle["coords"][1],
+                    heading=obstacle["heading"],
+                    vx=0,
+                    vy=0,
+                    ax=0,
+                    ay=0,
+                )
 
                 if obstacle["obstacle_token"] not in participants:
                     participants[obstacle["obstacle_token"]] = self._generate_participant(
@@ -121,70 +125,3 @@ class DLPParser(object):
                 participants[instance["agent_token"]].trajectory.append_state(state)
 
         return participants
-
-
-@ray.remote
-def test_dlp_parser_remote(file_id: int, stamp_range: tuple):
-    file_path = "./DLP"
-    print("dlp started, id = ", file_id)
-    trajectory_parser = DLPParser.remote()
-
-    participants = trajectory_parser.parse.remote(file_id, file_path, stamp_range)
-    result = ray.get(participants)
-    print("dlp finished, id = ", file_id)
-    return result
-
-
-def test_dlp_parser(file_id: int):
-    file_path = "./DLP"
-    print("dlp started, id = ", file_id)
-    trajectory_parser = DLPParser()
-
-    participants = trajectory_parser.parse(
-        file_id, file_path, (-float("inf"), float("inf"))
-    )
-    print("dlp finished, id = ", file_id)
-    print("id: ", file_id, ", lenth is ", len(participants))
-    return participants
-
-
-def ray_dlp_parser():
-    ray.init(num_cpus=4)
-    start = time.time()
-    dlpResult = [0] * 31
-    participant = [0] * 31
-    for i in range(1, 11):
-        file_path = "./DLP"
-        print("dlp started, id = ", i)
-        trajectory_parser = DLPParser.remote()
-
-        dlpResult[i] = trajectory_parser.parse.remote(
-            i, file_path, (-float("inf"), float("inf"))
-        )
-    for i in range(1, 11):
-        participant[i] = ray.get(dlpResult[i])
-    for i in range(1, 11):
-        print("id: ", i, ", lenth is ", len(participant[i]))
-    end = time.time()
-    elapsed = end - start
-    print("time spend: ", elapsed)
-
-
-def future_dlp_parser(workers):
-    MAX_WORKERS = workers
-    start = time.time()
-    workers = min(MAX_WORKERS, 30)
-    with futures.ThreadPoolExecutor(workers) as executor:  # Instantiate the thread pool
-        # test_dlp_parser(i,(-float("inf"), float("inf")))
-        res = executor.map(test_dlp_parser, range(1, 2))
-    print(list(res)[0])
-    end = time.time()
-    elapsed = end - start
-    print("Time spent:", elapsed)
-    result = list(res)
-    return len(result)
-
-
-# if __name__ == "__main__":
-# ray_dlp_parser()
-# # future_dlp_parser(4)

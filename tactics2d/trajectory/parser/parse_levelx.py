@@ -21,7 +21,7 @@ TYPE_MAPPING = {
     "trailer": "trailer",
     "motorcycle": "motorcycle",
     "bicycle": "bicycle",
-    "cycle": "cycle",
+    "cycle": "bicycle",
     "pedestrian": "pedestrian",
 }
 
