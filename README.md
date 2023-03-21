@@ -1,5 +1,7 @@
 # Tactics2D
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/11004258066441c3a2cd47e45ca6f8f0)](https://app.codacy.com/gh/WoodOxen/tactics2d?utm_source=github.com&utm_medium=referral&utm_content=WoodOxen/tactics2d&utm_campaign=Badge_Grade)
+
 ## About
 
 Tactics2d provides 
