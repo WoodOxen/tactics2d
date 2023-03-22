@@ -39,7 +39,10 @@ class RenderManager:
             raise ValueError(f"Layout style must be one of {self.layout_styles}.")
         self.layout_style = layout_style
 
+        flags = pygame.HIDDEN if self.off_screen else pygame.SHOWN
+
         pygame.init()
+        pygame.display.set_mode(size=self.windows_size, flags=flags)
         self.clock = pygame.time.Clock()
         self.screen = None
 

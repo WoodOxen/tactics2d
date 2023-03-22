@@ -27,7 +27,9 @@ class ScenarioManager(ABC):
 
         self.map_ = None
         self.participants = None
+
         self.agent = None
+        
 
         self.status_checklist = []
 

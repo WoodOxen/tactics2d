@@ -20,10 +20,11 @@ class Other(ParticipantBase):
         length: float = None,
         width: float = None,
         height: float = None,
+        color: tuple = None,
         shape: LinearRing = None,
         trajectory=None,
     ):
-        super().__init__(id_, type_, length, width, height, trajectory)
+        super().__init__(id_, type_, length, width, height, color, trajectory)
 
         self._shape = shape
 

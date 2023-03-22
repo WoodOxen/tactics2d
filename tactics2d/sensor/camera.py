@@ -71,7 +71,6 @@ class TopDownCamera(SensorBase):
         window_size: Tuple[int, int] = (200, 200),
         off_screen: bool = False,
     ):
-
         super().__init__(sensor_id, map_)
 
         self.off_screen = off_screen
@@ -242,7 +241,9 @@ class TopDownCamera(SensorBase):
         color = (
             PEDESTRIAN_COLOR["default"] if pedestrian.color is None else pedestrian.color
         )
-        point = affine_transform(Point(pedestrian.trajectory.get_state(frame).location))
+        point = affine_transform(
+            Point(pedestrian.trajectory.get_state(frame).location), self.transform_matrix
+        )
         radius = max(1, 0.5 * self.scale)
 
         pygame.draw.circle(self.surface, color, point, radius)

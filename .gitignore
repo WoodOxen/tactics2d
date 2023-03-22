@@ -6,6 +6,7 @@ tactics2d/data/trajectory_sample/DLP
 
 #  vscode
 *.code-workspace
+.vscode/
 .VSCodeCounter/
 
 # Gitignore Template for Python
