@@ -1,5 +1,5 @@
-from copy import deepcopy
 from typing import List
+from copy import deepcopy
 
 import numpy as np
 

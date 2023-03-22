@@ -1,3 +1,4 @@
+from typing import List
 import warnings
 
 import numpy as np
@@ -12,17 +13,30 @@ class TrajectoryKeyError(KeyError):
 class Trajectory(object):
     """_summary_
 
-    Args:
-        object (_type_): _description_
+    Attributes:
+        id_ (int): The id of the trajectory.
+        fps (float, optional): The frequency of the trajectory. Defaults to None.
+        stable_freq (bool, optional): Whether the trajectory has a stable frequency.
+            Defaults to True.
+        current_state (State, optional): The current state of the trajectory. This attribute
+            will automatically update when the trajectory is appended with a new state.
+        history_states (dict, optional): The history states of the trajectory. The key is the
+            frame of the state and the value is the state itself.
+        frames (list, optional): The list of frames of the trajectory. The value of frames
+            must be monotonically increasing. The frames are integers and the default unit is
+            millisecond (ms).
     """
 
-    def __init__(self, id_: int, fps: float = None, fixed_freq: bool = True):
+    def __init__(self, id_: int, fps: float = None, stable_freq: bool = True):
         self.id_ = id_
         self.current_state = None
         self.history_states = {}
         self.frames = []
         self.fps = fps
-        self.fixed_freq = fixed_freq
+        self.stable_freq = stable_freq
+
+    def __len__(self):
+        return len(self.frames)
 
     @property
     def initial_state(self):
@@ -39,16 +53,16 @@ class Trajectory(object):
     @property
     def first_frame(self):
         return self.frames[0]
-    
+
     @property
     def last_frame(self):
         return self.frames[-1]
 
     @property
-    def trace(self):
+    def trace(self) -> List[tuple]:
         trace = []
         for frame in self.frames:
-            trace.append(list(self.history_states[frame].location))
+            trace.append(self.history_states[frame].location)
         return trace
 
     @property
@@ -56,10 +70,10 @@ class Trajectory(object):
         return np.mean([state.speed for state in self.history_states.values()])
 
     def get_state(self, frame: int = None) -> State:
-        """Obtain the object's state at the requested time stamp.
+        """Obtain the object's state at the requested frame.
 
-        If the time stamp is not specified, the function will return current state.
-        If the time stamp is given but not found, the function will return None.
+        If the frame is not specified, the function will return the current state.
+        If the frame is given but not found, the function will raise a TrajectoryKeyError.
         """
         if frame is None:
             return self.current_state
@@ -83,8 +97,8 @@ class Trajectory(object):
         if len(self.history_states) > 1:
             current_interval = state.frame - self.frames[-1]
             last_interval = self.frames[-1] - self.frames[-2]
-            if current_interval != last_interval and self.fixed_freq:
-                self.fixed_freq = False
+            if current_interval != last_interval and self.stable_freq:
+                self.stable_freq = False
                 warnings.warn(
                     f"The time interval of the trajectory {self.id_} is uneven."
                 )
@@ -92,3 +106,17 @@ class Trajectory(object):
         self.frames.append(state.frame)
         self.history_states[state.frame] = state
         self.current_state = state
+
+    def reset(self, state: State = None, keep_history: bool = False):
+        if state is None:
+            initial_state = self.initial_state
+            if not keep_history:
+                self.history_states.clear()
+                self.frames.clear()
+                self.append_state(initial_state)
+            else:
+                self.current_state = initial_state
+        else:
+            self.history_states.clear()
+            self.frames.clear()
+            self.append_state(state)

@@ -173,9 +173,7 @@ def _load_area(xml_node: ET.Element, map_: Map) -> Area:
     inner_idx = 0
     for line_id in line_ids["inner"]:
         if len(inner_point_list[inner_idx]) == 0:
-            inner_point_list[inner_idx] = list(
-                map_.roadlines[line_id].linestring.coords
-            )
+            inner_point_list[inner_idx] = list(map_.roadlines[line_id].linestring.coords)
         else:
             new_points = list(map_.roadlines[line_id].linestring.coords)
             _append_point_list(inner_point_list[inner_idx], new_points, area_id)

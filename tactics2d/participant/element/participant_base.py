@@ -9,18 +9,33 @@ class ParticipantBase(ABC):
     Attributes:
         id_ (int): The unique identifier of the traffic participant.
         type_ (str): The type of the traffic participant. Defaults to None.
-        length (float): The length of the traffic participant. The default unit is meter (m). 
+        length (float): The length of the traffic participant. The default unit is meter (m).
             Defaults to None.
-        width (float): The width of the traffic participant. The default unit is meter (m). 
+        width (float): The width of the traffic participant. The default unit is meter (m).
             Defaults to None.
-        height (float): The height of the traffic participant. The default unit is meter (m). 
+        height (float): The height of the traffic participant. The default unit is meter (m).
             Defaults to None.
         trajectory (Trajectory): The trajectory of the traffic participant. Defaults to None.
     """
 
-    def __init__(self, id_: int, type_: str):
+    def __init__(
+        self,
+        id_: int,
+        type_: str,
+        length: float = None,
+        width: float = None,
+        height: float = None,
+        trajectory: Trajectory = None,
+    ):
         self.id_ = id_
         self.type_ = type_
+        self.length = length
+        self.width = width
+        self.height = height
+
+        self.trajectory = Trajectory(id_=self.id_)
+        if trajectory is not None:
+            self.bind_trajectory(trajectory)
 
     @property
     def current_state(self) -> State:
@@ -45,28 +60,16 @@ class ParticipantBase(ABC):
     @property
     def accel(self):
         return self.current_state.accel
-    
+
     def is_alive(self, frame: int) -> bool:
+        """Check if the participant is in its simulation life cycle."""
         if frame < self.trajectory.first_frame or frame > self.trajectory.last_frame:
             return False
         return True
 
     @abstractmethod
-    def _verify_state(self, curr_state: State, prev_state: State, interval: float) -> bool:
-        """Check if the state change is allowed by the participant's physics constraints.
-
-        Args:
-            curr_state (State): 
-            prev_state (State):
-            interval (float): The time interval between the current state and the previous state.
-
-        Returns:
-            bool: True if the state change is valid, False otherwise.
-        """
-
-    @abstractmethod
     def _verify_trajectory(self, trajectory: Trajectory):
-        """Check if the trajectory is valid based on the participant's physics constraints.
+        """Check if the trajectory is allowed by the participant's physical constraints.
 
         Returns:
             bool: True if the trajectory is valid, False otherwise.
@@ -75,3 +78,24 @@ class ParticipantBase(ABC):
     @abstractmethod
     def bind_trajectory(self, trajectory: Trajectory):
         """Bind a trajectory with the traffic participant."""
+
+    @abstractmethod
+    def get_pose(self, frame: int = None):
+        """Get the traffic participant's pose at the requested frame.
+
+        If the frame is not specified, the function will return the current pose.
+        If the frame is given but not found, the function will raise a TrajectoryKeyError.
+        """
+
+    def reset(self, state: State = None, keep_trajectory: bool = False):
+        """Reset the object to a given state. If the initial state is not specified, the object
+                will be reset to the same initial state as previous.
+
+        Args:
+            state (State, optional): The initial state of the object. Defaults to None.
+            keep_trajectory (bool, optional): Whether to keep the record of history trajectory.
+                This argument only works when the state is not specified. When the state is
+                not None, the trajectory will be reset to the new state.
+                Defaults to False.
+        """
+        self.trajectory.reset(state, keep_trajectory)

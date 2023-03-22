@@ -18,12 +18,18 @@ class Map(object):
         name (str, optional): _description_. Defaults to None.
         scenario_type (str, optional): _description_. Defaults to None.
         country (str, optional): _description_. Defaults to None.
-        boundary (tuple, optional): (left, right, front, back). Defaults to None.
+        ids (set): The identical index of the elements in the map. A conflict in ids will raise a
+            MapKeyError.
+        nodes (dict): The nodes in the map.
+        lanes (dict): The lanes in the map.
+        areas (dict): The areas in the map.
+        roadlines (dict): The roadlines in the map.
+        regulations (dict): The regulations in the map.
+        boundary (tuple, optional): The boundary of the map expressed in the form of
+            (left, right, front, back). This attribute is automatically calculated when requested.
     """
 
-    def __init__(
-        self, name: str = None, scenario_type: str = None, country: str = None
-    ):
+    def __init__(self, name: str = None, scenario_type: str = None, country: str = None):
         self.name = name
         self.scenario_type = scenario_type
         self.country = country
