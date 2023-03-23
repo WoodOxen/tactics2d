@@ -56,7 +56,7 @@ class TopDownCamera(SensorBase):
     """This class implements a pseudo camera with top-down view RGB semantic segmentation image.
 
     Attributes:
-        sensor_id (str): The unique identifier of the sensor.
+        id_ (int): The unique identifier of the sensor.
         map_ (Map): The map that the sensor is attached to.
         perception_range (Union[float, tuple]): The distance from the sensor to its maximum detection range in
             (left, right, front, back). When this value is undefined, the camera is assumed to
@@ -65,13 +65,13 @@ class TopDownCamera(SensorBase):
 
     def __init__(
         self,
-        sensor_id,
+        id_: int,
         map_: Map,
         perception_range: Union[float, Tuple[float]] = None,
         window_size: Tuple[int, int] = (200, 200),
         off_screen: bool = False,
     ):
-        super().__init__(sensor_id, map_)
+        super().__init__(id_, map_)
 
         self.off_screen = off_screen
 
@@ -248,10 +248,11 @@ class TopDownCamera(SensorBase):
 
         pygame.draw.circle(self.surface, color, point, radius)
 
-    def _render_participants(self, participants: dict, frame: int = None):
-        for participant in participants.values():
-            if not participant.is_alive(frame):
-                continue
+    def _render_participants(
+        self, participants: dict, participant_ids: list, frame: int = None
+    ):
+        for participant_id in participant_ids:
+            participant = participants[participant_id]
 
             state = participant.trajectory.get_state(frame)
             if self.position is not None:
@@ -268,6 +269,7 @@ class TopDownCamera(SensorBase):
     def update(
         self,
         participants,
+        participant_ids: list,
         frame: int = None,
         position: Point = None,
         heading: float = None,
@@ -280,7 +282,7 @@ class TopDownCamera(SensorBase):
         self._render_areas()
         self._render_lanes()
         self._render_roadlines()
-        self._render_participants(participants, frame)
+        self._render_participants(participants, participant_ids, frame)
 
     def get_observation(self):
         return pygame.surfarray.array3d(self.surface)

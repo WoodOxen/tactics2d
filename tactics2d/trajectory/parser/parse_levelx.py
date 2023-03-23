@@ -41,7 +41,7 @@ CLASS_MAPPING = {
 }
 
 
-class LevelXParser(object):
+class LevelXParser:
     def __init__(self, dataset: str = ""):
         if dataset not in REGISTERED_DATASET:
             raise KeyError(
@@ -136,10 +136,7 @@ class LevelXParser(object):
                         state_info["xCenter"], state_info["yCenter"]
                     )
                     state = State(
-                        frame,
-                        x=x,
-                        y=y,
-                        heading=state_info["heading"] * 2 * math.pi / 360,
+                        frame, x=x, y=y, heading=state_info["heading"] * 2 * math.pi / 360
                     )
                 state.set_velocity(state_info["xVelocity"], state_info["yVelocity"])
                 state.set_accel(state_info["xAcceleration"], state_info["yAcceleration"])

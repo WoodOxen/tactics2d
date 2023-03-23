@@ -10,14 +10,14 @@ class SensorBase(ABC):
     """This class define an interface for all the pseudo sensors provided in tactics2d.
 
     Attributes:
-        sensor_id (str): The unique identifier of the sensor.
+        id_ (int): The unique identifier of the sensor.
         map_ (Map): The map that the sensor is attached to.
     """
 
     BG_COLOR = THECOLORS["white"]
 
-    def __init__(self, sensor_id, map_: Map):
-        self.sensor_id = sensor_id
+    def __init__(self, id_: int, map_: Map):
+        self.id_ = id_
         self.map_ = map_
 
     @abstractmethod

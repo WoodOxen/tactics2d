@@ -46,9 +46,9 @@ class RenderManager:
         self.clock = pygame.time.Clock()
         self.screen = None
 
-        self.sensors = {}
-        self.bound_sensors = {}
-        self.layouts = {}
+        self.sensors = dict()
+        self.bound_sensors = dict()
+        self.layouts = dict()
 
     @property
     def graphic_driver(self) -> str:
@@ -69,7 +69,7 @@ class RenderManager:
             n = 3 if len(sensor_to_display) < 4 else len(sensor_to_display) - 1
             sub_cnt = 0
             for sensor in sensor_to_display:
-                if sensor.sensor_id == self.main_sensor:
+                if sensor.id_ == self.main_sensor:
                     scale = min(
                         self.windows_size[0] / sensor.window_size[0],
                         self.windows_size[1] / sensor.window_size[1],
@@ -91,7 +91,7 @@ class RenderManager:
                     )
                     sub_cnt += 1
 
-                self.layouts[sensor.sensor_id] = (scale, coords)
+                self.layouts[sensor.id_] = (scale, coords)
 
         elif self.layout_style == "modular":
             n = int(np.ceil(np.sqrt(len(sensor_to_display))))
@@ -103,7 +103,7 @@ class RenderManager:
                     (i % n) * width + (width - sensor.window_size[0] * scale) / 2,
                     (i // n) * height + (height - sensor.window_size[1] * scale) / 2,
                 )
-                self.layouts[sensor.sensor_id] = (scale, coords)
+                self.layouts[sensor.id_] = (scale, coords)
 
     def add(self, sensor: SensorBase, main_sensor: bool = False):
         """Add a sensor instance to the manager.
@@ -119,18 +119,31 @@ class RenderManager:
             KeyError: If the sensor has conflicted id with registered sensors.
         """
 
-        if sensor.sensor_id not in self.sensors:
-            self.sensors[sensor.sensor_id] = sensor
+        if sensor.id_ not in self.sensors:
+            self.sensors[sensor.id_] = sensor
         else:
-            raise KeyError(f"ID {sensor.sensor_id} is used by the other sensor.")
+            raise KeyError(f"ID {sensor.id_} is used by the other sensor.")
 
         if main_sensor:
-            self.main_sensor = sensor.sensor_id
+            self.main_sensor = sensor.id_
 
         if not sensor.off_screen:
             self._rearrange_layout()
 
-    def bind(self, sensor_id, participant_id):
+    def is_bound(self, sensor_id):
+        """Check whether the sensor is bound to a participant.
+
+        Args:
+            sensor_id (int): The id of the sensor.
+
+        Returns:
+            bool: Whether the sensor is bound to a participant.
+        """
+        if sensor_id not in self.bound_sensors:
+            return None
+        return self.bound_sensors[sensor_id]
+
+    def bind(self, sensor_id: int, participant_id: int):
         """Bind a registered sensor with a participant.
 
         Args:
@@ -164,7 +177,7 @@ class RenderManager:
         except KeyError:
             warnings.warn(f"Sensor {sensor_id} is not bound with any participant.")
 
-    def remove(self, sensor_id: int):
+    def remove_sensor(self, sensor_id: int):
         """Remove a registered sensor from the manager.
 
         Args:
@@ -182,7 +195,7 @@ class RenderManager:
         if sensor_id in self.layouts:
             self.layouts.pop(sensor_id)
 
-    def update(self, participants: dict, frame: int = None):
+    def update(self, participants: dict, participant_ids: list, frame: int = None):
         """Sync the viewpoint of the sensors with their bound participants. Update the
             observation of all the sensors.
 
@@ -200,16 +213,20 @@ class RenderManager:
                 try:
                     state = participant.trajectory.get_state(frame)
                     sensor.update(
-                        participants, frame, Point(state.location), state.heading
+                        participants,
+                        participant_ids,
+                        frame,
+                        Point(state.location),
+                        state.heading,
                     )
                 except KeyError:
                     self.unbind(sensor_id)
                     to_remove.append(sensor_id)
             else:
-                sensor.update(participants, frame)
+                sensor.update(participants, participant_ids, frame)
 
         for sensor_id in to_remove:
-            self.remove(sensor_id)
+            self.remove_sensor(sensor_id)
 
     def render(self):
         """Render the observation of all the sensors."""
@@ -242,4 +259,8 @@ class RenderManager:
     def reset(self):
         """Reset the render manager."""
         for sensor_id in self.sensors:
-            self.remove(sensor_id)
+            self.remove_sensor(sensor_id)
+
+    def close(self):
+        """Close the render manager."""
+        pygame.quit()

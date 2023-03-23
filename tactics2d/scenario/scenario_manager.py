@@ -29,7 +29,6 @@ class ScenarioManager(ABC):
         self.participants = None
 
         self.agent = None
-        
 
         self.status_checklist = []
 
@@ -40,6 +39,14 @@ class ScenarioManager(ABC):
     @abstractmethod
     def reset(self):
         """Reset the scenario."""
+
+    def get_active_participants(self, frame: int) -> list:
+        """Get the list of active participants at the given frame."""
+        return [
+            participant.id_
+            for participant in self.participants
+            if participant.is_active(frame)
+        ]
 
     def _check_time_exceeded(self):
         """Check if the simulation has reached the maximum time step."""

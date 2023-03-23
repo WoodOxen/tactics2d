@@ -8,13 +8,13 @@ from .sensor_base import SensorBase
 from tactics2d.map.element import Map
 
 
-class Lidar(SensorBase):
+class SingleLineLidar(SensorBase):
     """This class implements a pseudo single line lidar.
 
     The default parameters are from the lidar STL-06P.
 
     Attributes:
-        sensor_id (str): The unique identifier of the sensor.
+        id_ (int): The unique identifier of the sensor.
         map_ (Map): The map that the sensor is attached to.
         perception_range (float): The distance from the sensor to its maximum detection
             range. Defaults to 12.0 meters.
@@ -26,13 +26,13 @@ class Lidar(SensorBase):
 
     def __init__(
         self,
-        sensor_id,
+        id_: int,
         map_: Map,
         perception_range: float = 12.0,
         freq_scan: float = 10.0,
         freq_detect: float = 5000.0,
     ):
-        super().__init__(sensor_id, map_)
+        super().__init__(id_, map_)
 
         self.perception_range = perception_range
         self.freq_scan = freq_scan
@@ -42,9 +42,8 @@ class Lidar(SensorBase):
         self.angle_resolution = 2 * np.pi / self.point_density
 
         self.position = Point(
-            (self.map_.boundary[1] - self.map_.boundary[0])
-            / 2(self.map_.boundary[3] - self.map_.boundary[2])
-            / 2
+            (self.map_.boundary[1] - self.map_.boundary[0]) / 2,
+            (self.map_.boundary[3] - self.map_.boundary[2]) / 2,
         )
         self.heading = 0.0
 
@@ -70,7 +69,9 @@ class Lidar(SensorBase):
         distance = self.position.distance(point)
         self.scan_result[line_idx] = min(self.scan_result[line_idx], distance)
 
-    def _scan_obstacles(self, participants, frame: int = None):
+    def _scan_obstacles(
+        self, participants: dict, participant_ids: list, frame: int = None
+    ):
         lidar_lines = [
             LineString(
                 [
@@ -97,8 +98,8 @@ class Lidar(SensorBase):
                 intersection = shape.intersection(lidar_lines[i])
                 self._update_scan_line(intersection, i)
 
-        for participant in participants:
-            shape = participant.get_pose(frame)
+        for participant_id in participant_ids:
+            shape = participants[participant_id].get_pose(frame)
             line_idx_range = self._estimate_line_idx_range(shape)
 
             for i in range(line_idx_range[0], line_idx_range[1]):
@@ -107,7 +108,8 @@ class Lidar(SensorBase):
 
     def update(
         self,
-        participants,
+        participants: dict,
+        participant_ids: list,
         frame: int = None,
         position: Point = None,
         heading: float = None,
@@ -115,7 +117,7 @@ class Lidar(SensorBase):
         self.position = self.position if position is None else position
         self.heading = self.heading if heading is None else heading
 
-        self._scan_obstacles(participants, frame)
+        self._scan_obstacles(participants, participant_ids, frame)
 
     def get_observation(self):
         return self.scan_result
