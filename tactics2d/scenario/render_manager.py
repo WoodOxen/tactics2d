@@ -18,11 +18,11 @@ class RenderManager:
         fps (int): The frame rate of the rendering. Defaults to 60.
         windows_size (Tuple[int, int]): The size of the rendering window. Defaults to (800, 800).
         layout_style (str): The style of the layout of the rendering window. The available
-            choices are ["hierarchical", "modular"]. Defaults to "hierarchical".
+            choices are ["hierarchical", "block"]. Defaults to "hierarchical".
         off_screen (bool): Whether to render the scenario off screen. Defaults to False.
     """
 
-    layout_styles = {"hierarchical", "modular"}
+    layout_styles = {"hierarchical", "block"}
 
     def __init__(
         self,
@@ -42,9 +42,8 @@ class RenderManager:
         flags = pygame.HIDDEN if self.off_screen else pygame.SHOWN
 
         pygame.init()
-        pygame.display.set_mode(size=self.windows_size, flags=flags)
         self.clock = pygame.time.Clock()
-        self.screen = None
+        self.screen = pygame.display.set_mode(size=self.windows_size, flags=flags)
 
         self.sensors = dict()
         self.bound_sensors = dict()
@@ -58,9 +57,6 @@ class RenderManager:
         sensor_to_display = [
             sensor for sensor in self.sensors.values() if not sensor.off_screen
         ]
-
-        if self.screen is None and len(sensor_to_display) > 0:
-            self.screen = pygame.display.set_mode(self.windows_size, flags=pygame.SHOWN)
 
         if self.layout_style == "hierarchical":
             if not hasattr(self, "main_sensor"):
@@ -93,7 +89,7 @@ class RenderManager:
 
                 self.layouts[sensor.id_] = (scale, coords)
 
-        elif self.layout_style == "modular":
+        elif self.layout_style == "block":
             n = int(np.ceil(np.sqrt(len(sensor_to_display))))
             width = self.windows_size[0] / n
             height = self.windows_size[1] / np.ceil(len(sensor_to_display) / n)
@@ -105,7 +101,7 @@ class RenderManager:
                 )
                 self.layouts[sensor.id_] = (scale, coords)
 
-    def add(self, sensor: SensorBase, main_sensor: bool = False):
+    def add_sensor(self, sensor: SensorBase, main_sensor: bool = False):
         """Add a sensor instance to the manager.
 
         Args:
@@ -129,6 +125,23 @@ class RenderManager:
 
         if not sensor.off_screen:
             self._rearrange_layout()
+
+    def remove_sensor(self, sensor_id: int):
+        """Remove a registered sensor from the manager.
+
+        Args:
+            sensor_id (int): The id of the sensor.
+        """
+        try:
+            self.sensors.pop(sensor_id)
+        except KeyError:
+            warnings.warn(f"Sensor {sensor_id} does not exist.")
+
+        if sensor_id in self.bound_sensors:
+            self.unbind(sensor_id)
+
+        if sensor_id in self.layouts:
+            self.layouts.pop(sensor_id)
 
     def is_bound(self, sensor_id):
         """Check whether the sensor is bound to a participant.
@@ -176,24 +189,6 @@ class RenderManager:
             self.bound_sensors.pop(sensor_id)
         except KeyError:
             warnings.warn(f"Sensor {sensor_id} is not bound with any participant.")
-
-    def remove_sensor(self, sensor_id: int):
-        """Remove a registered sensor from the manager.
-
-        Args:
-            sensor_id (int): The id of the sensor.
-        """
-
-        try:
-            self.sensors.pop(sensor_id)
-        except KeyError:
-            warnings.warn(f"Sensor {sensor_id} does not exist.")
-
-        if sensor_id in self.bound_sensors:
-            self.unbind(sensor_id)
-
-        if sensor_id in self.layouts:
-            self.layouts.pop(sensor_id)
 
     def update(self, participants: dict, participant_ids: list, frame: int = None):
         """Sync the viewpoint of the sensors with their bound participants. Update the

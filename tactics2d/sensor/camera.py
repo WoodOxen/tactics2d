@@ -278,7 +278,7 @@ class TopDownCamera(SensorBase):
         self.heading = heading
         self._update_transform_matrix()
 
-        self.surface.fill(self.BG_COLOR)
+        self.surface.fill(THECOLORS["white"])
         self._render_areas()
         self._render_lanes()
         self._render_roadlines()

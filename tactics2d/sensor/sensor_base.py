@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 
 from shapely.geometry import Point
-from pygame.colordict import THECOLORS
 
 from tactics2d.map.element import Map
 
@@ -13,8 +12,6 @@ class SensorBase(ABC):
         id_ (int): The unique identifier of the sensor.
         map_ (Map): The map that the sensor is attached to.
     """
-
-    BG_COLOR = THECOLORS["white"]
 
     def __init__(self, id_: int, map_: Map):
         self.id_ = id_
