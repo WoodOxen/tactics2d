@@ -6,10 +6,11 @@ sys.path.append("..")
 import json
 from zipfile import ZipFile
 import xml.etree.ElementTree as ET
-import pytest
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
+
+import pytest
 
 from tactics2d.map.parser import Lanelet2Parser
 from tactics2d.map.parser import MapParseError

@@ -1,5 +1,4 @@
 from typing import Tuple, Union
-import warnings
 
 import numpy as np
 from shapely.geometry import Point
@@ -56,66 +55,23 @@ class TopDownCamera(SensorBase):
     """This class implements a pseudo camera with top-down view RGB semantic segmentation image.
 
     Attributes:
-        sensor_id (str): The unique identifier of the sensor.
+        id_ (int): The unique identifier of the sensor.
         map_ (Map): The map that the sensor is attached to.
         perception_range (Union[float, tuple]): The distance from the sensor to its maximum detection range in
             (left, right, front, back). When this value is undefined, the camera is assumed to
             detect the whole map. Defaults to None.
+        window_size (Tuple[int, int]): The size of the rendering window. Defaults to (200, 200).
     """
 
     def __init__(
         self,
-        sensor_id,
+        id_: int,
         map_: Map,
         perception_range: Union[float, Tuple[float]] = None,
         window_size: Tuple[int, int] = (200, 200),
-        off_screen: bool = False,
     ):
-        super().__init__(sensor_id, map_)
+        super().__init__(id_, map_, perception_range, window_size)
 
-        self.off_screen = off_screen
-
-        if perception_range is None:
-            width = (map_.boundary[1] - map_.boundary[0]) / 2
-            height = (map_.boundary[3] - map_.boundary[2]) / 2
-            self.perception_range = (width, width, height, height)
-        else:
-            if isinstance(perception_range, tuple):
-                self.perception_range = perception_range
-            else:
-                self.perception_range = (
-                    perception_range,
-                    perception_range,
-                    perception_range,
-                    perception_range,
-                )
-
-        self.perception_width = self.perception_range[0] + self.perception_range[1]
-        self.perception_height = self.perception_range[2] + self.perception_range[3]
-        self.max_perception_distance = np.linalg.norm(
-            [
-                max(self.perception_range[0], self.perception_range[1]),
-                max(self.perception_range[2], self.perception_range[3]),
-            ]
-        )
-
-        scale_width = window_size[0] / self.perception_width
-        scale_height = window_size[1] / self.perception_height
-        self.scale = min(scale_width, scale_height)
-        if scale_width != scale_height:
-            warnings.warn(
-                "The height-width proportion of the perception and the image is inconsistent. "
-                + "Use the proportion of the perception to scale the image."
-            )
-
-            self.window_size = (
-                int(self.scale * self.perception_width),
-                int(self.scale * self.perception_height),
-            )
-        else:
-            self.window_size = window_size
-
-        self.surface = pygame.Surface(window_size)
         self.position = None
         self.heading = None
 
@@ -241,15 +197,18 @@ class TopDownCamera(SensorBase):
         color = (
             PEDESTRIAN_COLOR["default"] if pedestrian.color is None else pedestrian.color
         )
-        point = affine_transform(Point(pedestrian.trajectory.get_state(frame).location))
+        point = affine_transform(
+            Point(pedestrian.trajectory.get_state(frame).location), self.transform_matrix
+        )
         radius = max(1, 0.5 * self.scale)
 
         pygame.draw.circle(self.surface, color, point, radius)
 
-    def _render_participants(self, participants: dict, frame: int = None):
-        for participant in participants.values():
-            if not participant.is_alive(frame):
-                continue
+    def _render_participants(
+        self, participants: dict, participant_ids: list, frame: int = None
+    ):
+        for participant_id in participant_ids:
+            participant = participants[participant_id]
 
             state = participant.trajectory.get_state(frame)
             if self.position is not None:
@@ -266,6 +225,7 @@ class TopDownCamera(SensorBase):
     def update(
         self,
         participants,
+        participant_ids: list,
         frame: int = None,
         position: Point = None,
         heading: float = None,
@@ -274,11 +234,11 @@ class TopDownCamera(SensorBase):
         self.heading = heading
         self._update_transform_matrix()
 
-        self.surface.fill(self.BG_COLOR)
+        self.surface.fill(THECOLORS["white"])
         self._render_areas()
         self._render_lanes()
         self._render_roadlines()
-        self._render_participants(participants, frame)
+        self._render_participants(participants, participant_ids, frame)
 
     def get_observation(self):
         return pygame.surfarray.array3d(self.surface)

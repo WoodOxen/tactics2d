@@ -25,6 +25,7 @@ class ParticipantBase(ABC):
         length: float = None,
         width: float = None,
         height: float = None,
+        color: tuple = None,
         trajectory: Trajectory = None,
     ):
         self.id_ = id_
@@ -32,6 +33,7 @@ class ParticipantBase(ABC):
         self.length = length
         self.width = width
         self.height = height
+        self.color = color
 
         self.trajectory = Trajectory(id_=self.id_)
         if trajectory is not None:
@@ -61,8 +63,8 @@ class ParticipantBase(ABC):
     def accel(self):
         return self.current_state.accel
 
-    def is_alive(self, frame: int) -> bool:
-        """Check if the participant is in its simulation life cycle."""
+    def is_active(self, frame: int) -> bool:
+        """Check if the participant has state information at the given frame."""
         if frame < self.trajectory.first_frame or frame > self.trajectory.last_frame:
             return False
         return True
@@ -86,6 +88,13 @@ class ParticipantBase(ABC):
         If the frame is not specified, the function will return the current pose.
         If the frame is given but not found, the function will raise a TrajectoryKeyError.
         """
+
+    def get_state(self, frame: int = None):
+        """Get the traffic participant's state at the requested frame. If the frame is not
+        specified, the function will return the current state. If the frame is given
+        but not found, the function will raise a TrajectoryKeyError.
+        """
+        return self.trajectory.get_state(frame)
 
     def reset(self, state: State = None, keep_trajectory: bool = False):
         """Reset the object to a given state. If the initial state is not specified, the object
