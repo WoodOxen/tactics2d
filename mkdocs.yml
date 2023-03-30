@@ -18,7 +18,7 @@ nav:
       - tactics2d.scenario: "api_scenario.md"
       - tactics2d.sensor: "api_sensor.md"
 
-theme: "readthedocs"
+theme: "material"
 
 plugins:
   - mkdocstrings:

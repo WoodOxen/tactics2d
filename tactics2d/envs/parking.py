@@ -16,6 +16,12 @@ from tactics2d.map.generator import ParkingLotGenerator
 from tactics2d.scenario import ScenarioManager, RenderManager
 from tactics2d.scenario import TrafficEvent
 
+STATE_W = 256
+STATE_H = 256
+VIDEO_W = 600
+VIDEO_H = 400
+WIN_W = 1000
+WIN_H = 1000
 
 STATE_W = 256
 STATE_H = 256
@@ -32,8 +38,8 @@ MAX_STEP = 20000  # steps
 DISCRETE_ACTION = np.array(
     [
         [0, 0],  # do nothing
-        [-0.6, 0],  # steer left
-        [0.6, 0],  # steer right
+        [-0.3, 0],  # steer left
+        [0.3, 0],  # steer right
         [0, 0.2],  # accelerate
         [0, -0.2],  # decelerate
     ]

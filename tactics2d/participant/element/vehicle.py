@@ -54,9 +54,7 @@ class Vehicle(ParticipantBase):
         body_type=None,
         trajectory: Trajectory = None,
     ):
-        super().__init__(id_, type_, length, width, height, trajectory)
-
-        self.color = color
+        super().__init__(id_, type_, length, width, height, color, trajectory)
 
         attribs = [
             "length",

@@ -26,7 +26,7 @@ CLASS_MAPPING = {
 }
 
 
-class DLPParser(object):
+class DLPParser:
     """This class implements a parser of the Dragon Lake Parking Dataset.
 
     Shen, Xu, et al. "Parkpredict: Motion and intent prediction of vehicles in parking lots." 2020 IEEE Intelligent Vehicles Symposium (IV). IEEE, 2020.

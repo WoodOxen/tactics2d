@@ -1,11 +1,13 @@
 # custom
 .DS_Store
+.scannerwork
 tactics2d/data/trajectory_raw
 tactics2d/data/trajectory_processed
 tactics2d/data/trajectory_sample/DLP
 
 #  vscode
 *.code-workspace
+.vscode/
 .VSCodeCounter/
 
 # Gitignore Template for Python
