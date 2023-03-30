@@ -46,7 +46,6 @@ def test_camera(follow_view: bool):
         if participant.is_active(frame)
     ]
 
-    pygame.init()
     if follow_view:
         camera = TopDownCamera(1, map_, window_size=(600, 600))
         camera.update(participants, participant_ids, frame)
@@ -67,9 +66,43 @@ def test_camera(follow_view: bool):
         img.save("./tests/img/test_camera.jpg")
 
 
-@pytest.mark.skip(reason="This test is not ready yet.")
-def test_lidar():
-    lidar = SingleLineLidar(1, None, window_size=(600, 600))
+@pytest.mark.render
+@pytest.mark.parametrize("perception_range", [12.0, 30.0, 45.0, 100.0])
+def test_lidar(perception_range):
+    map_path = "./tactics2d/data/map_default/I_0_inD_DEU.osm"
+    trajectory_path = "./tactics2d/data/trajectory_sample/inD/data/"
+    config_path = "./tactics2d/data/map_default.config"
+
+    with open(config_path, "r") as f:
+        configs = json.load(f)
+
+    map_parser = Lanelet2Parser()
+    map_root = ET.parse(map_path).getroot()
+    map_ = map_parser.parse(map_root, configs["I_0"])
+
+    frame = 40
+    trajectory_parser = LevelXParser("inD")
+    participants = trajectory_parser.parse(0, trajectory_path, (0.0, 200.0))
+    participant_ids = [
+        participant.id_
+        for participant in participants.values()
+        if participant.is_active(frame)
+    ]
+
+    lidar = SingleLineLidar(
+        1, map_, perception_range, window_size=(600, 600), visualize=True
+    )
+    state = participants[participant_ids[0]].get_state(frame)
+    lidar.update(
+        participants, participant_ids[1:], frame, Point(state.location), state.heading
+    )
+    _ = lidar.get_observation()
+
+    observation = pygame.surfarray.array3d(lidar.surface)
+    img = Image.fromarray(observation)
+    img = img.rotate(270)
+
+    img.save(f"./tests/img/test_lidar_{int(perception_range)}.jpg")
 
 
 @pytest.mark.render
@@ -145,10 +178,6 @@ def test_render_manager(layout_style, off_screen):
     logging.debug(f"The average FPS is {average_fps}")
 
 
+@pytest.mark.skip(reason="This test is not implemented yet.")
 def test_off_screen_rendering():
     return
-
-
-if __name__ == "__main__":
-    test_camera(True)
-    test_camera(False)
