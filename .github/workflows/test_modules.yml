@@ -43,3 +43,4 @@ jobs:
       - name: Test parsers
         run: |
           pytest tests/test_parser.py
+          pytest tests/test_render.py
