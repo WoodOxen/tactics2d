@@ -22,7 +22,7 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Pytest
         run: |
-          pytest tests
+          pytest tests --cov=tactics2d --cov-report=xml
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
 
@@ -46,7 +46,7 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Pytest
         run: |
-          pytest tests --cov=tactics2d --cov-report xml
+          pytest tests --cov=tactics2d --cov-report=xml
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
         with:
