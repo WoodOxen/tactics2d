@@ -35,14 +35,13 @@ class SingleLineLidar(SensorBase):
         freq_scan: float = 10.0,
         freq_detect: float = 5000.0,
         window_size: Tuple[int, int] = (200, 200),
-        visualize: bool = False,
+        off_screen: bool = True,
     ):
-        super().__init__(id_, map_, perception_range, window_size)
+        super().__init__(id_, map_, perception_range, window_size, off_screen)
 
         self.perception_range = perception_range
         self.freq_scan = freq_scan
         self.freq_detect = freq_detect
-        self.visualize = visualize
 
         self.point_density = int(self.freq_detect / self.freq_scan)
         self.angle_resolution = 2 * np.pi / self.point_density
@@ -177,7 +176,7 @@ class SingleLineLidar(SensorBase):
         self._update_transform_matrix()
 
         self._scan_obstacles(participants, participant_ids, frame)
-        if self.visualize:
+        if not self.off_screen:
             self._render_lidar_points()
 
     def get_observation(self):

@@ -27,9 +27,11 @@ class SensorBase(ABC):
         map_: Map,
         perception_range: Union[float, Tuple[float]] = None,
         window_size: Tuple[int, int] = (200, 200),
+        off_screen: bool = True,
     ):
         self.id_ = id_
         self.map_ = map_
+        self.off_screen = off_screen
 
         if perception_range is None:
             width = (map_.boundary[1] - map_.boundary[0]) / 2

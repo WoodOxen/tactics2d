@@ -69,8 +69,9 @@ class TopDownCamera(SensorBase):
         map_: Map,
         perception_range: Union[float, Tuple[float]] = None,
         window_size: Tuple[int, int] = (200, 200),
+        off_screen: bool = True,
     ):
-        super().__init__(id_, map_, perception_range, window_size)
+        super().__init__(id_, map_, perception_range, window_size, off_screen)
 
         self.position = None
         self.heading = None
