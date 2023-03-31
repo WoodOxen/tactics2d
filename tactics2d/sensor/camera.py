@@ -61,6 +61,7 @@ class TopDownCamera(SensorBase):
             (left, right, front, back). When this value is undefined, the camera is assumed to
             detect the whole map. Defaults to None.
         window_size (Tuple[int, int]): The size of the rendering window. Defaults to (200, 200).
+        off_screen (bool): Whether to render the sensor off screen. Defaults to True.
     """
 
     def __init__(
@@ -69,8 +70,9 @@ class TopDownCamera(SensorBase):
         map_: Map,
         perception_range: Union[float, Tuple[float]] = None,
         window_size: Tuple[int, int] = (200, 200),
+        off_screen: bool = True,
     ):
-        super().__init__(id_, map_, perception_range, window_size)
+        super().__init__(id_, map_, perception_range, window_size, off_screen)
 
         self.position = None
         self.heading = None

@@ -90,8 +90,9 @@ def test_lidar(perception_range):
     ]
 
     lidar = SingleLineLidar(
-        1, map_, perception_range, window_size=(600, 600), visualize=True
+        1, map_, perception_range, window_size=(600, 600), off_screen=False
     )
+
     state = participants[participant_ids[0]].get_state(frame)
     lidar.update(
         participants, participant_ids[1:], frame, Point(state.location), state.heading
@@ -134,12 +135,20 @@ def test_render_manager(layout_style, off_screen):
     )
 
     perception_range = (30, 30, 45, 15)
-    main_camera = TopDownCamera(1, map_, window_size=(600, 600))
+    main_camera = TopDownCamera(1, map_, window_size=(600, 600), off_screen=off_screen)
     camera1 = TopDownCamera(
-        2, map_, perception_range=perception_range, window_size=(200, 200)
+        2,
+        map_,
+        perception_range=perception_range,
+        window_size=(200, 200),
+        off_screen=off_screen,
     )
     camera2 = TopDownCamera(
-        3, map_, perception_range=perception_range, window_size=(200, 200)
+        3,
+        map_,
+        perception_range=perception_range,
+        window_size=(200, 200),
+        off_screen=off_screen,
     )
 
     render_manager.add_sensor(main_camera, main_sensor=True)

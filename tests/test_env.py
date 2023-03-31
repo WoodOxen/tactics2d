@@ -7,8 +7,8 @@ import pytest
 import logging
 
 logging.basicConfig(level=logging.INFO)
-from matplotlib.patches import Polygon
-import matplotlib.pyplot as plt
+# from matplotlib.patches import Polygon
+# import matplotlib.pyplot as plt
 
 from tactics2d.participant.element import Vehicle
 from tactics2d.map.element import Map
@@ -16,10 +16,12 @@ from tactics2d.map.generator import RacingTrackGenerator, ParkingLotGenerator
 from tactics2d.envs import RacingEnv, ParkingEnv
 
 
+@pytest.mark.skip(reason="not implemented")
 def test_parking_env():
     return
 
 
+@pytest.mark.skip(reason="not implemented")
 def test_racing_env():
     return
 
