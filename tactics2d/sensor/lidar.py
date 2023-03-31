@@ -39,7 +39,6 @@ class SingleLineLidar(SensorBase):
         off_screen: bool = True,
     ):
         super().__init__(id_, map_, perception_range, window_size, off_screen)
-        super().__init__(id_, map_, perception_range, window_size, off_screen)
 
         self.perception_range = perception_range
         self.freq_scan = freq_scan
