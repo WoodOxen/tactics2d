@@ -18,10 +18,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest
+          pip install Pillow
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: Test parsers
+      - name: Pytest
         run: |
-          pytest tests/test_parser.py
+          pytest tests
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
 
   test-modules-ubuntu20:
     runs-on: ubuntu-20.04
@@ -41,7 +44,8 @@ jobs:
           pip install pytest
           pip install Pillow
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: Test parsers
+      - name: Pytest
         run: |
-          pytest tests/test_parser.py
-          pytest tests/test_render.py
+          pytest tests
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
