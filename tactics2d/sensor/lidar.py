@@ -25,6 +25,7 @@ class SingleLineLidar(SensorBase):
         freq_detect (float): The frequency of the lidar emitting and receiving the signal.
             Defaults to 5000.0 Hz.
         window_size (Tuple[int, int]): The size of the rendering window. Defaults to (200, 200).
+        off_screen (bool): Whether to render the sensor off screen. Defaults to True.
     """
 
     def __init__(
@@ -38,11 +39,11 @@ class SingleLineLidar(SensorBase):
         off_screen: bool = True,
     ):
         super().__init__(id_, map_, perception_range, window_size, off_screen)
+        super().__init__(id_, map_, perception_range, window_size, off_screen)
 
         self.perception_range = perception_range
         self.freq_scan = freq_scan
         self.freq_detect = freq_detect
-        self.visualize = visualize
 
         self.point_density = int(self.freq_detect / self.freq_scan)
         self.angle_resolution = 2 * np.pi / self.point_density

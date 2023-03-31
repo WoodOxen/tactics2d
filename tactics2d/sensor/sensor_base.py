@@ -19,6 +19,7 @@ class SensorBase(ABC):
             (left, right, front, back). When this value is undefined, the camera is assumed to
             detect the whole map. Defaults to None.
         window_size (Tuple[int, int]): The size of the rendering window. Defaults to (200, 200).
+        off_screen (bool): Whether to render the sensor off screen. Defaults to True.
     """
 
     def __init__(
