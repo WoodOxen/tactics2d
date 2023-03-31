@@ -89,7 +89,8 @@ def test_lidar(perception_range):
         if participant.is_active(frame)
     ]
 
-    lidar = SingleLineLidar(1, map_, perception_range, window_size=(600, 600))
+    lidar = SingleLineLidar(1, map_, perception_range, window_size=(600, 600)，off_screen=False)
+
     state = participants[participant_ids[0]].get_state(frame)
     lidar.update(
         participants, participant_ids[1:], frame, Point(state.location), state.heading
