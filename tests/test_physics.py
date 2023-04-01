@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 
 import numpy as np
 from shapely.geometry import LineString, LinearRing
-from shapely.affinity import affine_transform, rotate, scale
+from shapely.affinity import affine_transform, rotate
 import pygame
 import pytest
 
@@ -35,8 +35,8 @@ VEHICLE_PARAMS = {
 
 # fmt: off
 ACTION_LIST = [
-    (0, 0), (0, 1), (0, -1), (0, 2), (0, -2), (0, 5), (0, -5),
-    (0.3, 0), (0.3, 0.5), (0.3, -0.5), (-0.3, 0), (-0.3, 0.5), (-0.3, -0.5),
+    (0, 0), (0, 1), (0, -1), (0.3, 0), (0.3, 0.5), (0.3, -0.5),
+    (0, 2), (0, -2), (0, 5), (0, -5), (-0.3, 0), (-0.3, 0.5), (-0.3, -0.5),
     (1, 0), (1, 0.5), (1, -0.5), (-1, 0), (-1, 0.5), (-1, -0.5),
 ]
 # fmt: on
@@ -87,7 +87,11 @@ class Visualizer:
         self.screen = pygame.display.set_mode((600, 600))
         self.clock = pygame.time.Clock()
         self.fps = fps
-        print(self.vehicle_bbox, self.front_axle, self.rear_axle)
+
+    def _scale(self, geometry, scale_factor = 10) -> list:
+        point_list = np.array(list(geometry.coords))
+        point_list = point_list * scale_factor
+        return point_list
 
     def _draw_vehicle(self, state: State, action: tuple):
         steer, _ = action
@@ -102,31 +106,27 @@ class Visualizer:
             state.y,
         ]
         vehicle_bbox = affine_transform(LinearRing(self.vehicle_bbox), transform_matrix)
-        vehicle_bbox = scale(vehicle_bbox, 10, 10)
 
         pygame.draw.polygon(
-            self.screen, (0, 245, 255, 100), list(vehicle_bbox.coords)
+            self.screen, (0, 245, 255, 100), self._scale(vehicle_bbox)
         )
 
         # draw axles
         front_axle = affine_transform(LineString(self.front_axle), transform_matrix)
-        front_axle = scale(front_axle, 10, 10)
         rear_axle = affine_transform(LineString(self.rear_axle), transform_matrix)
-        rear_axle = scale(rear_axle, 10, 10)
-        pygame.draw.lines(self.screen, (0, 0, 0), False, list(front_axle.coords))
-        pygame.draw.lines(self.screen, (0, 0, 0), False, list(rear_axle.coords))
+        pygame.draw.lines(self.screen, (0, 0, 0), False, self._scale(front_axle))
+        pygame.draw.lines(self.screen, (0, 0, 0), False, self._scale(rear_axle))
 
         # draw wheels
         for wheel in self.wheels:
             wheel = affine_transform(LineString(wheel), transform_matrix)
             wheel = rotate(wheel, steer)
-            wheel = scale(wheel, 10, 10)
-            pygame.draw.lines(self.screen, (0, 0, 0), False, list(wheel.coords), 2)
+            pygame.draw.lines(self.screen, (0, 0, 0), False, self._scale(wheel), 2)
 
     def update(self, state: State, action: tuple, trajectory: list):
         self.screen.fill((255, 255, 255))
         self._draw_vehicle(state, action)
-        pygame.draw.lines(self.screen, (100, 100, 100), False, trajectory, 1)
+        pygame.draw.lines(self.screen, (100, 100, 100), False, self._scale(LineString(trajectory)), 1)
         pygame.display.update()
         self.clock.tick(self.fps)
 
@@ -149,12 +149,12 @@ def test_single_track_kinematic(
     )
 
     step = 0.1
-    visualizer = Visualizer(20)
-    state = State(frame=0, x=10, y=20, heading=0, speed=0)
+    visualizer = Visualizer(10)
+    state = State(frame=0, x=40, y=10, heading=0, speed=0)
     trajectory = [(state.x, state.y)]
 
     for action in ACTION_LIST:
-        for _ in range(40):
+        for _ in range(20):
             new_state, true_action = vehicle_model.step(state, action, step)
             trajectory.append((new_state.x, new_state.y))
             visualizer.update(new_state, true_action, trajectory)
