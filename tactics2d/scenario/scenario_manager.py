@@ -90,6 +90,8 @@ class ScenarioManager(ABC):
             will be terminated and the status will be returned. If multiple traffic events
             happen at the same step, only the event with the highest priority will be returned.
         """
+        if self.status != TrafficEvent.NORMAL:
+            return self.status
 
         for checker in self.status_checklist:
             checker()

@@ -11,7 +11,7 @@ class MapKeyError(KeyError):
     pass
 
 
-class Map(object):
+class Map:
     """This class implements a map to manage the road elements.
 
     Attributes:

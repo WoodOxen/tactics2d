@@ -31,8 +31,10 @@ class State(object):
         heading: float = 0,
         vx: float = None,
         vy: float = None,
+        speed: float = None,
         ax: float = None,
         ay: float = None,
+        accel: float = None,
     ):
         self.frame = frame
         self.x = x
@@ -40,10 +42,14 @@ class State(object):
         self.heading = heading
         self.vx = vx
         self.vy = vy
-        self.v_norm = None
         self.ax = ax
         self.ay = ay
-        self.a_norm = None
+
+        if speed is not None:
+            self.set_speed(speed)
+
+        if accel is not None:
+            self.set_accel(accel)
 
     @property
     def location(self):
@@ -58,21 +64,21 @@ class State(object):
 
     @property
     def speed(self):
-        if self.v_norm is not None:
-            return self.v_norm
+        if self._speed is not None:
+            return self._speed
         if None not in [self.vx, self.vy]:
-            self.v_norm = np.linalg.norm([self.vx, self.vy])
-            return self.v_norm
+            self._speed = np.linalg.norm([self.vx, self.vy])
+            return self._speed
 
         return None
 
     @property
     def accel(self):
-        if self.a_norm is not None:
-            return self.a_norm
+        if self._accel is not None:
+            return self._accel
         if None not in [self.ax, self.ay]:
-            self.a_norm = np.linalg.norm([self.ax, self.ay])
-            return self.a_norm
+            self._accel = np.linalg.norm([self.ax, self.ay])
+            return self._accel
 
         return None
 
@@ -81,9 +87,9 @@ class State(object):
         self.vy = vy
 
     def set_speed(self, speed: float):
-        self.v_norm = speed
+        self._speed = speed
 
     def set_accel(self, ax: float, ay: float):
         self.ax = ax
         self.ay = ay
-        self.a_norm = np.linalg.norm([self.ax, self.ay])
+        self._accel = np.linalg.norm([self.ax, self.ay])

@@ -256,6 +256,10 @@ class RenderManager:
         for sensor_id in self.sensors:
             self.remove_sensor(sensor_id)
 
+        self.sensors = dict()
+        self.bound_sensors = dict()
+        self.layouts = dict()
+
     def close(self):
         """Close the render manager."""
         pygame.quit()

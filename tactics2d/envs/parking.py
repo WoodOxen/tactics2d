@@ -1,13 +1,11 @@
 from typing import Union
 import logging
 
-logging.basicConfig(level=logging.WARNING)
-
 import numpy as np
 from shapely.geometry import Point
 import gymnasium as gym
-from gym import spaces
-from gym.error import InvalidAction
+from gymnasium import spaces
+from gymnasium.error import InvalidAction
 
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle, Other
@@ -15,13 +13,6 @@ from tactics2d.trajectory.element import State
 from tactics2d.map.generator import ParkingLotGenerator
 from tactics2d.scenario import ScenarioManager, RenderManager
 from tactics2d.scenario import TrafficEvent
-
-STATE_W = 256
-STATE_H = 256
-VIDEO_W = 600
-VIDEO_H = 400
-WIN_W = 1000
-WIN_H = 1000
 
 STATE_W = 256
 STATE_H = 256

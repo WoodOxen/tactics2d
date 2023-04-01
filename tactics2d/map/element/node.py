@@ -1,7 +1,7 @@
 from shapely.geometry import Point
 
 
-class Node(object):
+class Node:
     """Implementation of a node.
 
     Attributes:

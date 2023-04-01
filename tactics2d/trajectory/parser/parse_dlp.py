@@ -111,10 +111,10 @@ class DLPParser:
                     x=instance["coords"][0],
                     y=instance["coords"][1],
                     heading=instance["heading"],
+                    speed=instance["speed"],
                     ax=instance["acceleration"],
                     ay=instance["acceleration"],
                 )
-                state.set_speed(instance["speed"])
 
                 if instance["agent_token"] not in participants:
                     participants[instance["agent_token"]] = self._generate_participant(

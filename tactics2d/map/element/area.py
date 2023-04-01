@@ -5,7 +5,7 @@ from shapely.geometry import Polygon
 from .defaults import LEGAL_SPEED_UNIT
 
 
-class Area(object):
+class Area:
     """Implementation of the lanelet2-style area.
 
     Detailed definition of lanelet2-style area:

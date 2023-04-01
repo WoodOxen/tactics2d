@@ -6,7 +6,7 @@ from shapely.affinity import affine_transform
 
 from .participant_base import ParticipantBase
 from tactics2d.trajectory.element.trajectory import State, Trajectory
-from tactics2d.vehicle_physics import KinematicSingleTrack
+from tactics2d.physics import PointMass, SingleTrackKinematics
 
 from .defaults import VEHICLE_MODEL
 
@@ -26,11 +26,11 @@ class Vehicle(ParticipantBase):
         color (tuple, optional): The color of the vehicle. Expressed by a tuple with 3 integers.
         kerb_weight: (float, optional): The weight of the vehicle. The default unit is
             kilogram (kg). Defaults to None.
-        steering_angle_range (Tuple[float, float], optional):
-        steering_velocity_range (Tuple[float, float], optional):
-        speed_range (Tuple[float, float], optional):
-        accel_range (Tuple[float, float], optional):
-        comfort_accel_range (Tuple[float, float], optional):
+        steer_range (Tuple[float, float], optional): The range of the steering angle. The unit is radian. Defaults to None.
+        angular_velocity_range (Tuple[float, float], optional): The range of the angular speed. The unit is radian per second. Defaults to None.
+        speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit is meter per second. Defaults to None.
+        accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
+        comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration that is comfortable for the driver.
         body_type ()
     """
 
@@ -44,14 +44,14 @@ class Vehicle(ParticipantBase):
         color: tuple = None,
         kerb_weight: float = None,
         wheel_base: float = None,
-        front_hang: float = None,
-        rear_hang: float = None,
-        steering_angle_range: Tuple[float, float] = None,
-        steering_velocity_range: Tuple[float, float] = None,
+        front_overhang: float = None,
+        rear_overhang: float = None,
+        steer_range: Tuple[float, float] = None,
+        angular_velocity_range: Tuple[float, float] = None,
         speed_range: Tuple[float, float] = None,
         accel_range: Tuple[float, float] = None,
         comfort_accel_range: Tuple[float, float] = None,
-        body_type=None,
+        physic_model=None,
         trajectory: Trajectory = None,
     ):
         super().__init__(id_, type_, length, width, height, color, trajectory)
@@ -64,8 +64,8 @@ class Vehicle(ParticipantBase):
             "wheel_base",
             "front_hang",
             "rear_hang",
-            "steering_angle_range",
-            "steering_velocity_range",
+            "steer_range",
+            "angular_velocity_range",
             "speed_range",
             "accel_range",
             "comfort_accel_range",
@@ -79,13 +79,23 @@ class Vehicle(ParticipantBase):
                 except:
                     pass
 
-        self.body_type = (
-            KinematicSingleTrack(
-                self.wheel_base, 0.001, 10, self.speed_range, self.steering_angle_range
-            )
-            if body_type is None
-            else body_type
-        )
+        self.physic_model = physic_model
+        if self.physic_model is None:
+            if None not in (self.width, self.front_overhang, self.rear_overhang):
+                dist_front_hang = 0.5 * self.width - self.front_overhang
+                dist_rear_hang = 0.5 * self.width - self.rear_overhang
+                self.physic_model = SingleTrackKinematics(
+                    dist_front_hang, dist_rear_hang, self.steer_range, self.speed_range
+                )
+            elif self.wheel_base is not None:
+                self.physic_model = SingleTrackKinematics(
+                    0.5 * self.wheel_base,
+                    0.5 * self.wheel_base,
+                    self.steer_range,
+                    self.speed_range,
+                )
+            else:
+                self.physic_model = PointMass()
 
         self.bbox = LinearRing(
             [
