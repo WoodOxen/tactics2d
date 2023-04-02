@@ -1,7 +1,9 @@
+from typing import Tuple
+
 import numpy as np
 
 
-class State(object):
+class State:
     """_summary_
 
     Attributes:
@@ -42,25 +44,22 @@ class State(object):
         self.heading = heading
         self.vx = vx
         self.vy = vy
+        self._speed = speed
         self.ax = ax
         self.ay = ay
-
-        if speed is not None:
-            self.set_speed(speed)
-
-        if accel is not None:
-            self.set_accel(accel)
+        self._accel = accel
 
     @property
-    def location(self):
+    def location(self) -> Tuple[float, float]:
         return (self.x, self.y)
 
     @property
-    def velocity(self):
-        if None in [self.vx, self.vy]:
-            self.get_velocity()
-
-        return (self.vx, self.vy)
+    def velocity(self) -> Tuple[float, float]:
+        if not None in [self.vx, self.vy]:
+            return (self.vx, self.vy)
+        if None not in [self.speed, self.heading]:
+            return (self.speed * np.cos(self.heading), self.speed * np.sin(self.heading))
+        return None
 
     @property
     def speed(self):
@@ -81,6 +80,12 @@ class State(object):
             return self._accel
 
         return None
+
+    def __repr__(self):
+        return f"{self.frame}, {self.x}, {self.y}, {self.heading}, {self.vx}, {self.vy}, {self.speed}, {self.ax}, {self.ay}, {self.accel}"
+
+    def __str__(self):
+        return f"State(frame={self.frame}, x={self.x}, y={self.y}, heading={self.heading}, vx={self.vx}, vy={self.vy}, speed={self.speed}, ax={self.ax}, ay={self.ay}, accel={self.accel})"
 
     def set_velocity(self, vx: float, vy: float):
         self.vx = vx

@@ -27,7 +27,6 @@ class Vehicle(ParticipantBase):
         kerb_weight: (float, optional): The weight of the vehicle. The default unit is
             kilogram (kg). Defaults to None.
         steer_range (Tuple[float, float], optional): The range of the steering angle. The unit is radian. Defaults to None.
-        angular_velocity_range (Tuple[float, float], optional): The range of the angular speed. The unit is radian per second. Defaults to None.
         speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit is meter per second. Defaults to None.
         accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
         comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration that is comfortable for the driver.
@@ -47,7 +46,6 @@ class Vehicle(ParticipantBase):
         front_overhang: float = None,
         rear_overhang: float = None,
         steer_range: Tuple[float, float] = None,
-        angular_velocity_range: Tuple[float, float] = None,
         speed_range: Tuple[float, float] = None,
         accel_range: Tuple[float, float] = None,
         comfort_accel_range: Tuple[float, float] = None,
@@ -65,7 +63,6 @@ class Vehicle(ParticipantBase):
             "front_hang",
             "rear_hang",
             "steer_range",
-            "angular_velocity_range",
             "speed_range",
             "accel_range",
             "comfort_accel_range",

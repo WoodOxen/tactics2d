@@ -4,6 +4,10 @@ sys.path.append(".")
 sys.path.append("..")
 
 import os
+
+RENDER = "DISPLAY" in os.environ
+
+import time
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -15,7 +19,7 @@ import pygame
 import pytest
 
 from tactics2d.trajectory.element import State
-from tactics2d.physics import SingleTrackKinematics, SingleTrackDynamics
+from tactics2d.physics import PointMass, SingleTrackKinematics, SingleTrackDynamics
 
 
 # Prototype: Volkswagen Polo(AW/BZ) (https://en.wikipedia.org/wiki/Volkswagen_Polo)
@@ -27,7 +31,6 @@ VEHICLE_PARAMS = {
     "front_overhang": 0.824,
     "rear_overhang": 0.681,
     "steer_range": (-0.5236, 0.5236),
-    "angular_velocity_range": (-1.0472, 1.0472),
     "speed_range": (-2.78, 52.8),
     "accel_range": (-9.8, 3.517),
     "0_100_km/h": 12,
@@ -35,9 +38,14 @@ VEHICLE_PARAMS = {
 
 # fmt: off
 ACTION_LIST = [
-    (0, 0), (0, 1), (0, -1), (0.3, 0), (0.3, 0.5), (0.3, -0.5),
-    (0, 2), (0, -2), (0, 5), (0, -5), (-0.3, 0), (-0.3, 0.5), (-0.3, -0.5),
-    (1, 0), (1, 0.5), (1, -0.5), (-1, 0), (-1, 0.5), (-1, -0.5),
+    ((0, 0), 10), ((0, 2), 20), ((0, -2), 20), 
+    ((0.1, 0), 10), ((0.1, 0.5), 20), ((0.1, -0.5), 20),
+    ((0, 5), 20), ((0, -5), 20),
+    ((-0.1, 0), 10), ((-0.1, 0.5), 20), ((-0.1, -0.5), 20),
+    ((0.2, 0.5), 20), ((0.2, -0.5), 20), ((-0.2, 0.5), 20), ((-0.2, -0.5), 20),
+    ((0, 1), 10), ((1, 0), 20), ((-1, 0), 20),
+    # (0, 2), (0, -2), (0, 5), (0, -5), (-0.3, 0), (-0.3, 0.5), (-0.3, -0.5),
+    # (1, 0), (1, 0.5), (1, -0.5), (-1, 0), (-1, 0.5), (-1, -0.5),
 ]
 # fmt: on
 
@@ -53,22 +61,22 @@ class Visualizer:
     front_axle = [
         [
             0.5 * VEHICLE_PARAMS["length"] - VEHICLE_PARAMS["front_overhang"],
-            0.5 * (VEHICLE_PARAMS["width"] + 0.01),
+            0.5 * VEHICLE_PARAMS["width"] + 0.1,
         ],
         [
             0.5 * VEHICLE_PARAMS["length"] - VEHICLE_PARAMS["front_overhang"],
-            -0.5 * (VEHICLE_PARAMS["width"] + 0.01),
+            -0.5 * VEHICLE_PARAMS["width"] - 0.1,
         ],
     ]
 
     rear_axle = [
         [
             -0.5 * VEHICLE_PARAMS["length"] + VEHICLE_PARAMS["rear_overhang"],
-            0.5 * (VEHICLE_PARAMS["width"] + 0.01),
+            0.5 * VEHICLE_PARAMS["width"] + 0.1,
         ],
         [
             -0.5 * VEHICLE_PARAMS["length"] + VEHICLE_PARAMS["rear_overhang"],
-            -0.5 * (VEHICLE_PARAMS["width"] + 0.01),
+            -0.5 * VEHICLE_PARAMS["width"] - 0.1,
         ],
     ]
 
@@ -82,13 +90,14 @@ class Visualizer:
     ]
     # fmt: on
 
-    def __init__(self, fps = 60):
+    def __init__(self, fps=60):
         pygame.init()
-        self.screen = pygame.display.set_mode((600, 600))
+        self.screen = pygame.display.set_mode((1200, 1200))
         self.clock = pygame.time.Clock()
+        self.font = pygame.freetype.SysFont(pygame.freetype.get_default_font(), 16)
         self.fps = fps
 
-    def _scale(self, geometry, scale_factor = 10) -> list:
+    def _scale(self, geometry, scale_factor=20) -> list:
         point_list = np.array(list(geometry.coords))
         point_list = point_list * scale_factor
         return point_list
@@ -107,9 +116,7 @@ class Visualizer:
         ]
         vehicle_bbox = affine_transform(LinearRing(self.vehicle_bbox), transform_matrix)
 
-        pygame.draw.polygon(
-            self.screen, (0, 245, 255, 100), self._scale(vehicle_bbox)
-        )
+        pygame.draw.polygon(self.screen, (0, 245, 255, 100), self._scale(vehicle_bbox))
 
         # draw axles
         front_axle = affine_transform(LineString(self.front_axle), transform_matrix)
@@ -118,54 +125,100 @@ class Visualizer:
         pygame.draw.lines(self.screen, (0, 0, 0), False, self._scale(rear_axle))
 
         # draw wheels
-        for wheel in self.wheels:
+        for wheel, steer_ in zip(self.wheels, [steer, steer, 0, 0]):
             wheel = affine_transform(LineString(wheel), transform_matrix)
-            wheel = rotate(wheel, steer)
+            wheel = rotate(wheel, steer_, use_radians=True)
             pygame.draw.lines(self.screen, (0, 0, 0), False, self._scale(wheel), 2)
 
-    def update(self, state: State, action: tuple, trajectory: list):
+    def update(self, state: State, action: tuple, true_action: tuple, trajectory: list):
         self.screen.fill((255, 255, 255))
-        self._draw_vehicle(state, action)
-        pygame.draw.lines(self.screen, (100, 100, 100), False, self._scale(LineString(trajectory)), 1)
+        self._draw_vehicle(state, true_action)
+        pygame.draw.lines(
+            self.screen, (100, 100, 100), False, self._scale(LineString(trajectory)), 1
+        )
+
+        infos = [
+            f"frame = {state.frame}",
+            f"state: x = {state.x:.2f}, y = {state.y:.2f}, heading = {state.heading:.2f}, speed = {state.speed:.2f}",
+            f"actions: steer = {action[0]:.2f}, accel = {action[1]:.2f}",
+            f"true actions: steer = {true_action[0]:.2f}, accel = {true_action[1]:.2f}",
+        ]
+        for i, info in enumerate(infos):
+            self.font.render_to(self.screen, (30, 10 + i * 20), info, (0, 0, 0))
         pygame.display.update()
         self.clock.tick(self.fps)
 
+    def quit(self):
+        pygame.quit()
 
-# @pytest.mark.skipif("DISPLAY" not in os.environ, reason="requires display server")
-# @pytest.mark.parametrize(
-#     "steer_range, speed_range, angular_velocity_range, accel_range, delta_t", []
-# )
-def test_single_track_kinematic(
-    steer_range, speed_range, angular_velocity_range, accel_range, delta_t
-):
+
+def execute_actions(vehicle_model):
+    step = 0.1
+
+    f = open(f"./state_record_{vehicle_model.abbrev}.csv", "w")
+    f.write("frame, x, y, heading, vx, vy, speed, ax, ay, accel")
+
+    if RENDER:
+        visualizer = Visualizer(10)
+        t1 = time.time()
+
+    state = State(frame=0, x=10, y=10, heading=0, speed=0)
+    trajectory = [(state.x, state.y)]
+
+    for action, duration in ACTION_LIST:
+        for _ in range(duration):
+            f.write(repr(state) + "\n")
+            new_state, true_action = vehicle_model.step(state, action, step)
+            trajectory.append((new_state.x, new_state.y))
+            state = new_state
+            if RENDER:
+                visualizer.update(new_state, action, true_action, trajectory)
+
+    if RENDER:
+        t2 = time.time()
+        n_frame = np.sum([n_frame for _, n_frame in ACTION_LIST])
+        visualizer.quit()
+        logging.info(f"Rendering took {t2 - t1:.2f} seconds.")
+        logging.info(f"The average fps is {n_frame / (t2 - t1): .2f} Hz.")
+
+@pytest.mark.physics
+@pytest.mark.parametrize(
+    "steer_range, speed_range, accel_range, delta_t",
+    [(VEHICLE_PARAMS["steer_range"], (0, VEHICLE_PARAMS["speed_range"][1]), VEHICLE_PARAMS["accel_range"], 0.005)],
+)
+def test_point_mass(steer_range, speed_range, accel_range, delta_t):
+    vehicle_model = PointMass(
+        steer_range=steer_range,
+        speed_range=speed_range,
+        accel_range=accel_range,
+        delta_t=delta_t,
+    )
+
+    execute_actions(vehicle_model)
+
+@pytest.mark.physics
+@pytest.mark.parametrize(
+    "steer_range, speed_range, accel_range, delta_t",
+    [(VEHICLE_PARAMS["steer_range"], (0, VEHICLE_PARAMS["speed_range"][1]), VEHICLE_PARAMS["accel_range"], 0.005)],
+)
+def test_single_track_kinematic(steer_range, speed_range, accel_range, delta_t):
     vehicle_model = SingleTrackKinematics(
         VEHICLE_PARAMS["width"] / 2 - VEHICLE_PARAMS["front_overhang"],
         VEHICLE_PARAMS["width"] / 2 - VEHICLE_PARAMS["rear_overhang"],
         steer_range=steer_range,
         speed_range=speed_range,
-        angular_velocity_range=angular_velocity_range,
         accel_range=accel_range,
         delta_t=delta_t,
     )
 
-    step = 0.1
-    visualizer = Visualizer(10)
-    state = State(frame=0, x=40, y=10, heading=0, speed=0)
-    trajectory = [(state.x, state.y)]
-
-    for action in ACTION_LIST:
-        for _ in range(20):
-            new_state, true_action = vehicle_model.step(state, action, step)
-            trajectory.append((new_state.x, new_state.y))
-            visualizer.update(new_state, true_action, trajectory)
-            state = new_state
+    execute_actions(vehicle_model)
 
 
-if __name__ == "__main__":
-    test_single_track_kinematic(
-        steer_range=VEHICLE_PARAMS["steer_range"],
-        speed_range=VEHICLE_PARAMS["speed_range"],
-        angular_velocity_range=VEHICLE_PARAMS["angular_velocity_range"],
-        accel_range=VEHICLE_PARAMS["accel_range"],
-        delta_t=0.1,
-    )
+# if __name__ == "__main__":
+#     test_single_track_kinematic(
+#     # test_point_mass(
+#         steer_range=VEHICLE_PARAMS["steer_range"],
+#         speed_range=(0, VEHICLE_PARAMS["speed_range"][1]),
+#         accel_range=VEHICLE_PARAMS["accel_range"],
+#         delta_t=0.005,
+#     )

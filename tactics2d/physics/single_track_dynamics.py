@@ -11,6 +11,8 @@ class SingleTrackDynamics(PhysicsModelBase):
         VehicleModelBase (_type_): _description_
     """
 
+    abbrev = "ST"
+
     def __init__(
         self,
         wheel_base: float,

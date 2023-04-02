@@ -5,6 +5,8 @@ import numpy as np
 from .physics_model_base import PhysicsModelBase
 from tactics2d.trajectory.element import State
 
+MAX_DELTA_T = 0.005
+
 
 class SingleTrackKinematics(PhysicsModelBase):
     """Implementation of the kinematic single-track (bicycle) Model.
@@ -30,30 +32,29 @@ class SingleTrackKinematics(PhysicsModelBase):
         dist_rear_hang (float): The distance from the center of the mass to the rear axles. The unit is meter.
         wheel_base (float): The distance between the front and rear axles, which should be the sum of dist_front_hang and dist_rear_hang. The unit is meter.
         steer_range (list): The range of the steering angle. The unit is radian. Defaults to None.
-        angular_velocity_range (list): The range of the angular speed. The unit is radian per second. Defaults to None.
         speed_range (list): The range of the vehicle speed. The unit is meter per second. Defaults to None.
         accel_range
-        delta_t (float): The discrete time step for the simulation. The unit is second. Defaults to None.
+        delta_t (float): The discrete time step for the simulation. The unit is second. Defaults to MAX_DELTA_T.
     """
+
+    abbrev = "KST"
 
     def __init__(
         self,
         dist_front_hang: float,
         dist_rear_hang: float,
         steer_range: Tuple[float, float] = None,
-        angular_velocity_range: Tuple[float, float] = None,
         speed_range: Tuple[float, float] = None,
         accel_range: Tuple[float, float] = None,
-        delta_t: float = 0.01,
+        delta_t: float = MAX_DELTA_T,
     ):
         self.dist_front_hang = dist_front_hang
         self.dist_rear_hang = dist_rear_hang
         self.wheel_base = dist_front_hang + dist_rear_hang
         self.speed_range = speed_range
-        self.angular_velocity_range = angular_velocity_range
         self.steer_range = steer_range
         self.accel_range = accel_range
-        self.delta_t = delta_t
+        self.delta_t = min(delta_t, MAX_DELTA_T)
 
     def _step(
         self,
@@ -98,11 +99,6 @@ class SingleTrackKinematics(PhysicsModelBase):
         if self.steer_range is not None:
             steer = np.clip(steer, *self.steer_range)
 
-        if self.angular_velocity_range is not None and speed != 0:
-            angular_speed = speed * np.tan(steer) / self.wheel_base
-            angular_speed = np.clip(angular_speed, *self.angular_velocity_range)
-            steer = np.arctan(angular_speed * self.wheel_base / speed)
-
         if self.accel_range is not None:
             accel = np.clip(accel, *self.accel_range)
 
@@ -121,7 +117,7 @@ class SingleTrackKinematics(PhysicsModelBase):
             )
 
         new_state = State(
-            state.frame + int(self.delta_t * 1000), x=x, y=y, heading=heading, speed=speed
+            state.frame + int(step * 1000), x=x, y=y, heading=heading, speed=speed
         )
 
         return new_state, (steer, accel)
