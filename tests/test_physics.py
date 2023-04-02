@@ -155,8 +155,8 @@ class Visualizer:
 def execute_actions(vehicle_model):
     step = 0.1
 
-    f = open(f"./state_record_{vehicle_model.abbrev}.csv", "w")
-    f.write("frame, x, y, heading, vx, vy, speed, ax, ay, accel")
+    # f = open(f"./tests/test_{vehicle_model.abbrev}_trajectory.csv", "w")
+    # f.write("frame, x, y, heading, vx, vy, speed, ax, ay, accel")
 
     if RENDER:
         visualizer = Visualizer(10)
@@ -167,7 +167,7 @@ def execute_actions(vehicle_model):
 
     for action, duration in ACTION_LIST:
         for _ in range(duration):
-            f.write(repr(state) + "\n")
+            # f.write(repr(state) + "\n")
             new_state, true_action = vehicle_model.step(state, action, step)
             trajectory.append((new_state.x, new_state.y))
             state = new_state
