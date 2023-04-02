@@ -8,7 +8,7 @@ The parameters of the pedestrians are referred to the data provided by ChatGPT.
 
 
 VEHICLE_MODEL = {
-    "microcar": {
+    "micro_car": {
         # Prototype: Smart Fortwo (W453) (https://en.wikipedia.org/wiki/Smart_Fortwo)
         "length": 2.695,
         "width": 1.663,

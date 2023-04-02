@@ -10,7 +10,6 @@ MAX_DELTA_T = 0.005
 
 
 class PointMass(PhysicsModelBase):
-
     abbrev = "PM"
 
     def __init__(

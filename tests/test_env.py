@@ -22,4 +22,4 @@ def test_racing_env():
 
 
 if __name__ == "__main__":
-    env = RacingEnv()
+    env = RacingEnv(render_mode="human", render_fps=60, max_step=2000)

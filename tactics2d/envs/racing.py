@@ -64,16 +64,13 @@ class RacingScenarioManager(ScenarioManager):
 
         self.render_fps = render_fps
         self.off_screen = off_screen
+        self.step_size = 1 / self.render_fps
 
         self.map_ = Map(name="RacingTrack", scenario_type="racing")
         self.map_generator = RacingTrackGenerator()
+
         self.agent = Vehicle(
-            id_=0,
-            type_="sports_car",
-            steering_angle_range=(-0.5, 0.5),
-            steering_velocity_range=(-0.5, 0.5),
-            speed_range=(-10, 100),
-            accel_range=(-1, 1),
+            id_=0, type_="sedan", steer_range=(-0.5, 0.5), accel_range=(-1, 1)
         )
 
         self.render_manager = RenderManager(
@@ -207,7 +204,7 @@ class RacingScenarioManager(ScenarioManager):
         camera = TopDownCamera(
             id_=0,
             map_=self.scenario_manager.map_,
-            perception_range=(20, 20, 100, 20),
+            perception_range=(60, 60, 100, 20),
             window_size=(STATE_W, STATE_H),
             off_screen=self.off_screen,
         )

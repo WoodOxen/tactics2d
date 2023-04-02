@@ -181,10 +181,18 @@ def execute_actions(vehicle_model):
         logging.info(f"Rendering took {t2 - t1:.2f} seconds.")
         logging.info(f"The average fps is {n_frame / (t2 - t1): .2f} Hz.")
 
+
 @pytest.mark.physics
 @pytest.mark.parametrize(
     "steer_range, speed_range, accel_range, delta_t",
-    [(VEHICLE_PARAMS["steer_range"], (0, VEHICLE_PARAMS["speed_range"][1]), VEHICLE_PARAMS["accel_range"], 0.005)],
+    [
+        (
+            VEHICLE_PARAMS["steer_range"],
+            (0, VEHICLE_PARAMS["speed_range"][1]),
+            VEHICLE_PARAMS["accel_range"],
+            0.005,
+        )
+    ],
 )
 def test_point_mass(steer_range, speed_range, accel_range, delta_t):
     vehicle_model = PointMass(
@@ -196,10 +204,18 @@ def test_point_mass(steer_range, speed_range, accel_range, delta_t):
 
     execute_actions(vehicle_model)
 
+
 @pytest.mark.physics
 @pytest.mark.parametrize(
     "steer_range, speed_range, accel_range, delta_t",
-    [(VEHICLE_PARAMS["steer_range"], (0, VEHICLE_PARAMS["speed_range"][1]), VEHICLE_PARAMS["accel_range"], 0.005)],
+    [
+        (
+            VEHICLE_PARAMS["steer_range"],
+            (0, VEHICLE_PARAMS["speed_range"][1]),
+            VEHICLE_PARAMS["accel_range"],
+            0.005,
+        )
+    ],
 )
 def test_single_track_kinematic(steer_range, speed_range, accel_range, delta_t):
     vehicle_model = SingleTrackKinematics(
