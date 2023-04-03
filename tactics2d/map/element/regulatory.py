@@ -1,4 +1,4 @@
-class RegulatoryElement(object):
+class RegulatoryElement:
     """Implementation of the lanelet2-style regulatory element.
 
     Detailed definition of lanelet2-style regulatory element:

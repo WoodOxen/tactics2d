@@ -13,7 +13,7 @@ class LaneRelationship(Enum):
     RIGHT_NEIGHBOR = 4
 
 
-class Lane(object):
+class Lane:
     """Implementation of the lanelet2-style lanelet with neighbors detected.
 
     Detailed definition of lanelet2-style lane:

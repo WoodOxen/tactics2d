@@ -61,9 +61,9 @@ def test_camera(follow_view: bool):
     img = Image.fromarray(observation)
     img = img.rotate(270)
     if follow_view:
-        img.save("./tests/img/test_camera_follow_view.jpg")
+        img.save("./tests/runtime/test_camera_follow_view.jpg")
     else:
-        img.save("./tests/img/test_camera.jpg")
+        img.save("./tests/runtime/test_camera.jpg")
 
 
 @pytest.mark.render
@@ -103,7 +103,7 @@ def test_lidar(perception_range):
     img = Image.fromarray(observation)
     img = img.rotate(270)
 
-    img.save(f"./tests/img/test_lidar_{int(perception_range)}.jpg")
+    img.save(f"./tests/runtime/test_lidar_{int(perception_range)}.jpg")
 
 
 @pytest.mark.render
