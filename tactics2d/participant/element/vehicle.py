@@ -110,7 +110,7 @@ class Vehicle(ParticipantBase):
                     dist_front_hang,
                     dist_rear_hang,
                     self.steer_range,
-                    (0, self.max_speed),
+                    self.speed_range,
                     self.accel_range,
                 )
             elif self.wheel_base is not None:
@@ -118,7 +118,7 @@ class Vehicle(ParticipantBase):
                     0.5 * self.wheel_base,
                     0.5 * self.wheel_base,
                     self.steer_range,
-                    (0, self.max_speed),
+                    self.speed_range,
                     self.accel_range,
                 )
             else:
@@ -136,12 +136,8 @@ class Vehicle(ParticipantBase):
         )
 
     def add_state(self, state: State):
-        if self.physics_model.verify_state(
-            state,
-            self.trajectory.current_state,
-        ):
+        if self.physics_model.verify_state(state, self.trajectory.current_state):
             self.trajectory.append_state(state)
-            self.current_state = state
         else:
             raise RuntimeError("Invalid state.")
 
@@ -172,7 +168,7 @@ class Vehicle(ParticipantBase):
         ]
         return affine_transform(self.bbox, transform_matrix)
 
-    def update(self, action: np.ndarray):
+    def update(self, action: np.ndarray, step: float):
         """Update the agent's state with the given action."""
-        self.current_state = self.physics_model.step(self.current_state, action)
-        self.add_state(self.current_state)
+        current_state, _ = self.physics_model.step(self.current_state, action, step)
+        self.add_state(current_state)

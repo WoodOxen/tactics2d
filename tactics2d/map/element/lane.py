@@ -83,7 +83,7 @@ class Lane:
                 % (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
             )
 
-        self.polygon = LinearRing(
+        self.geometry = LinearRing(
             list(self.left_side.coords) + list(reversed(list(self.right_side.coords)))
         )
 

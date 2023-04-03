@@ -13,7 +13,7 @@ class Area:
 
     Attributes:
         id_ (str): The unique identifier of the area.
-        polygon (Polygon): The shape of the area expressed in geometry format.
+        geometry (Polygon): The shape of the area expressed in geometry format.
         line_ids (dict, optional): The ids of the lines that circle this area. Defaults to None.
         type_ (str): The type of the area. The default value is "multipolygon".
         subtype (str, optional): The subtype of the area. Defaults to None.
@@ -34,7 +34,7 @@ class Area:
     def __init__(
         self,
         id_: str,
-        polygon: Polygon,
+        geometry: Polygon,
         line_ids: dict = None,
         type_: str = "multipolygon",
         subtype: str = None,
@@ -47,7 +47,7 @@ class Area:
         custom_tags: dict = None,
     ):
         self.id_ = id_
-        self.polygon = polygon
+        self.geometry = geometry
         self.line_ids = line_ids
         self.type_ = type_
         self.subtype = subtype

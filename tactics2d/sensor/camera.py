@@ -112,12 +112,12 @@ class TopDownCamera(SensorBase):
             )
 
     def _in_perception_range(self, geometry) -> bool:
-        return geometry.distance(self.position) > self.max_perception_distance
+        return geometry.distance(self.position) > self.max_perception_distance * 2
 
     def _render_areas(self):
         for area in self.map_.areas.values():
             if self.position is not None:
-                if self._in_perception_range(area.polygon):
+                if self._in_perception_range(area.geometry):
                     continue
 
             color = (
@@ -126,7 +126,7 @@ class TopDownCamera(SensorBase):
                 else AREA_COLOR["default"]
             )
             color = color if area.color is None else area.color
-            polygon = affine_transform(area.polygon, self.transform_matrix)
+            polygon = affine_transform(area.geometry, self.transform_matrix)
             outer_points = list(polygon.exterior.coords)
             inner_list = list(polygon.interiors)
 
@@ -137,7 +137,7 @@ class TopDownCamera(SensorBase):
     def _render_lanes(self):
         for lane in self.map_.lanes.values():
             if self.position is not None:
-                if self._in_perception_range(lane.polygon):
+                if self._in_perception_range(lane.geometry):
                     continue
 
             color = (
@@ -146,7 +146,7 @@ class TopDownCamera(SensorBase):
                 else LANE_COLOR["default"]
             )
             color = color if lane.color is None else lane.color
-            points = list(affine_transform(lane.polygon, self.transform_matrix).coords)
+            points = list(affine_transform(lane.geometry, self.transform_matrix).coords)
 
             pygame.draw.polygon(self.surface, color, points)
 
