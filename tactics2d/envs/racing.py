@@ -306,13 +306,21 @@ class RacingEnv(gym.Env):
             self.render_fps, self.render_mode != "human", self.max_step
         )
 
-    def reset(self, seed: int = None):
-        super().reset(seed=seed)
+    def reset(self, seed: int = None, options: dict = None):
+        super().reset(seed=seed, options=options)
         self.scenario_manager.reset()
         observations = self.scenario_manager.get_observation()
         observation = observations[0]
 
-        return observation
+        info = {
+            "velocity": self.scenario_manager.agent.velocity,
+            "heading": self.scenario_manager.agent.heading,
+            "status": self.scenario_manager.status,
+            "rewards": dict(),
+            "reward": 0
+        }
+
+        return observation, info
 
     def _get_rewards(self, status: TrafficEvent):
         # punishment for time exceed
