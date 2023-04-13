@@ -3,6 +3,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
+import os
 import random
 import time
 
@@ -22,7 +23,7 @@ from tactics2d.envs import RacingEnv, ParkingEnv
 
 
 @pytest.mark.env
-# @pytest.mark.skip(reason="not implemented")
+@pytest.mark.skipif("DISPLAY" not in os.environ, reason="requires display server")
 def test_racing_env():
     random.seed = 42
     np.random.seed = 42
