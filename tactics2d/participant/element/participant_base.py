@@ -53,7 +53,7 @@ class ParticipantBase(ABC):
 
     @property
     def velocity(self):
-        return (self.current_state.vx, self.current_state.vy)
+        return self.current_state.velocity
 
     @property
     def speed(self) -> float:

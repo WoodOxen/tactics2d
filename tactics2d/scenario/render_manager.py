@@ -253,7 +253,8 @@ class RenderManager:
 
     def reset(self):
         """Reset the render manager."""
-        for sensor_id in self.sensors:
+        sensor_ids = list(self.sensors.keys())
+        for sensor_id in sensor_ids:
             self.remove_sensor(sensor_id)
 
         self.sensors = dict()

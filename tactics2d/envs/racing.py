@@ -2,8 +2,11 @@ from typing import Union
 import logging
 
 import numpy as np
-from shapely.geometry import LineString
+from shapely.geometry import Polygon
+import pygame
 import gymnasium as gym
+from gymnasium import spaces
+from gymnasium.error import InvalidAction
 from gymnasium import spaces
 from gymnasium.error import InvalidAction
 
@@ -12,11 +15,15 @@ from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.trajectory.element import State
 from tactics2d.sensor import TopDownCamera
+from tactics2d.sensor import TopDownCamera
 from tactics2d.map.generator import RacingTrackGenerator
-from tactics2d.scenario import ScenarioManager, RenderManager
-from tactics2d.scenario import TrafficEvent
+from tactics2d.scenario import ScenarioManager, RenderManager, TrafficEvent
 
 
+STATE_W = 200
+STATE_H = 200
+WIN_W = 500
+WIN_H = 500
 STATE_W = 200
 STATE_H = 200
 WIN_W = 500
@@ -32,10 +39,12 @@ DISCRETE_ACTION = np.array(
         [0, 0],  # do nothing
         [-0.3, 0],  # steer left
         [0.3, 0],  # steer right
-        [0, 0.2],  # accelerate
-        [0, -0.8],  # decelerate
+        [0, 0.5],  # accelerate
+        [0, -2.0],  # decelerate
     ]
 )
+
+THRESHOLD_NON_DRIVABLE = 0.5
 
 THRESHOLD_NON_DRIVABLE = 0.5
 
@@ -53,10 +62,8 @@ class RacingScenarioManager(ScenarioManager):
         n_step (int): The number of steps since the beginning of the episode.
         tile_visited (dict): The tiles that the agent has visited.
         tile_visited_cnt (int): The number of tiles that the agent has visited.
-        tile_visiting (str): The id of the tile that the agent is visiting. As soon as a new tile
+        tiles_visiting (str): The ids of the tiles that the agent is visiting. As soon as a new tile
             is touched by the agent, it will be regarded as the visiting tile.
-        start_line (LineString): The start line of the track.
-        end_line (LineString): The end line of the track.
     """
 
     def __init__(self, render_fps: int, off_screen: bool, max_step: int):
@@ -64,14 +71,16 @@ class RacingScenarioManager(ScenarioManager):
 
         self.render_fps = render_fps
         self.off_screen = off_screen
-        self.step_size = 1 / self.render_fps
+        self.step = 1 / self.render_fps
 
         self.map_ = Map(name="RacingTrack", scenario_type="racing")
         self.map_generator = RacingTrackGenerator()
 
+
         self.agent = Vehicle(
-            id_=0, type_="sedan", steer_range=(-0.5, 0.5), accel_range=(-1, 1)
+            id_=0, type_="medium_car", steer_range=(-0.5, 0.5), accel_range=(-2, 2)
         )
+        self.participants = {self.agent.id_: self.agent}
 
         self.render_manager = RenderManager(
             fps=self.render_fps, windows_size=(WIN_W, WIN_H), off_screen=self.off_screen
@@ -79,16 +88,18 @@ class RacingScenarioManager(ScenarioManager):
 
         self.n_step = 0
         self.tile_visited = dict()
-        self.tile_visiting = None
-        self.intersect_proportion = 0
+        self.tiles_visiting = None
         self.start_line = None
         self.end_line = None
 
+        self.cnt_still = 0
+
         self.status_checklist = [
+            self._check_stopped,
             self._check_time_exceeded,
             self._check_retrograde,
             self._check_non_drivable,
-            self._check_complete,
+            self._check_completed,
         ]
 
     @property
@@ -97,67 +108,112 @@ class RacingScenarioManager(ScenarioManager):
 
     def locate_agent(self) -> float:
         """Locate the agent at a specific tile on the map."""
-        tile_last_visited = self.tile_visiting
-        agent_pose = self.agent.get_pose()
 
-        if self.map_.lanes[tile_last_visited].contains(agent_pose):
-            self.intersect_proportion = 1
-        else:
-            # mark all the tiles that the agent is touching as visiting
-            tile_to_visit = self.map_.lanes[tile_last_visited].successors[0]
-            tiles_visiting = []
-            intersection_area = 0
+        if len(self.tiles_visiting) == 0:
+            return
 
-            while tile_to_visit != tile_last_visited:
-                if self.map_.lanes[tile_to_visit].intersects(
-                    agent_pose
-                ) or self.map_.lanes[tile_to_visit].contains(agent_pose):
+        agent_pose = Polygon(self.agent.get_pose())
+        tile_last_visited = self.tiles_visiting[0]
+        tile_to_visit = tile_last_visited
+        tiles_visiting = []
+
+        # mark all the tiles that the agent has touched as visiting
+        for tile_id in self.tiles_visiting:
+            tile_shape = Polygon(self.map_.lanes[tile_id].geometry)
+            if tile_shape.intersects(agent_pose) or tile_shape.contains(agent_pose):
+                tiles_visiting.append(tile_id)
+
+        tiles_visiting_set = set(tiles_visiting)
+        tile_to_visit = list(self.map_.lanes[tile_last_visited].successors)[0]
+        while tile_to_visit != tile_last_visited:
+            tile_shape = Polygon(self.map_.lanes[tile_to_visit].geometry)
+            if tile_shape.contains(agent_pose):
+                if tile_to_visit not in tiles_visiting_set:
                     tiles_visiting.append(tile_to_visit)
-                    intersection_area += (
-                        self.map_.lanes[tile_to_visit].intersection(agent_pose).area
-                    )
-                tile_to_visit = self.map_.lanes[tile_to_visit].successors[0]
+                break
+            if tile_shape.intersects(agent_pose):
+                if tile_to_visit not in tiles_visiting_set:
+                    tiles_visiting.append(tile_to_visit)
 
-            # update the tile_visited and tile_visiting
-            if len(tiles_visiting) > 0:
-                self.tile_visiting = tiles_visiting[-1]
-                tile_to_visit = self.map_.lanes[tile_last_visited].successors[0]
-                while tile_to_visit != self.tile_visiting:
-                    self.tile_visited[tile_to_visit] = True
-                    tile_to_visit = self.map_.lanes[tile_to_visit].successors[0]
+            tile_to_visit = list(self.map_.lanes[tile_to_visit].successors)[0]
 
-            self.intersect_proportion = (
-                intersection_area / self.map_.lanes[self.tile_visiting].area
-            )
+        # update the tile_visited and tiles_visiting
+        self.tiles_visiting = tiles_visiting
+
+        if len(self.tiles_visiting) == 0:
+            return
+
+        if len(self.tiles_visiting) > 0 and tile_last_visited == self.tiles_visiting[-1]:
+            return
+
+        tile_to_visit = list(self.map_.lanes[tile_last_visited].successors)[0]
+        while tile_to_visit != self.tiles_visiting[-1]:
+            self.tile_visited[tile_to_visit] = True
+            tile_to_visit = list(self.map_.lanes[tile_to_visit].successors)[0]
+
+        self.tile_visited[self.tiles_visiting[-1]] = True
+
+    def get_observation(self):
+        """Get the observation of the agent."""
+        return self.render_manager.get_observation()
 
     def update(self, action: np.ndarray) -> TrafficEvent:
         """Update the state of the agent by the action instruction."""
         self.n_step += 1
-        frame = self.n_step * 1000 // FPS
+        self.agent.update(action, self.step)
+        self.locate_agent()
+        self.render_manager.update(self.participants, [0], self.agent.current_state.frame)
 
-        self.agent.update(action)
-        self._locate_agent()
-        self.render_manager.update(self.participants, [0], frame)
+        return self.get_observation()
+
+    def render(self):
+        self.render_manager.render()
+
+    def _check_stopped(self):
+        if self.agent.speed < 0.01:
+            self.cnt_still += 1
+            if self.cnt_still > self.render_fps:
+                self.status = TrafficEvent.NO_ACTION
+                return
+        else:
+            self.cnt_still = 0
 
     def _check_retrograde(self):
-        successor = self.map_.lanes[self.tile_visiting].successors[0]
+        successor = list(self.map_.lanes[self.tiles_visiting[-1]].successors)[0]
+
         if self.tile_visited[successor] and successor != "0000":
             self.status = TrafficEvent.VIOLATION_RETROGRADE
             return
 
-        agent_pose = list(self.agent.get_pose().coords)
-        vec_heading = [np.mean(agent_pose[:4]), np.mean(agent_pose[:2])]
-        tile_left_side = list(self.map_.lanes[self.tile_visiting].left_side.coords)
-        tile_right_side = list(self.map_.lanes[self.tile_visiting].right_side.coords)
+        heading = self.agent.heading
 
-        angle1 = Vector.angle(vec_heading, tile_left_side)
-        angle2 = Vector.angle(vec_heading, tile_right_side)
+        idx = int(len(self.tiles_visiting) / 2)
+        tile_left_side = np.array(
+            list(self.map_.lanes[self.tiles_visiting[idx]].left_side.coords)
+        )
+        left_vec = tile_left_side[1] - tile_left_side[0]
+        left_angle = np.arctan2(left_vec[1], left_vec[0])
+        tile_right_side = np.array(
+            list(self.map_.lanes[self.tiles_visiting[idx]].right_side.coords)
+        )
+        right_vec = tile_right_side[1] - tile_right_side[0]
+        right_angle = np.arctan2(right_vec[1], right_vec[0])
 
-        if angle1 > np.pi / 2 and angle2 > np.pi / 2:
+        angle1 = np.abs(left_angle - heading)
+        angle2 = np.abs(right_angle - heading)
+
+        if all([angle1, angle2]) > np.pi / 2:
             self.status = TrafficEvent.VIOLATION_RETROGRADE
 
     def _check_non_drivable(self):
-        if self.intersect_proportion < THRESHOLD_NON_DRIVABLE:
+        intersection_area = 0
+        agent_pose = Polygon(self.agent.get_pose())
+        for tile_id in self.tiles_visiting:
+            tile_shape = Polygon(self.map_.lanes[tile_id].geometry)
+            intersection_area += tile_shape.intersection(agent_pose).area
+
+        intersect_proportion = intersection_area / agent_pose.area
+        if intersect_proportion < THRESHOLD_NON_DRIVABLE:
             self.status = TrafficEvent.VIOLATION_NON_DRIVABLE
 
     def _check_completed(self):
@@ -168,30 +224,29 @@ class RacingScenarioManager(ScenarioManager):
         self.map_.reset()
         self.map_generator.generate(self.map_)
 
-        start_tile = self.map.lanes["0000"]
+        start_tile = self.map_.lanes["0000"]
         for tile_id in self.map_.lanes:
             self.tile_visited[tile_id] = False
-        self.tile_visiting = start_tile.id_
-        self.tile_visited[self.tile_visiting] = True
+        self.tiles_visiting = [start_tile.id_]
+        self.tile_visited[start_tile.id_] = True
         self.n_tile = len(self.map_.lanes)
 
-        self.start_line = LineString(start_tile.get_ends())
-        self.end_line = LineString(start_tile.get_starts())
-
     def _reset_agent(self):
-        vec = self.start_line[1] - self.start_line[0]
-        heading = np.arctan2(-vec[1], vec[0])
-        start_loc = np.mean(
-            self.start_line, axis=0
-        ) - self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
+        start_line = np.array(self.map_.roadlines["start_line"].shape)
+        vec = start_line[1] - start_line[0]
+        heading = np.arctan2(vec[0], -vec[1])
+        start_loc = np.mean(start_line, axis=0)
+        start_loc -= (
+            self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
+        )
         state = State(
-            self.n_step, heading=heading, x=start_loc[0], y=start_loc.y[1], vx=0, vy=0
+            self.n_step, heading=heading, x=start_loc[0], y=start_loc[1], vx=0, vy=0, accel=0
         )
 
         self.agent.reset(state)
         logging.info(
             "The racing car starts at (%.3f, %.3f), heading to %.3f rad."
-            % (start_loc.x, start_loc.y, heading)
+            % (start_loc[0], start_loc[1], heading)
         )
 
     def reset(self):
@@ -203,7 +258,7 @@ class RacingScenarioManager(ScenarioManager):
 
         camera = TopDownCamera(
             id_=0,
-            map_=self.scenario_manager.map_,
+            map_=self.map_,
             perception_range=(60, 60, 100, 20),
             window_size=(STATE_W, STATE_H),
             off_screen=self.off_screen,
@@ -257,12 +312,11 @@ class RacingEnv(gym.Env):
         self.render_fps = min(render_fps, MAX_FPS)
 
         self.max_step = max_step
+        self.max_step = max_step
         self.continuous = continuous
 
         if self.continuous:
-            self.action_space = spaces.Box(
-                np.array([-0.5, -1.0]), np.array([0.5, 1.0]), dtype=np.float32
-            )
+            self.action_space = spaces.Box(np.array([-0.5, -2.0]), np.array([0.5, 2.0]))
         else:
             self.action_space = spaces.Discrete(5)
 
@@ -273,35 +327,89 @@ class RacingEnv(gym.Env):
         self.scenario_manager = RacingScenarioManager(
             self.render_fps, self.render_mode != "human", self.max_step
         )
+        self.scenario_manager = RacingScenarioManager(
+            self.render_fps, self.render_mode != "human", self.max_step
+        )
 
-    def reset(self, seed: int = None):
-        super().reset(seed=seed)
+    def reset(self, seed: int = None, options: dict = None):
+        super().reset(seed=seed, options=options)
         self.scenario_manager.reset()
+        observations = self.scenario_manager.get_observation()
+        observation = observations[0]
 
-    def _get_reward(self):
-        return
+        info = {
+            "velocity": self.scenario_manager.agent.velocity,
+            "acceleration": self.scenario_manager.agent.accel,
+            "heading": self.scenario_manager.agent.heading,
+            "status": self.scenario_manager.status,
+            "rewards": dict(),
+            "reward": 0,
+        }
+
+        return observation, info
+
+    def _get_rewards(self, status: TrafficEvent):
+        # punishment for no action
+        no_action_punishment = 0 if status != TrafficEvent.NO_ACTION else -200
+        # punishment for time exceed
+        time_exceeded_punishment = 0 if status != TrafficEvent.TIME_EXCEEDED else -100
+        # punishment for driving into non drivable area
+        non_drivable_punishment = (
+            0 if status != TrafficEvent.VIOLATION_NON_DRIVABLE else -100
+        )
+        # punishment for driving in the opposite direction
+        retrograde_punishment = 0 if status != TrafficEvent.VIOLATION_RETROGRADE else -50
+        # reward for longitudinal speed
+        speed = self.scenario_manager.agent.speed
+        heading = self.scenario_manager.agent.heading
+        speed_reward = speed * np.cos(heading)
+        # reward for completion
+        complete_reward = 0 if status != TrafficEvent.COMPLETED else 200
+
+        rewards = {
+            "no action punishment": no_action_punishment,
+            "time exceeded punishment": time_exceeded_punishment,
+            "non_drivable": non_drivable_punishment,
+            "retrograde": retrograde_punishment,
+            "speed_reward": speed_reward,
+            "completed": complete_reward,
+        }
+
+        if status not in [TrafficEvent.NORMAL, TrafficEvent.COMPLETED]:
+            reward = sum(rewards.values()) - speed_reward
+        else:
+            reward = sum(rewards.values())
+
+        return rewards, reward
 
     def step(self, action: Union[np.array, int]):
         if not self.action_space.contains(action):
             raise InvalidAction(f"Action {action} is invalid.")
         action = action if self.continuous else DISCRETE_ACTION[action]
 
-        self.scenario_manager.update(action)
+        observations = self.scenario_manager.update(action)
+        observation = observations[0]
+
         status = self.scenario_manager.check_status()
-        done = status == TrafficEvent.COMPLETED
+        terminated = status == TrafficEvent.COMPLETED
+        truncated = status != TrafficEvent.NORMAL
 
-        observation = self._get_observation()
-        reward = self._get_reward()
+        rewards, reward = self._get_rewards(status)
 
-        info = {"status": status}
+        info = {
+            "velocity": self.scenario_manager.agent.velocity,
+            "acceleration": self.scenario_manager.agent.accel,
+            "heading": self.scenario_manager.agent.heading,
+            "status": status,
+            "rewards": rewards,
+            "reward": reward,
+        }
 
-        return observation, reward, done, info
+        return observation, reward, terminated, truncated, info
 
     def render(self):
         if self.render_mode == "human":
-            return
-        elif self.render_mode == "rgb_array":
-            return
+            self.scenario_manager.render()
 
 
 if __name__ == "__main__":

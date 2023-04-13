@@ -2,12 +2,11 @@ from typing import Tuple, List, Dict
 import time
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
 import numpy as np
 from shapely.geometry import Point, LineString
 
 from tactics2d.math import Bezier, Circle
-from tactics2d.map.element import Lane, LaneRelationship, Map
+from tactics2d.map.element import RoadLine, Lane, LaneRelationship, Map
 
 # Track related configurations
 N_CHECKPOINT = (10, 20)  # the number of turns is ranging in 10-20
@@ -28,7 +27,7 @@ class RacingTrackGenerator:
     def __init__(self, bezier_param: tuple = (2, 50)):
         self.bezier_generator = Bezier(*bezier_param)
 
-    def _create_checkpoints(self) -> Tuple[List[np.ndarray], List[np.ndarray], bool]:
+    def _get_checkpoints(self) -> Tuple[List[np.ndarray], List[np.ndarray], bool]:
         n_checkpoint = np.random.randint(*N_CHECKPOINT)
         noise = np.random.uniform(0, 2 * np.pi / n_checkpoint, n_checkpoint)
         alpha = 2 * np.pi * np.arange(n_checkpoint) / n_checkpoint + noise
@@ -146,13 +145,12 @@ class RacingTrackGenerator:
         right_points = []
         tiles = {}
 
-        k = TRACK_WIDTH / 2 / TILE_LENGTH
-
         for i in range(n_tile):
             pt0 = center_points[i - 1]
             pt1 = center_points[i]
             x_diff = pt1.x - pt0.x
             y_diff = pt1.y - pt0.y
+            k = TRACK_WIDTH / 2 / np.linalg.norm([x_diff, y_diff])
             left_points.append([pt1.x - k * y_diff, pt1.y + k * x_diff])
             right_points.append([pt1.x + k * y_diff, pt1.y - k * x_diff])
 
@@ -206,6 +204,23 @@ class RacingTrackGenerator:
         distance = center_line.length
         n_tile = int(np.ceil(distance / TILE_LENGTH))
         map_.lanes = self._get_tiles(n_tile, center_line)
+
+        map_.roadlines = {
+            "start_line": RoadLine(
+                id_="0",
+                linestring=LineString(map_.lanes["0000"].ends),
+                type_="solid",
+                color=(255, 0, 0),
+            ),
+            "end_line": RoadLine(
+                id_="1",
+                linestring=LineString(map_.lanes["0000"].starts),
+                type_="solid",
+                color=(0, 255, 0),
+            ),
+            "center_line": RoadLine(id_="2", linestring=center_line),
+        }
+
         logging.info(f"The track is {int(distance)}m long and has {n_tile} tiles.")
 
         # record time cost

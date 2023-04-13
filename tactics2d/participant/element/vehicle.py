@@ -7,6 +7,7 @@ from shapely.affinity import affine_transform
 from .participant_base import ParticipantBase
 from tactics2d.trajectory.element.trajectory import State, Trajectory
 from tactics2d.physics import PointMass, SingleTrackKinematics
+from tactics2d.physics import PointMass, SingleTrackKinematics
 
 from .defaults import VEHICLE_MODEL
 
@@ -26,6 +27,11 @@ class Vehicle(ParticipantBase):
         color (tuple, optional): The color of the vehicle. Expressed by a tuple with 3 integers.
         kerb_weight: (float, optional): The weight of the vehicle. The default unit is
             kilogram (kg). Defaults to None.
+        steer_range (Tuple[float, float], optional): The range of the steering angle. The unit is radian. Defaults to None.
+        speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit is meter per second. Defaults to None.
+        accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
+        comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration that is comfortable for the driver.
+        physics_model ()
         steer_range (Tuple[float, float], optional): The range of the steering angle. The unit is radian. Defaults to None.
         speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit is meter per second. Defaults to None.
         accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
@@ -60,6 +66,8 @@ class Vehicle(ParticipantBase):
             "height",
             "kerb_weight",
             "wheel_base",
+            "front_overhang",
+            "rear_overhang",
             "front_overhang",
             "rear_overhang",
         ]
@@ -110,7 +118,7 @@ class Vehicle(ParticipantBase):
                     dist_front_hang,
                     dist_rear_hang,
                     self.steer_range,
-                    (0, self.max_speed),
+                    self.speed_range,
                     self.accel_range,
                 )
             elif self.wheel_base is not None:
@@ -118,7 +126,7 @@ class Vehicle(ParticipantBase):
                     0.5 * self.wheel_base,
                     0.5 * self.wheel_base,
                     self.steer_range,
-                    (0, self.max_speed),
+                    self.speed_range,
                     self.accel_range,
                 )
             else:
@@ -136,12 +144,8 @@ class Vehicle(ParticipantBase):
         )
 
     def add_state(self, state: State):
-        if self.physics_model.verify_state(
-            state,
-            self.trajectory.current_state,
-        ):
+        if self.physics_model.verify_state(state, self.trajectory.current_state):
             self.trajectory.append_state(state)
-            self.current_state = state
         else:
             raise RuntimeError("Invalid state.")
 
@@ -172,7 +176,7 @@ class Vehicle(ParticipantBase):
         ]
         return affine_transform(self.bbox, transform_matrix)
 
-    def update(self, action: np.ndarray):
+    def update(self, action: np.ndarray, step: float):
         """Update the agent's state with the given action."""
-        self.current_state = self.physics_model.step(self.current_state, action)
-        self.add_state(self.current_state)
+        current_state, _ = self.physics_model.step(self.current_state, action, step)
+        self.add_state(current_state)
