@@ -7,6 +7,7 @@ from shapely.affinity import affine_transform
 from .participant_base import ParticipantBase
 from tactics2d.trajectory.element.trajectory import State, Trajectory
 from tactics2d.physics import PointMass, SingleTrackKinematics
+from tactics2d.physics import PointMass, SingleTrackKinematics
 
 from .defaults import VEHICLE_MODEL
 
@@ -31,6 +32,11 @@ class Vehicle(ParticipantBase):
         accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
         comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration that is comfortable for the driver.
         physics_model ()
+        steer_range (Tuple[float, float], optional): The range of the steering angle. The unit is radian. Defaults to None.
+        speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit is meter per second. Defaults to None.
+        accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
+        comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration that is comfortable for the driver.
+        physics_model ()
     """
 
     def __init__(
@@ -45,10 +51,14 @@ class Vehicle(ParticipantBase):
         wheel_base: float = None,
         front_overhang: float = None,
         rear_overhang: float = None,
+        front_overhang: float = None,
+        rear_overhang: float = None,
         speed_range: Tuple[float, float] = None,
+        steer_range: Tuple[float, float] = (-np.pi / 6, np.pi / 6),
         steer_range: Tuple[float, float] = (-np.pi / 6, np.pi / 6),
         accel_range: Tuple[float, float] = None,
         comfort_accel_range: Tuple[float, float] = None,
+        physics_model=None,
         physics_model=None,
         trajectory: Trajectory = None,
     ):
@@ -60,6 +70,8 @@ class Vehicle(ParticipantBase):
             "height",
             "kerb_weight",
             "wheel_base",
+            "front_overhang",
+            "rear_overhang",
             "front_overhang",
             "rear_overhang",
         ]
@@ -140,9 +152,11 @@ class Vehicle(ParticipantBase):
             self.trajectory.append_state(state)
         else:
             raise RuntimeError("Invalid state.")
+            raise RuntimeError("Invalid state.")
 
     def _verify_trajectory(self, trajectory: Trajectory):
         for i in range(1, len(trajectory)):
+            if not self.physics_model.verify_state(
             if not self.physics_model.verify_state(
                 trajectory.get_state(trajectory.frames[i]),
                 trajectory.get_state(trajectory.frames[i - 1]),

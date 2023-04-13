@@ -7,15 +7,23 @@ import pygame
 import gymnasium as gym
 from gymnasium import spaces
 from gymnasium.error import InvalidAction
+from gymnasium import spaces
+from gymnasium.error import InvalidAction
 
+from tactics2d.math.geometry import Vector
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.trajectory.element import State
+from tactics2d.sensor import TopDownCamera
 from tactics2d.sensor import TopDownCamera
 from tactics2d.map.generator import RacingTrackGenerator
 from tactics2d.scenario import ScenarioManager, RenderManager, TrafficEvent
 
 
+STATE_W = 200
+STATE_H = 200
+WIN_W = 500
+WIN_H = 500
 STATE_W = 200
 STATE_H = 200
 WIN_W = 500
@@ -35,6 +43,8 @@ DISCRETE_ACTION = np.array(
         [0, -2.0],  # decelerate
     ]
 )
+
+THRESHOLD_NON_DRIVABLE = 0.5
 
 THRESHOLD_NON_DRIVABLE = 0.5
 
@@ -65,6 +75,7 @@ class RacingScenarioManager(ScenarioManager):
 
         self.map_ = Map(name="RacingTrack", scenario_type="racing")
         self.map_generator = RacingTrackGenerator()
+
 
         self.agent = Vehicle(
             id_=0, type_="medium_car", steer_range=(-0.5, 0.5), accel_range=(-1, 1)
@@ -286,6 +297,11 @@ class RacingEnv(gym.Env):
         render_fps: int = FPS,
         max_step: int = MAX_STEP,
         continuous: bool = True,
+        self,
+        render_mode: str = "human",
+        render_fps: int = FPS,
+        max_step: int = MAX_STEP,
+        continuous: bool = True,
     ):
         super().__init__()
 
@@ -301,6 +317,7 @@ class RacingEnv(gym.Env):
         self.render_fps = min(render_fps, MAX_FPS)
 
         self.max_step = max_step
+        self.max_step = max_step
         self.continuous = continuous
 
         if self.continuous:
@@ -312,6 +329,9 @@ class RacingEnv(gym.Env):
             0, 255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8
         )
 
+        self.scenario_manager = RacingScenarioManager(
+            self.render_fps, self.render_mode != "human", self.max_step
+        )
         self.scenario_manager = RacingScenarioManager(
             self.render_fps, self.render_mode != "human", self.max_step
         )
