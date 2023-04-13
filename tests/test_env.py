@@ -33,7 +33,9 @@ def test_racing_env():
     n_step = 600
     t1 = time.time()
     for _ in range(n_step):
-        observation, reward, terminated, truncated, info = env.step(env.action_space.sample())
+        observation, reward, terminated, truncated, info = env.step(
+            env.action_space.sample()
+        )
         env.render()
     t2 = time.time()
     logging.info(f"Simulation took {t2 - t1:.2f} seconds.")

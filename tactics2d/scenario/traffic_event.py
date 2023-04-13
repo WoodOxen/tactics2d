@@ -18,6 +18,7 @@ class TrafficEvent(Enum):
     - 10 (Outside lane): The agent has driven out of the lane.
     - 11 (Outside Map): The agent has driven out of the map.
     - 12 (Time exceeded): The agent fails to complete the arbitrary route within the time limit.
+    - 13 (No action): The agent does not take any action for a while.
     """
 
     NORMAL = 1
@@ -32,3 +33,4 @@ class TrafficEvent(Enum):
     OUTSIDE_LANE = 10
     OUTSIDE_MAP = 11
     TIME_EXCEEDED = 12
+    NO_ACTION = 13

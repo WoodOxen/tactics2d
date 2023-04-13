@@ -31,8 +31,8 @@ DISCRETE_ACTION = np.array(
         [0, 0],  # do nothing
         [-0.3, 0],  # steer left
         [0.3, 0],  # steer right
-        [0, 0.2],  # accelerate
-        [0, -0.8],  # decelerate
+        [0, 0.5],  # accelerate
+        [0, -2.0],  # decelerate
     ]
 )
 
@@ -81,7 +81,10 @@ class RacingScenarioManager(ScenarioManager):
         self.start_line = None
         self.end_line = None
 
+        self.cnt_still = 0
+
         self.status_checklist = [
+            self._check_stopped,
             self._check_time_exceeded,
             self._check_retrograde,
             self._check_non_drivable,
@@ -155,6 +158,15 @@ class RacingScenarioManager(ScenarioManager):
     def render(self):
         self.render_manager.render()
 
+    def _check_stopped(self):
+        if self.agent.speed < 0.01:
+            self.cnt_still += 1
+            if self.cnt_still > self.render_fps:
+                self.status = TrafficEvent.NO_ACTION
+                return
+        else:
+            self.cnt_still = 0
+
     def _check_retrograde(self):
         successor = list(self.map_.lanes[self.tiles_visiting[-1]].successors)[0]
 
@@ -217,7 +229,7 @@ class RacingScenarioManager(ScenarioManager):
             self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
         )
         state = State(
-            self.n_step, heading=heading, x=start_loc[0], y=start_loc[1], vx=0, vy=0
+            self.n_step, heading=heading, x=start_loc[0], y=start_loc[1], vx=0, vy=0, accel=0
         )
 
         self.agent.reset(state)
@@ -292,9 +304,7 @@ class RacingEnv(gym.Env):
         self.continuous = continuous
 
         if self.continuous:
-            self.action_space = spaces.Box(
-                np.array([-0.5, -1.0]), np.array([0.5, 1.0])
-            )
+            self.action_space = spaces.Box(np.array([-0.5, -2.0]), np.array([0.5, 2.0]))
         else:
             self.action_space = spaces.Discrete(5)
 
@@ -314,15 +324,18 @@ class RacingEnv(gym.Env):
 
         info = {
             "velocity": self.scenario_manager.agent.velocity,
+            "acceleration": self.scenario_manager.agent.accel,
             "heading": self.scenario_manager.agent.heading,
             "status": self.scenario_manager.status,
             "rewards": dict(),
-            "reward": 0
+            "reward": 0,
         }
 
         return observation, info
 
     def _get_rewards(self, status: TrafficEvent):
+        # punishment for no action
+        no_action_punishment = 0 if status != TrafficEvent.NO_ACTION else -200
         # punishment for time exceed
         time_exceeded_punishment = 0 if status != TrafficEvent.TIME_EXCEEDED else -100
         # punishment for driving into non drivable area
@@ -339,6 +352,7 @@ class RacingEnv(gym.Env):
         complete_reward = 0 if status != TrafficEvent.COMPLETED else 200
 
         rewards = {
+            "no action punishment": no_action_punishment,
             "time exceeded punishment": time_exceeded_punishment,
             "non_drivable": non_drivable_punishment,
             "retrograde": retrograde_punishment,
@@ -369,10 +383,11 @@ class RacingEnv(gym.Env):
 
         info = {
             "velocity": self.scenario_manager.agent.velocity,
+            "acceleration": self.scenario_manager.agent.accel,
             "heading": self.scenario_manager.agent.heading,
             "status": status,
             "rewards": rewards,
-            "reward": reward
+            "reward": reward,
         }
 
         return observation, reward, terminated, truncated, info

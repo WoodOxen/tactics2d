@@ -218,7 +218,7 @@ class RacingTrackGenerator:
                 type_="solid",
                 color=(0, 255, 0),
             ),
-            "center_line": RoadLine(id_="2", linestring=center_line)
+            "center_line": RoadLine(id_="2", linestring=center_line),
         }
 
         logging.info(f"The track is {int(distance)}m long and has {n_tile} tiles.")
