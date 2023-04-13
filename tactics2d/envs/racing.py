@@ -78,7 +78,7 @@ class RacingScenarioManager(ScenarioManager):
 
 
         self.agent = Vehicle(
-            id_=0, type_="medium_car", steer_range=(-0.5, 0.5), accel_range=(-1, 1)
+            id_=0, type_="medium_car", steer_range=(-0.5, 0.5), accel_range=(-2, 2)
         )
         self.participants = {self.agent.id_: self.agent}
 
@@ -292,11 +292,6 @@ class RacingEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
 
     def __init__(
-        self,
-        render_mode: str = "human",
-        render_fps: int = FPS,
-        max_step: int = MAX_STEP,
-        continuous: bool = True,
         self,
         render_mode: str = "human",
         render_fps: int = FPS,
