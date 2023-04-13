@@ -26,8 +26,8 @@ from tactics2d.envs import RacingEnv, ParkingEnv
 def test_racing_env():
     random.seed = 42
     np.random.seed = 42
-    env = RacingEnv(render_mode="rgb_array", render_fps=60, max_step=2000)
-    # env = RacingEnv(render_mode="human", render_fps=60, max_step=2000)
+    render_mode = "rgb_array"
+    env = RacingEnv(render_mode=render_mode, render_fps=60, max_step=2000)
     env.reset(42)
 
     n_step = 600
@@ -36,7 +36,8 @@ def test_racing_env():
         _, _, _, _, _ = env.step(
             env.action_space.sample()
         )
-        env.render()
+        if render_mode == "human":
+            env.render()
     t2 = time.time()
     logging.info(f"Simulation took {t2 - t1:.2f} seconds.")
     logging.info(f"The average fps is {n_step / (t2 - t1): .2f} Hz.")
