@@ -21,19 +21,19 @@ from tactics2d.envs import RacingEnv, ParkingEnv
 #     return
 
 
-# @pytest.mark.env
+@pytest.mark.env
 # @pytest.mark.skip(reason="not implemented")
 def test_racing_env():
     random.seed = 42
     np.random.seed = 42
-    # env = RacingEnv(render_mode="rgb_array", render_fps=60, max_step=2000)
-    env = RacingEnv(render_mode="human", render_fps=60, max_step=2000)
+    env = RacingEnv(render_mode="rgb_array", render_fps=60, max_step=2000)
+    # env = RacingEnv(render_mode="human", render_fps=60, max_step=2000)
     env.reset(42)
 
     n_step = 600
     t1 = time.time()
     for _ in range(n_step):
-        observation, reward, terminated, truncated, info = env.step(
+        _, _, _, _, _ = env.step(
             env.action_space.sample()
         )
         env.render()

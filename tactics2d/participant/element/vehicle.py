@@ -51,14 +51,10 @@ class Vehicle(ParticipantBase):
         wheel_base: float = None,
         front_overhang: float = None,
         rear_overhang: float = None,
-        front_overhang: float = None,
-        rear_overhang: float = None,
         speed_range: Tuple[float, float] = None,
-        steer_range: Tuple[float, float] = (-np.pi / 6, np.pi / 6),
         steer_range: Tuple[float, float] = (-np.pi / 6, np.pi / 6),
         accel_range: Tuple[float, float] = None,
         comfort_accel_range: Tuple[float, float] = None,
-        physics_model=None,
         physics_model=None,
         trajectory: Trajectory = None,
     ):
@@ -152,11 +148,9 @@ class Vehicle(ParticipantBase):
             self.trajectory.append_state(state)
         else:
             raise RuntimeError("Invalid state.")
-            raise RuntimeError("Invalid state.")
 
     def _verify_trajectory(self, trajectory: Trajectory):
         for i in range(1, len(trajectory)):
-            if not self.physics_model.verify_state(
             if not self.physics_model.verify_state(
                 trajectory.get_state(trajectory.frames[i]),
                 trajectory.get_state(trajectory.frames[i - 1]),
