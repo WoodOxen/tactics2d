@@ -8,14 +8,12 @@ import gymnasium as gym
 from gymnasium import spaces
 from gymnasium.error import InvalidAction
 
-from tactics2d.math.geometry import Vector
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.trajectory.element import State
 from tactics2d.sensor import TopDownCamera
 from tactics2d.map.generator import RacingTrackGenerator
-from tactics2d.scenario import ScenarioManager, RenderManager
-from tactics2d.scenario import TrafficEvent
+from tactics2d.scenario import ScenarioManager, RenderManager, TrafficEvent
 
 
 STATE_W = 200
@@ -96,6 +94,10 @@ class RacingScenarioManager(ScenarioManager):
 
     def locate_agent(self) -> float:
         """Locate the agent at a specific tile on the map."""
+
+        if len(self.tiles_visiting) == 0:
+            return
+
         agent_pose = Polygon(self.agent.get_pose())
         tile_last_visited = self.tiles_visiting[0]
         tile_to_visit = tile_last_visited
@@ -124,15 +126,22 @@ class RacingScenarioManager(ScenarioManager):
         # update the tile_visited and tiles_visiting
         self.tiles_visiting = tiles_visiting
 
-        if len( self.tiles_visiting) > 0 and tile_last_visited == self.tiles_visiting[-1]:
+        if len(self.tiles_visiting) == 0:
+            return
+
+        if len(self.tiles_visiting) > 0 and tile_last_visited == self.tiles_visiting[-1]:
             return
 
         tile_to_visit = list(self.map_.lanes[tile_last_visited].successors)[0]
         while tile_to_visit != self.tiles_visiting[-1]:
             self.tile_visited[tile_to_visit] = True
             tile_to_visit = list(self.map_.lanes[tile_to_visit].successors)[0]
-        
+
         self.tile_visited[self.tiles_visiting[-1]] = True
+
+    def get_observation(self):
+        """Get the observation of the agent."""
+        return self.render_manager.get_observation()
 
     def update(self, action: np.ndarray) -> TrafficEvent:
         """Update the state of the agent by the action instruction."""
@@ -141,7 +150,7 @@ class RacingScenarioManager(ScenarioManager):
         self.locate_agent()
         self.render_manager.update(self.participants, [0], self.agent.current_state.frame)
 
-        return self.render_manager.get_observation()
+        return self.get_observation()
 
     def render(self):
         self.render_manager.render()
@@ -179,7 +188,7 @@ class RacingScenarioManager(ScenarioManager):
         for tile_id in self.tiles_visiting:
             tile_shape = Polygon(self.map_.lanes[tile_id].geometry)
             intersection_area += tile_shape.intersection(agent_pose).area
-        
+
         intersect_proportion = intersection_area / agent_pose.area
         if intersect_proportion < THRESHOLD_NON_DRIVABLE:
             self.status = TrafficEvent.VIOLATION_NON_DRIVABLE
@@ -204,7 +213,9 @@ class RacingScenarioManager(ScenarioManager):
         vec = start_line[1] - start_line[0]
         heading = np.arctan2(vec[0], -vec[1])
         start_loc = np.mean(start_line, axis=0)
-        start_loc -= self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
+        start_loc -= (
+            self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
+        )
         state = State(
             self.n_step, heading=heading, x=start_loc[0], y=start_loc[1], vx=0, vy=0
         )
@@ -282,7 +293,7 @@ class RacingEnv(gym.Env):
 
         if self.continuous:
             self.action_space = spaces.Box(
-                np.array([-0.5, -1.0]), np.array([0.5, 1.0]), dtype=np.float32
+                np.array([-0.5, -1.0]), np.array([0.5, 1.0])
             )
         else:
             self.action_space = spaces.Discrete(5)
@@ -298,9 +309,41 @@ class RacingEnv(gym.Env):
     def reset(self, seed: int = None):
         super().reset(seed=seed)
         self.scenario_manager.reset()
+        observations = self.scenario_manager.get_observation()
+        observation = observations[0]
 
-    def _get_rewards(self):
-        return 0
+        return observation
+
+    def _get_rewards(self, status: TrafficEvent):
+        # punishment for time exceed
+        time_exceeded_punishment = 0 if status != TrafficEvent.TIME_EXCEEDED else -100
+        # punishment for driving into non drivable area
+        non_drivable_punishment = (
+            0 if status != TrafficEvent.VIOLATION_NON_DRIVABLE else -100
+        )
+        # punishment for driving in the opposite direction
+        retrograde_punishment = 0 if status != TrafficEvent.VIOLATION_RETROGRADE else -50
+        # reward for longitudinal speed
+        speed = self.scenario_manager.agent.speed
+        heading = self.scenario_manager.agent.heading
+        speed_reward = speed * np.cos(heading)
+        # reward for completion
+        complete_reward = 0 if status != TrafficEvent.COMPLETED else 200
+
+        rewards = {
+            "time exceeded punishment": time_exceeded_punishment,
+            "non_drivable": non_drivable_punishment,
+            "retrograde": retrograde_punishment,
+            "speed_reward": speed_reward,
+            "completed": complete_reward,
+        }
+
+        if status not in [TrafficEvent.NORMAL, TrafficEvent.COMPLETED]:
+            reward = sum(rewards.values()) - speed_reward
+        else:
+            reward = sum(rewards.values())
+
+        return rewards, reward
 
     def step(self, action: Union[np.array, int]):
         if not self.action_space.contains(action):
@@ -314,12 +357,17 @@ class RacingEnv(gym.Env):
         terminated = status == TrafficEvent.COMPLETED
         truncated = status != TrafficEvent.NORMAL
 
-        rewards = self._get_rewards()
-        total_reward = np.sum(rewards)
+        rewards, reward = self._get_rewards(status)
 
-        info = {"status": status, "rewards": rewards}
+        info = {
+            "velocity": self.scenario_manager.agent.velocity,
+            "heading": self.scenario_manager.agent.heading,
+            "status": status,
+            "rewards": rewards,
+            "reward": reward
+        }
 
-        return observation, total_reward, terminated, truncated, info
+        return observation, reward, terminated, truncated, info
 
     def render(self):
         if self.render_mode == "human":

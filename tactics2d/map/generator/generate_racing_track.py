@@ -218,7 +218,7 @@ class RacingTrackGenerator:
                 linestring=LineString(map_.lanes["0000"].starts),
                 type_="solid",
                 color=(0, 255, 0),
-            )
+            ),
         }
 
         logging.info(f"The track is {int(distance)}m long and has {n_tile} tiles.")

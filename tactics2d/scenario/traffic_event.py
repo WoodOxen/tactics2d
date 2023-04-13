@@ -15,9 +15,9 @@ class TrafficEvent(Enum):
     - 8 (Violation_non_drivable): The agent violates the traffic rule because it is in a
         non-drivable region, such as the bicycle lane, side walk, and traffic island.
     - 9 (Violation_outside_lane):
-    - 10 (Out_lane): The agent has driven out of the lane.
-    - 11 (Out_Map): The agent has driven out of the map.
-    - 12 (Out-time): The agent fails to complete the arbitrary route within the time limit.
+    - 10 (Outside lane): The agent has driven out of the lane.
+    - 11 (Outside Map): The agent has driven out of the map.
+    - 12 (Time exceeded): The agent fails to complete the arbitrary route within the time limit.
     """
 
     NORMAL = 1
@@ -31,4 +31,4 @@ class TrafficEvent(Enum):
     VIOLATION_TRAFFIC_LIGHT = 9
     OUTSIDE_LANE = 10
     OUTSIDE_MAP = 11
-    TIME_EXCEED = 12
+    TIME_EXCEEDED = 12
