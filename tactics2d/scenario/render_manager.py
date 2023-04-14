@@ -176,6 +176,7 @@ class RenderManager:
                 {self.bound_sensors[sensor_id]}. Now it is bound with {participant_id}."
             )
 
+        self.sensors[sensor_id].bind_id = participant_id
         self.bound_sensors[sensor_id] = participant_id
 
     def unbind(self, sensor_id):
@@ -187,6 +188,7 @@ class RenderManager:
 
         try:
             self.bound_sensors.pop(sensor_id)
+            self.sensors[sensor_id].bind_id = None
         except KeyError:
             warnings.warn(f"Sensor {sensor_id} is not bound with any participant.")
 

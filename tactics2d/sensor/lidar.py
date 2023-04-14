@@ -46,6 +46,7 @@ class SingleLineLidar(SensorBase):
 
         self.point_density = int(self.freq_detect / self.freq_scan)
         self.angle_resolution = 2 * np.pi / self.point_density
+        self.scan_result = [float("inf")] * self.point_density
 
         self.position = None
         self.heading = None
@@ -110,18 +111,20 @@ class SingleLineLidar(SensorBase):
             )
             for i in range(self.point_density)
         ]
-        self.scan_result = [float("inf")] * self.point_density
 
-        if "obstacles" in self.map_.customs:
-            for obstacle in self.map_.customs["obstacles"]:
-                shape = obstacle.shape
+        for area in self.map_.areas.values():
+            if area.type_ == "obstacle":
+                shape = area.geometry
                 line_idx_range = self._estimate_line_idx_range(shape)
 
                 for i in range(line_idx_range[0], line_idx_range[1]):
                     intersection = shape.intersection(lidar_lines[i])
                     self._update_scan_line(intersection, i)
 
+
         for participant_id in participant_ids:
+            if participant_id == self.bind_id:
+                continue
             shape = participants[participant_id].get_pose(frame)
             line_idx_range = self._estimate_line_idx_range(shape)
 
@@ -176,6 +179,7 @@ class SingleLineLidar(SensorBase):
 
         self._update_transform_matrix()
 
+        self.scan_result = [float("inf")] * self.point_density
         self._scan_obstacles(participants, participant_ids, frame)
 
         if not self.off_screen:

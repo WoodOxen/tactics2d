@@ -2,7 +2,7 @@ from typing import Union
 import logging
 
 import numpy as np
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 import gymnasium as gym
 from gymnasium import spaces
 from gymnasium.error import InvalidAction
@@ -10,16 +10,14 @@ from gymnasium.error import InvalidAction
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle, Other
 from tactics2d.trajectory.element import State
+from tactics2d.sensor import TopDownCamera, SingleLineLidar
 from tactics2d.map.generator import ParkingLotGenerator
-from tactics2d.scenario import ScenarioManager, RenderManager
-from tactics2d.scenario import TrafficEvent
+from tactics2d.scenario import ScenarioManager, RenderManager, TrafficEvent
 
-STATE_W = 256
-STATE_H = 256
-VIDEO_W = 600
-VIDEO_H = 400
-WIN_W = 1000
-WIN_H = 1000
+STATE_W = 200
+STATE_H = 200
+WIN_W = 500
+WIN_H = 500
 
 FPS = 60
 MAX_FPS = 200
@@ -49,30 +47,51 @@ def truncate_angle(angle: float):
 
 
 class ParkingScenarioManager(ScenarioManager):
-    def __init__(self, max_step: int, bay_proportion: float):
-        super().__init__(max_step)
+    """_summary_
+
+    Attributes:
+        bay_proportion (float): The proportion of the parking bay in randomly generated
+            parking scenarios.
+        map_ (Map): The map of the scenario.
+        map_generator (ParkingLotGenerator): The map generator.
+        render_manager (RenderManager): The render manager.
+        render_fps (int): The FPS of the rendering.
+        off_screen (bool): Whether to render the scene on the screen.
+        n_step (int): The number of steps since the beginning of the episode.
+    """
+
+    def __init__(
+        self, bay_proportion: float, render_fps: int, off_screen: bool, max_step: int
+    ):
+        super().__init__(render_fps, off_screen, max_step)
 
         self.agent = Vehicle(
             id_=0,
-            type_="sedan",
-            steering_angle_range=(-0.75, 0.75),
-            steering_velocity_range=(-0.5, 0.5),
-            speed_range=(-10, 100),
-            accel_range=(-1, 1),
+            type_="medium_car",
+            steer_range=(-0.75, 0.75),
+            speed_range=(-10.0, 100.0),
+            accel_range=(-1.0, 1.0),
         )
+        self.participants = {self.agent.id_: self.agent}
 
         self.map_ = Map(name="ParkingLot", scenario_type="parking")
         self.map_generator = ParkingLotGenerator(
             (self.agent.length, self.agent.width), bay_proportion
         )
 
-        self.n_step = 0
+        self.render_manager = RenderManager(
+            fps=self.render_fps, windows_size=(WIN_W, WIN_H), off_screen=self.off_screen
+        )
+
         self.start_state: State = None
-        self.target_state: State = None
-        self.obstacles: list[Other] = []
+        self.target_area: Polygon = None
+        self.target_heading: float = None
+
+        self.cnt_still = 0
 
         self.iou_threshold = 0.95
         self.status_checklist = [
+            self._check_still,
             self._check_time_exceeded,
             self._check_collision,
             self._check_outbound,
@@ -82,45 +101,82 @@ class ParkingScenarioManager(ScenarioManager):
         self.dist_norm_factor = 10.0
         self.angle_norm_factor = np.pi
 
-    def reset(self):
-        self.map_.reset()
-        self.obstacles = self.map_generator.generate(self.map_)
-
-        self.dist_norm_ratio = max(
-            Point(self.start_state.location).distance(Point(self.target_state.location)),
-            10.0,
-        )
-
-        self.agent.reset(self.start_state)
-
     def update(self, action: np.ndarray) -> TrafficEvent:
         self.n_step += 1
-        self.agent.update(action)
+        self.agent.update(action, self.step_len)
+        self.render_manager.update(self.participants, [0], self.agent.current_state.frame)
+
+        return self.get_observation()
+
+    def _check_still(self):
+        if self.agent.speed < 0.1:
+            self.cnt_still += 1
+        else:
+            self.cnt_still = 0
+
+        if self.cnt_still >= self.render_fps:
+            self.status = TrafficEvent.NO_ACTION
 
     def _check_collision(self):
         agent_pose = self.agent.get_pose()
-        for obstacle in self.map.obstacles:
-            if agent_pose.intersects(obstacle.get_pose()):
+        for _, area in self.map_.areas.items():
+            if area.type_ == "obstacle" and agent_pose.intersects(area.geometry):
                 self.status = TrafficEvent.COLLISION
                 break
 
     def _check_completed(self):
-        agent_pose = self.agent.get_pose()
+        agent_pose = Polygon(self.agent.get_pose())
 
-        intersection = agent_pose.intersection(self.destination_area)
-        union = agent_pose.union(self.destination_area)
+        intersection = agent_pose.intersection(self.target_area.geometry)
+        union = agent_pose.union(self.target_area.geometry)
 
-        intersection_area = np.sum([p.area for p in intersection])
-        union_area = np.sum([p.area for p in union])
-
+        intersection_area = intersection.area
+        union_area = union.area
         iou = intersection_area / union_area
 
         if iou >= self.iou_threshold:
             self.status = TrafficEvent.COMPLETED
 
+    def reset(self):
+        self.n_step = 0
+        self.cnt_still = 0
+        self.status = TrafficEvent.NORMAL
+        # reset map
+        self.map_.reset()
+        self.start_state, self.target_area, self.target_heading = self.map_generator.generate(self.map_)
+
+        # reset agent
+        self.agent.reset(self.start_state)
+
+        # reset the sensors
+        self.render_manager.reset()
+
+        camera = TopDownCamera(
+            id_=0,
+            map_=self.map_,
+            perception_range=(30, 30, 30, 30),
+            window_size=(STATE_W, STATE_H),
+            off_screen=self.off_screen,
+        )
+        self.render_manager.add_sensor(camera)
+        self.render_manager.bind(0, 0)
+
+        lidar = SingleLineLidar(
+            id_=1,
+            map_=self.map_,
+            window_size=(STATE_W, STATE_H),
+            off_screen=self.off_screen,
+        )
+        self.render_manager.add_sensor(lidar)
+        self.render_manager.bind(1, 0)
+
+        self.dist_norm_ratio = max(
+            Point(self.start_state.location).distance(self.target_area.geometry.centroid), 10.0
+        )
+
 
 class ParkingEnv(gym.Env):
-    """
+    """A simple parking environment.
 
     Attributes:
         action_space (gym.spaces): The action space is either continuous or discrete.
@@ -133,7 +189,12 @@ class ParkingEnv(gym.Env):
             - 3: accelerate
             - 4: decelerate
         observation_space ():
-        render_mode
+        bay_proportion(float, optional): The proportion of the parking bay in the randomly
+            generated environment. Defaults to 0.5.
+        render_mode (str, optional): The rendering mode. Possible choices are "human" and
+            "rgb_array". Defaults to "human".
+        render_fps (int, optional): The rendering FPS. Defaults to 60.
+        continuous (bool, optional): Whether to use continuous action space. Defaults to True.
     """
 
     metadata = {"render_modes": ["human", "rgb_array"]}
@@ -143,6 +204,7 @@ class ParkingEnv(gym.Env):
         bay_proportion: float = 0.5,
         render_mode: str = "human",
         render_fps: int = FPS,
+        max_step: int = MAX_STEP,
         continuous: bool = True,
     ):
         super().__init__()
@@ -158,12 +220,11 @@ class ParkingEnv(gym.Env):
             )
         self.render_fps = min(render_fps, MAX_FPS)
 
+        self.max_step = max_step
         self.continuous = continuous
 
         if self.continuous:
-            self.action_space = spaces.Box(
-                np.array([-0.75, -1.0]), np.array([0.75, 1.0]), dtype=np.float32
-            )
+            self.action_space = spaces.Box(np.array([-0.75, -1.0]), np.array([0.75, 1.0]))
         else:
             self.action_space = spaces.Discrete(5)
 
@@ -171,17 +232,30 @@ class ParkingEnv(gym.Env):
             0, 255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8
         )
 
-        self.scenario_manager = ParkingScenarioManager(MAX_STEP, bay_proportion)
-        self.render_manager = RenderManager(
-            fps=self.render_fps, off_screen=(render_mode == "rgb_array")
+        self.scenario_manager = ParkingScenarioManager(
+            bay_proportion, self.render_fps, self.render_mode != "human", self.max_step
         )
 
-    def reset(self, *, seed: int = None):
-        super().reset(seed=seed)
+    def reset(self, seed: int = None, options: dict = None):
+        super().reset(seed=seed, options=options)
         self.scenario_manager.reset()
-        self.render_manager.reset()
+        observations = self.scenario_manager.get_observation()
+        observation = observations[0]
+
+        info = {
+            "lidar_distance": observation[1],
+            "velocity": self.scenario_manager.agent.velocity,
+            "acceleration": self.scenario_manager.agent.accel,
+            "heading": self.scenario_manager.agent.heading,
+            "status": self.scenario_manager.status,
+            "rewards": dict(),
+            "reward": 0,
+        }
+
+        return observation, info
 
     def _get_rewards(self):
+        # time penalty
         time_penalty = -np.tanh(
             self.scenario_manager.n_step / self.scenario_manager.max_step
         )
@@ -190,69 +264,63 @@ class ParkingEnv(gym.Env):
         prev_frame = self.scenario_manager.agent.trajectory.frames[-2]
         prev_state = self.scenario_manager.agent.get_state(prev_frame)
 
+        # distance reward
         curr_dist = Point(curr_state.location).distance(
-            Point(self.scenario_manager.target_state.location)
+            self.scenario_manager.target_area.geometry.centroid
         )
         prev_dist = Point(prev_state.location).distance(
-            Point(self.scenario_manager.target_state.location)
+            self.scenario_manager.target_area.geometry.centroid
         )
         distance_reward = (prev_dist - curr_dist) / self.scenario_manager.dist_norm_ratio
-
+        # angle reward
         curr_angle_diff = truncate_angle(
-            curr_state.heading - self.scenario_manager.target_state.heading
+            curr_state.heading - self.scenario_manager.target_heading
         )
         prev_angle_diff = truncate_angle(
-            prev_state.heading - self.scenario_manager.target_state.heading
+            prev_state.heading - self.scenario_manager.target_heading
         )
         angle_reward = (
             prev_angle_diff - curr_angle_diff
         ) / self.scenario_manager.angle_norm_factor
 
-        return [time_penalty, distance_reward, angle_reward]
+        # IoU reward
+
+        rewards = {
+            "time_penalty": time_penalty,
+            "distance_reward": distance_reward,
+            "angle_reward": angle_reward,
+        }
+
+        reward = np.sum(list(rewards.values()))
+
+        return rewards, reward
 
     def step(self, action: Union[np.array, int]):
         if not self.action_space.contains(action):
             raise InvalidAction(f"Action {action} is invalid.")
         action = action if self.continuous else DISCRETE_ACTION[action]
 
-        self.scenario_manager.update(action)
-
-        observation = self.render_manager.render(self.scenario_manager)
+        observations = self.scenario_manager.update(action)
+        observation = observations[0]
 
         status = self.scenario_manager.check_status()
         terminated = status == TrafficEvent.COMPLETED
         truncated = status != TrafficEvent.NORMAL
 
-        rewards = self._get_rewards()
-        total_reward = np.sum(rewards)
+        rewards, reward = self._get_rewards()
 
-        info = {"status": status, "rewards": rewards}
+        info = {
+            "lidar_distance": observation[1],
+            "velocity": self.scenario_manager.agent.velocity,
+            "acceleration": self.scenario_manager.agent.accel,
+            "heading": self.scenario_manager.agent.heading,
+            "status": self.scenario_manager.status,
+            "rewards": rewards,
+            "reward": reward,
+        }
 
-        return observation, total_reward, terminated, truncated, info
+        return observation, reward, terminated, truncated, info
 
     def render(self):
         if self.render_mode == "human":
-            return
-        elif self.render_mode == "rgb_array":
-            return
-
-
-if __name__ == "__main__":
-    a = np.array([0.0, 0.0])
-
-    import pygame
-
-    def register_input():
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    a[0] = -0.1
-                if event.key == pygame.K_RIGHT:
-                    a[0] = +0.1
-                if event.key == pygame.K_UP:
-                    a[1] = -0.1
-                if event.key == pygame.K_DOWN:
-                    a[1] = -0.1  # set 1.0 for wheels to block to zero rotation
-                if event.key == pygame.K_RETURN:
-                    global restart
-                    restart = True
+            self.scenario_manager.render()

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from shapely.geometry import LineString
+from shapely.geometry import Polygon
 
 from .traffic_event import TrafficEvent
 
@@ -20,13 +20,18 @@ class ScenarioManager(ABC):
         agent (Vehicle): The controllable vehicle in the scenario.
     """
 
-    def __init__(self, max_step: int):
+    def __init__(self, render_fps: int, off_screen: bool, max_step: int):
+        self.render_fps = render_fps
+        self.off_screen = off_screen
+        self.step_len = 1 / self.render_fps
+
         self.n_step = 0
         self.max_step = max_step
         self.status = TrafficEvent.NORMAL
 
         self.map_ = None
         self.participants = None
+        self.render_manager = None
 
         self.agent = None
 
@@ -35,6 +40,14 @@ class ScenarioManager(ABC):
     @abstractmethod
     def update(self):
         """Update the state of the traffic participants."""
+
+    def get_observation(self):
+        """Get the observation of the current state."""
+        return self.render_manager.get_observation()
+
+    def render(self):
+        """Render the current state with the render manager."""
+        self.render_manager.render()
 
     @abstractmethod
     def reset(self):
@@ -63,7 +76,7 @@ class ScenarioManager(ABC):
 
     def _check_outbound(self):
         """Check if the agent is outside the map boundary."""
-        map_boundary = LineString(
+        map_boundary = Polygon(
             [
                 (self.map_.boundary[0], self.map_.boundary[2]),
                 (self.map_.boundary[0], self.map_.boundary[3]),
@@ -72,7 +85,7 @@ class ScenarioManager(ABC):
             ]
         )
 
-        if not map_boundary.contains(self.agent.get_pose(self.n_step)):
+        if not map_boundary.contains(Polygon(self.agent.get_pose())):
             self.status = TrafficEvent.OUTSIDE_MAP
 
     def _check_collision(self):

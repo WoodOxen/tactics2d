@@ -117,7 +117,12 @@ class SingleTrackKinematics(PhysicsModelBase):
             )
 
         new_state = State(
-            state.frame + int(step * 1000), x=x, y=y, heading=heading, speed=speed, accel=accel
+            state.frame + int(step * 1000),
+            x=x,
+            y=y,
+            heading=heading,
+            speed=speed,
+            accel=accel,
         )
 
         return new_state, (steer, accel)

@@ -116,9 +116,13 @@ class Map:
     def add_regulatory(self, regulatory: RegulatoryElement):
         if regulatory.id_ in self.ids:
             if regulatory.id_ in self.regulations:
-                warnings.warn()
+                warnings.warn(
+                    f"Regulatory {regulatory.id_} already exists! Replacing the regulatory with new data."
+                )
             else:
-                raise MapKeyError()
+                raise MapKeyError(
+                    f"The id of Regulatory {regulatory.id_} is used by the other road element."
+                )
         self.ids.add(regulatory.id_)
         self.regulations[regulatory.id_] = regulatory
 
