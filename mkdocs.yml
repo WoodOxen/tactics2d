@@ -15,8 +15,10 @@ nav:
       - tactics2d.envs: "api_envs.md"
       - tactics2d.map: "api_map.md"
       - tactics2d.participant: "api_participant.md"
+      - tactics2d.physics: "api_physics.md"
       - tactics2d.scenario: "api_scenario.md"
       - tactics2d.sensor: "api_sensor.md"
+      - tactics2d.trajectory: "api_trajectory.md"
 
 theme: "material"
 

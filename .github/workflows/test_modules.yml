@@ -1,5 +1,11 @@
 name: Test Modules
-on: pull_request
+on:
+  pull_request:
+  pull_request_target:
+    branches:
+      - main
+      - 'stable'
+      - 'dev'
 
 jobs:
   test-modules-ubuntu18:
