@@ -121,7 +121,6 @@ class SingleLineLidar(SensorBase):
                     intersection = shape.intersection(lidar_lines[i])
                     self._update_scan_line(intersection, i)
 
-
         for participant_id in participant_ids:
             if participant_id == self.bind_id:
                 continue

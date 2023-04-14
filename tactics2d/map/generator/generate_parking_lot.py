@@ -4,7 +4,7 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 import numpy as np
-from shapely.geometry import LinearRing, Point, Polygon
+from shapely.geometry import Point, Polygon
 from shapely.affinity import affine_transform
 
 from tactics2d.math.random import truncate_gaussian
@@ -283,9 +283,7 @@ class ParkingLotGenerator:
                 else self._get_right_wall(2, target_area, dist_to_obstacle)
             )
 
-            dist_target_to_right = target_area.geometry.distance(
-                right_obstacle.geometry
-            )
+            dist_target_to_right = target_area.geometry.distance(right_obstacle.geometry)
             valid_obstacles = self._verify_obstacles(
                 target_area,
                 [back_wall, left_obstacle, right_obstacle],
@@ -298,7 +296,12 @@ class ParkingLotGenerator:
 
         # generate obstacles out of start range
         y_max_obstacle = (
-            max([np.max(np.array(obstacle.geometry.exterior.coords)[:, 1]) for obstacle in obstacles])
+            max(
+                [
+                    np.max(np.array(obstacle.geometry.exterior.coords)[:, 1])
+                    for obstacle in obstacles
+                ]
+            )
             + DIST_TO_OBSTACLE[0]
         )
         if np.random.uniform() < 0.2:
@@ -330,12 +333,16 @@ class ParkingLotGenerator:
                 y = np.random.uniform(*y_range)
                 heading = np.random.uniform() * 2 * np.pi
                 shape = np.array(
-                    list(_get_bbox(Point(x, y), heading, *self.vehicle_size).exterior.coords)[:4]
+                    list(
+                        _get_bbox(
+                            Point(x, y), heading, *self.vehicle_size
+                        ).exterior.coords
+                    )[:4]
                 )
                 shape = Polygon(shape + 0.5 * np.random.uniform(size=shape.shape))
 
                 if Polygon(bbox).contains(shape):
-                    obstacle =Area(id_="%04d", type_="obstacle", geometry=shape)
+                    obstacle = Area(id_="%04d", type_="obstacle", geometry=shape)
                     obstacles.append(obstacle)
                     id_ += 1
 

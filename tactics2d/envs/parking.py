@@ -8,7 +8,7 @@ from gymnasium import spaces
 from gymnasium.error import InvalidAction
 
 from tactics2d.map.element import Map
-from tactics2d.participant.element import Vehicle, Other
+from tactics2d.participant.element import Vehicle
 from tactics2d.trajectory.element import State
 from tactics2d.sensor import TopDownCamera, SingleLineLidar
 from tactics2d.map.generator import ParkingLotGenerator
@@ -143,7 +143,11 @@ class ParkingScenarioManager(ScenarioManager):
         self.status = TrafficEvent.NORMAL
         # reset map
         self.map_.reset()
-        self.start_state, self.target_area, self.target_heading = self.map_generator.generate(self.map_)
+        (
+            self.start_state,
+            self.target_area,
+            self.target_heading,
+        ) = self.map_generator.generate(self.map_)
 
         # reset agent
         self.agent.reset(self.start_state)
@@ -171,7 +175,8 @@ class ParkingScenarioManager(ScenarioManager):
         self.render_manager.bind(1, 0)
 
         self.dist_norm_ratio = max(
-            Point(self.start_state.location).distance(self.target_area.geometry.centroid), 10.0
+            Point(self.start_state.location).distance(self.target_area.geometry.centroid),
+            10.0,
         )
 
 

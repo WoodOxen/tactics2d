@@ -38,7 +38,7 @@ class ScenarioManager(ABC):
         self.status_checklist = []
 
     @abstractmethod
-    def update(self):
+    def update(self, action):
         """Update the state of the traffic participants."""
 
     def get_observation(self):
