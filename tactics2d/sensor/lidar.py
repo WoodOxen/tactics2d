@@ -94,10 +94,16 @@ class SingleLineLidar(SensorBase):
         potential_obstacles = []
         for area in self.map_.areas.values():
             if area.type_ == "obstacle":
-                if isinstance(area.geometry, Polygon):
-                    potential_obstacles.append(area.geometry.exterior)
-                elif isinstance(area.geometry, LinearRing):
-                    potential_obstacles.append(area.geometry)
+                shape = area.geometry
+                line_idx_range = self._estimate_line_idx_range(shape)
+
+                for i in range(line_idx_range[0], line_idx_range[1]):
+                    # DEBUG
+                    try:
+                        intersection = shape.intersection(lidar_lines[i])
+                    except:
+                        print(i)
+                    self._update_scan_line(intersection, i)
 
         for participant_id in participant_ids:
             if participant_id == self.bind_id:
