@@ -331,18 +331,23 @@ class RacingEnv(gym.Env):
     def _get_rewards(self, status: TrafficEvent):
         # penalty for no action
         no_action_penalty = 0 if status != TrafficEvent.NO_ACTION else -200
+
         # penalty for time exceed
         time_exceeded_penalty = 0 if status != TrafficEvent.TIME_EXCEEDED else -100
+
         # penalty for driving into non drivable area
         non_drivable_penalty = (
             0 if status != TrafficEvent.VIOLATION_NON_DRIVABLE else -100
         )
+
         # penalty for driving in the opposite direction
         retrograde_penalty = 0 if status != TrafficEvent.VIOLATION_RETROGRADE else -50
+
         # reward for longitudinal speed
         speed = self.scenario_manager.agent.speed
         heading = self.scenario_manager.agent.heading
         speed_reward = speed * np.cos(heading)
+
         # reward for completion
         complete_reward = 0 if status != TrafficEvent.COMPLETED else 200
 

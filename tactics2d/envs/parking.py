@@ -91,7 +91,7 @@ class ParkingScenarioManager(ScenarioManager):
 
         self.iou_threshold = 0.95
         self.status_checklist = [
-            self._check_still,
+            # self._check_still,
             self._check_time_exceeded,
             self._check_collision,
             self._check_outbound,
@@ -121,7 +121,7 @@ class ParkingScenarioManager(ScenarioManager):
         agent_pose = self.agent.get_pose()
         for _, area in self.map_.areas.items():
             if area.type_ == "obstacle" and agent_pose.intersects(area.geometry):
-                self.status = TrafficEvent.COLLISION
+                self.status = TrafficEvent.COLLISION_STATIC
                 break
 
     def _check_completed(self):
@@ -158,7 +158,7 @@ class ParkingScenarioManager(ScenarioManager):
         camera = TopDownCamera(
             id_=0,
             map_=self.map_,
-            perception_range=(30, 30, 30, 30),
+            perception_range=(20, 20, 20, 20),
             window_size=(STATE_W, STATE_H),
             off_screen=self.off_screen,
         )
@@ -248,7 +248,7 @@ class ParkingEnv(gym.Env):
         observation = observations[0]
 
         info = {
-            "lidar_distance": observation[1],
+            "lidar": observations[1],
             "velocity": self.scenario_manager.agent.velocity,
             "acceleration": self.scenario_manager.agent.accel,
             "heading": self.scenario_manager.agent.heading,
@@ -259,38 +259,60 @@ class ParkingEnv(gym.Env):
 
         return observation, info
 
-    def _get_rewards(self):
-        # time penalty
-        time_penalty = -np.tanh(
-            self.scenario_manager.n_step / self.scenario_manager.max_step
-        )
+    def _get_rewards(self, status: TrafficEvent):
+        # penalty for time exceed
+        time_exceeded_penalty = 0 if status != TrafficEvent.TIME_EXCEEDED else -1
 
-        curr_state = self.scenario_manager.agent.get_state()
-        prev_frame = self.scenario_manager.agent.trajectory.frames[-2]
-        prev_state = self.scenario_manager.agent.get_state(prev_frame)
+        # penalty for collision
+        collision_penalty = 0 if status != TrafficEvent.COLLISION_STATIC else -50
 
-        # distance reward
-        curr_dist = Point(curr_state.location).distance(
-            self.scenario_manager.target_area.geometry.centroid
-        )
-        prev_dist = Point(prev_state.location).distance(
-            self.scenario_manager.target_area.geometry.centroid
-        )
-        distance_reward = (prev_dist - curr_dist) / self.scenario_manager.dist_norm_ratio
-        # angle reward
-        curr_angle_diff = truncate_angle(
-            curr_state.heading - self.scenario_manager.target_heading
-        )
-        prev_angle_diff = truncate_angle(
-            prev_state.heading - self.scenario_manager.target_heading
-        )
-        angle_reward = (
-            prev_angle_diff - curr_angle_diff
-        ) / self.scenario_manager.angle_norm_factor
+        # penalty for driving out of the map boundary
+        outside_map_penalty = 0 if status != TrafficEvent.OUTSIDE_MAP else -50
 
-        # IoU reward
+        # reward for completion
+        complete_reward = 0 if status != TrafficEvent.COMPLETED else 50
+
+        if status == TrafficEvent.NORMAL:
+            # time penalty
+            time_penalty = -np.tanh(
+                self.scenario_manager.n_step / self.scenario_manager.max_step
+            )
+
+            curr_state = self.scenario_manager.agent.get_state()
+            prev_frame = self.scenario_manager.agent.trajectory.frames[-2]
+            prev_state = self.scenario_manager.agent.get_state(prev_frame)
+
+            # distance reward
+            curr_dist = Point(curr_state.location).distance(
+                self.scenario_manager.target_area.geometry.centroid
+            )
+            prev_dist = Point(prev_state.location).distance(
+                self.scenario_manager.target_area.geometry.centroid
+            )
+            distance_reward = (prev_dist - curr_dist) / self.scenario_manager.dist_norm_ratio
+
+            # angle reward
+            curr_angle_diff = truncate_angle(
+                curr_state.heading - self.scenario_manager.target_heading
+            )
+            prev_angle_diff = truncate_angle(
+                prev_state.heading - self.scenario_manager.target_heading
+            )
+            angle_reward = (
+                prev_angle_diff - curr_angle_diff
+            ) / self.scenario_manager.angle_norm_factor
+
+            # IoU reward
+        else:
+            time_penalty = 0
+            distance_reward = 0
+            angle_reward = 0
 
         rewards = {
+            "time_exceeded_penalty": time_exceeded_penalty,
+            "collision_penalty": collision_penalty,
+            "outside_map_penalty": outside_map_penalty,
+            "complete_reward": complete_reward,
             "time_penalty": time_penalty,
             "distance_reward": distance_reward,
             "angle_reward": angle_reward,
@@ -312,10 +334,10 @@ class ParkingEnv(gym.Env):
         terminated = status == TrafficEvent.COMPLETED
         truncated = status != TrafficEvent.NORMAL
 
-        rewards, reward = self._get_rewards()
+        rewards, reward = self._get_rewards(self.scenario_manager.status)
 
         info = {
-            "lidar_distance": observation[1],
+            "lidar": observations[1],
             "velocity": self.scenario_manager.agent.velocity,
             "acceleration": self.scenario_manager.agent.accel,
             "heading": self.scenario_manager.agent.heading,

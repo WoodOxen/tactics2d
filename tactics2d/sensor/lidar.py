@@ -82,8 +82,8 @@ class SingleLineLidar(SensorBase):
         angle_range = (min(angles), max(angles))
 
         line_idx_range = (
-            int(np.floor((angle_range[0] - self.heading) / self.angle_resolution)),
-            int(np.ceil((angle_range[1] - self.heading) / self.angle_resolution)),
+            max(int(np.floor((angle_range[0] - self.heading) / self.angle_resolution)), 0),
+            min(int(np.ceil((angle_range[1] - self.heading) / self.angle_resolution)), self.point_density),
         )
 
         return line_idx_range
@@ -118,7 +118,11 @@ class SingleLineLidar(SensorBase):
                 line_idx_range = self._estimate_line_idx_range(shape)
 
                 for i in range(line_idx_range[0], line_idx_range[1]):
-                    intersection = shape.intersection(lidar_lines[i])
+                    # DEBUG
+                    try:
+                        intersection = shape.intersection(lidar_lines[i])
+                    except:
+                        print(i)
                     self._update_scan_line(intersection, i)
 
         for participant_id in participant_ids:
@@ -184,5 +188,5 @@ class SingleLineLidar(SensorBase):
         if not self.off_screen:
             self._render_lidar_points()
 
-    def get_observation(self):
-        return self.scan_result
+    def get_observation(self) -> np.ndarray:
+        return np.array(self.scan_result)
