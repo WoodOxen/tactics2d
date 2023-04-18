@@ -3,27 +3,18 @@ import logging
 
 import numpy as np
 from shapely.geometry import Polygon
-import pygame
 import gymnasium as gym
 from gymnasium import spaces
 from gymnasium.error import InvalidAction
-from gymnasium import spaces
-from gymnasium.error import InvalidAction
 
-from tactics2d.math.geometry import Vector
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.trajectory.element import State
-from tactics2d.sensor import TopDownCamera
 from tactics2d.sensor import TopDownCamera
 from tactics2d.map.generator import RacingTrackGenerator
 from tactics2d.scenario import ScenarioManager, RenderManager, TrafficEvent
 
 
-STATE_W = 200
-STATE_H = 200
-WIN_W = 500
-WIN_H = 500
 STATE_W = 200
 STATE_H = 200
 WIN_W = 500
@@ -46,19 +37,17 @@ DISCRETE_ACTION = np.array(
 
 THRESHOLD_NON_DRIVABLE = 0.5
 
-THRESHOLD_NON_DRIVABLE = 0.5
-
 
 class RacingScenarioManager(ScenarioManager):
     """_summary_
 
     Attributes:
-        render_fps (int): The FPS of the rendering.
-        off_screen (bool): Whether to render the scene on the screen.
+        agent (Vehicle): The agent vehicle.
         map_ (Map): The map of the scenario.
         map_generator (RacingTrackGenerator): The map generator.
-        agent (Vehicle): The agent vehicle.
         render_manager (RenderManager): The render manager.
+        render_fps (int): The FPS of the rendering.
+        off_screen (bool): Whether to render the scene on the screen.
         n_step (int): The number of steps since the beginning of the episode.
         tile_visited (dict): The tiles that the agent has visited.
         tile_visited_cnt (int): The number of tiles that the agent has visited.
@@ -67,18 +56,13 @@ class RacingScenarioManager(ScenarioManager):
     """
 
     def __init__(self, render_fps: int, off_screen: bool, max_step: int):
-        super().__init__(max_step)
-
-        self.render_fps = render_fps
-        self.off_screen = off_screen
-        self.step = 1 / self.render_fps
+        super().__init__(render_fps, off_screen, max_step)
 
         self.map_ = Map(name="RacingTrack", scenario_type="racing")
         self.map_generator = RacingTrackGenerator()
 
-
         self.agent = Vehicle(
-            id_=0, type_="medium_car", steer_range=(-0.5, 0.5), accel_range=(-2, 2)
+            id_=0, type_="medium_car", steer_range=(-0.5, 0.5), accel_range=(-2.0, 2.0)
         )
         self.participants = {self.agent.id_: self.agent}
 
@@ -86,7 +70,6 @@ class RacingScenarioManager(ScenarioManager):
             fps=self.render_fps, windows_size=(WIN_W, WIN_H), off_screen=self.off_screen
         )
 
-        self.n_step = 0
         self.tile_visited = dict()
         self.tiles_visiting = None
         self.start_line = None
@@ -95,7 +78,7 @@ class RacingScenarioManager(ScenarioManager):
         self.cnt_still = 0
 
         self.status_checklist = [
-            self._check_stopped,
+            self._check_still,
             self._check_time_exceeded,
             self._check_retrograde,
             self._check_non_drivable,
@@ -153,30 +136,23 @@ class RacingScenarioManager(ScenarioManager):
 
         self.tile_visited[self.tiles_visiting[-1]] = True
 
-    def get_observation(self):
-        """Get the observation of the agent."""
-        return self.render_manager.get_observation()
-
     def update(self, action: np.ndarray) -> TrafficEvent:
         """Update the state of the agent by the action instruction."""
         self.n_step += 1
-        self.agent.update(action, self.step)
+        self.agent.update(action, self.step_len)
         self.locate_agent()
         self.render_manager.update(self.participants, [0], self.agent.current_state.frame)
 
         return self.get_observation()
 
-    def render(self):
-        self.render_manager.render()
-
-    def _check_stopped(self):
-        if self.agent.speed < 0.01:
+    def _check_still(self):
+        if self.agent.speed < 0.1:
             self.cnt_still += 1
-            if self.cnt_still > self.render_fps:
-                self.status = TrafficEvent.NO_ACTION
-                return
         else:
             self.cnt_still = 0
+
+        if self.cnt_still >= self.render_fps:
+            self.status = TrafficEvent.NO_ACTION
 
     def _check_retrograde(self):
         successor = list(self.map_.lanes[self.tiles_visiting[-1]].successors)[0]
@@ -240,7 +216,13 @@ class RacingScenarioManager(ScenarioManager):
             self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
         )
         state = State(
-            self.n_step, heading=heading, x=start_loc[0], y=start_loc[1], vx=0, vy=0, accel=0
+            self.n_step,
+            heading=heading,
+            x=start_loc[0],
+            y=start_loc[1],
+            vx=0,
+            vy=0,
+            accel=0,
         )
 
         self.agent.reset(state)
@@ -251,7 +233,9 @@ class RacingScenarioManager(ScenarioManager):
 
     def reset(self):
         self.n_step = 0
+        self.cnt_still = 0
         self.status = TrafficEvent.NORMAL
+
         self._reset_map()
         self._reset_agent()
         self.render_manager.reset()
@@ -283,7 +267,7 @@ class RacingEnv(gym.Env):
             -  4: decelerate
         observation_space (gym.spaces): The observation space is represented as a top-down
             view 128x128 RGB image of the car and the race track. It is a Box(128, 128, 3).
-        render_mode (str, optional): The rendering mode. Possible choices are "human" or
+        render_mode (str, optional): The rendering mode. Possible choices are "human" and
             "rgb_array". Defaults to "human".
         render_fps (int, optional): The expected FPS for rendering. Defaults to 60.
         continuous (bool, optional): Whether to use continuous action space. Defaults to True.
@@ -312,7 +296,6 @@ class RacingEnv(gym.Env):
         self.render_fps = min(render_fps, MAX_FPS)
 
         self.max_step = max_step
-        self.max_step = max_step
         self.continuous = continuous
 
         if self.continuous:
@@ -324,9 +307,6 @@ class RacingEnv(gym.Env):
             0, 255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8
         )
 
-        self.scenario_manager = RacingScenarioManager(
-            self.render_fps, self.render_mode != "human", self.max_step
-        )
         self.scenario_manager = RacingScenarioManager(
             self.render_fps, self.render_mode != "human", self.max_step
         )
@@ -349,28 +329,33 @@ class RacingEnv(gym.Env):
         return observation, info
 
     def _get_rewards(self, status: TrafficEvent):
-        # punishment for no action
-        no_action_punishment = 0 if status != TrafficEvent.NO_ACTION else -200
-        # punishment for time exceed
-        time_exceeded_punishment = 0 if status != TrafficEvent.TIME_EXCEEDED else -100
-        # punishment for driving into non drivable area
-        non_drivable_punishment = (
+        # penalty for no action
+        no_action_penalty = 0 if status != TrafficEvent.NO_ACTION else -200
+
+        # penalty for time exceed
+        time_exceeded_penalty = 0 if status != TrafficEvent.TIME_EXCEEDED else -100
+
+        # penalty for driving into non drivable area
+        non_drivable_penalty = (
             0 if status != TrafficEvent.VIOLATION_NON_DRIVABLE else -100
         )
-        # punishment for driving in the opposite direction
-        retrograde_punishment = 0 if status != TrafficEvent.VIOLATION_RETROGRADE else -50
+
+        # penalty for driving in the opposite direction
+        retrograde_penalty = 0 if status != TrafficEvent.VIOLATION_RETROGRADE else -50
+
         # reward for longitudinal speed
         speed = self.scenario_manager.agent.speed
         heading = self.scenario_manager.agent.heading
         speed_reward = speed * np.cos(heading)
+
         # reward for completion
         complete_reward = 0 if status != TrafficEvent.COMPLETED else 200
 
         rewards = {
-            "no action punishment": no_action_punishment,
-            "time exceeded punishment": time_exceeded_punishment,
-            "non_drivable": non_drivable_punishment,
-            "retrograde": retrograde_punishment,
+            "no action penalty": no_action_penalty,
+            "time exceeded penalty": time_exceeded_penalty,
+            "non_drivable": non_drivable_penalty,
+            "retrograde": retrograde_penalty,
             "speed_reward": speed_reward,
             "completed": complete_reward,
         }
@@ -410,25 +395,3 @@ class RacingEnv(gym.Env):
     def render(self):
         if self.render_mode == "human":
             self.scenario_manager.render()
-
-
-if __name__ == "__main__":
-    action = np.array([0.0, 0.0])
-
-    import pygame
-
-    def register_input():
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    action[0] = -0.1
-                if event.key == pygame.K_RIGHT:
-                    action[0] = +0.1
-                if event.key == pygame.K_UP:
-                    action[1] = -0.1
-                if event.key == pygame.K_DOWN:
-                    # set 1.0 for wheels to block to zero rotation
-                    action[1] = -0.1
-                if event.key == pygame.K_RETURN:
-                    global restart
-                    restart = True

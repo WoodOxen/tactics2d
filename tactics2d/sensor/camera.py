@@ -36,6 +36,7 @@ AREA_COLOR = {
     "keepout": THECOLORS["red2"],
     "building": THECOLORS["steelblue1"],
     "traffic_island": THECOLORS["silver"],
+    "obstacle": THECOLORS["gray"],
 }
 
 

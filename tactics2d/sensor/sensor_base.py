@@ -33,6 +33,7 @@ class SensorBase(ABC):
         self.id_ = id_
         self.map_ = map_
         self.off_screen = off_screen
+        self.bind_id = None
 
         if perception_range is None:
             width = (map_.boundary[1] - map_.boundary[0]) / 2
