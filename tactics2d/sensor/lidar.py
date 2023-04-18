@@ -1,7 +1,7 @@
 from typing import Tuple
 
 import numpy as np
-from shapely.geometry import LineString, Point
+from shapely.geometry import LinearRing, Point, Polygon
 from shapely.affinity import affine_transform
 import pygame
 from pygame.colordict import THECOLORS
@@ -94,13 +94,19 @@ class SingleLineLidar(SensorBase):
         potential_obstacles = []
         for area in self.map_.areas.values():
             if area.type_ == "obstacle":
-                potential_obstacles.append(area.geometry.exterior)
+                if isinstance(area.geometry, Polygon):
+                    potential_obstacles.append(area.geometry.exterior)
+                elif isinstance(area.geometry, LinearRing):
+                    potential_obstacles.append(area.geometry)
 
         for participant_id in participant_ids:
             if participant_id == self.bind_id:
                 continue
             shape = participants[participant_id].get_pose(frame)
-            potential_obstacles.append(shape.exterior)
+            if isinstance(shape, Polygon):
+                potential_obstacles.append(shape.exterior)
+            elif isinstance(shape, LinearRing):
+                potential_obstacles.append(shape)
         considered_obstacles = self._rotate_and_filter_obstacles(\
             (self.position.x, self.position.y, self.heading), potential_obstacles)
         
