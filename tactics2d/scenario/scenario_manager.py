@@ -64,7 +64,7 @@ class ScenarioManager(ABC):
     def _check_time_exceeded(self):
         """Check if the simulation has reached the maximum time step."""
         if self.n_step > self.max_step:
-            self.status = TrafficEvent.TIME_EXCEED
+            self.status = TrafficEvent.TIME_EXCEEDED
 
     def _check_retrograde(self):
         """Check if the agent is driving in the opposite direction of the lane."""
