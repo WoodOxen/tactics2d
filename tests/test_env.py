@@ -37,8 +37,8 @@ def test_racing_env():
     logging.info(f"The average fps is {n_step / (t2 - t1): .2f} Hz.")
 
 
-# @pytest.mark.env
-# @pytest.mark.skipif("DISPLAY" not in os.environ, reason="requires display server")
+@pytest.mark.env
+@pytest.mark.skipif("DISPLAY" not in os.environ, reason="requires display server")
 def test_parking_env():
     render_mode = "human"
     env = ParkingEnv(render_mode=render_mode, render_fps=60, max_step=2000)
