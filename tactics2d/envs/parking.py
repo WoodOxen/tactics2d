@@ -249,9 +249,13 @@ class ParkingEnv(gym.Env):
 
         info = {
             "lidar": observations[1],
+            "position_x": self.scenario_manager.agent.get_state().location[0],
+            "position_y": self.scenario_manager.agent.get_state().location[1],
             "velocity": self.scenario_manager.agent.velocity,
             "acceleration": self.scenario_manager.agent.accel,
             "heading": self.scenario_manager.agent.heading,
+            "target_area": self.scenario_manager.target_area.geometry.exterior.coords[:-1],
+            "target_heading": self.scenario_manager.target_heading,
             "status": self.scenario_manager.status,
             "rewards": dict(),
             "reward": 0,
@@ -338,9 +342,13 @@ class ParkingEnv(gym.Env):
 
         info = {
             "lidar": observations[1],
+            "position_x": self.scenario_manager.agent.get_state().location[0],
+            "position_y": self.scenario_manager.agent.get_state().location[1],
             "velocity": self.scenario_manager.agent.velocity,
             "acceleration": self.scenario_manager.agent.accel,
             "heading": self.scenario_manager.agent.heading,
+            "target_area": self.scenario_manager.target_area.geometry.exterior.coords[:-1],
+            "target_heading": self.scenario_manager.target_heading,
             "status": self.scenario_manager.status,
             "rewards": rewards,
             "reward": reward,
