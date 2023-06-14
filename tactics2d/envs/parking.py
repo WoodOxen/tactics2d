@@ -69,7 +69,7 @@ class ParkingScenarioManager(ScenarioManager):
             id_=0,
             type_="medium_car",
             steer_range=(-0.75, 0.75),
-            speed_range=(-10.0, 100.0),
+            speed_range=(-1.0, 1.0), # TODO
             accel_range=(-1.0, 1.0),
         )
         self.participants = {self.agent.id_: self.agent}
@@ -89,7 +89,7 @@ class ParkingScenarioManager(ScenarioManager):
 
         self.cnt_still = 0
 
-        self.iou_threshold = 0.95
+        self.iou_threshold = 0.5 # TODO
         self.status_checklist = [
             # self._check_still,
             self._check_time_exceeded,
@@ -252,6 +252,7 @@ class ParkingEnv(gym.Env):
             "position_x": self.scenario_manager.agent.get_state().location[0],
             "position_y": self.scenario_manager.agent.get_state().location[1],
             "velocity": self.scenario_manager.agent.velocity,
+            "speed": self.scenario_manager.agent.speed,
             "acceleration": self.scenario_manager.agent.accel,
             "heading": self.scenario_manager.agent.heading,
             "target_area": self.scenario_manager.target_area.geometry.exterior.coords[:-1],
@@ -268,18 +269,18 @@ class ParkingEnv(gym.Env):
         time_exceeded_penalty = 0 if status != TrafficEvent.TIME_EXCEEDED else -1
 
         # penalty for collision
-        collision_penalty = 0 if status != TrafficEvent.COLLISION_STATIC else -50
+        collision_penalty = 0 if status != TrafficEvent.COLLISION_STATIC else -1
 
         # penalty for driving out of the map boundary
-        outside_map_penalty = 0 if status != TrafficEvent.OUTSIDE_MAP else -50
+        outside_map_penalty = 0 if status != TrafficEvent.OUTSIDE_MAP else -1
 
         # reward for completion
-        complete_reward = 0 if status != TrafficEvent.COMPLETED else 50
+        complete_reward = 0 if status != TrafficEvent.COMPLETED else 1
 
         if status == TrafficEvent.NORMAL:
             # time penalty
             time_penalty = -np.tanh(
-                self.scenario_manager.n_step / self.scenario_manager.max_step
+                self.scenario_manager.n_step / self.scenario_manager.max_step*0.01 # TODO
             )
 
             curr_state = self.scenario_manager.agent.get_state()
@@ -307,12 +308,25 @@ class ParkingEnv(gym.Env):
             ) / self.scenario_manager.angle_norm_factor
 
             # IoU reward
+            curr_pose = Polygon(self.scenario_manager.agent.get_pose())
+            prev_pose = Polygon(self.scenario_manager.agent.get_pose(prev_frame))
+            target_pose = self.scenario_manager.target_area.geometry
+            curr_intersection = curr_pose.intersection(target_pose).area
+            curr_union = curr_pose.union(target_pose).area
+            prev_intersection = prev_pose.intersection(target_pose).area
+            prev_union = prev_pose.union(target_pose).area
+
+            curr_iou = curr_intersection / curr_union
+            prev_iou = prev_intersection / prev_union
+            iou_reward = curr_iou - prev_iou
+
         else:
             time_penalty = 0
             distance_reward = 0
             angle_reward = 0
+            iou_reward = 0
 
-        rewards = {
+        rewards = { # TODO
             "time_exceeded_penalty": time_exceeded_penalty,
             "collision_penalty": collision_penalty,
             "outside_map_penalty": outside_map_penalty,
@@ -320,6 +334,7 @@ class ParkingEnv(gym.Env):
             "time_penalty": time_penalty,
             "distance_reward": distance_reward,
             "angle_reward": angle_reward,
+            "iou_reward": iou_reward,
         }
 
         reward = np.sum(list(rewards.values()))
@@ -340,11 +355,12 @@ class ParkingEnv(gym.Env):
 
         rewards, reward = self._get_rewards(self.scenario_manager.status)
 
-        info = {
+        info = { # TODO
             "lidar": observations[1],
             "position_x": self.scenario_manager.agent.get_state().location[0],
             "position_y": self.scenario_manager.agent.get_state().location[1],
             "velocity": self.scenario_manager.agent.velocity,
+            "speed": self.scenario_manager.agent.speed,
             "acceleration": self.scenario_manager.agent.accel,
             "heading": self.scenario_manager.agent.heading,
             "target_area": self.scenario_manager.target_area.geometry.exterior.coords[:-1],

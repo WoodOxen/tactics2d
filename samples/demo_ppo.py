@@ -10,7 +10,7 @@ import numpy as np
 
 OBS_SHAPE = {'lidar':(500,), 'other':(6,)}
 ACTOR_CONFIGS = {
-    'lidar_shape':(500,),
+    'lidar_shape':500,
     'other_shape':6,
     'output_size':2,
     'embed_size':128,
@@ -21,7 +21,7 @@ ACTOR_CONFIGS = {
 }
 
 CRITIC_CONFIGS = {
-    'lidar_shape':(500,),
+    'lidar_shape':500,
     'other_shape':6,
     'output_size':1,
     'embed_size':128,
@@ -49,10 +49,9 @@ class StateNorm():
         if self.n_state == 0:
             self.n_state += 1
             for obs_type in self.observation_shape.keys():
-                if self.update_modal[obs_type]:
-                    self.state_mean[obs_type] = observation[obs_type]
-                    self.state_std[obs_type] = observation[obs_type]
-                    observation[obs_type] = (observation[obs_type] - self.state_mean[obs_type]) / (self.state_std[obs_type] + 1e-8)
+                self.state_mean[obs_type] = observation[obs_type]
+                self.state_std[obs_type] = observation[obs_type]
+                observation[obs_type] = (observation[obs_type] - self.state_mean[obs_type]) / (self.state_std[obs_type] + 1e-8)
         elif update==True:
             self.n_state += 1
             for obs_type in self.observation_shape.keys():
@@ -171,8 +170,8 @@ class DemoPPO():
         self.critic_loss_list = []
         
         self.gamma: float = 0.95
-        self.batch_size = 4096
-        self.lr: float = 1e-5
+        self.batch_size = 8192
+        self.lr: float = 2e-6
         self.tau: float = 0.1
         self.lr_actor = self.lr
         self.lr_critic = self.lr*5
@@ -185,7 +184,8 @@ class DemoPPO():
         self.state_norm = True
         self.reward_norm = False
         self.use_gae = True
-        self.gradient_clip = False
+        self.adv_norm = True
+        self.gradient_clip = True
         self.policy_entropy = False
         self.entropy_coef = 0.01
         self.observation_shape = OBS_SHAPE
@@ -195,7 +195,7 @@ class DemoPPO():
             Network(ACTOR_CONFIGS).to(self.device)
         self.log_std = \
             nn.Parameter(
-                torch.zeros(1, self.configs.action_dim), requires_grad=False
+                torch.zeros(1, ACTOR_CONFIGS['output_size']), requires_grad=False
             ).to(self.device)
         self.log_std.requires_grad = True
         self.actor_optimizer = \
@@ -367,7 +367,7 @@ class DemoPPO():
             else:
                 adv = deltas
             v_target = adv + self.critic_target(state_batch)
-            if self.configs.adv_norm: # advantage normalization
+            if self.adv_norm: # advantage normalization
                 adv = (adv - adv.mean()) / (adv.std() + 1e-5)
         
         # apply multi update epoch
@@ -470,3 +470,4 @@ class DemoPPO():
             path =f"{path}/{name}_{id}.pth"
             state_dict = torch.load(path, map_location=self.device)
             object.load_state_dict(state_dict)
+        print('load model!')

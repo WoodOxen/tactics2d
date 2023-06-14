@@ -243,7 +243,7 @@ class ParkingLotGenerator:
         t1 = time.time()
 
         self.mode = "bay" if np.random.rand() < self.bay_proportion else "parallel"
-        logging.info(f"Start generating a {self.mode} parking scenario.")
+        # logging.info(f"Start generating a {self.mode} parking scenario.")
 
         obstacles = []
         valid_obstacles = False
@@ -371,6 +371,6 @@ class ParkingLotGenerator:
 
         # record time cost
         t2 = time.time()
-        logging.info("The generating process takes %.4fs." % (t2 - t1))
+        # logging.info("The generating process takes %.4fs." % (t2 - t1))
 
         return start_state, target_area, target_heading

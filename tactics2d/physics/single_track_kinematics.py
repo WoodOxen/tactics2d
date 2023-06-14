@@ -95,6 +95,7 @@ class SingleTrackKinematics(PhysicsModelBase):
         """
         steer, accel = action
         x, y, heading, speed = state.x, state.y, state.heading, state.speed
+        # speed, accel = accel, 0 # TODO
 
         if self.steer_range is not None:
             steer = np.clip(steer, *self.steer_range)

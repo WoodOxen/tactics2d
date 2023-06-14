@@ -23,7 +23,7 @@ class ScenarioManager(ABC):
     def __init__(self, render_fps: int, off_screen: bool, max_step: int):
         self.render_fps = render_fps
         self.off_screen = off_screen
-        self.step_len = 1 / self.render_fps
+        self.step_len = 0.5#1 / self.render_fps # TODO
 
         self.n_step = 0
         self.max_step = max_step
