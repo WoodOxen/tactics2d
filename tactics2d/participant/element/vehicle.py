@@ -112,8 +112,8 @@ class Vehicle(ParticipantBase):
         self.physics_model = physics_model
         if self.physics_model is None:
             if None not in (self.width, self.front_overhang, self.rear_overhang):
-                dist_front_hang = 0.5 * self.wheel_base - self.front_overhang
-                dist_rear_hang = 0.5 * self.wheel_base - self.rear_overhang
+                dist_front_hang = 0.5 * self.length - self.front_overhang
+                dist_rear_hang = 0.5 * self.length - self.rear_overhang
                 self.physics_model = SingleTrackKinematics(
                     dist_front_hang,
                     dist_rear_hang,

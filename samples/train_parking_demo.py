@@ -39,7 +39,7 @@ def preprocess_obs(info):
     obs = {'lidar':lidar_obs, 'other':other_info_repr}
     return obs
 
-def resize_action(action:np.ndarray, action_space, raw_action_range=(-1,1), explore:bool=True, epsilon:float=0.02):
+def resize_action(action:np.ndarray, action_space, raw_action_range=(-1,1), explore:bool=True, epsilon:float=0.0):
     action = np.clip(action, *raw_action_range)
     action = action * (action_space.high - action_space.low) / 2 + (action_space.high + action_space.low) / 2
     if explore and np.random.random() < epsilon:
@@ -54,11 +54,11 @@ def reward_shaping(info):
     return reward
 
 def test_parking_env(save_path):
-    render_mode = "rgb_array"
-    env = ParkingEnv(render_mode=render_mode, render_fps=60, max_step=500)
+    render_mode = ["rgb_array", "human"][0]
+    env = ParkingEnv(render_mode=render_mode, render_fps=60, max_step=200)
     env.reset(42)
     agent = DemoPPO()
-    # agent.load('./log/parking_ppo_demo/20230614_042706/PPO_0.pt',params_only=True)
+    # agent.load('./PPO_10000.pt',params_only=True)
     writer = SummaryWriter(save_path)
 
     reward_list = []
@@ -76,15 +76,23 @@ def test_parking_env(save_path):
         reward_info = []
         while not done:
             step_num += 1
-            action, log_prob = agent.get_action(obs) # time consume: 3ms
+            # action, log_prob = agent.get_action(obs) # time consume: 3ms
+            action, log_prob = agent.choose_action(obs) # time consume: 3ms
             # action = env.action_space.sample()
+            # action = np.array([1.0, 1], dtype=np.float32)
             # t = time.time()
             # print(action)
             action = resize_action(action, env.action_space)
             # t = time.time()
             _, _, terminate, truncated, info = env.step(action)
+            env.render()
             reward = reward_shaping(info)
             done = terminate or truncated
+            # if done:
+            #     print("#"*10)
+            #     print("DONE!!!!")
+            #     print(info['status'])
+            #     time.sleep(2)
             # print(time.time()-t)
             next_obs = preprocess_obs(info)
             # print(time.time()-t)

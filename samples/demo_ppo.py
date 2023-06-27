@@ -7,10 +7,12 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 import numpy as np
 
+from action_mask import ActionMask
+
 
 OBS_SHAPE = {'lidar':(500,), 'other':(6,)}
 ACTOR_CONFIGS = {
-    'lidar_shape':500,
+    'lidar_shape':OBS_SHAPE['lidar'][0],
     'other_shape':6,
     'output_size':2,
     'embed_size':128,
@@ -21,7 +23,7 @@ ACTOR_CONFIGS = {
 }
 
 CRITIC_CONFIGS = {
-    'lidar_shape':500,
+    'lidar_shape':OBS_SHAPE['lidar'][0],
     'other_shape':6,
     'output_size':1,
     'embed_size':128,
@@ -189,6 +191,7 @@ class DemoPPO():
         self.policy_entropy = False
         self.entropy_coef = 0.01
         self.observation_shape = OBS_SHAPE
+        self.action_mask = ActionMask()
 
         # the networks
         self.actor_net = \
@@ -262,6 +265,34 @@ class DemoPPO():
             dist = Normal(mean, std)
                 
         action = dist.sample()
+        action = torch.clamp(action, -1, 1)
+        log_prob = dist.log_prob(action)
+        action = action.detach().cpu().numpy().flatten()
+        log_prob = log_prob.detach().cpu().numpy().flatten()
+        return action, log_prob
+    
+    def choose_action(self, obs:np.ndarray):
+        observation = deepcopy(obs)
+        action_mask = self.action_mask.get_steps(obs['lidar']*10) # TODO scaling
+        if self.state_norm:
+            # observation = self.state_norm(observation)
+            observation = self.state_normalize.state_norm(observation)
+        observation = self.obs2tensor(observation)
+        # if len(observation.shape) == len(self.configs.state_dim):
+        #     observation = observation.unsqueeze(0)
+        
+        with torch.no_grad():
+            policy_dist = self.actor_net(observation)
+            if len(policy_dist.shape) > 1 and policy_dist.shape[0] > 1:
+                raise NotImplementedError
+            mean =  torch.clamp(policy_dist,-1,1)  
+            log_std = self.log_std.expand_as(mean)  # To make 'log_std' have the same dimension as 'mean'
+            std = torch.exp(log_std)
+            dist = Normal(mean, std)
+                
+        # action = dist.sample()
+        action = self.action_mask.choose_action(mean, std, action_mask)
+        action = torch.FloatTensor(action).to(self.device)
         action = torch.clamp(action, -1, 1)
         log_prob = dist.log_prob(action)
         action = action.detach().cpu().numpy().flatten()
