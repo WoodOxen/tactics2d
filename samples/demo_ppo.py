@@ -10,10 +10,11 @@ import numpy as np
 from action_mask import ActionMask
 
 
-OBS_SHAPE = {'lidar':(500,), 'other':(6,)}
+OBS_SHAPE = {'lidar':(500,), 'action_mask':(42,), 'other':(6,)}
 ACTOR_CONFIGS = {
     'lidar_shape':OBS_SHAPE['lidar'][0],
     'other_shape':6,
+    'action_mask_shape':42,
     'output_size':2,
     'embed_size':128,
     'hidden_size':256,
@@ -25,6 +26,7 @@ ACTOR_CONFIGS = {
 CRITIC_CONFIGS = {
     'lidar_shape':OBS_SHAPE['lidar'][0],
     'other_shape':6,
+    'action_mask_shape':42,
     'output_size':1,
     'embed_size':128,
     'hidden_size':256,
@@ -117,11 +119,12 @@ class Network(nn.Module):
         embed_size = configs['embed_size']
         hidden_size = configs['hidden_size']
         activate_func = nn.Tanh()
+        n_model = 3
 
         if configs['n_hidden_layers'] == 1:
-            layers = [nn.Linear(2*embed_size, configs['output_size'])]
+            layers = [nn.Linear(n_model*embed_size, configs['output_size'])]
         else:
-            layers = [nn.Linear(2*embed_size, hidden_size)]
+            layers = [nn.Linear(n_model*embed_size, hidden_size)]
             for _ in range(configs['n_hidden_layers']-2):
                 layers.append(activate_func)
                 layers.append(nn.Linear(hidden_size, hidden_size))
@@ -143,6 +146,13 @@ class Network(nn.Module):
                 layers.append(nn.Linear(embed_size, embed_size))
             self.embed_tgt = nn.Sequential(*layers)
 
+        if configs['action_mask_shape'] is not None:
+            layers = [nn.Linear(configs['action_mask_shape'], embed_size)]
+            for _ in range(configs['n_embed_layers']-1):
+                layers.append(activate_func)
+                layers.append(nn.Linear(embed_size, embed_size))
+            self.embed_am = nn.Sequential(*layers)
+
     def forward(self, x:dict):
         '''
             x: dictionary of different input modal. Includes:
@@ -154,7 +164,8 @@ class Network(nn.Module):
         '''
         feature_lidar = self.embed_lidar(x['lidar'])
         feature_target = self.embed_tgt(x['other'])
-        features = [feature_lidar, feature_target]
+        feature_action_mask = self.embed_am(x['action_mask'])
+        features = [feature_lidar, feature_target, feature_action_mask]
 
         embed = torch.cat(features, dim=1)
         out = self.net(embed)
@@ -273,7 +284,7 @@ class DemoPPO():
     
     def choose_action(self, obs:np.ndarray):
         observation = deepcopy(obs)
-        action_mask = self.action_mask.get_steps(obs['lidar']*10) # TODO scaling
+        # self.action_mask.get_steps(obs['lidar']*10) # TODO scaling
         if self.state_norm:
             # observation = self.state_norm(observation)
             observation = self.state_normalize.state_norm(observation)
@@ -291,6 +302,7 @@ class DemoPPO():
             dist = Normal(mean, std)
                 
         # action = dist.sample()
+        action_mask = obs['action_mask'] 
         action = self.action_mask.choose_action(mean, std, action_mask)
         action = torch.FloatTensor(action).to(self.device)
         action = torch.clamp(action, -1, 1)

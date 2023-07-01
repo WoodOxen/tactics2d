@@ -242,7 +242,7 @@ class ParkingLotGenerator:
     def generate(self, map_: Map):
         t1 = time.time()
 
-        self.mode = "bay" if np.random.rand() < self.bay_proportion else "parallel"
+        self.mode = "bay" #if np.random.rand() < self.bay_proportion else "parallel"
         # logging.info(f"Start generating a {self.mode} parking scenario.")
 
         obstacles = []

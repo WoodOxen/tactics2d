@@ -15,6 +15,9 @@ from torch.utils.tensorboard import SummaryWriter
 from tactics2d.envs import ParkingEnv
 from tactics2d.scenario import TrafficEvent
 from samples.demo_ppo import DemoPPO
+from samples.action_mask import ActionMask
+
+action_mask = ActionMask()
 
 def preprocess_obs(info):
     # process lidar
@@ -36,7 +39,8 @@ def preprocess_obs(info):
         np.cos(rel_dest_heading), np.cos(rel_dest_heading),)
     speed = info['speed']
     other_info_repr = np.array(tgt_repr + (speed,))
-    obs = {'lidar':lidar_obs, 'other':other_info_repr}
+    action_mask_info = action_mask.get_steps(lidar_obs*10)
+    obs = {'lidar':lidar_obs, 'other':other_info_repr, 'action_mask':action_mask_info}
     return obs
 
 def resize_action(action:np.ndarray, action_space, raw_action_range=(-1,1), explore:bool=True, epsilon:float=0.0):
@@ -50,7 +54,9 @@ def reward_shaping(info):
     rewards = info['rewards']
     reward = (rewards['time_exceeded_penalty']*10 + rewards['collision_penalty']*50 +\
               rewards['outside_map_penalty']*50 + rewards['complete_reward']*50 +\
-                rewards['time_penalty'] + rewards['iou_reward']*50 + rewards['distance_reward']*10)*0.1
+                rewards['time_penalty'] + rewards['iou_reward']*50 \
+                    + rewards['distance_reward']*10\
+                        )*0.02
     return reward
 
 def test_parking_env(save_path):
@@ -77,7 +83,9 @@ def test_parking_env(save_path):
         while not done:
             step_num += 1
             # action, log_prob = agent.get_action(obs) # time consume: 3ms
+            # t = time.time()
             action, log_prob = agent.choose_action(obs) # time consume: 3ms
+            # print(time.time()-t)
             # action = env.action_space.sample()
             # action = np.array([1.0, 1], dtype=np.float32)
             # t = time.time()
@@ -143,7 +151,7 @@ def test_parking_env(save_path):
                 print(reward_list[-(10-j)],reward_info_list[-(10-j)])
             print("")
 
-        if i%10000==0:
+        if (i+1)%10000==0:
             agent.save("%s/PPO_%s.pt" % (save_path, i),params_only=True)
 
     
