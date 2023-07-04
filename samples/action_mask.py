@@ -214,7 +214,7 @@ class ActionMask():
         collide_map_y = np.ones_like(raw_x, dtype=np.uint8)
         # print(np.around(raw_x[-len(self.action_space), :, :],2))
         # the false positive intersections on line L2(not on edge L2)
-        tolerance_precision = 1e-4
+        tolerance_precision = 1e-4 # TODO fix bug in RL_PARKING!!
         collide_map_x[raw_x>np.maximum(obstacle_range_x1, obstacle_range_x2)+tolerance_precision] = 0
         collide_map_x[raw_x<np.minimum(obstacle_range_x1, obstacle_range_x2)-tolerance_precision] = 0
         collide_map_y[raw_y>np.maximum(obstacle_range_y1, obstacle_range_y2)+tolerance_precision] = 0

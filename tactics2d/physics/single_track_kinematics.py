@@ -63,13 +63,13 @@ class SingleTrackKinematics(PhysicsModelBase):
         heading: float,
         speed: float,
         accel: float,
-        beta: float,
+        steer: float,
         dt: float,
     ):
-        new_x = x + speed * np.cos(heading + beta) * dt
-        new_y = y + speed * np.sin(heading + beta) * dt
+        new_x = x + speed * np.cos(heading) * dt
+        new_y = y + speed * np.sin(heading) * dt
 
-        new_heading = heading + speed / self.dist_rear_hang * np.sin(beta) * dt
+        new_heading = heading + speed / self.wheel_base * np.tan(steer) * dt
 
         new_speed = speed + accel * self.delta_t
         new_speed = np.clip(new_speed, *self.speed_range)
@@ -95,6 +95,8 @@ class SingleTrackKinematics(PhysicsModelBase):
         """
         steer, accel = action
         x, y, heading, speed = state.x, state.y, state.heading, state.speed
+        # here we use rear axle center to update
+        rear_center_x, rear_center_y = x-self.dist_rear_hang*np.cos(heading), y-self.dist_rear_hang*np.sin(heading)
         speed, accel = accel, 0 # TODO
 
         if self.steer_range is not None:
@@ -104,19 +106,20 @@ class SingleTrackKinematics(PhysicsModelBase):
             accel = np.clip(accel, *self.accel_range)
 
         # The angle of the current velocity of the center of mass with respect to the longitudinal axis of the car.
-        beta = np.arctan(self.dist_rear_hang / self.wheel_base * np.tan(steer))
+        # print('radius: ', self.wheel_base/np.tan(0.75), self.dist_rear_hang)
         dt = self.delta_t
         while dt <= step:
-            x, y, heading, speed = self._step(
-                x, y, heading, speed, accel, beta, self.delta_t
+            rear_center_x, rear_center_y, heading, speed = self._step(
+                rear_center_x, rear_center_y, heading, speed, accel, steer, self.delta_t
             )
             dt += self.delta_t
 
         if dt > step:
-            x, y, heading, speed = self._step(
-                x, y, heading, speed, accel, beta, step - (dt - self.delta_t)
+            rear_center_x, rear_center_y, heading, speed = self._step(
+                rear_center_x, rear_center_y, heading, speed, accel, steer, step - (dt - self.delta_t)
             )
-
+        # recover the geometry center from rear axle center
+        x, y = rear_center_x+self.dist_rear_hang*np.cos(heading), rear_center_y+self.dist_rear_hang*np.sin(heading)
         new_state = State(
             state.frame + int(step * 1000),
             x=x,

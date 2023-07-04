@@ -89,7 +89,7 @@ class ParkingScenarioManager(ScenarioManager):
 
         self.cnt_still = 0
 
-        self.iou_threshold = 0.5 # TODO
+        self.iou_threshold = 0.95 # TODO
         self.status_checklist = [
             # self._check_still,
             self._check_time_exceeded,
@@ -173,6 +173,7 @@ class ParkingScenarioManager(ScenarioManager):
         )
         self.render_manager.add_sensor(lidar)
         self.render_manager.bind(1, 0)
+        self.render_manager.update(self.participants, [0], self.agent.current_state.frame)
 
         self.dist_norm_ratio = max(
             Point(self.start_state.location).distance(self.target_area.geometry.centroid),

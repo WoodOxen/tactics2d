@@ -15,9 +15,67 @@ from torch.utils.tensorboard import SummaryWriter
 from tactics2d.envs import ParkingEnv
 from tactics2d.scenario import TrafficEvent
 from samples.demo_ppo import DemoPPO
-from samples.action_mask import ActionMask
+from samples.action_mask import ActionMask, VehicleBox
+from samples.rs_planner import RsPlanner
 
 action_mask = ActionMask()
+
+def execute_rs_path(rs_path, agent:DemoPPO, env, obs, step_ratio=0.5):
+    action_type = {'L':1, 'S':0, 'R':-1}
+    # step_ratio = env.vehicle.kinetic_model.step_len*env.vehicle.kinetic_model.n_step*VALID_SPEED[1]
+    action_list = []
+    for i in range(len(rs_path.ctypes)):
+        steer = action_type[rs_path.ctypes[i]]
+        step_len = rs_path.lengths[i]/step_ratio
+        action_list.append([steer, step_len])
+
+    # divide the action
+    filtered_actions = []
+    for action in action_list:
+        action[0] *= 1
+        if abs(action[1])<1 and abs(action[1])>1e-3:
+            filtered_actions.append(action)
+        elif action[1]>1:
+            while action[1]>1:
+                filtered_actions.append([action[0], 1])
+                action[1] -= 1
+            if abs(action[1])>1e-3:
+                filtered_actions.append(action)
+        elif action[1]<-1:
+            while action[1]<-1:
+                filtered_actions.append([action[0], -1])
+                action[1] += 1
+            if abs(action[1])>1e-3:
+                filtered_actions.append(action)
+
+    # step actions
+    total_reward = 0
+    last_x, last_y, last_heading = 0, 0, 0
+    for action in filtered_actions:
+        # action, log_prob = agent.get_action(obs)
+        log_prob = agent.get_log_prob(obs, action)
+        # action = env.action_space.sample()
+        action = resize_action(action, env.action_space)
+        # print('executing rs!!!', action)
+        next_obs, reward, terminate, truncated, info = env.step(action)
+        # print('pos: ', info["position_x"], info["position_y"], np.sqrt((last_x-info["position_x"])**2+(last_y-info["position_y"])**2))
+        # print('radius: ', abs(np.sqrt((last_x-info["position_x"])**2+(last_y-info["position_y"])**2)/(info["heading"]-last_heading)))
+        # print(info["position_x"]-np.sin(info["heading"])*3.1354248, info["position_y"]+np.cos(info["heading"])*3.1354248)
+        last_x, last_y, last_heading = info["position_x"], info["position_y"], info["heading"]
+        env.render()
+        done = terminate or truncated
+        total_reward += reward
+        next_obs = preprocess_obs(info)
+        agent.push_memory((obs, action, reward, done, log_prob, next_obs))
+        obs = next_obs
+        if len(agent.memory) % agent.batch_size == 0:
+            actor_loss, critic_loss = agent.update()
+            # writer.add_scalar("actor_loss", actor_loss, i)
+            # writer.add_scalar("critic_loss", critic_loss, i)
+        if done:
+            break
+
+    return total_reward, done, info
 
 def preprocess_obs(info):
     # process lidar
@@ -44,6 +102,7 @@ def preprocess_obs(info):
     return obs
 
 def resize_action(action:np.ndarray, action_space, raw_action_range=(-1,1), explore:bool=True, epsilon:float=0.0):
+    action = np.array(action, dtype = np.float32)
     action = np.clip(action, *raw_action_range)
     action = action * (action_space.high - action_space.low) / 2 + (action_space.high + action_space.low) / 2
     if explore and np.random.random() < epsilon:
@@ -64,7 +123,8 @@ def test_parking_env(save_path):
     env = ParkingEnv(render_mode=render_mode, render_fps=60, max_step=200)
     env.reset(42)
     agent = DemoPPO()
-    # agent.load('./PPO_10000.pt',params_only=True)
+    rs_planner = RsPlanner(VehicleBox, radius=2.830624753, lidar_num=500, dist_rear_hang=1.3485)
+    # agent.load('./log/PPO_39999.pt',params_only=True)
     writer = SummaryWriter(save_path)
 
     reward_list = []
@@ -84,35 +144,42 @@ def test_parking_env(save_path):
             step_num += 1
             # action, log_prob = agent.get_action(obs) # time consume: 3ms
             # t = time.time()
-            action, log_prob = agent.choose_action(obs) # time consume: 3ms
-            # print(time.time()-t)
-            # action = env.action_space.sample()
-            # action = np.array([1.0, 1], dtype=np.float32)
-            # t = time.time()
-            # print(action)
-            action = resize_action(action, env.action_space)
-            # t = time.time()
-            _, _, terminate, truncated, info = env.step(action)
-            env.render()
-            reward = reward_shaping(info)
-            done = terminate or truncated
-            # if done:
-            #     print("#"*10)
-            #     print("DONE!!!!")
-            #     print(info['status'])
-            #     time.sleep(2)
-            # print(time.time()-t)
-            next_obs = preprocess_obs(info)
-            # print(time.time()-t)
-            reward_info.append(list(info['rewards'].values()))
-            total_reward += reward
-            agent.push_memory((obs, action, reward, done, log_prob, next_obs))
-            obs = next_obs
-            if len(agent.memory) % agent.batch_size == 0:
-                # print('update agent!')
-                actor_loss, critic_loss = agent.update()
-                writer.add_scalar("actor_loss", actor_loss, i)
-                writer.add_scalar("critic_loss", critic_loss, i)
+            rs_path = rs_planner.get_rs_path(info)
+            if rs_path is not None:
+                total_reward, done, info = execute_rs_path(rs_path,  agent, env, obs,)
+                reward_info.append(list(info['rewards'].values()))
+                if not done:
+                    obs = preprocess_obs(info)
+            else:
+                action, log_prob = agent.choose_action(obs) # time consume: 3ms
+                # print(time.time()-t)
+                # action = env.action_space.sample()
+                # action = np.array([0, 1], dtype=np.float32)
+                # t = time.time()
+                # print(action)
+                action = resize_action(action, env.action_space)
+                # t = time.time()
+                _, _, terminate, truncated, info = env.step(action)
+                env.render()
+                reward = reward_shaping(info)
+                done = terminate or truncated
+                # if done:
+                #     print("#"*10)
+                #     print("DONE!!!!")
+                #     print(info['status'])
+                #     time.sleep(2)
+                # print(time.time()-t)
+                next_obs = preprocess_obs(info)
+                # print(time.time()-t)
+                reward_info.append(list(info['rewards'].values()))
+                total_reward += reward
+                agent.push_memory((obs, action, reward, done, log_prob, next_obs))
+                obs = next_obs
+                if len(agent.memory) % agent.batch_size == 0:
+                    # print('update agent!')
+                    actor_loss, critic_loss = agent.update()
+                    writer.add_scalar("actor_loss", actor_loss, i)
+                    writer.add_scalar("critic_loss", critic_loss, i)
             
             # if info['path_to_dest'] is not None:
             #     succ_record.append(1)
