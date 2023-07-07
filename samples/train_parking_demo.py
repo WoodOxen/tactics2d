@@ -180,7 +180,7 @@ def test_parking_env(save_path):
                 action, log_prob = agent.choose_action(obs) # time consume: 3ms
                 # print(time.time()-t)
                 # action = env.action_space.sample()
-                # action = np.array([-0.1, -1], dtype=np.float32)
+                # action = np.array([0.6, -1], dtype=np.float32)
                 # t = time.time()
                 # print(action)
                 action = resize_action(action, env.action_space)

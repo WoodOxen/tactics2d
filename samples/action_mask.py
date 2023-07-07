@@ -27,7 +27,7 @@ VehicleBox = LinearRing(
         )
 
 PRECISION = 10
-step_speed = 1
+step_speed = max_speed
 VALID_STEER = [-0.75, 0.75]
 discrete_actions = []
 for i in np.arange(VALID_STEER[-1], -(VALID_STEER[-1] + VALID_STEER[-1]/PRECISION), -VALID_STEER[-1]/PRECISION):
@@ -40,7 +40,7 @@ physic_model = SingleTrackKinematics(
                 dist_front_hang = 0.5 * LENGTH - VEHICLE_MODEL[vehicle_type]['front_overhang'],
                 dist_rear_hang = 0.5 * LENGTH - VEHICLE_MODEL[vehicle_type]['rear_overhang'],
                 steer_range=tuple(VALID_STEER),
-                speed_range=(-1,1))
+                speed_range=(-max_speed, max_speed))
 
 class ActionMask():
     def __init__(self, VehicleBox=VehicleBox, n_iter=10) -> None:
@@ -52,7 +52,7 @@ class ActionMask():
         self.vehicle_lidar_base = 0
         self.lidar_num = lidar_num
         self.lidar_range = lidar_range
-        self.distance_tolerance = 0.05
+        self.distance_tolerance = 0.1
         self.vehicle_base = self.init_vehicle_base()
 
     def init_vehicle_box(self,):
@@ -261,7 +261,7 @@ class ActionMask():
         # ax.set_ylim(-10,10)
         # ax.set_xlabel('x')
         # idx = 1
-        # self.draw_vehicle_box(ax, plt, 9, 1)
+        # self.draw_vehicle_box(ax, plt, 9, 22)
         # self.draw_vehicle_box(ax, plt, 7, 1)
         # ax.add_line(plt.Line2D((car_edge_x1[-len(self.action_space)+idx,0,0], car_edge_x2[-len(self.action_space)+idx,0,0]), \
         #                         (car_edge_y1[-len(self.action_space)+idx,0,0], car_edge_y2[-len(self.action_space)+idx,0,0]), color='red'))
