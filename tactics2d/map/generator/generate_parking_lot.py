@@ -2,7 +2,7 @@ from typing import Tuple
 import time
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 import numpy as np
 from shapely.geometry import Point, Polygon
 from shapely.affinity import affine_transform

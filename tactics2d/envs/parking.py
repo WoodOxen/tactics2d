@@ -23,6 +23,7 @@ FPS = 60
 MAX_FPS = 200
 TIME_STEP = 0.01  # state update time step: 0.01 s/step
 MAX_STEP = 20000  # steps
+max_speed = 2.0
 
 DISCRETE_ACTION = np.array(
     [
@@ -69,7 +70,7 @@ class ParkingScenarioManager(ScenarioManager):
             id_=0,
             type_="medium_car",
             steer_range=(-0.75, 0.75),
-            speed_range=(-2, 2), # TODO
+            speed_range=(-max_speed, max_speed), # TODO
             accel_range=(-1.0, 1.0),
         )
         self.participants = {self.agent.id_: self.agent}
@@ -232,7 +233,7 @@ class ParkingEnv(gym.Env):
         self.continuous = continuous
 
         if self.continuous:
-            self.action_space = spaces.Box(np.array([-0.75, -1.0]), np.array([0.75, 1.0]))
+            self.action_space = spaces.Box(np.array([-0.75, -max_speed]), np.array([0.75, max_speed]))
         else:
             self.action_space = spaces.Discrete(5)
 
