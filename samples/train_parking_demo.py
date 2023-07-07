@@ -17,10 +17,40 @@ from tactics2d.scenario import TrafficEvent
 from samples.demo_ppo import DemoPPO
 from samples.action_mask import ActionMask, VehicleBox
 from samples.rs_planner import RsPlanner
+from samples.tmp_config import *
 
 action_mask = ActionMask()
 
-def execute_rs_path(rs_path, agent:DemoPPO, env, obs, step_ratio=0.5):
+class RewardShaping():
+    def __init__(self) -> None:
+        self.prev_max_iou = 0
+        self.reward_scale = 0.1
+        self.curr_iou = 0
+    
+    def reward_shaping(self, info):
+        rewards = info['rewards']
+        self.curr_iou += rewards['iou_reward']
+        r_iou = max(0, self.curr_iou-self.prev_max_iou)
+        if rewards['collision_penalty']<-1e-4:
+            reward = -50
+        elif rewards['time_exceeded_penalty']<-1e-4:
+            reward = -1
+        elif rewards['outside_map_penalty']<-1e-4:
+            reward = -50
+        elif rewards['complete_reward']>1e-4:
+            reward = 50
+        else:
+            reward = rewards['time_penalty'] + r_iou*10 + rewards['distance_reward']*10
+        reward *= self.reward_scale
+        self.prev_max_iou = max(self.prev_max_iou, self.curr_iou)
+        return reward
+    
+    def reset(self,):
+        self.prev_max_iou = 0
+        self.curr_iou = 0
+reward_shaping = RewardShaping()
+
+def execute_rs_path(rs_path, agent:DemoPPO, env, obs, step_ratio=max_speed/2):
     action_type = {'L':1, 'S':0, 'R':-1}
     # step_ratio = env.vehicle.kinetic_model.step_len*env.vehicle.kinetic_model.n_step*VALID_SPEED[1]
     action_list = []
@@ -58,6 +88,7 @@ def execute_rs_path(rs_path, agent:DemoPPO, env, obs, step_ratio=0.5):
         action = resize_action(action, env.action_space)
         # print('executing rs!!!', action)
         next_obs, reward, terminate, truncated, info = env.step(action)
+        reward = reward_shaping.reward_shaping(info)
         # print('pos: ', info["position_x"], info["position_y"], np.sqrt((last_x-info["position_x"])**2+(last_y-info["position_y"])**2))
         # print('radius: ', abs(np.sqrt((last_x-info["position_x"])**2+(last_y-info["position_y"])**2)/(info["heading"]-last_heading)))
         # print(info["position_x"]-np.sin(info["heading"])*3.1354248, info["position_y"]+np.cos(info["heading"])*3.1354248)
@@ -81,7 +112,7 @@ def preprocess_obs(info):
     # process lidar
     # print(info['velocity'], info['speed'])
     lidar_obs = info['lidar']
-    lidar_obs = np.clip(lidar_obs, 0.0, 10.0)/10.0
+    lidar_obs = np.clip(lidar_obs, 0.0, lidar_range)/lidar_range
     # process target pose
     half_wheel_base = 1.319
     dest_coords = np.mean(np.array(info['target_area']), axis=0)
@@ -97,7 +128,7 @@ def preprocess_obs(info):
         np.cos(rel_dest_heading), np.cos(rel_dest_heading),)
     speed = info['speed']
     other_info_repr = np.array(tgt_repr + (speed,))
-    action_mask_info = action_mask.get_steps(lidar_obs*10)
+    action_mask_info = action_mask.get_steps(lidar_obs*lidar_range)
     obs = {'lidar':lidar_obs, 'other':other_info_repr, 'action_mask':action_mask_info}
     return obs
 
@@ -109,21 +140,13 @@ def resize_action(action:np.ndarray, action_space, raw_action_range=(-1,1), expl
         action = action_space.sample()
     return action
 
-def reward_shaping(info):
-    rewards = info['rewards']
-    reward = (rewards['time_exceeded_penalty']*10 + rewards['collision_penalty']*50 +\
-              rewards['outside_map_penalty']*50 + rewards['complete_reward']*50 +\
-                rewards['time_penalty'] + rewards['iou_reward']*50 \
-                    + rewards['distance_reward']*10\
-                        )*0.02
-    return reward
 
 def test_parking_env(save_path):
     render_mode = ["rgb_array", "human"][0]
     env = ParkingEnv(render_mode=render_mode, render_fps=60, max_step=200)
     env.reset(42)
     agent = DemoPPO()
-    rs_planner = RsPlanner(VehicleBox, radius=2.830624753, lidar_num=500, dist_rear_hang=1.3485)
+    rs_planner = RsPlanner(VehicleBox, radius=2.830624753, lidar_num=lidar_num, dist_rear_hang=1.3485, lidar_range=lidar_range)
     # agent.load('./log/PPO_39999.pt',params_only=True)
     writer = SummaryWriter(save_path)
 
@@ -131,9 +154,11 @@ def test_parking_env(save_path):
     reward_info_list = []
     case_id_list = []
     succ_record = []
+    status_info = []
     print('start train!')
     for i in range(100000):
         # print(i)
+        reward_shaping.reset()
         _, info = env.reset()
         obs = preprocess_obs(info)
         done = False
@@ -161,7 +186,8 @@ def test_parking_env(save_path):
                 # t = time.time()
                 _, _, terminate, truncated, info = env.step(action)
                 env.render()
-                reward = reward_shaping(info)
+                # reward = reward_shaping(info)
+                reward = reward_shaping.reward_shaping(info)
                 done = terminate or truncated
                 # if done:
                 #     print("#"*10)
@@ -187,6 +213,7 @@ def test_parking_env(save_path):
             #     total_reward += rs_reward
             #     break
             if done:
+                status_info.append(info['status'])
                 if info['status']==TrafficEvent.COMPLETED:
                     succ_record.append(1)
                 else:
@@ -215,10 +242,10 @@ def test_parking_env(save_path):
             print(np.mean(agent.actor_loss_list[-100:]),np.mean(agent.critic_loss_list[-100:]))
             print('time_cost ,rs_dist_reward ,dist_reward ,angle_reward ,box_union_reward')
             for j in range(10):
-                print(reward_list[-(10-j)],reward_info_list[-(10-j)])
+                print(reward_list[-(10-j)],reward_info_list[-(10-j)], status_info[-(10-j)])
             print("")
 
-        if (i+1)%10000==0:
+        if (i+1)%2000==0:
             agent.save("%s/PPO_%s.pt" % (save_path, i),params_only=True)
 
     

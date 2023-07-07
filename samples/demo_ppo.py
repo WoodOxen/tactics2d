@@ -8,9 +8,10 @@ from torch.distributions import Normal
 import numpy as np
 
 from action_mask import ActionMask
+from samples.tmp_config import *
 
 
-OBS_SHAPE = {'lidar':(500,), 'action_mask':(42,), 'other':(6,)}
+OBS_SHAPE = {'lidar':(lidar_num,), 'action_mask':(42,), 'other':(6,)}
 ACTOR_CONFIGS = {
     'lidar_shape':OBS_SHAPE['lidar'][0],
     'other_shape':6,
@@ -152,6 +153,39 @@ class Network(nn.Module):
                 layers.append(activate_func)
                 layers.append(nn.Linear(embed_size, embed_size))
             self.embed_am = nn.Sequential(*layers)
+        self.orthogonal_init()
+
+    def orthogonal_init(self):
+        i = 0
+        for layer_name, layer in self.net.state_dict().items():
+            # The output layer is specially dealt
+            gain = 1 if i < len(self.net.state_dict()) - 2 else 0.01
+            if layer_name.endswith("weight"):
+                nn.init.orthogonal_(layer, gain=gain)
+            elif layer_name.endswith("bias"):
+                nn.init.constant_(layer, 0)
+
+        for layer_name, layer in self.embed_lidar.state_dict().items():
+            gain = 1
+            if layer_name.endswith("weight"):
+                nn.init.orthogonal_(layer, gain=gain)
+            elif layer_name.endswith("bias"):
+                nn.init.constant_(layer, 0)
+
+        for layer_name, layer in self.embed_tgt.state_dict().items():
+            gain = 1
+            if layer_name.endswith("weight"):
+                nn.init.orthogonal_(layer, gain=gain)
+            elif layer_name.endswith("bias"):
+                nn.init.constant_(layer, 0)
+
+        for layer_name, layer in self.embed_am.state_dict().items():
+            # The output layer is specially dealt
+            gain = 1
+            if layer_name.endswith("weight"):
+                nn.init.orthogonal_(layer, gain=gain)
+            elif layer_name.endswith("bias"):
+                nn.init.constant_(layer, 0)
 
     def forward(self, x:dict):
         '''
@@ -198,7 +232,7 @@ class DemoPPO():
         self.reward_norm = False
         self.use_gae = True
         self.adv_norm = True
-        self.gradient_clip = True
+        self.gradient_clip = False
         self.policy_entropy = False
         self.entropy_coef = 0.01
         self.observation_shape = OBS_SHAPE

@@ -69,7 +69,7 @@ class ParkingScenarioManager(ScenarioManager):
             id_=0,
             type_="medium_car",
             steer_range=(-0.75, 0.75),
-            speed_range=(-1.0, 1.0), # TODO
+            speed_range=(-2, 2), # TODO
             accel_range=(-1.0, 1.0),
         )
         self.participants = {self.agent.id_: self.agent}
@@ -168,6 +168,8 @@ class ParkingScenarioManager(ScenarioManager):
         lidar = SingleLineLidar(
             id_=1,
             map_=self.map_,
+            perception_range=15.0,
+            freq_detect=1200.0,
             window_size=(STATE_W, STATE_H),
             off_screen=self.off_screen,
         )

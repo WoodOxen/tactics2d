@@ -369,6 +369,26 @@ class ParkingLotGenerator:
                 start_state, obstacles, target_area
             )
 
+        # flip the orientation of start pose
+        if np.random.rand()>0.5:
+            start_x, start_y, start_heading = start_state.location[0], start_state.location[1], start_state.heading
+            start_box = _get_bbox(Point(start_state.location), start_state.heading, *self.vehicle_size)
+            start_box_center = np.mean(np.array(start_box.exterior.coords[:-1]), axis=0)
+            start_x = 2*start_box_center[0] - start_x
+            start_y = 2*start_box_center[1] - start_y
+            start_heading += np.pi
+            start_state = State(
+                0, x=start_x, y=start_y, heading=start_heading, vx=0.0, vy=0.0, accel=0.0
+            )
+            if self.mode == "parallel": # flip the target pose
+                target_box_center = np.mean(np.array(target_area.geometry.exterior.coords[:-1]), axis=0)
+                target_x = target_box_center[0]
+                target_y = target_box_center[1]
+                target_heading += np.pi
+                target_shape = _get_bbox(Point(target_x, target_y), target_heading, *self.vehicle_size)
+                target_area = Area(id_=0, geometry=target_shape, color=(0, 238, 118, 100))
+                map_.areas[target_area.id_] = target_area
+
         # record time cost
         t2 = time.time()
         # logging.info("The generating process takes %.4fs." % (t2 - t1))

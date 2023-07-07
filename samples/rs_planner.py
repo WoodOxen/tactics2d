@@ -7,7 +7,7 @@ from shapely.geometry import LineString, Point, LinearRing
 import samples.rs_path as rsCurve
 
 class RsPlanner():
-    def __init__(self, vehicle_box:LinearRing, radius, lidar_num = 500, dist_rear_hang = None) -> None:
+    def __init__(self, vehicle_box:LinearRing, radius, lidar_num = 500, dist_rear_hang = None, lidar_range = 10.0) -> None:
         self.radius = radius
         self.VehicleBox = vehicle_box
         self.lidar_num = lidar_num
@@ -17,7 +17,8 @@ class RsPlanner():
         if dist_rear_hang:
             self.move_vehicle_center()
         self.distance_tolerance = 0.05
-        self.threshold_distance = 7.0
+        self.lidar_range = lidar_range
+        self.threshold_distance = lidar_range - 2.0
 
     def init_vehicle_base(self, ):
         self.lidar_lines = []
@@ -91,7 +92,7 @@ class RsPlanner():
         ax=fig.add_subplot(111)
         ax.scatter(traj[:,0], traj[:,1], s=0.2, c='red')
         lidar_obs = info['lidar']
-        lidar_obs = np.clip(lidar_obs, 0.0, 10.0)
+        lidar_obs = np.clip(lidar_obs, 0.0, self.lidar_range)
         # lidar_num = self.lidar_num
         # for i in range(lidar_num):
         #     if i%5 == 0:
@@ -108,7 +109,7 @@ class RsPlanner():
     
     def construct_obstacles(self, info):
         lidar_obs = info['lidar']
-        lidar_obs = np.clip(lidar_obs, 0.0, 10.0)
+        lidar_obs = np.clip(lidar_obs, 0.0, self.lidar_range)
         assert len(lidar_obs)==self.lidar_num
         lidar_obs = np.maximum(self.vehicle_base, lidar_obs-self.distance_tolerance)
         angle_vec = np.arange(self.lidar_num)*np.pi/self.lidar_num*2

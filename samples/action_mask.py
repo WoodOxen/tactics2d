@@ -7,6 +7,7 @@ from shapely.geometry import LineString,Point
 from tactics2d.participant.element.defaults import VEHICLE_MODEL
 from tactics2d.physics.single_track_kinematics import SingleTrackKinematics
 from tactics2d.trajectory.element.state import State
+from samples.tmp_config import *
 
 vehicle_type = 'medium_car'
 
@@ -49,7 +50,8 @@ class ActionMask():
         self.step_time = 0.5
         self.vehicle_boxes = self.init_vehicle_box()
         self.vehicle_lidar_base = 0
-        self.lidar_num = 500
+        self.lidar_num = lidar_num
+        self.lidar_range = lidar_range
         self.distance_tolerance = 0.05
         self.vehicle_base = self.init_vehicle_base()
 
@@ -184,8 +186,8 @@ class ActionMask():
         b = (car_edge_x1 - car_edge_x2)
         c = (car_edge_y1*car_edge_x2 - car_edge_x1*car_edge_y2)
         
-        lidar_obs = np.clip(lidar_obs, 0, 10) + self.vehicle_lidar_base
-        lidar_num = len(lidar_obs)
+        # lidar_obs = np.clip(lidar_obs, 0, self.lidar_range) + self.vehicle_lidar_base
+        lidar_num = self.lidar_num
         angle_vec = np.arange(lidar_num)*np.pi/lidar_num*2
         obstacle_range_x1 = np.cos(angle_vec)*lidar_obs # (N,)
         obstacle_range_y1 = np.sin(angle_vec)*lidar_obs
@@ -295,7 +297,7 @@ class ActionMask():
         return action_mask
 
     def post_process(self, step_len:np.ndarray):
-        kernel = 1
+        kernel = 5
         forward_step_len = step_len[:len(step_len)//2]
         backward_step_len = step_len[len(step_len)//2:]
         forward_step_len[0] -= 1

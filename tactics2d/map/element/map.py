@@ -1,5 +1,7 @@
 import warnings
 
+import numpy as np
+
 from .area import Area
 from .lane import Lane
 from .node import Node
@@ -58,6 +60,13 @@ class Map:
                 x_max = max(x_max, node.x)
                 y_min = min(y_min, node.y)
                 y_max = max(y_max, node.y)
+            
+            for area in self.areas.values():
+                area_coords = np.array(area.geometry.exterior.coords)
+                x_min = min(x_min, np.min(area_coords[:,0]))
+                x_max = max(x_max, np.max(area_coords[:,0]))
+                y_min = min(y_min, np.min(area_coords[:,1]))
+                y_max = max(y_max, np.max(area_coords[:,1]))
 
             self._boundary = (x_min - 10, x_max + 10, y_min - 10, y_max + 10)
         return self._boundary
