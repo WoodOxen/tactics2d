@@ -232,7 +232,7 @@ class DemoPPO():
         self.reward_norm = False
         self.use_gae = True
         self.adv_norm = True
-        self.gradient_clip = False
+        self.gradient_clip = True
         self.policy_entropy = False
         self.entropy_coef = 0.01
         self.observation_shape = OBS_SHAPE

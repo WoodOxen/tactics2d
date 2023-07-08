@@ -24,6 +24,7 @@ MAX_FPS = 200
 TIME_STEP = 0.01  # state update time step: 0.01 s/step
 MAX_STEP = 20000  # steps
 max_speed = 2.0
+lidar_num = 120
 
 DISCRETE_ACTION = np.array(
     [
@@ -170,7 +171,7 @@ class ParkingScenarioManager(ScenarioManager):
             id_=1,
             map_=self.map_,
             perception_range=15.0,
-            freq_detect=1200.0,
+            freq_detect=lidar_num*10,
             window_size=(STATE_W, STATE_H),
             off_screen=self.off_screen,
         )

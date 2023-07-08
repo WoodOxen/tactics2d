@@ -20,6 +20,7 @@ from samples.rs_planner import RsPlanner
 from samples.tmp_config import *
 
 action_mask = ActionMask()
+dist_rear_hang = 1.3485
 
 class RewardShaping():
     def __init__(self) -> None:
@@ -113,15 +114,19 @@ def preprocess_obs(info):
     # process lidar
     # print(info['velocity'], info['speed'])
     lidar_obs = info['lidar']
-    lidar_obs = np.clip(lidar_obs, 0.0, lidar_range)/lidar_range
+    lidar_obs = np.clip(lidar_obs, 0.0, lidar_range)
+    def _move_center(x, y, heading):
+        x -= dist_rear_hang*np.cos(heading)
+        y -= dist_rear_hang*np.sin(heading)
+        return x, y, heading
     # process target pose
     half_wheel_base = 1.319
     dest_coords = np.mean(np.array(info['target_area']), axis=0)
     dest_heading = info['target_heading']
     # dest_pos = (dest_coords[0]-half_wheel_base*np.cos(dest_heading), \
     #             dest_coords[1]-half_wheel_base*np.sin(dest_heading), dest_heading)
-    dest_pos = (dest_coords[0], dest_coords[1], dest_heading)
-    ego_pos = (info['position_x'], info['position_y'], info['heading'])
+    dest_pos = _move_center(dest_coords[0], dest_coords[1], dest_heading)
+    ego_pos = _move_center(info['position_x'], info['position_y'], info['heading'])
     rel_distance = np.sqrt((dest_pos[0]-ego_pos[0])**2 + (dest_pos[1]-ego_pos[1])**2)
     rel_angle = np.arctan2(dest_pos[1]-ego_pos[1], dest_pos[0]-ego_pos[0]) - ego_pos[2]
     rel_dest_heading = dest_pos[2] - ego_pos[2]
@@ -129,7 +134,7 @@ def preprocess_obs(info):
         np.cos(rel_dest_heading), np.cos(rel_dest_heading),)
     speed = info['speed']
     other_info_repr = np.array(tgt_repr + (speed,))
-    action_mask_info = action_mask.get_steps(lidar_obs*lidar_range)
+    action_mask_info = action_mask.get_steps(lidar_obs)
     obs = {'lidar':lidar_obs, 'other':other_info_repr, 'action_mask':action_mask_info}
     return obs
 
@@ -147,7 +152,7 @@ def test_parking_env(save_path):
     env = ParkingEnv(render_mode=render_mode, render_fps=60, max_step=200)
     env.reset(42)
     agent = DemoPPO()
-    rs_planner = RsPlanner(VehicleBox, radius=2.830624753, lidar_num=lidar_num, dist_rear_hang=1.3485, lidar_range=lidar_range)
+    rs_planner = RsPlanner(VehicleBox, radius=2.830624753, lidar_num=lidar_num, dist_rear_hang=dist_rear_hang, lidar_range=lidar_range)
     # agent.load('./log/PPO_39999.pt',params_only=True)
     writer = SummaryWriter(save_path)
 

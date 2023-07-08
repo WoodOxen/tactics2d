@@ -49,6 +49,7 @@ class RsPlanner():
             dest_coords[1] -= self.center_shift*np.sin(dest_heading)
         ego_pos = (info['position_x'], info['position_y'], info['heading'])
         dest_pos = (dest_coords[0], dest_coords[1], dest_heading)
+        self.dest_pos = dest_pos
         rel_distance = np.sqrt((dest_pos[0]-ego_pos[0])**2 + (dest_pos[1]-ego_pos[1])**2)
         if rel_distance > self.threshold_distance:
             return None
@@ -102,8 +103,8 @@ class RsPlanner():
         obstacle_range_x1 = np.cos(angle_vec)*lidar_obs # (N,)
         obstacle_range_y1 = np.sin(angle_vec)*lidar_obs
         ax.scatter(obstacle_range_x1, obstacle_range_y1, s=0.2, c='blue')
-        plt.xlim(-10,10)
-        plt.ylim(-10,10)
+        plt.xlim(-15,15)
+        plt.ylim(-15,15)
         plt.show()
 
     
@@ -124,9 +125,29 @@ class RsPlanner():
         obstacle_range_y2 = shifted_obstacle_coords[:, 1].reshape(1, -1)
         obstacle_range_x1 = obstacle_range_x1.reshape(1, -1)
         obstacle_range_y1 = obstacle_range_y1.reshape(1, -1)
+        # filter obstacle edges
+        # edge_len = np.sqrt((obstacle_range_x2-obstacle_range_x1)**2+(obstacle_range_y2-obstacle_range_y1)**2)
+        # valid_edge_idx = edge_len<1.2
+        # # print(obstacle_range_x1.shape)
+        # obstacle_range_x1 = obstacle_range_x1[valid_edge_idx].reshape(1, -1)
+        # obstacle_range_x2 = obstacle_range_x2[valid_edge_idx].reshape(1, -1)
+        # obstacle_range_y1 = obstacle_range_y1[valid_edge_idx].reshape(1, -1)
+        # obstacle_range_y2 = obstacle_range_y2[valid_edge_idx].reshape(1, -1)
+        # print(obstacle_range_x1.shape)
+
+        # remove the edges intersects with target area
+        collide_map = self.is_traj_valid([self.dest_pos], 
+            [obstacle_range_x1, obstacle_range_x2, obstacle_range_y1, obstacle_range_y2], True) # (4,E)
+        collide_edge = np.sum(collide_map, axis=0).reshape(1, -1) # (1,E)
+        valid_edge_idx = collide_edge==0
+        obstacle_range_x1 = obstacle_range_x1[valid_edge_idx].reshape(1, -1)
+        obstacle_range_x2 = obstacle_range_x2[valid_edge_idx].reshape(1, -1)
+        obstacle_range_y1 = obstacle_range_y1[valid_edge_idx].reshape(1, -1)
+        obstacle_range_y2 = obstacle_range_y2[valid_edge_idx].reshape(1, -1)
+
         return [obstacle_range_x1, obstacle_range_x2, obstacle_range_y1, obstacle_range_y2]
 
-    def is_traj_valid(self, traj, obstacles_params:list):
+    def is_traj_valid(self, traj, obstacles_params:list,  return_collide_map=False):
         VehicleBox = self.VehicleBox
         car_coords1 = np.array(VehicleBox.coords)[:4] # (4,2)
         car_coords2 = np.array(VehicleBox.coords)[1:] # (4,2)
@@ -187,10 +208,10 @@ class RsPlanner():
         # t1 = time.time()
 
         # calculate the intersections
-        det = a*e - b*d # (4, E)
-        parallel_line_pos = (det==0) # (4, E)
+        det = a*e - b*d # (4*t, E)
+        parallel_line_pos = (det==0) # (4*t, E)
         det[parallel_line_pos] = 1 # temporarily set "1" to avoid "divided by zero"
-        raw_x = (b*f - c*e)/det # (4, E)
+        raw_x = (b*f - c*e)/det # (4*t, E)
         raw_y = (c*d - a*f)/det
         # print('prepare: ',time.time()-t1, len(vx1s), len(x1s[0]))
 
@@ -210,6 +231,8 @@ class RsPlanner():
 
         collide_map = collide_map_x*collide_map_y
         collide_map[parallel_line_pos] = 0
+        if return_collide_map:
+            return collide_map
         collide = np.sum(collide_map) > 0
         # print('traj valid: ', time.time()-t1)
 
