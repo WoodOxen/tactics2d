@@ -11,11 +11,12 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
+from shapely.affinity import affine_transform
 
 from tactics2d.envs import ParkingEnv
 from tactics2d.scenario import TrafficEvent
 from samples.demo_ppo import DemoPPO
-from samples.action_mask import ActionMask, VehicleBox
+from samples.action_mask import ActionMask, VehicleBox, physic_model
 from samples.rs_planner import RsPlanner
 from samples.tmp_config import *
 
@@ -41,7 +42,7 @@ class RewardShaping():
         elif rewards['complete_reward']>1e-4:
             reward = 50
         else:
-            reward = rewards['time_penalty'] + r_iou*10 + rewards['distance_reward']*10
+            reward = rewards['time_penalty'] + r_iou*10# + rewards['distance_reward']*10
         reward *= self.reward_scale
         self.prev_max_iou = max(self.prev_max_iou, self.curr_iou)
         return reward
@@ -50,6 +51,37 @@ class RewardShaping():
         self.prev_max_iou = 0
         self.curr_iou = 0
 reward_shaping = RewardShaping()
+
+def save_step(env:ParkingEnv, action):
+    def _get_box(x,y,heading,vehicle_box=VehicleBox):
+        transform_matrix = [
+                np.cos(heading),
+                -np.sin(heading),
+                np.sin(heading),
+                np.cos(heading),
+                x,
+                y,
+            ]
+        return affine_transform(vehicle_box, transform_matrix)
+    agent_state = env.scenario_manager.agent.get_state()
+    env_map = env.scenario_manager.map_
+    for i in range(10):
+        collide = False
+        agent_state,_ = physic_model.step(agent_state, action, 0.5/10) # TODO step time
+        agent_pos = agent_state.x, agent_state.y, agent_state.heading
+        agent_pose = _get_box(*agent_pos)
+        for _, area in env_map.areas.items():
+            if area.type_ == "obstacle" and agent_pose.intersects(area.geometry):
+                collide = True
+        if collide:
+            break
+    if not collide:
+        i += 1
+    action[1] = action[1]*i/10
+    returns = env.step(action)
+    return returns
+
+
 
 def execute_rs_path(rs_path, agent:DemoPPO, env, obs, step_ratio=max_speed/2):
     action_type = {'L':1, 'S':0, 'R':-1}
@@ -89,7 +121,8 @@ def execute_rs_path(rs_path, agent:DemoPPO, env, obs, step_ratio=max_speed/2):
         # action = env.action_space.sample()
         action = resize_action(action, env.action_space)
         # print('executing rs!!!', action)
-        next_obs, reward, terminate, truncated, info = env.step(action)
+        # next_obs, reward, terminate, truncated, info = env.step(action)
+        next_obs, reward, terminate, truncated, info = save_step(env, action)
         reward = reward_shaping.reward_shaping(info)
         # print('pos: ', info["position_x"], info["position_y"], np.sqrt((last_x-info["position_x"])**2+(last_y-info["position_y"])**2))
         # print('radius: ', abs(np.sqrt((last_x-info["position_x"])**2+(last_y-info["position_y"])**2)/(info["heading"]-last_heading)))
@@ -106,6 +139,8 @@ def execute_rs_path(rs_path, agent:DemoPPO, env, obs, step_ratio=max_speed/2):
             # writer.add_scalar("actor_loss", actor_loss, i)
             # writer.add_scalar("critic_loss", critic_loss, i)
         if done:
+            if info['status'] == TrafficEvent.COLLISION_STATIC:
+                info['status'] = TrafficEvent.COLLISION_VEHICLE
             break
 
     return total_reward, done, info
@@ -190,7 +225,8 @@ def test_parking_env(save_path):
                 # print(action)
                 action = resize_action(action, env.action_space)
                 # t = time.time()
-                _, _, terminate, truncated, info = env.step(action)
+                # _, _, terminate, truncated, info = env.step(action)
+                _, _, terminate, truncated, info = save_step(env, action)
                 env.render()
                 # reward = reward_shaping(info)
                 reward = reward_shaping.reward_shaping(info)

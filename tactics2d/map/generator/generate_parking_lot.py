@@ -348,7 +348,7 @@ class ParkingLotGenerator:
 
         # randomly drop the obstacles
         for obstacle in obstacles:
-            if np.random.uniform() < 0.1:
+            if np.random.uniform() < 0.:
                 obstacles.remove(obstacle)
 
         # store obstacles in map
@@ -359,7 +359,7 @@ class ParkingLotGenerator:
         valid_start_state = False
         while not valid_start_state:
             start_state = self._get_start_state(
-                (-SCENARIO_SIZE[0] / 2, SCENARIO_SIZE[0] / 2),
+                (-SCENARIO_SIZE[0] / 4, SCENARIO_SIZE[0] / 4),
                 (
                     y_max_obstacle + DIST_TO_OBSTACLE[0] + 2,
                     y_max_obstacle + LEN_EMPTY_SPACE[self.mode] - 2,

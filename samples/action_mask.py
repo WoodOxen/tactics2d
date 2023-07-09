@@ -17,12 +17,13 @@ WIDTH = VEHICLE_MODEL[vehicle_type]['width']
 
 
 from shapely.geometry import LinearRing
+tolerance = 0.
 VehicleBox = LinearRing(
             [
-                [0.5 * LENGTH, -0.5 * WIDTH],
-                [0.5 * LENGTH, 0.5 * WIDTH],
-                [-0.5 * LENGTH, 0.5 * WIDTH],
-                [-0.5 * LENGTH, -0.5 * WIDTH],
+                [0.5 * LENGTH+tolerance, -0.5 * WIDTH-tolerance],
+                [0.5 * LENGTH+tolerance, 0.5 * WIDTH+tolerance],
+                [-0.5 * LENGTH-tolerance, 0.5 * WIDTH+tolerance],
+                [-0.5 * LENGTH-tolerance, -0.5 * WIDTH-tolerance],
             ]
         )
 
@@ -342,15 +343,17 @@ class ActionMask():
         # print(np.round(prob_softmax, 3))
         actions = np.arange(len(possible_actions))
         action_chosen = np.random.choice(actions, p=prob_softmax)
-        # action_chosen = np.argmax(prob_softmax)
-        # possible_actions[action_chosen][1] = action_mean[1]
-        # masked_speed = max(action_mean[1], action_mask[action_chosen][1]) if action_mask[action_chosen]<0 \
-        #     else min(action_mean[1], action_mask[action_chosen])
-        masked_speed = action_mask[action_chosen] if action_chosen<int(len(self.action_space)/2) else -action_mask[action_chosen]
-        if action_mean[1]*masked_speed>0 and abs(action_mean[1])<abs(masked_speed):
-            masked_speed = action_mean[1]
-        # print('action', action_chosen, action_mask[action_chosen], masked_speed, possible_actions[action_chosen][0])
-        masked_action = np.array([possible_actions[action_chosen][0], masked_speed])
-        return masked_action
-        # return possible_actions[action_chosen]
+
+        # # action_chosen = np.argmax(prob_softmax)
+        # # possible_actions[action_chosen][1] = action_mean[1]
+        # # masked_speed = max(action_mean[1], action_mask[action_chosen][1]) if action_mask[action_chosen]<0 \
+        # #     else min(action_mean[1], action_mask[action_chosen])
+        # masked_speed = action_mask[action_chosen] if action_chosen<int(len(self.action_space)/2) else -action_mask[action_chosen]
+        # if action_mean[1]*masked_speed>0 and abs(action_mean[1])<abs(masked_speed):
+        #     masked_speed = action_mean[1]
+        # # print('action', action_chosen, action_mask[action_chosen], masked_speed, possible_actions[action_chosen][0])
+        # masked_action = np.array([possible_actions[action_chosen][0], masked_speed])
+        # return masked_action
+    
+        return possible_actions[action_chosen]
         

@@ -25,6 +25,7 @@ TIME_STEP = 0.01  # state update time step: 0.01 s/step
 MAX_STEP = 20000  # steps
 max_speed = 2.0
 lidar_num = 120
+lidar_range = 15.0
 
 DISCRETE_ACTION = np.array(
     [
@@ -285,7 +286,7 @@ class ParkingEnv(gym.Env):
         if status == TrafficEvent.NORMAL:
             # time penalty
             time_penalty = -np.tanh(
-                self.scenario_manager.n_step / self.scenario_manager.max_step*0.01 # TODO
+                self.scenario_manager.n_step / self.scenario_manager.max_step*0.1 # TODO
             )
 
             curr_state = self.scenario_manager.agent.get_state()
