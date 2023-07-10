@@ -16,12 +16,12 @@ from shapely.affinity import affine_transform
 from tactics2d.envs import ParkingEnv
 from tactics2d.scenario import TrafficEvent
 from samples.demo_ppo import DemoPPO
-from samples.action_mask import ActionMask, VehicleBox, physic_model
+from samples.action_mask import ActionMask, VehicleBox, physic_model, WHEEL_BASE
 from samples.rs_planner import RsPlanner
 from samples.tmp_config import *
 
 action_mask = ActionMask()
-dist_rear_hang = 1.3485
+dist_rear_hang = WHEEL_BASE/2
 
 class RewardShaping():
     def __init__(self) -> None:
@@ -53,6 +53,7 @@ class RewardShaping():
 reward_shaping = RewardShaping()
 
 def save_step(env:ParkingEnv, action):
+    action = resize_action(action, env.action_space)
     def _get_box(x,y,heading,vehicle_box=VehicleBox):
         transform_matrix = [
                 np.cos(heading),
@@ -119,7 +120,7 @@ def execute_rs_path(rs_path, agent:DemoPPO, env, obs, step_ratio=max_speed/2):
         # action, log_prob = agent.get_action(obs)
         log_prob = agent.get_log_prob(obs, action)
         # action = env.action_space.sample()
-        action = resize_action(action, env.action_space)
+        # action = resize_action(action, env.action_space)
         # print('executing rs!!!', action)
         # next_obs, reward, terminate, truncated, info = env.step(action)
         next_obs, reward, terminate, truncated, info = save_step(env, action)
@@ -187,7 +188,7 @@ def test_parking_env(save_path):
     env = ParkingEnv(render_mode=render_mode, render_fps=60, max_step=200)
     env.reset(42)
     agent = DemoPPO()
-    rs_planner = RsPlanner(VehicleBox, radius=2.830624753, lidar_num=lidar_num, dist_rear_hang=dist_rear_hang, lidar_range=lidar_range)
+    rs_planner = RsPlanner(VehicleBox, radius=WHEEL_BASE/np.tan(0.75), lidar_num=lidar_num, dist_rear_hang=dist_rear_hang, lidar_range=lidar_range)
     # agent.load('./log/PPO_39999.pt',params_only=True)
     writer = SummaryWriter(save_path)
 
@@ -216,6 +217,9 @@ def test_parking_env(save_path):
                 reward_info.append(list(info['rewards'].values()))
                 if not done:
                     obs = preprocess_obs(info)
+                    info['status'] = 'RS FAIL !!!!!!!!!!!!!!!!'
+                    print(info['status'])
+                    done = True
             else:
                 action, log_prob = agent.choose_action(obs) # time consume: 3ms
                 # print(time.time()-t)
@@ -223,7 +227,7 @@ def test_parking_env(save_path):
                 # action = np.array([0.6, -1], dtype=np.float32)
                 # t = time.time()
                 # print(action)
-                action = resize_action(action, env.action_space)
+                # action = resize_action(action, env.action_space)
                 # t = time.time()
                 # _, _, terminate, truncated, info = env.step(action)
                 _, _, terminate, truncated, info = save_step(env, action)
@@ -287,7 +291,7 @@ def test_parking_env(save_path):
                 print(reward_list[-(10-j)],reward_info_list[-(10-j)], status_info[-(10-j)])
             print("")
 
-        if (i+1)%2000==0:
+        if (i+1)%5000==0:
             agent.save("%s/PPO_%s.pt" % (save_path, i),params_only=True)
 
     
