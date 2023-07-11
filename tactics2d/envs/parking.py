@@ -171,7 +171,7 @@ class ParkingScenarioManager(ScenarioManager):
         lidar = SingleLineLidar(
             id_=1,
             map_=self.map_,
-            perception_range=15.0,
+            perception_range=lidar_range,
             freq_detect=lidar_num*10,
             window_size=(STATE_W, STATE_H),
             off_screen=self.off_screen,

@@ -21,7 +21,7 @@ from samples.rs_planner import RsPlanner
 from samples.tmp_config import *
 
 action_mask = ActionMask()
-dist_rear_hang = WHEEL_BASE/2
+dist_rear_hang = physic_model.dist_rear_hang
 
 class RewardShaping():
     def __init__(self) -> None:

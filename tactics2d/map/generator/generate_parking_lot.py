@@ -103,7 +103,7 @@ class ParkingLotGenerator:
         return area, heading
 
     def _get_back_wall(self) -> Area:
-        shape = _get_bbox(ORIGIN, 0, SCENARIO_SIZE[0] / 2, np.random.uniform(0.5, 1.5))
+        shape = _get_bbox(ORIGIN, 0, SCENARIO_SIZE[0], np.random.uniform(0.5, 1.5))
         obstacle = Area(id_="0000", type_="obstacle", geometry=shape)
 
         return obstacle
@@ -242,7 +242,7 @@ class ParkingLotGenerator:
     def generate(self, map_: Map):
         t1 = time.time()
 
-        self.mode = "bay" #if np.random.rand() < self.bay_proportion else "parallel"
+        self.mode = "parallel" if np.random.rand() < self.bay_proportion else "parallel"
         # logging.info(f"Start generating a {self.mode} parking scenario.")
 
         obstacles = []
@@ -255,7 +255,7 @@ class ParkingLotGenerator:
             back_wall = self._get_back_wall()
 
             # generate a wall / static vehicle as an obstacle on the left side of the target area
-            dist_to_obstacle = (DIST_TO_OBSTACLE[0] + 0.4, DIST_TO_OBSTACLE[1])
+            dist_to_obstacle = (DIST_TO_OBSTACLE[0] + 0.1, DIST_TO_OBSTACLE[1])
             left_obstacle = (
                 self._get_side_vehicle(1, dist_to_obstacle)
                 if np.random.uniform() < 0.5
@@ -361,8 +361,8 @@ class ParkingLotGenerator:
             start_state = self._get_start_state(
                 (-SCENARIO_SIZE[0] / 4, SCENARIO_SIZE[0] / 4),
                 (
-                    y_max_obstacle + DIST_TO_OBSTACLE[0] + 2,
-                    y_max_obstacle + LEN_EMPTY_SPACE[self.mode] - 2,
+                    y_max_obstacle + DIST_TO_OBSTACLE[0] + 1,
+                    y_max_obstacle + LEN_EMPTY_SPACE[self.mode] - 1,
                 ),
             )
             valid_start_state = self._verify_start_state(
@@ -370,6 +370,9 @@ class ParkingLotGenerator:
             )
 
         # flip the orientation of start pose
+        target_box_center = np.mean(np.array(target_area.geometry.exterior.coords[:-1]), axis=0)
+        target_x = target_box_center[0]
+        target_y = target_box_center[1]
         if np.random.rand()>0.5:
             start_x, start_y, start_heading = start_state.location[0], start_state.location[1], start_state.heading
             start_box = _get_bbox(Point(start_state.location), start_state.heading, *self.vehicle_size)
@@ -381,13 +384,16 @@ class ParkingLotGenerator:
                 0, x=start_x, y=start_y, heading=start_heading, vx=0.0, vy=0.0, accel=0.0
             )
             if self.mode == "parallel": # flip the target pose
-                target_box_center = np.mean(np.array(target_area.geometry.exterior.coords[:-1]), axis=0)
-                target_x = target_box_center[0]
-                target_y = target_box_center[1]
                 target_heading += np.pi
                 target_shape = _get_bbox(Point(target_x, target_y), target_heading, *self.vehicle_size)
                 target_area = Area(id_=0, geometry=target_shape, color=(0, 238, 118, 100))
                 map_.areas[target_area.id_] = target_area
+
+        xmin = np.floor(min(start_state.location[0], target_x) - 13)
+        xmax = np.ceil(max(start_state.location[0], target_x) + 13)
+        ymin = np.floor(min(start_state.location[1], target_y) - 13)
+        ymax = np.ceil(max(start_state.location[1], target_y) + 13)
+        map_._boundary = (xmin, xmax, ymin, ymax)
 
         # record time cost
         t2 = time.time()
