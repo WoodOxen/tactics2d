@@ -103,7 +103,9 @@ class ParkingLotGenerator:
         return area, heading
 
     def _get_back_wall(self) -> Area:
-        shape = _get_bbox(ORIGIN, 0, SCENARIO_SIZE[0], np.random.uniform(0.5, 1.5))
+        wall_width = np.random.uniform(0.5, 1.5)
+        wall_center = Point(ORIGIN.x, ORIGIN.y-wall_width/2)
+        shape = _get_bbox(wall_center, 0, SCENARIO_SIZE[0], wall_width)
         obstacle = Area(id_="0000", type_="obstacle", geometry=shape)
 
         return obstacle
@@ -242,7 +244,7 @@ class ParkingLotGenerator:
     def generate(self, map_: Map):
         t1 = time.time()
 
-        self.mode = "parallel" if np.random.rand() < self.bay_proportion else "parallel"
+        self.mode = "bay" if np.random.rand() < self.bay_proportion else "parallel"
         # logging.info(f"Start generating a {self.mode} parking scenario.")
 
         obstacles = []
@@ -342,7 +344,7 @@ class ParkingLotGenerator:
                 shape = Polygon(shape + 0.5 * np.random.uniform(size=shape.shape))
 
                 if Polygon(bbox).contains(shape):
-                    obstacle = Area(id_="%04d", type_="obstacle", geometry=shape)
+                    obstacle = Area(id_="%04d"%id_, type_="obstacle", geometry=shape)
                     obstacles.append(obstacle)
                     id_ += 1
 
