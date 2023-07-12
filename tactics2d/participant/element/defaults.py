@@ -71,19 +71,6 @@ VEHICLE_MODEL = {
         "max_decel": -10.7,
         "0_100_km/h": 10.9,
     },
-    # "medium_car": {
-    #     # Prototype: Volkswagen Golf (https://car.autohome.com.cn/config/series/871-10281.html#pvareaid=3454437)
-    #     "length": 2.8+0.96+0.929,
-    #     "width": 1.942,
-    #     "height": 1.452,
-    #     "wheel_base": 2.8,
-    #     "front_overhang": 0.96,
-    #     "rear_overhang": 0.929,
-    #     "max_speed": 52.8,
-    #     "max_accel": 5.586,
-    #     "max_decel": -10.7,
-    #     "0_100_km/h": 10.9,
-    # },
     "large_car": {
         # Prototype: Volkswagen Passat (B8) (Magotan) (https://en.wikipedia.org/wiki/Volkswagen_Passat_(B8))
         "length": 4.866,

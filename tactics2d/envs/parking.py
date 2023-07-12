@@ -64,15 +64,16 @@ class ParkingScenarioManager(ScenarioManager):
     """
 
     def __init__(
-        self, bay_proportion: float, render_fps: int, off_screen: bool, max_step: int
+        self, bay_proportion: float, render_fps: int, off_screen: bool, max_step: int,
+        step_len: float=0.5, max_speed: float=2.0, 
     ):
-        super().__init__(render_fps, off_screen, max_step)
+        super().__init__(render_fps, off_screen, max_step, step_len)
 
         self.agent = Vehicle(
             id_=0,
             type_="medium_car",
             steer_range=(-0.75, 0.75),
-            speed_range=(-max_speed, max_speed), # TODO
+            speed_range=(-max_speed, max_speed),
             accel_range=(-1.0, 1.0),
         )
         self.participants = {self.agent.id_: self.agent}
@@ -92,7 +93,7 @@ class ParkingScenarioManager(ScenarioManager):
 
         self.cnt_still = 0
 
-        self.iou_threshold = 0.95 # TODO
+        self.iou_threshold = 0.95
         self.status_checklist = [
             # self._check_still,
             self._check_time_exceeded,

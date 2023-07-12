@@ -106,7 +106,6 @@ class SingleTrackKinematics(PhysicsModelBase):
             accel = np.clip(accel, *self.accel_range)
 
         # The angle of the current velocity of the center of mass with respect to the longitudinal axis of the car.
-        # print('radius: ', self.wheel_base/np.tan(0.75), self.dist_rear_hang)
         dt = self.delta_t
         while dt <= step:
             rear_center_x, rear_center_y, heading, speed = self._step(

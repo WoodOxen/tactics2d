@@ -14,16 +14,17 @@ class ScenarioManager(ABC):
     Attributes:
         n_step (int): The current time step.
         max_step (int): The maximum time step.
+        step_len (float): The time duration of each step.
         status (TrafficEvent): The status of the agent.
         map_ (Map): The map of the scenario.
         participants (list): The list of traffic participants.
         agent (Vehicle): The controllable vehicle in the scenario.
     """
 
-    def __init__(self, render_fps: int, off_screen: bool, max_step: int):
+    def __init__(self, render_fps: int, off_screen: bool, max_step: int, step_len: float=None):
         self.render_fps = render_fps
         self.off_screen = off_screen
-        self.step_len = 0.5#1 / self.render_fps # TODO
+        self.step_len = step_len if step_len is not None else 1/render_fps # TODO
 
         self.n_step = 0
         self.max_step = max_step

@@ -4,44 +4,8 @@ import torch.nn as nn
 from scipy.ndimage.filters import minimum_filter1d
 from shapely.geometry import LineString,Point
 
-from tactics2d.participant.element.defaults import VEHICLE_MODEL
-from tactics2d.physics.single_track_kinematics import SingleTrackKinematics
 from tactics2d.trajectory.element.state import State
-from samples.tmp_config import *
-
-vehicle_type = 'medium_car'
-
-WHEEL_BASE = VEHICLE_MODEL[vehicle_type]['wheel_base']  # wheelbase
-LENGTH = VEHICLE_MODEL[vehicle_type]['length']
-WIDTH = VEHICLE_MODEL[vehicle_type]['width']
-
-
-from shapely.geometry import LinearRing
-tolerance = 0.
-VehicleBox = LinearRing(
-            [
-                [0.5 * LENGTH+tolerance, -0.5 * WIDTH-tolerance],
-                [0.5 * LENGTH+tolerance, 0.5 * WIDTH+tolerance],
-                [-0.5 * LENGTH-tolerance, 0.5 * WIDTH+tolerance],
-                [-0.5 * LENGTH-tolerance, -0.5 * WIDTH-tolerance],
-            ]
-        )
-
-PRECISION = 10
-step_speed = max_speed
-VALID_STEER = [-0.75, 0.75]
-discrete_actions = []
-for i in np.arange(VALID_STEER[-1], -(VALID_STEER[-1] + VALID_STEER[-1]/PRECISION), -VALID_STEER[-1]/PRECISION):
-    discrete_actions.append([i, step_speed])
-for i in np.arange(VALID_STEER[-1], -(VALID_STEER[-1] + VALID_STEER[-1]/PRECISION), -VALID_STEER[-1]/PRECISION):
-    discrete_actions.append([i, -step_speed])
-N_DISCRETE_ACTION = len(discrete_actions)
-
-physic_model = SingleTrackKinematics(
-                dist_front_hang = 0.5 * LENGTH - VEHICLE_MODEL[vehicle_type]['front_overhang'],
-                dist_rear_hang = 0.5 * LENGTH - VEHICLE_MODEL[vehicle_type]['rear_overhang'],
-                steer_range=tuple(VALID_STEER),
-                speed_range=(-max_speed, max_speed))
+from samples.parking_config import *
 
 class ActionMask():
     def __init__(self, VehicleBox=VehicleBox, n_iter=10) -> None:

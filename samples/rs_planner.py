@@ -65,7 +65,7 @@ class RsPlanner():
             return None
 
         # Find path with lowest cost considering non-holonomic constraints
-        costQueue = heapdict()
+        costQueue = heapdict() # TODO: deprecate the use of heapdict
         for path in reedsSheppPaths:
             costQueue[path] = path.L
 
@@ -82,30 +82,8 @@ class RsPlanner():
             traj = [[path.x[k],path.y[k],path.yaw[k]] for k in range(len(path.x))]
             traj_valid2 = self.is_traj_valid(traj, obstacles_params)
             if traj_valid2:
-                # self._draw_traj(traj, info)
                 return path
         return None
-    
-    def _draw_traj(self, traj, info):
-        traj = np.array(traj)
-        import matplotlib.pyplot as plt
-        fig=plt.figure()
-        ax=fig.add_subplot(111)
-        ax.scatter(traj[:,0], traj[:,1], s=0.2, c='red')
-        lidar_obs = info['lidar']
-        lidar_obs = np.clip(lidar_obs, 0.0, self.lidar_range)
-        # lidar_num = self.lidar_num
-        # for i in range(lidar_num):
-        #     if i%5 == 0:
-        #         ax.add_line(plt.Line2D((0,np.cos(i*np.pi/lidar_num*2)*lidar_obs[i]), (0,np.sin(i*np.pi/lidar_num*2)*lidar_obs[i])))
-        lidar_obs = np.maximum(self.vehicle_base, lidar_obs-self.distance_tolerance)
-        angle_vec = np.arange(self.lidar_num)*np.pi/self.lidar_num*2
-        obstacle_range_x1 = np.cos(angle_vec)*lidar_obs # (N,)
-        obstacle_range_y1 = np.sin(angle_vec)*lidar_obs
-        ax.scatter(obstacle_range_x1, obstacle_range_y1, s=0.2, c='blue')
-        plt.xlim(-15,15)
-        plt.ylim(-15,15)
-        plt.show()
 
     
     def construct_obstacles(self, info):
@@ -125,15 +103,6 @@ class RsPlanner():
         obstacle_range_y2 = shifted_obstacle_coords[:, 1].reshape(1, -1)
         obstacle_range_x1 = obstacle_range_x1.reshape(1, -1)
         obstacle_range_y1 = obstacle_range_y1.reshape(1, -1)
-        # filter obstacle edges
-        # edge_len = np.sqrt((obstacle_range_x2-obstacle_range_x1)**2+(obstacle_range_y2-obstacle_range_y1)**2)
-        # valid_edge_idx = edge_len<1.2
-        # # print(obstacle_range_x1.shape)
-        # obstacle_range_x1 = obstacle_range_x1[valid_edge_idx].reshape(1, -1)
-        # obstacle_range_x2 = obstacle_range_x2[valid_edge_idx].reshape(1, -1)
-        # obstacle_range_y1 = obstacle_range_y1[valid_edge_idx].reshape(1, -1)
-        # obstacle_range_y2 = obstacle_range_y2[valid_edge_idx].reshape(1, -1)
-        # print(obstacle_range_x1.shape)
 
         # remove the edges intersects with target area
         collide_map = self.is_traj_valid([self.dest_pos], 
@@ -157,10 +126,6 @@ class RsPlanner():
         car_coords_y2 = car_coords2[:,1].reshape(1,-1) # (1,4)
         vxs = np.array([t[0] for t in traj])
         vys = np.array([t[1] for t in traj])
-        # check outbound
-        # if np.min(vxs) < self.map.xmin or np.max(vxs) > self.map.xmax \
-        # or np.min(vys) < self.map.ymin or np.max(vys) > self.map.ymax:
-        #     return False
         vthetas = np.array([t[2] for t in traj])
         cos_theta = np.cos(vthetas).reshape(-1,1) # (T,1)
         sin_theta = np.sin(vthetas).reshape(-1,1)
@@ -178,34 +143,11 @@ class RsPlanner():
         c = (vy1s*vx2s - vx1s*vy2s).reshape(-1,1)
         # print('prepare vehicle', time.time()-t1)
         
-        # convert obstacles(LinerRing) to edges ((x1,y1), (x2,y2))
-        # t1 = time.time()
-        # x_max = np.max(vx1s) + 5
-        # x_min = np.min(vx1s) - 5
-        # y_max = np.max(vy1s) + 5
-        # y_min = np.min(vy1s) - 5
-        # x1s, x2s, y1s, y2s = [], [], [], []
-        # for obst in obstacles:
-        #     obst_coords = np.array(obst.coords) # (n+1,2)
-        #     if (obst_coords[:,0] > x_max).all() or (obst_coords[:,0] < x_min).all()\
-        #         or (obst_coords[:,1] > y_max).all() or (obst_coords[:,1] < y_min).all():
-        #         continue
-            # x1s.extend(list(obst_coords[:-1, 0]))
-            # x2s.extend(list(obst_coords[1:, 0]))
-            # y1s.extend(list(obst_coords[:-1, 1]))
-            # y2s.extend(list(obst_coords[1:, 1]))
-        # print('preprare obst 1, ', time.time()-t1)
-        # if len(x1s) == 0: # no obstacle around
-        #     return True
-        # x1s, x2s, y1s, y2s  = np.array(x1s).reshape(1,-1), np.array(x2s).reshape(1,-1),\
-        #     np.array(y1s).reshape(1,-1), np.array(y2s).reshape(1,-1), 
         x1s, x2s, y1s, y2s = obstacles_params
         # Line 2: the edges of obstacles, dx + ey + f = 0
         d = (y2s - y1s).reshape(1,-1) # (1,E)
         e = (x1s - x2s).reshape(1,-1)
         f = (y1s*x2s - x1s*y2s).reshape(1,-1)
-        # print('preprare obstacle', time.time()-t1)
-        # t1 = time.time()
 
         # calculate the intersections
         det = a*e - b*d # (4*t, E)
@@ -213,7 +155,6 @@ class RsPlanner():
         det[parallel_line_pos] = 1 # temporarily set "1" to avoid "divided by zero"
         raw_x = (b*f - c*e)/det # (4*t, E)
         raw_y = (c*d - a*f)/det
-        # print('prepare: ',time.time()-t1, len(vx1s), len(x1s[0]))
 
         collide_map_x = np.ones_like(raw_x, dtype=np.uint8)
         collide_map_y = np.ones_like(raw_x, dtype=np.uint8)
@@ -234,7 +175,6 @@ class RsPlanner():
         if return_collide_map:
             return collide_map
         collide = np.sum(collide_map) > 0
-        # print('traj valid: ', time.time()-t1)
 
         if collide:
             return False

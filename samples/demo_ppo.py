@@ -8,7 +8,7 @@ from torch.distributions import Normal
 import numpy as np
 
 from action_mask import ActionMask
-from samples.tmp_config import *
+from samples.parking_config import *
 
 
 OBS_SHAPE = {'lidar':(lidar_num,), 'action_mask':(42,), 'other':(6,)}

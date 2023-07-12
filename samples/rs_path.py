@@ -1,3 +1,5 @@
+# from: git@github.com:zhm-real/CurvesGenerator.git
+
 import math
 import numpy as np
 
