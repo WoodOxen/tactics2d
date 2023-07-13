@@ -318,13 +318,10 @@ class DemoPPO():
     
     def choose_action(self, obs:np.ndarray):
         observation = deepcopy(obs)
-        # self.action_mask.get_steps(obs['lidar']*10) # TODO scaling
         if self.state_norm:
             # observation = self.state_norm(observation)
             observation = self.state_normalize.state_norm(observation)
         observation = self.obs2tensor(observation)
-        # if len(observation.shape) == len(self.configs.state_dim):
-        #     observation = observation.unsqueeze(0)
         
         with torch.no_grad():
             policy_dist = self.actor_net(observation)
@@ -358,9 +355,7 @@ class DemoPPO():
         if self.state_norm:
             observation = self.state_normalize.state_norm(observation)
         observation = self.obs2tensor(observation)
-        # if len(observation.shape) == len(self.configs.state_dim):
-        #     observation = observation.unsqueeze(0)
-        
+
         with torch.no_grad():
             policy_dist = self.actor_net(observation)
             if len(policy_dist.shape) > 1 and policy_dist.shape[0] > 1:
