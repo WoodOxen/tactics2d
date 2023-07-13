@@ -2,7 +2,7 @@ from typing import Tuple
 import time
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 import numpy as np
 from shapely.geometry import Point, Polygon
 from shapely.affinity import affine_transform
@@ -103,7 +103,9 @@ class ParkingLotGenerator:
         return area, heading
 
     def _get_back_wall(self) -> Area:
-        shape = _get_bbox(ORIGIN, 0, SCENARIO_SIZE[0] / 2, np.random.uniform(0.5, 1.5))
+        wall_width = np.random.uniform(0.5, 1.5)
+        wall_center = Point(ORIGIN.x, ORIGIN.y-wall_width/2)
+        shape = _get_bbox(wall_center, 0, SCENARIO_SIZE[0], wall_width)
         obstacle = Area(id_="0000", type_="obstacle", geometry=shape)
 
         return obstacle
@@ -255,7 +257,7 @@ class ParkingLotGenerator:
             back_wall = self._get_back_wall()
 
             # generate a wall / static vehicle as an obstacle on the left side of the target area
-            dist_to_obstacle = (DIST_TO_OBSTACLE[0] + 0.4, DIST_TO_OBSTACLE[1])
+            dist_to_obstacle = (DIST_TO_OBSTACLE[0] + 0.1, DIST_TO_OBSTACLE[1])
             left_obstacle = (
                 self._get_side_vehicle(1, dist_to_obstacle)
                 if np.random.uniform() < 0.5
@@ -342,13 +344,13 @@ class ParkingLotGenerator:
                 shape = Polygon(shape + 0.5 * np.random.uniform(size=shape.shape))
 
                 if Polygon(bbox).contains(shape):
-                    obstacle = Area(id_="%04d", type_="obstacle", geometry=shape)
+                    obstacle = Area(id_="%04d"%id_, type_="obstacle", geometry=shape)
                     obstacles.append(obstacle)
                     id_ += 1
 
         # randomly drop the obstacles
         for obstacle in obstacles:
-            if np.random.uniform() < 0.1:
+            if np.random.uniform() < 0.:
                 obstacles.remove(obstacle)
 
         # store obstacles in map
@@ -359,15 +361,41 @@ class ParkingLotGenerator:
         valid_start_state = False
         while not valid_start_state:
             start_state = self._get_start_state(
-                (-SCENARIO_SIZE[0] / 2, SCENARIO_SIZE[0] / 2),
+                (-SCENARIO_SIZE[0] / 4, SCENARIO_SIZE[0] / 4),
                 (
-                    y_max_obstacle + DIST_TO_OBSTACLE[0] + 2,
-                    y_max_obstacle + LEN_EMPTY_SPACE[self.mode] - 2,
+                    y_max_obstacle + DIST_TO_OBSTACLE[0] + 1,
+                    y_max_obstacle + LEN_EMPTY_SPACE[self.mode] - 1,
                 ),
             )
             valid_start_state = self._verify_start_state(
                 start_state, obstacles, target_area
             )
+
+        # flip the orientation of start pose
+        target_box_center = np.mean(np.array(target_area.geometry.exterior.coords[:-1]), axis=0)
+        target_x = target_box_center[0]
+        target_y = target_box_center[1]
+        if np.random.rand()>0.5:
+            start_x, start_y, start_heading = start_state.location[0], start_state.location[1], start_state.heading
+            start_box = _get_bbox(Point(start_state.location), start_state.heading, *self.vehicle_size)
+            start_box_center = np.mean(np.array(start_box.exterior.coords[:-1]), axis=0)
+            start_x = 2*start_box_center[0] - start_x
+            start_y = 2*start_box_center[1] - start_y
+            start_heading += np.pi
+            start_state = State(
+                0, x=start_x, y=start_y, heading=start_heading, vx=0.0, vy=0.0, accel=0.0
+            )
+            if self.mode == "parallel": # flip the target pose
+                target_heading += np.pi
+                target_shape = _get_bbox(Point(target_x, target_y), target_heading, *self.vehicle_size)
+                target_area = Area(id_=0, geometry=target_shape, color=(0, 238, 118, 100))
+                map_.areas[target_area.id_] = target_area
+
+        xmin = np.floor(min(start_state.location[0], target_x) - 13)
+        xmax = np.ceil(max(start_state.location[0], target_x) + 13)
+        ymin = np.floor(min(start_state.location[1], target_y) - 13)
+        ymax = np.ceil(max(start_state.location[1], target_y) + 13)
+        map_._boundary = (xmin, xmax, ymin, ymax)
 
         # record time cost
         t2 = time.time()

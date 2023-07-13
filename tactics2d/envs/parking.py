@@ -23,6 +23,9 @@ FPS = 60
 MAX_FPS = 200
 TIME_STEP = 0.01  # state update time step: 0.01 s/step
 MAX_STEP = 20000  # steps
+max_speed = 2.0
+lidar_num = 120
+lidar_range = 10.0
 
 DISCRETE_ACTION = np.array(
     [
@@ -61,15 +64,16 @@ class ParkingScenarioManager(ScenarioManager):
     """
 
     def __init__(
-        self, bay_proportion: float, render_fps: int, off_screen: bool, max_step: int
+        self, bay_proportion: float, render_fps: int, off_screen: bool, max_step: int,
+        step_len: float=0.5, max_speed: float=2.0, 
     ):
-        super().__init__(render_fps, off_screen, max_step)
+        super().__init__(render_fps, off_screen, max_step, step_len)
 
         self.agent = Vehicle(
             id_=0,
             type_="medium_car",
             steer_range=(-0.75, 0.75),
-            speed_range=(-10.0, 100.0),
+            speed_range=(-max_speed, max_speed),
             accel_range=(-1.0, 1.0),
         )
         self.participants = {self.agent.id_: self.agent}
@@ -168,11 +172,14 @@ class ParkingScenarioManager(ScenarioManager):
         lidar = SingleLineLidar(
             id_=1,
             map_=self.map_,
+            perception_range=lidar_range,
+            freq_detect=lidar_num*10,
             window_size=(STATE_W, STATE_H),
             off_screen=self.off_screen,
         )
         self.render_manager.add_sensor(lidar)
         self.render_manager.bind(1, 0)
+        self.render_manager.update(self.participants, [0], self.agent.current_state.frame)
 
         self.dist_norm_ratio = max(
             Point(self.start_state.location).distance(self.target_area.geometry.centroid),
@@ -229,7 +236,7 @@ class ParkingEnv(gym.Env):
         self.continuous = continuous
 
         if self.continuous:
-            self.action_space = spaces.Box(np.array([-0.75, -1.0]), np.array([0.75, 1.0]))
+            self.action_space = spaces.Box(np.array([-0.75, -max_speed]), np.array([0.75, max_speed]))
         else:
             self.action_space = spaces.Discrete(5)
 
@@ -249,9 +256,14 @@ class ParkingEnv(gym.Env):
 
         info = {
             "lidar": observations[1],
+            "position_x": self.scenario_manager.agent.get_state().location[0],
+            "position_y": self.scenario_manager.agent.get_state().location[1],
             "velocity": self.scenario_manager.agent.velocity,
+            "speed": self.scenario_manager.agent.speed,
             "acceleration": self.scenario_manager.agent.accel,
             "heading": self.scenario_manager.agent.heading,
+            "target_area": self.scenario_manager.target_area.geometry.exterior.coords[:-1],
+            "target_heading": self.scenario_manager.target_heading,
             "status": self.scenario_manager.status,
             "rewards": dict(),
             "reward": 0,
@@ -264,18 +276,18 @@ class ParkingEnv(gym.Env):
         time_exceeded_penalty = 0 if status != TrafficEvent.TIME_EXCEEDED else -1
 
         # penalty for collision
-        collision_penalty = 0 if status != TrafficEvent.COLLISION_STATIC else -50
+        collision_penalty = 0 if status != TrafficEvent.COLLISION_STATIC else -1
 
         # penalty for driving out of the map boundary
-        outside_map_penalty = 0 if status != TrafficEvent.OUTSIDE_MAP else -50
+        outside_map_penalty = 0 if status != TrafficEvent.OUTSIDE_MAP else -1
 
         # reward for completion
-        complete_reward = 0 if status != TrafficEvent.COMPLETED else 50
+        complete_reward = 0 if status != TrafficEvent.COMPLETED else 1
 
         if status == TrafficEvent.NORMAL:
             # time penalty
             time_penalty = -np.tanh(
-                self.scenario_manager.n_step / self.scenario_manager.max_step
+                self.scenario_manager.n_step / self.scenario_manager.max_step*0.1 # TODO
             )
 
             curr_state = self.scenario_manager.agent.get_state()
@@ -303,12 +315,25 @@ class ParkingEnv(gym.Env):
             ) / self.scenario_manager.angle_norm_factor
 
             # IoU reward
+            curr_pose = Polygon(self.scenario_manager.agent.get_pose())
+            prev_pose = Polygon(self.scenario_manager.agent.get_pose(prev_frame))
+            target_pose = self.scenario_manager.target_area.geometry
+            curr_intersection = curr_pose.intersection(target_pose).area
+            curr_union = curr_pose.union(target_pose).area
+            prev_intersection = prev_pose.intersection(target_pose).area
+            prev_union = prev_pose.union(target_pose).area
+
+            curr_iou = curr_intersection / curr_union
+            prev_iou = prev_intersection / prev_union
+            iou_reward = curr_iou - prev_iou
+
         else:
             time_penalty = 0
             distance_reward = 0
             angle_reward = 0
+            iou_reward = 0
 
-        rewards = {
+        rewards = { # TODO
             "time_exceeded_penalty": time_exceeded_penalty,
             "collision_penalty": collision_penalty,
             "outside_map_penalty": outside_map_penalty,
@@ -316,6 +341,7 @@ class ParkingEnv(gym.Env):
             "time_penalty": time_penalty,
             "distance_reward": distance_reward,
             "angle_reward": angle_reward,
+            "iou_reward": iou_reward,
         }
 
         reward = np.sum(list(rewards.values()))
@@ -336,11 +362,16 @@ class ParkingEnv(gym.Env):
 
         rewards, reward = self._get_rewards(self.scenario_manager.status)
 
-        info = {
+        info = { # TODO
             "lidar": observations[1],
+            "position_x": self.scenario_manager.agent.get_state().location[0],
+            "position_y": self.scenario_manager.agent.get_state().location[1],
             "velocity": self.scenario_manager.agent.velocity,
+            "speed": self.scenario_manager.agent.speed,
             "acceleration": self.scenario_manager.agent.accel,
             "heading": self.scenario_manager.agent.heading,
+            "target_area": self.scenario_manager.target_area.geometry.exterior.coords[:-1],
+            "target_heading": self.scenario_manager.target_heading,
             "status": self.scenario_manager.status,
             "rewards": rewards,
             "reward": reward,
