@@ -2,5 +2,5 @@
 	path = samples/rllib
 	url = git@scp:MotacillaAlba/rllib.git
 [submodule "data"]
-	path = data
+	path = tactics2d/data
 	url = git@github.com:SCP-CN-001/trajectory_dataset_support.git
