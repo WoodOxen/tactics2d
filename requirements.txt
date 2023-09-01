@@ -1,4 +1,4 @@
-gymnasium==0.28.1
+gymnasium==0.29.1
 numpy>=1.21.6
 pygame==2.5.0
 pyproj>=3.2.1
