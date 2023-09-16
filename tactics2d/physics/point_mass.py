@@ -54,9 +54,7 @@ class PointMass(PhysicsModelBase):
 
         return new_x, new_y, new_vx, new_vy, new_heading
 
-    def step(
-        self, state: State, action: Tuple[float, float], step: float
-    ) -> Tuple[State, tuple]:
+    def step(self, state: State, action: Tuple[float, float], step: float) -> Tuple[State, tuple]:
         steer, accel = action
         x, y, heading = state.x, state.y, state.heading
         vx, vy = state.velocity
@@ -69,9 +67,7 @@ class PointMass(PhysicsModelBase):
 
         dt = self.delta_t
         while dt <= step:
-            x, y, vx, vy, heading = self._step(
-                x, y, vx, vy, heading, steer, accel, self.delta_t
-            )
+            x, y, vx, vy, heading = self._step(x, y, vx, vy, heading, steer, accel, self.delta_t)
             dt += self.delta_t
 
         if dt > step:
@@ -79,9 +75,7 @@ class PointMass(PhysicsModelBase):
                 x, y, vx, vy, heading, steer, accel, step - (dt - self.delta_t)
             )
 
-        new_state = State(
-            state.frame + int(step * 1000), x=x, y=y, heading=heading, vx=vx, vy=vy
-        )
+        new_state = State(state.frame + int(step * 1000), x=x, y=y, heading=heading, vx=vx, vy=vy)
         return new_state, (steer, accel)
 
     def verify_state(self, curr_state: State, prev_state: State) -> bool:

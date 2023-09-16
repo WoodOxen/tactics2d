@@ -1,5 +1,7 @@
 import numpy as np
+
 np.random.seed(42)
+
 
 def truncate_gaussian(mean, std, min_, max_, size=None):
     """Return a random number from a truncated gaussian distribution.

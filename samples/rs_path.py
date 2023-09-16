@@ -8,6 +8,7 @@ STEP_SIZE = 0.2
 MAX_LENGTH = 1000.0
 PI = math.pi
 
+
 # class for PATH element
 class PATH:
     def __init__(self, lengths, ctypes, L, x, y, yaw, directions):
@@ -40,9 +41,9 @@ def calc_all_paths(sx, sy, syaw, gx, gy, gyaw, maxc, step_size=STEP_SIZE):
     paths = generate_path(q0, q1, maxc)
 
     for path in paths:
-        x, y, yaw, directions = \
-            generate_local_course(path.L, path.lengths,
-                                  path.ctypes, maxc, step_size * maxc)
+        x, y, yaw, directions = generate_local_course(
+            path.L, path.lengths, path.ctypes, maxc, step_size * maxc
+        )
 
         # convert global coordinate
         path.x = [math.cos(-q0[2]) * ix + math.sin(-q0[2]) * iy + q0[0] for (ix, iy) in zip(x, y)]
@@ -90,7 +91,7 @@ def LSL(x, y, phi):
 
 def LSR(x, y, phi):
     u1, t1 = R(x + math.sin(phi), y - 1.0 - math.cos(phi))
-    u1 = u1 ** 2
+    u1 = u1**2
 
     if u1 >= 4.0:
         u = math.sqrt(u1 - 4.0)
@@ -138,13 +139,13 @@ def SLS(x, y, phi):
         xd = -y / math.tan(phi) + x
         t = xd - math.tan(phi / 2.0)
         u = phi
-        v = math.sqrt((x - xd) ** 2 + y ** 2) - math.tan(phi / 2.0)
+        v = math.sqrt((x - xd) ** 2 + y**2) - math.tan(phi / 2.0)
         return True, t, u, v
     elif y < 0.0 and 0.0 < phi < PI * 0.99:
         xd = -y / math.tan(phi) + x
         t = xd - math.tan(phi / 2.0)
         u = phi
-        v = -math.sqrt((x - xd) ** 2 + y ** 2) - math.tan(phi / 2.0)
+        v = -math.sqrt((x - xd) ** 2 + y**2) - math.tan(phi / 2.0)
         return True, t, u, v
 
     return False, 0.0, 0.0, 0.0
@@ -488,15 +489,17 @@ def generate_local_course(L, lengths, mode, maxc, step_size):
 
         while abs(pd) <= abs(l):
             ind += 1
-            px, py, pyaw, directions = \
-                interpolate(ind, pd, m, maxc, ox, oy, oyaw, px, py, pyaw, directions)
+            px, py, pyaw, directions = interpolate(
+                ind, pd, m, maxc, ox, oy, oyaw, px, py, pyaw, directions
+            )
             pd += d
 
         ll = l - pd - d  # calc remain length
 
         ind += 1
-        px, py, pyaw, directions = \
-            interpolate(ind, l, m, maxc, ox, oy, oyaw, px, py, pyaw, directions)
+        px, py, pyaw, directions = interpolate(
+            ind, l, m, maxc, ox, oy, oyaw, px, py, pyaw, directions
+        )
 
     # remove unused data
     while px[-1] == 0.0:
@@ -620,7 +623,7 @@ def calc_curvature(x, y, yaw, directions):
         ddx = 2.0 / (dn + dp) * (dxp / dp - dxn / dn)
         dy = 1.0 / (dn + dp) * (dp / dn * dyn + dn / dp * dyp)
         ddy = 2.0 / (dn + dp) * (dyp / dp - dyn / dn)
-        curvature = (ddy * dx - ddx * dy) / (dx ** 2 + dy ** 2)
+        curvature = (ddy * dx - ddx * dy) / (dx**2 + dy**2)
         d = (dn + dp) / 2.0
 
         if np.isnan(curvature):
@@ -656,9 +659,12 @@ def check_path(sx, sy, syaw, gx, gy, gyaw, maxc):
         assert abs(path.yaw[-1] - gyaw) <= 0.01
 
         # course distance check
-        d = [math.hypot(dx, dy)
-             for dx, dy in zip(np.diff(path.x[0:len(path.x) - 1]),
-                               np.diff(path.y[0:len(path.y) - 1]))]
+        d = [
+            math.hypot(dx, dy)
+            for dx, dy in zip(
+                np.diff(path.x[0 : len(path.x) - 1]), np.diff(path.y[0 : len(path.y) - 1])
+            )
+        ]
 
         for i in range(len(d)):
             assert abs(d[i] - STEP_SIZE) <= 0.001

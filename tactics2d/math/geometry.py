@@ -46,9 +46,7 @@ class Circle:
                 [pt3[0] ** 2 + pt3[1] ** 2, pt3[0], 1],
             ]
         )
-        det = np.linalg.det(
-            [[pt1[0], pt1[1], 1], [pt2[0], pt2[1], 1], [pt3[0], pt3[1], 1]]
-        )
+        det = np.linalg.det([[pt1[0], pt1[1], 1], [pt2[0], pt2[1], 1], [pt3[0], pt3[1], 1]])
 
         D = d / det
         E = e / det

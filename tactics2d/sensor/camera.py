@@ -122,9 +122,7 @@ class TopDownCamera(SensorBase):
                     continue
 
             color = (
-                AREA_COLOR[area.subtype]
-                if area.subtype in AREA_COLOR
-                else AREA_COLOR["default"]
+                AREA_COLOR[area.subtype] if area.subtype in AREA_COLOR else AREA_COLOR["default"]
             )
             color = color if area.color is None else area.color
             polygon = affine_transform(area.geometry, self.transform_matrix)
@@ -142,9 +140,7 @@ class TopDownCamera(SensorBase):
                     continue
 
             color = (
-                LANE_COLOR[lane.subtype]
-                if lane.subtype in LANE_COLOR
-                else LANE_COLOR["default"]
+                LANE_COLOR[lane.subtype] if lane.subtype in LANE_COLOR else LANE_COLOR["default"]
             )
             color = color if lane.color is None else lane.color
             points = list(affine_transform(lane.geometry, self.transform_matrix).coords)
@@ -163,9 +159,7 @@ class TopDownCamera(SensorBase):
                 else ROADLINE_COLOR["default"]
             )
             color = color if roadline.color is None else roadline.color
-            points = list(
-                affine_transform(roadline.linestring, self.transform_matrix).coords
-            )
+            points = list(affine_transform(roadline.linestring, self.transform_matrix).coords)
 
             if roadline.type_ == "line_thick":
                 width = max(2, 0.2 * self.scale)
@@ -176,9 +170,7 @@ class TopDownCamera(SensorBase):
 
     def _render_vehicle(self, vehicle: Vehicle, frame: int = None):
         color = VEHICLE_COLOR["default"] if vehicle.color is None else vehicle.color
-        points = np.array(
-            affine_transform(vehicle.get_pose(frame), self.transform_matrix).coords
-        )
+        points = np.array(affine_transform(vehicle.get_pose(frame), self.transform_matrix).coords)
         triangle = [
             (points[0] + points[1]) / 2,
             (points[1] + points[2]) / 2,
@@ -190,16 +182,12 @@ class TopDownCamera(SensorBase):
 
     def _render_cyclist(self, cyclist: Cyclist, frame: int = None):
         color = CYCLIST_COLOR["default"] if cyclist.color is None else cyclist.color
-        points = list(
-            affine_transform(cyclist.get_pose(frame), self.transform_matrix).coords
-        )
+        points = list(affine_transform(cyclist.get_pose(frame), self.transform_matrix).coords)
 
         pygame.draw.polygon(self.surface, color, points)
 
     def _render_pedestrian(self, pedestrian: Pedestrian, frame: int = None):
-        color = (
-            PEDESTRIAN_COLOR["default"] if pedestrian.color is None else pedestrian.color
-        )
+        color = PEDESTRIAN_COLOR["default"] if pedestrian.color is None else pedestrian.color
         point = affine_transform(
             Point(pedestrian.trajectory.get_state(frame).location), self.transform_matrix
         )
@@ -207,9 +195,7 @@ class TopDownCamera(SensorBase):
 
         pygame.draw.circle(self.surface, color, point, radius)
 
-    def _render_participants(
-        self, participants: dict, participant_ids: list, frame: int = None
-    ):
+    def _render_participants(self, participants: dict, participant_ids: list, frame: int = None):
         for participant_id in participant_ids:
             participant = participants[participant_id]
 
@@ -233,6 +219,15 @@ class TopDownCamera(SensorBase):
         position: Point = None,
         heading: float = None,
     ):
+        """_summary_
+
+        Args:
+            participants (_type_): _description_
+            participant_ids (list): _description_
+            frame (int, optional): _description_. Defaults to None.
+            position (Point, optional): _description_. Defaults to None.
+            heading (float, optional): _description_. Defaults to None.
+        """
         self.position = position
         self.heading = heading
         self._update_transform_matrix()
@@ -244,4 +239,9 @@ class TopDownCamera(SensorBase):
         self._render_participants(participants, participant_ids, frame)
 
     def get_observation(self):
+        """_summary_
+
+        Returns:
+            _type_: _description_
+        """
         return pygame.surfarray.array3d(self.surface)

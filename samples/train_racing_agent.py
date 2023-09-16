@@ -71,9 +71,7 @@ if __name__ == "__main__":
 
             action = agent.get_action(processed_state)
 
-            processed_action = np.array(
-                [action[0] * 0.5, action[1] * 2.0], dtype=np.float32
-            )
+            processed_action = np.array([action[0] * 0.5, action[1] * 2.0], dtype=np.float32)
             average_action += processed_action
             next_state, reward, _, done, info = env.step(processed_action)
             done_mask = 0.0 if done else 1.0

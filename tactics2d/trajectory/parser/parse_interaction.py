@@ -22,18 +22,13 @@ class InteractionParser:
         folder_path: str,
         stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
     ):
-        df_vehicle = pd.read_csv(
-            os.path.join(folder_path, "vehicle_tracks_%03d.csv" % file_id)
-        )
+        df_vehicle = pd.read_csv(os.path.join(folder_path, "vehicle_tracks_%03d.csv" % file_id))
 
         vehicles = {}
         trajectories = {}
 
         for _, state_info in df_vehicle.iterrows():
-            if (
-                state_info["frame_id"] < stamp_range[0]
-                or state_info["frame_id"] > stamp_range[1]
-            ):
+            if state_info["frame_id"] < stamp_range[0] or state_info["frame_id"] > stamp_range[1]:
                 continue
 
             vehicle_id = state_info["track_id"]
@@ -73,9 +68,7 @@ class InteractionParser:
     ):
         type_guesser = GuessType()
 
-        pedestrian_path = os.path.join(
-            folder_path, "pedestrian_tracks_%03d.csv" % file_id
-        )
+        pedestrian_path = os.path.join(folder_path, "pedestrian_tracks_%03d.csv" % file_id)
         if os.path.exists(pedestrian_path):
             df_pedestrian = pd.read_csv(pedestrian_path)
         else:
@@ -107,9 +100,7 @@ class InteractionParser:
         for trajectory_id, trajectory in trajectories.items():
             type_ = type_guesser.guess_by_trajectory(trajectory)
             class_ = TYPE_MAPPING[type_]
-            participants[trajectory_id] = class_(
-                trajectory_id, type_, trajectory=trajectory
-            )
+            participants[trajectory_id] = class_(trajectory_id, type_, trajectory=trajectory)
 
         return participants
 

@@ -21,10 +21,10 @@ class ScenarioManager(ABC):
         agent (Vehicle): The controllable vehicle in the scenario.
     """
 
-    def __init__(self, render_fps: int, off_screen: bool, max_step: int, step_len: float=None):
+    def __init__(self, render_fps: int, off_screen: bool, max_step: int, step_len: float = None):
         self.render_fps = render_fps
         self.off_screen = off_screen
-        self.step_len = step_len if step_len is not None else 1/render_fps # TODO
+        self.step_len = step_len if step_len is not None else 1 / render_fps  # TODO
 
         self.n_step = 0
         self.max_step = max_step
@@ -57,9 +57,7 @@ class ScenarioManager(ABC):
     def get_active_participants(self, frame: int) -> list:
         """Get the list of active participants at the given frame."""
         return [
-            participant.id_
-            for participant in self.participants
-            if participant.is_active(frame)
+            participant.id_ for participant in self.participants if participant.is_active(frame)
         ]
 
     def _check_time_exceeded(self):

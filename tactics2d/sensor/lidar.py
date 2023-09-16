@@ -83,14 +83,15 @@ class SingleLineLidar(SensorBase):
 
         line_idx_range = (
             max(int(np.floor((angle_range[0] - self.heading) / self.angle_resolution)), 0),
-            min(int(np.ceil((angle_range[1] - self.heading) / self.angle_resolution)), self.point_density),
+            min(
+                int(np.ceil((angle_range[1] - self.heading) / self.angle_resolution)),
+                self.point_density,
+            ),
         )
 
         return line_idx_range
-    
-    def _scan_obstacles(
-        self, participants: dict, participant_ids: list, frame: int = None
-    ):
+
+    def _scan_obstacles(self, participants: dict, participant_ids: list, frame: int = None):
         potential_obstacles = []
         for area in self.map_.areas.values():
             if area.type_ == "obstacle":
@@ -107,74 +108,80 @@ class SingleLineLidar(SensorBase):
                 potential_obstacles.append(shape.exterior)
             elif isinstance(shape, LinearRing):
                 potential_obstacles.append(shape)
-        considered_obstacles = self._rotate_and_filter_obstacles(\
-            (self.position.x, self.position.y, self.heading), potential_obstacles)
-        
+        considered_obstacles = self._rotate_and_filter_obstacles(
+            (self.position.x, self.position.y, self.heading), potential_obstacles
+        )
+
         # Line 1: the lidar ray, ax + by + c = 0
-        theta = np.array([a*np.pi/self.point_density*2 for a in range(self.point_density)]) # (point_density,)
-        a = np.sin(theta).reshape(-1,1) # (point_density, 1)
-        b = -np.cos(theta).reshape(-1,1)
+        theta = np.array(
+            [a * np.pi / self.point_density * 2 for a in range(self.point_density)]
+        )  # (point_density,)
+        a = np.sin(theta).reshape(-1, 1)  # (point_density, 1)
+        b = -np.cos(theta).reshape(-1, 1)
         c = 0
 
         # convert obstacles(LinerRing) to edges ((x1,y1), (x2,y2))
         x1s, x2s, y1s, y2s = [], [], [], []
         for obst in considered_obstacles:
-            obst_coords = np.array(obst.coords) # (n+1,2)
+            obst_coords = np.array(obst.coords)  # (n+1,2)
             x1s.extend(list(obst_coords[:-1, 0]))
             x2s.extend(list(obst_coords[1:, 0]))
             y1s.extend(list(obst_coords[:-1, 1]))
             y2s.extend(list(obst_coords[1:, 1]))
-        if len(x1s) == 0: # no obstacle around
-            self.scan_result = np.ones((self.point_density))*float("inf")
+        if len(x1s) == 0:  # no obstacle around
+            self.scan_result = np.ones((self.point_density)) * float("inf")
             return
-        x1s, x2s, y1s, y2s  = np.array(x1s).reshape(1,-1), np.array(x2s).reshape(1,-1),\
-            np.array(y1s).reshape(1,-1), np.array(y2s).reshape(1,-1), 
+        x1s, x2s, y1s, y2s = (
+            np.array(x1s).reshape(1, -1),
+            np.array(x2s).reshape(1, -1),
+            np.array(y1s).reshape(1, -1),
+            np.array(y2s).reshape(1, -1),
+        )
         # Line 2: the edges of obstacles, dx + ey + f = 0
-        d = (y2s - y1s).reshape(1,-1) # (1,E)
-        e = (x1s - x2s).reshape(1,-1)
-        f = (y1s*x2s - x1s*y2s).reshape(1,-1)
+        d = (y2s - y1s).reshape(1, -1)  # (1,E)
+        e = (x1s - x2s).reshape(1, -1)
+        f = (y1s * x2s - x1s * y2s).reshape(1, -1)
 
         # calculate the intersections
-        det = a*e - b*d # (point_density, E)
-        parallel_line_pos = (det==0) # (point_density, E)
-        det[parallel_line_pos] = 1 # temporarily set "1" to avoid "divided by zero"
-        raw_x = (b*f - c*e)/det # (point_density, E)
-        raw_y = (c*d - a*f)/det
+        det = a * e - b * d  # (point_density, E)
+        parallel_line_pos = det == 0  # (point_density, E)
+        det[parallel_line_pos] = 1  # temporarily set "1" to avoid "divided by zero"
+        raw_x = (b * f - c * e) / det  # (point_density, E)
+        raw_y = (c * d - a * f) / det
 
         # select the true intersections, set the false positive interesections to inf
-        tmp_inf = self.perception_range*10
+        tmp_inf = self.perception_range * 10
         tmp_zero = 1e-8
         # the false positive intersections on line L1(not on ray L1)
-        lidar_line_x = (np.cos(theta)*self.perception_range).reshape(-1,1) # (point_density, 1)
-        lidar_line_y = (np.sin(theta)*self.perception_range).reshape(-1,1)
-        raw_x[raw_x>np.maximum(tmp_zero, lidar_line_x)] = tmp_inf
-        raw_x[raw_x<np.minimum(-tmp_zero, lidar_line_x)] = tmp_inf
-        raw_y[raw_y>np.maximum(tmp_zero, lidar_line_y)] = tmp_inf
-        raw_y[raw_y<np.minimum(-tmp_zero, lidar_line_y)] = tmp_inf
+        lidar_line_x = (np.cos(theta) * self.perception_range).reshape(-1, 1)  # (point_density, 1)
+        lidar_line_y = (np.sin(theta) * self.perception_range).reshape(-1, 1)
+        raw_x[raw_x > np.maximum(tmp_zero, lidar_line_x)] = tmp_inf
+        raw_x[raw_x < np.minimum(-tmp_zero, lidar_line_x)] = tmp_inf
+        raw_y[raw_y > np.maximum(tmp_zero, lidar_line_y)] = tmp_inf
+        raw_y[raw_y < np.minimum(-tmp_zero, lidar_line_y)] = tmp_inf
         # the false positive intersections on line L2(not on edge L2)
-        raw_x[raw_x>np.maximum(x1s, x2s)] = tmp_inf
-        raw_x[raw_x<np.minimum(x1s, x2s)] = tmp_inf
-        raw_y[raw_y>np.maximum(y1s, y2s)] = tmp_inf
-        raw_y[raw_y<np.minimum(y1s, y2s)] = tmp_inf
+        raw_x[raw_x > np.maximum(x1s, x2s)] = tmp_inf
+        raw_x[raw_x < np.minimum(x1s, x2s)] = tmp_inf
+        raw_y[raw_y > np.maximum(y1s, y2s)] = tmp_inf
+        raw_y[raw_y < np.minimum(y1s, y2s)] = tmp_inf
         # the (L1, L2) which are parallel
         raw_x[parallel_line_pos] = tmp_inf
 
-        lidar_obs = np.min(np.sqrt(raw_x**2 + raw_y**2), axis=1) # (point_density,)
+        lidar_obs = np.min(np.sqrt(raw_x**2 + raw_y**2), axis=1)  # (point_density,)
         lidar_obs = np.clip(lidar_obs, 0, self.perception_range)
-        lidar_obs[lidar_obs==self.perception_range] = float("inf")
+        lidar_obs[lidar_obs == self.perception_range] = float("inf")
         self.scan_result = lidar_obs
-    
-    
-    def _rotate_and_filter_obstacles(self, ego_pos:tuple, obstacles:list):
-        '''
+
+    def _rotate_and_filter_obstacles(self, ego_pos: tuple, obstacles: list):
+        """
         Rotate the obstacles around the vehicle and remove the obstalces out of perception range.
-        '''
-        origin = Point((0,0))
+        """
+        origin = Point((0, 0))
         x, y, theta = ego_pos
         a = np.cos(theta)
         b = np.sin(theta)
-        x_off = -x*a - y*b
-        y_off = x*b - y*a
+        x_off = -x * a - y * b
+        y_off = x * b - y * a
         affine_mat = [a, b, -b, a, x_off, y_off]
 
         rotated_obstacles = []
@@ -182,23 +189,29 @@ class SingleLineLidar(SensorBase):
             rotated_obs = affine_transform(obs, affine_mat)
             if rotated_obs.distance(origin) < self.perception_range:
                 rotated_obstacles.append(rotated_obs)
-        
+
         return rotated_obstacles
 
     def _render_lidar_points(self):
         self.surface.fill(THECOLORS["black"])
 
-        lidar_angles = np.array([a*np.pi/self.point_density*2 for a in range(self.point_density)])
-        lidar_point_angles = lidar_angles[self.scan_result!=float("inf")]
-        lidar_point_position = self.scan_result[self.scan_result!=float("inf")]
-        point_x_ego = self.position.x + lidar_point_position*np.cos(lidar_point_angles + self.heading)
-        point_y_ego = self.position.y + lidar_point_position*np.sin(lidar_point_angles + self.heading)
+        lidar_angles = np.array(
+            [a * np.pi / self.point_density * 2 for a in range(self.point_density)]
+        )
+        lidar_point_angles = lidar_angles[self.scan_result != float("inf")]
+        lidar_point_position = self.scan_result[self.scan_result != float("inf")]
+        point_x_ego = self.position.x + lidar_point_position * np.cos(
+            lidar_point_angles + self.heading
+        )
+        point_y_ego = self.position.y + lidar_point_position * np.sin(
+            lidar_point_angles + self.heading
+        )
         a, b, d, e, x_off, y_off = self.transform_matrix
-        point_x_render = a*point_x_ego + b*point_y_ego + x_off
-        point_y_render = d*point_x_ego + e*point_y_ego + y_off
-        
-        for x,y in zip(point_x_render, point_y_render):
-            pygame.draw.circle(self.surface, THECOLORS["white"], (x,y), 1)
+        point_x_render = a * point_x_ego + b * point_y_ego + x_off
+        point_y_render = d * point_x_ego + e * point_y_ego + y_off
+
+        for x, y in zip(point_x_render, point_y_render):
+            pygame.draw.circle(self.surface, THECOLORS["white"], (x, y), 1)
 
     def update(
         self,

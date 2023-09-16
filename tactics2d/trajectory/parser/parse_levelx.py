@@ -64,9 +64,7 @@ class LevelXParser:
             iterator=True,
             chunksize=10000,
         )
-        df_track_meta = pd.read_csv(
-            os.path.join(folder_path, "%02d_tracksMeta.csv" % file_id)
-        )
+        df_track_meta = pd.read_csv(os.path.join(folder_path, "%02d_tracksMeta.csv" % file_id))
         df_recording_meta = pd.read_csv(
             os.path.join(folder_path, "%02d_recordingMeta.csv" % file_id)
         )
@@ -127,14 +125,10 @@ class LevelXParser:
 
                 if self.dataset == "highD":
                     x, y = self._calibrate_location(state_info["x"], state_info["y"])
-                    heading = round(
-                        math.atan2(state_info["xVelocity"], state_info["yVelocity"]), 5
-                    )
+                    heading = round(math.atan2(state_info["xVelocity"], state_info["yVelocity"]), 5)
                     state = State(frame, x=x, y=y, heading=heading)
                 else:
-                    x, y = self._calibrate_location(
-                        state_info["xCenter"], state_info["yCenter"]
-                    )
+                    x, y = self._calibrate_location(state_info["xCenter"], state_info["yCenter"])
                     state = State(
                         frame, x=x, y=y, heading=state_info["heading"] * 2 * math.pi / 360
                     )

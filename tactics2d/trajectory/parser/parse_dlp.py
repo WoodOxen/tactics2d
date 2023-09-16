@@ -50,13 +50,9 @@ class DLPParser:
             df_agent = json.load(f_agent)
         with open("%s/DJI_%04d_frames.json" % (folder_path, file_id), "r") as f_frame:
             df_frame = json.load(f_frame)
-        with open(
-            "%s/DJI_%04d_instances.json" % (folder_path, file_id), "r"
-        ) as f_instance:
+        with open("%s/DJI_%04d_instances.json" % (folder_path, file_id), "r") as f_instance:
             df_instance = json.load(f_instance)
-        with open(
-            "%s/DJI_%04d_obstacles.json" % (folder_path, file_id), "r"
-        ) as f_obstacle:
+        with open("%s/DJI_%04d_obstacles.json" % (folder_path, file_id), "r") as f_obstacle:
             df_obstacle = json.load(f_obstacle)
 
         return df_agent, df_frame, df_instance, df_obstacle

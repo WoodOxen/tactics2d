@@ -45,9 +45,7 @@ def _get_random_position(
     return Point(origin.x + radius * np.cos(angle), origin.y + radius * np.sin(angle))
 
 
-def _get_bbox(
-    center_point: Point, heading: float, length: float, width: float
-) -> Polygon:
+def _get_bbox(center_point: Point, heading: float, length: float, width: float) -> Polygon:
     """Generate a bounding box."""
     bbox = Polygon(
         [
@@ -104,7 +102,7 @@ class ParkingLotGenerator:
 
     def _get_back_wall(self) -> Area:
         wall_width = np.random.uniform(0.5, 1.5)
-        wall_center = Point(ORIGIN.x, ORIGIN.y-wall_width/2)
+        wall_center = Point(ORIGIN.x, ORIGIN.y - wall_width / 2)
         shape = _get_bbox(wall_center, 0, SCENARIO_SIZE[0], wall_width)
         obstacle = Area(id_="0000", type_="obstacle", geometry=shape)
 
@@ -113,9 +111,7 @@ class ParkingLotGenerator:
     def _get_left_wall(
         self, id_: int, target_area: Area, dist_to_obstacle: Tuple[float, float]
     ) -> Area:
-        _, top_left, bottom_left, bottom_right, _ = list(
-            target_area.geometry.exterior.coords
-        )
+        _, top_left, bottom_left, bottom_right, _ = list(target_area.geometry.exterior.coords)
 
         wall_top_right = _get_random_position(
             Point(top_left) if self.mode == "bay" else Point(bottom_left),
@@ -142,9 +138,7 @@ class ParkingLotGenerator:
     def _get_right_wall(
         self, id_: int, target_area: Area, dist_to_obstacle: Tuple[float, float]
     ) -> Area:
-        top_right, top_left, _, bottom_right, _ = list(
-            target_area.geometry.exterior.coords
-        )
+        top_right, top_left, _, bottom_right, _ = list(target_area.geometry.exterior.coords)
 
         wall_bottom_left = _get_random_position(
             Point(bottom_right) if self.mode == "bay" else Point(top_right),
@@ -215,10 +209,7 @@ class ParkingLotGenerator:
 
         if self.mode == "bay" and sum(dist_target_to_obstacle) < 0.85:
             return False
-        elif (
-            self.mode == "parallel"
-            and sum(dist_target_to_obstacle) < self.vehicle_size[0] / 4
-        ):
+        elif self.mode == "parallel" and sum(dist_target_to_obstacle) < self.vehicle_size[0] / 4:
             return False
 
         return True
@@ -226,14 +217,10 @@ class ParkingLotGenerator:
     def _get_start_state(self, x_range: tuple, y_range: tuple) -> State:
         location = Point(np.random.uniform(*x_range), np.random.uniform(*y_range))
         heading = truncate_gaussian(*HEADING_PARAMS["parallel"])
-        state = State(
-            0, x=location.x, y=location.y, heading=heading, vx=0.0, vy=0.0, accel=0.0
-        )
+        state = State(0, x=location.x, y=location.y, heading=heading, vx=0.0, vy=0.0, accel=0.0)
         return state
 
-    def _verify_start_state(
-        self, state: State, obstacles: list, target_area: Area
-    ) -> bool:
+    def _verify_start_state(self, state: State, obstacles: list, target_area: Area) -> bool:
         state_shape = _get_bbox(Point(state.location), state.heading, *self.vehicle_size)
         for obstacle in obstacles:
             if state_shape.intersects(obstacle.geometry):
@@ -265,9 +252,7 @@ class ParkingLotGenerator:
             )
 
             # generate a wall / static vehicle as an obstacle on the right side of the target area
-            dist_target_to_left_obstacle = target_area.geometry.distance(
-                left_obstacle.geometry
-            )
+            dist_target_to_left_obstacle = target_area.geometry.distance(left_obstacle.geometry)
             if self.mode == "bay":
                 min_dist_to_obstacle = (
                     max(0.85 - dist_target_to_left_obstacle, 0) + DIST_TO_OBSTACLE[0]
@@ -335,22 +320,18 @@ class ParkingLotGenerator:
                 y = np.random.uniform(*y_range)
                 heading = np.random.uniform() * 2 * np.pi
                 shape = np.array(
-                    list(
-                        _get_bbox(
-                            Point(x, y), heading, *self.vehicle_size
-                        ).exterior.coords
-                    )[:4]
+                    list(_get_bbox(Point(x, y), heading, *self.vehicle_size).exterior.coords)[:4]
                 )
                 shape = Polygon(shape + 0.5 * np.random.uniform(size=shape.shape))
 
                 if Polygon(bbox).contains(shape):
-                    obstacle = Area(id_="%04d"%id_, type_="obstacle", geometry=shape)
+                    obstacle = Area(id_="%04d" % id_, type_="obstacle", geometry=shape)
                     obstacles.append(obstacle)
                     id_ += 1
 
         # randomly drop the obstacles
         for obstacle in obstacles:
-            if np.random.uniform() < 0.:
+            if np.random.uniform() < 0.0:
                 obstacles.remove(obstacle)
 
         # store obstacles in map
@@ -367,27 +348,33 @@ class ParkingLotGenerator:
                     y_max_obstacle + LEN_EMPTY_SPACE[self.mode] - 1,
                 ),
             )
-            valid_start_state = self._verify_start_state(
-                start_state, obstacles, target_area
-            )
+            valid_start_state = self._verify_start_state(start_state, obstacles, target_area)
 
         # flip the orientation of start pose
         target_box_center = np.mean(np.array(target_area.geometry.exterior.coords[:-1]), axis=0)
         target_x = target_box_center[0]
         target_y = target_box_center[1]
-        if np.random.rand()>0.5:
-            start_x, start_y, start_heading = start_state.location[0], start_state.location[1], start_state.heading
-            start_box = _get_bbox(Point(start_state.location), start_state.heading, *self.vehicle_size)
+        if np.random.rand() > 0.5:
+            start_x, start_y, start_heading = (
+                start_state.location[0],
+                start_state.location[1],
+                start_state.heading,
+            )
+            start_box = _get_bbox(
+                Point(start_state.location), start_state.heading, *self.vehicle_size
+            )
             start_box_center = np.mean(np.array(start_box.exterior.coords[:-1]), axis=0)
-            start_x = 2*start_box_center[0] - start_x
-            start_y = 2*start_box_center[1] - start_y
+            start_x = 2 * start_box_center[0] - start_x
+            start_y = 2 * start_box_center[1] - start_y
             start_heading += np.pi
             start_state = State(
                 0, x=start_x, y=start_y, heading=start_heading, vx=0.0, vy=0.0, accel=0.0
             )
-            if self.mode == "parallel": # flip the target pose
+            if self.mode == "parallel":  # flip the target pose
                 target_heading += np.pi
-                target_shape = _get_bbox(Point(target_x, target_y), target_heading, *self.vehicle_size)
+                target_shape = _get_bbox(
+                    Point(target_x, target_y), target_heading, *self.vehicle_size
+                )
                 target_area = Area(id_=0, geometry=target_shape, color=(0, 238, 118, 100))
                 map_.areas[target_area.id_] = target_area
 

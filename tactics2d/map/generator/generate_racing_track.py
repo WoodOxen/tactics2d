@@ -91,14 +91,10 @@ class RacingTrackGenerator:
         # get the lengths of the straight track
         straight_lens = []
         for i in range(n_checkpoint):
-            straight_lens.append(
-                np.linalg.norm([control_points[i][0], control_points[i - 1][1]])
-            )
+            straight_lens.append(np.linalg.norm([control_points[i][0], control_points[i - 1][1]]))
 
         # find the first three longest straight track
-        sorted_id = sorted(
-            range(n_checkpoint), key=lambda i: straight_lens[i], reverse=True
-        )
+        sorted_id = sorted(range(n_checkpoint), key=lambda i: straight_lens[i], reverse=True)
         start_id = None
         for i in range(3):
             start_id = sorted_id[i]
@@ -173,12 +169,8 @@ class RacingTrackGenerator:
 
             tiles[tile.id_] = tile
 
-        tiles["%04d" % 0].add_related_lane(
-            "%04d" % (n_tile - 1), LaneRelationship.PREDECESSOR
-        )
-        tiles["%04d" % (n_tile - 1)].add_related_lane(
-            "%04d" % 0, LaneRelationship.SUCCESSOR
-        )
+        tiles["%04d" % 0].add_related_lane("%04d" % (n_tile - 1), LaneRelationship.PREDECESSOR)
+        tiles["%04d" % (n_tile - 1)].add_related_lane("%04d" % 0, LaneRelationship.SUCCESSOR)
 
         return tiles
 
@@ -196,9 +188,7 @@ class RacingTrackGenerator:
         start_point, start_id = self._get_start_point(n_checkpoints, control_points)
 
         # generate center line
-        center_line = self._get_center_line(
-            start_point, start_id, checkpoints, control_points
-        )
+        center_line = self._get_center_line(start_point, start_id, checkpoints, control_points)
 
         # generate tiles
         distance = center_line.length

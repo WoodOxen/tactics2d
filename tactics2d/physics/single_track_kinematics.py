@@ -76,9 +76,7 @@ class SingleTrackKinematics(PhysicsModelBase):
 
         return new_x, new_y, new_heading, new_speed
 
-    def step(
-        self, state: State, action: Tuple[float, float], step: float
-    ) -> Tuple[State, tuple]:
+    def step(self, state: State, action: Tuple[float, float], step: float) -> Tuple[State, tuple]:
         """Update the state of a vehicle with the Kinematic Single-Track Model.
 
         Args:
@@ -96,8 +94,10 @@ class SingleTrackKinematics(PhysicsModelBase):
         steer, accel = action
         x, y, heading, speed = state.x, state.y, state.heading, state.speed
         # here we use rear axle center to update
-        rear_center_x, rear_center_y = x-self.dist_rear_hang*np.cos(heading), y-self.dist_rear_hang*np.sin(heading)
-        speed, accel = accel, 0 # TODO
+        rear_center_x, rear_center_y = x - self.dist_rear_hang * np.cos(
+            heading
+        ), y - self.dist_rear_hang * np.sin(heading)
+        speed, accel = accel, 0  # TODO
 
         if self.steer_range is not None:
             steer = np.clip(steer, *self.steer_range)
@@ -115,10 +115,18 @@ class SingleTrackKinematics(PhysicsModelBase):
 
         if dt > step:
             rear_center_x, rear_center_y, heading, speed = self._step(
-                rear_center_x, rear_center_y, heading, speed, accel, steer, step - (dt - self.delta_t)
+                rear_center_x,
+                rear_center_y,
+                heading,
+                speed,
+                accel,
+                steer,
+                step - (dt - self.delta_t),
             )
         # recover the geometry center from rear axle center
-        x, y = rear_center_x+self.dist_rear_hang*np.cos(heading), rear_center_y+self.dist_rear_hang*np.sin(heading)
+        x, y = rear_center_x + self.dist_rear_hang * np.cos(
+            heading
+        ), rear_center_y + self.dist_rear_hang * np.sin(heading)
         new_state = State(
             state.frame + int(step * 1000),
             x=x,

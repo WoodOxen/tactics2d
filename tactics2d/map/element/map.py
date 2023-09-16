@@ -60,13 +60,13 @@ class Map:
                 x_max = max(x_max, node.x)
                 y_min = min(y_min, node.y)
                 y_max = max(y_max, node.y)
-            
+
             for area in self.areas.values():
                 area_coords = np.array(area.geometry.exterior.coords)
-                x_min = min(x_min, np.min(area_coords[:,0]))
-                x_max = max(x_max, np.max(area_coords[:,0]))
-                y_min = min(y_min, np.min(area_coords[:,1]))
-                y_max = max(y_max, np.max(area_coords[:,1]))
+                x_min = min(x_min, np.min(area_coords[:, 0]))
+                x_max = max(x_max, np.max(area_coords[:, 0]))
+                y_min = min(y_min, np.min(area_coords[:, 1]))
+                y_max = max(y_max, np.max(area_coords[:, 1]))
 
             self._boundary = (x_min - 10, x_max + 10, y_min - 10, y_max + 10)
         return self._boundary
@@ -74,13 +74,9 @@ class Map:
     def add_node(self, node: Node):
         if node.id_ in self.ids:
             if node.id_ in self.nodes:
-                warnings.warn(
-                    f"Node {node.id_} already exists! Replaced the node with new data."
-                )
+                warnings.warn(f"Node {node.id_} already exists! Replaced the node with new data.")
             else:
-                raise MapKeyError(
-                    f"The id of Node {node.id_} is used by the other road element."
-                )
+                raise MapKeyError(f"The id of Node {node.id_} is used by the other road element.")
         self.nodes[node.id_] = node
 
     def add_roadline(self, roadline: RoadLine):
@@ -99,26 +95,18 @@ class Map:
     def add_lane(self, lane: Lane):
         if lane.id_ in self.ids:
             if lane.id_ in self.lanes:
-                warnings.warn(
-                    f"Lane {lane.id_} already exists! Replacing the lane with new data."
-                )
+                warnings.warn(f"Lane {lane.id_} already exists! Replacing the lane with new data.")
             else:
-                raise MapKeyError(
-                    f"The id of Lane {lane.id_} is used by the other road element."
-                )
+                raise MapKeyError(f"The id of Lane {lane.id_} is used by the other road element.")
         self.ids.add(lane.id_)
         self.lanes[lane.id_] = lane
 
     def add_area(self, area: Area):
         if area.id_ in self.ids:
             if area.id_ in self.areas:
-                warnings.warn(
-                    f"Area {area.id_} already exists! Replacing the area with new data."
-                )
+                warnings.warn(f"Area {area.id_} already exists! Replacing the area with new data.")
             else:
-                raise MapKeyError(
-                    f"The id of Area {area.id_} is used by the other road element."
-                )
+                raise MapKeyError(f"The id of Area {area.id_} is used by the other road element.")
         self.ids.add(area.id_)
         self.areas[area.id_] = area
 

@@ -42,9 +42,7 @@ class Cyclist(ParticipantBase):
         ]
         return affine_transform(self.bbox, transform_matrix)
 
-    def _verify_state(
-        self, curr_state: State, prev_state: State, interval: float
-    ) -> bool:
+    def _verify_state(self, curr_state: State, prev_state: State, interval: float) -> bool:
         return True
 
     def _verify_trajectory(self, trajectory: Trajectory):

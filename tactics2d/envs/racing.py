@@ -164,9 +164,7 @@ class RacingScenarioManager(ScenarioManager):
         heading = self.agent.heading
 
         idx = int(len(self.tiles_visiting) / 2)
-        tile_left_side = np.array(
-            list(self.map_.lanes[self.tiles_visiting[idx]].left_side.coords)
-        )
+        tile_left_side = np.array(list(self.map_.lanes[self.tiles_visiting[idx]].left_side.coords))
         left_vec = tile_left_side[1] - tile_left_side[0]
         left_angle = np.arctan2(left_vec[1], left_vec[0])
         tile_right_side = np.array(
@@ -212,9 +210,7 @@ class RacingScenarioManager(ScenarioManager):
         vec = start_line[1] - start_line[0]
         heading = np.arctan2(vec[0], -vec[1])
         start_loc = np.mean(start_line, axis=0)
-        start_loc -= (
-            self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
-        )
+        start_loc -= self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
         state = State(
             self.n_step,
             heading=heading,
@@ -303,9 +299,7 @@ class RacingEnv(gym.Env):
         else:
             self.action_space = spaces.Discrete(5)
 
-        self.observation_space = spaces.Box(
-            0, 255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8
-        )
+        self.observation_space = spaces.Box(0, 255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
 
         self.scenario_manager = RacingScenarioManager(
             self.render_fps, self.render_mode != "human", self.max_step
@@ -336,9 +330,7 @@ class RacingEnv(gym.Env):
         time_exceeded_penalty = 0 if status != TrafficEvent.TIME_EXCEEDED else -100
 
         # penalty for driving into non drivable area
-        non_drivable_penalty = (
-            0 if status != TrafficEvent.VIOLATION_NON_DRIVABLE else -100
-        )
+        non_drivable_penalty = 0 if status != TrafficEvent.VIOLATION_NON_DRIVABLE else -100
 
         # penalty for driving in the opposite direction
         retrograde_penalty = 0 if status != TrafficEvent.VIOLATION_RETROGRADE else -50

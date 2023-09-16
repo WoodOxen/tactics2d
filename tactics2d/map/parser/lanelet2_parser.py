@@ -98,9 +98,7 @@ def _append_point_list(point_list, new_points, component_id):
     elif point_list[-1] == new_points[-1]:
         new_points.reverse()
     else:
-        raise MapParseError(
-            f"Points on the side of relation {component_id} is not continuous."
-        )
+        raise MapParseError(f"Points on the side of relation {component_id} is not continuous.")
 
     point_list += new_points[1:]
 
@@ -128,15 +126,11 @@ def _load_lane(xml_node: ET.Element, map_: Map) -> Lane:
     right_side = LineString(point_list["right"])
 
     left_parallel = left_side.parallel_offset(0.1, "left")
-    if left_side.hausdorff_distance(right_side) > left_parallel.hausdorff_distance(
-        right_side
-    ):
+    if left_side.hausdorff_distance(right_side) > left_parallel.hausdorff_distance(right_side):
         point_list["left"].reverse()
         left_side = LineString(point_list["left"])
     right_parallel = right_side.parallel_offset(0.1, "right")
-    if right_side.hausdorff_distance(left_side) > right_parallel.hausdorff_distance(
-        left_side
-    ):
+    if right_side.hausdorff_distance(left_side) > right_parallel.hausdorff_distance(left_side):
         point_list["right"].reverse()
         right_side = LineString(point_list["right"])
 
@@ -165,9 +159,7 @@ def _load_area(xml_node: ET.Element, map_: Map) -> Area:
         new_points = list(map_.roadlines[line_id].linestring.coords)
         _append_point_list(outer_point_list, new_points, area_id)
     if outer_point_list[0] != outer_point_list[-1]:
-        warnings.warn(
-            f"The outer boundary of area {area_id} is not closed.", MapParseWarning
-        )
+        warnings.warn(f"The outer boundary of area {area_id} is not closed.", MapParseWarning)
 
     inner_point_list = [[]]
     inner_idx = 0
@@ -184,9 +176,7 @@ def _load_area(xml_node: ET.Element, map_: Map) -> Area:
         del inner_point_list[-1]
     else:
         if inner_point_list[-1][0] != inner_point_list[-1][-1]:
-            warnings.warn(
-                f"The inner boundary of area {area_id} is not closed.", MapParseWarning
-            )
+            warnings.warn(f"The inner boundary of area {area_id} is not closed.", MapParseWarning)
     polygon = Polygon(outer_point_list, inner_point_list)
 
     area_tags = _get_tags(xml_node)
@@ -209,14 +199,24 @@ def _load_regulatory(xml_node: ET.Element) -> RegulatoryElement:
 
 
 class Lanelet2Parser(object):
+    """This class provides a parser for lanelet2 format map."""
+
     @staticmethod
     def parse(xml_root: ET.ElementTree, map_config: dict) -> Map:
-        map_name = map_config["map_name"]  # update map name
-        map_info = map_name.split("_")
-        scenario_type = map_info[0]
-        country = map_info[3]
+        """_summary_
 
-        map_ = Map(map_name, scenario_type, country)
+        Args:
+            xml_root (ET.ElementTree): _description_
+            map_config (dict): _description_
+
+        Returns:
+            Map: _description_
+        """
+        name = map_config["name"]
+        scenario_type = map_config["scenario"]
+        country = map_config["country"]
+
+        map_ = Map(name, scenario_type, country)
 
         projector = Proj(**map_config["project_rule"])
         origin = projector(map_config["gps_origin"][0], map_config["gps_origin"][1])

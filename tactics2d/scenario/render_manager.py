@@ -54,9 +54,7 @@ class RenderManager:
         return pygame.display.get_driver()
 
     def _rearrange_layout(self):
-        sensor_to_display = [
-            sensor for sensor in self.sensors.values() if not sensor.off_screen
-        ]
+        sensor_to_display = [sensor for sensor in self.sensors.values() if not sensor.off_screen]
 
         if self.layout_style == "hierarchical":
             if not hasattr(self, "main_sensor"):
@@ -232,9 +230,7 @@ class RenderManager:
 
         blit_sequence = []
         for sensor_id, layout_info in self.layouts.items():
-            surface = pygame.transform.scale_by(
-                self.sensors[sensor_id].surface, layout_info[0]
-            )
+            surface = pygame.transform.scale_by(self.sensors[sensor_id].surface, layout_info[0])
             blit_sequence.append((surface, layout_info[1]))
 
         if self.screen is not None:

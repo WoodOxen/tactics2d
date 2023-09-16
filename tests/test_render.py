@@ -41,9 +41,7 @@ def test_camera(follow_view: bool):
     trajectory_parser = LevelXParser("inD")
     participants = trajectory_parser.parse(0, trajectory_path, (0.0, 200.0))
     participant_ids = [
-        participant.id_
-        for participant in participants.values()
-        if participant.is_active(frame)
+        participant.id_ for participant in participants.values() if participant.is_active(frame)
     ]
 
     if follow_view:
@@ -52,9 +50,7 @@ def test_camera(follow_view: bool):
     else:
         camera = TopDownCamera(1, map_, (30, 30, 45, 15), window_size=(600, 600))
         state = participants[participant_ids[0]].get_state(frame)
-        camera.update(
-            participants, participant_ids, frame, Point(state.location), state.heading
-        )
+        camera.update(participants, participant_ids, frame, Point(state.location), state.heading)
     observation = camera.get_observation()
     logging.info(f"observation.shape: {observation.shape}")
 
@@ -84,19 +80,13 @@ def test_lidar(perception_range):
     trajectory_parser = LevelXParser("inD")
     participants = trajectory_parser.parse(0, trajectory_path, (0.0, 200.0))
     participant_ids = [
-        participant.id_
-        for participant in participants.values()
-        if participant.is_active(frame)
+        participant.id_ for participant in participants.values() if participant.is_active(frame)
     ]
 
-    lidar = SingleLineLidar(
-        1, map_, perception_range, window_size=(600, 600), off_screen=False
-    )
+    lidar = SingleLineLidar(1, map_, perception_range, window_size=(600, 600), off_screen=False)
 
     state = participants[participant_ids[0]].get_state(frame)
-    lidar.update(
-        participants, participant_ids[1:], frame, Point(state.location), state.heading
-    )
+    lidar.update(participants, participant_ids[1:], frame, Point(state.location), state.heading)
     _ = lidar.get_observation()
 
     observation = pygame.surfarray.array3d(lidar.surface)
@@ -167,9 +157,7 @@ def test_render_manager(layout_style, off_screen):
 
     for frame in np.arange(0, 50 * 1000, 40):
         participant_ids = [
-            participant.id_
-            for participant in participants.values()
-            if participant.is_active(frame)
+            participant.id_ for participant in participants.values() if participant.is_active(frame)
         ]
 
         auto_bind_camera(camera1, participant_ids, 0)

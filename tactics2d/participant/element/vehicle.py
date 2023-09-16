@@ -130,9 +130,7 @@ class Vehicle(ParticipantBase):
                     self.accel_range,
                 )
             else:
-                self.physics_model = PointMass(
-                    self.steer_range, self.speed_range, self.accel_range
-                )
+                self.physics_model = PointMass(self.steer_range, self.speed_range, self.accel_range)
 
         self.bbox = LinearRing(
             [

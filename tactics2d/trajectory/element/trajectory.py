@@ -99,9 +99,7 @@ class Trajectory(object):
             last_interval = self.frames[-1] - self.frames[-2]
             if current_interval != last_interval and self.stable_freq:
                 self.stable_freq = False
-                warnings.warn(
-                    f"The time interval of the trajectory {self.id_} is uneven."
-                )
+                warnings.warn(f"The time interval of the trajectory {self.id_} is uneven.")
 
         self.frames.append(state.frame)
         self.history_states[state.frame] = state

@@ -82,7 +82,9 @@ def test_levelx_parser(dataset: str, file_id: int, stamp_range: tuple, expected:
     [(0, (-float("inf"), float("inf")), 97), (0, (100.0, 400.0), 12)],
 )
 def test_interaction_parser(file_id: int, stamp_range: tuple, expected: int):
-    folder_path = "./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/DR_USA_Intersection_EP0"
+    folder_path = (
+        "./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/DR_USA_Intersection_EP0"
+    )
     trajectory_parser = InteractionParser()
 
     participants = trajectory_parser.parse(file_id, folder_path, stamp_range)

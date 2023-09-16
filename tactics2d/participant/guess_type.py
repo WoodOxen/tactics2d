@@ -14,9 +14,7 @@ class GuessType:
     """
 
     def __init__(self):
-        self.trajectory_clf = joblib.load(
-            "./tactics2d/participant/trajectory_classifier.m"
-        )
+        self.trajectory_clf = joblib.load("./tactics2d/participant/trajectory_classifier.m")
 
     def guess_by_size(size_info: tuple, hint_type: str):
         """Guess the type of the participant by the size information with SVM model.
