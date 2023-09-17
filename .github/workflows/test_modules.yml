@@ -3,7 +3,7 @@ on: [pull_request, workflow_dispatch, push]
 
 jobs:
   test-modules:
-    runs-on: [self-hosted, Linux, X86]
+    runs-on: Naib
 
     strategy:
       matrix:
