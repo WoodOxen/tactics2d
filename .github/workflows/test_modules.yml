@@ -3,7 +3,7 @@ on: [pull_request, workflow_dispatch, push]
 
 jobs:
   test-modules:
-    runs-on: Naib
+    runs-on: ubuntu-18.04
 
     strategy:
       matrix:

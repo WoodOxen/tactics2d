@@ -1,5 +1,6 @@
 gymnasium==0.28.1
 numpy>=1.21.6
+pandas>=1.3.5
 pygame==2.5.0
 pyproj>=3.2.1
 shapely==2.0.1
