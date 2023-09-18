@@ -213,7 +213,7 @@ class Lanelet2Parser(object):
             Map: _description_
         """
         name = map_config["name"]
-        scenario_type = map_config["scenario"]
+        scenario_type = map_config["scenario_type"]
         country = map_config["country"]
 
         map_ = Map(name, scenario_type, country)
