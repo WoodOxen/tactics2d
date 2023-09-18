@@ -1,13 +1,17 @@
 name: Test Modules
-on: [pull_request, workflow_dispatch, push]
+on:
+  - pull_request
+  - workflow_dispatch
+  - push
 
 jobs:
   test-modules:
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9"]
+        os: [ubuntu-20.04, ubuntu-22.04]
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
 
     steps:
       - uses: actions/checkout@v3

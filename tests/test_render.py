@@ -56,7 +56,7 @@ def test_camera(follow_view: bool):
 
     img = Image.fromarray(observation)
     img = img.rotate(270)
-    
+
     if not os.path.exists("./tests/runtime"):
         os.makedirs("./tests/runtime")
     if follow_view:
