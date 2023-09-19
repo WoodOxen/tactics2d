@@ -232,6 +232,7 @@ class SingleLineLidar(SensorBase):
 
         self._update_transform_matrix()
 
+        self.scan_result = [float("inf")] * self.point_density
         self._scan_obstacles(participants, participant_ids, frame)
 
         if not self.off_screen:
