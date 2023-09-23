@@ -6,8 +6,7 @@ import numpy as np
 class CurveBase(ABC):
     @abstractmethod
     def _check_validity(self, control_points: np.ndarray):
-        """Check if the control points are valid.
-        """
+        """Check if the control points are valid."""
 
     @abstractmethod
     def get_curve(self, control_points: np.ndarray, n_interpolation: int):

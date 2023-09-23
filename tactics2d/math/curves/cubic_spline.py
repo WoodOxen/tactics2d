@@ -5,7 +5,7 @@ from .curve_base import CurveBase
 
 class CubicSpline(CurveBase):
     """This class implement a cubic spline interpolator.
-    
+
     Attributes:
 
     """
@@ -14,7 +14,7 @@ class CubicSpline(CurveBase):
         self.boundary_type = boundary_type
         if self.boundary_type not in ["natural", "clamped", "not-a-knot"]:
             raise ValueError("The boundary type must be .")
-        
+
     def _check_validity(self, control_points: np.ndarray):
         if control_points.shape[1] != 2:
             raise ValueError("The control points must be 2D.")
