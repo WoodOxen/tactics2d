@@ -1,19 +1,25 @@
+from enum import Enum
+
 import numpy as np
 
 from .curve_base import CurveBase
 
 
 class CubicSpline(CurveBase):
-    """This class implement a cubic spline interpolator.
+    """This class implement a cubic spline interpolator."""
 
-    Attributes:
+    class BoundaryType(Enum):
+        Natural = 0
+        Clamped = 1
+        NotAKnot = 2
 
-    """
-
-    def __init__(self, boundary_type: str = "not-a-knot"):
+    def __init__(self, boundary_type: int = 2):
         self.boundary_type = boundary_type
-        if self.boundary_type not in ["natural", "clamped", "not-a-knot"]:
-            raise ValueError("The boundary type must be .")
+        if isinstance(self.boundary_type, int):
+            self.boundary_type = self.BoundaryType(self.boundary_type)
+
+        if self.boundary_type not in self.BoundaryType.__members__.values():
+            raise ValueError()
 
     def _check_validity(self, control_points: np.ndarray):
         if control_points.shape[1] != 2:
@@ -24,35 +30,93 @@ class CubicSpline(CurveBase):
                 "There is not enough control points to interpolate a cubic spline curve."
             )
 
-    def get_expression(self, control_points: np.ndarray) -> np.ndarray:
-        """Get the interpolation expressions of a curve.
+    def get_parameters(self, control_points: np.ndarray, xx: tuple = (0, 0)) -> np.ndarray:
+        """Get the parameters of the cubic functions
 
         Args:
-            control_points (np.ndarray): The control points of the curve. The shape is (n, 2).
+            control_points (np.ndarray): The control points of the curve. The shape is (n + 1, 2).
+            xx (float): The first derivative of the curve at the first and the last control points. Default is (0, 0).
 
         Returns:
-            np.ndarray: The parameters of the interpolation expressions. The shape is (n - 1, 4). The first column is the coefficients of t^3, the second column is the coefficients of t^2, the third column is the coefficients of t, and the last column is the constant.
+            a (np.ndarray): The constant parameters of the cubic functions. The shape is (n, 1).
+            b (np.ndarray): The linear parameters of the cubic functions. The shape is (n, 1).
+            c (np.ndarray): The quadratic parameters of the cubic functions. The shape is (n, 1).
+            d (np.ndarray): The cubic parameters of the cubic functions. The shape is (n, 1).
         """
         self._check_validity(control_points)
 
-        n = len(control_points)
-        A = np.zeros((n, n))
-        b = np.zeros((n, 2))
+        n = control_points.shape[0] - 1
+        x = control_points[:, 0]
+        y = control_points[:, 1]
 
-        # Set the boundary conditions.
-        if self.boundary_type == "natural":
+        h = x[1:] - x[:-1]  # shape=(n, 1), h_i = x_i+1 - x_i
+        b = (y[1:] - y[:-1]) / h  # shape=(n, 1), b_i = (y_i+1 - y_i) / h_i
+
+        # Construct the matrix A
+        A = np.zeros((n + 1, n + 1))
+        for i in range(1, n):
+            A[i, i - 1] = h[i - 1]
+            A[i, i] = 2 * (h[i - 1] + h[i])
+            A[i, i + 1] = h[i]
+
+        # construct the vector B
+        B = 6 * np.array([0] + list(b[1:] - b[:-1]) + [0])  # shape=(n+1, 1)
+
+        # Set the boundary conditions
+        if self.boundary_type == self.BoundaryType.Natural:
             A[0, 0] = 1
             A[-1, -1] = 1
-        elif self.boundary_type == "clamped":
-            A[0, 0] = 2
-            A[0, 1] = 1
-            A[-1, -1] = 2
-            A[-1, -2] = 1
+        elif self.boundary_type == self.BoundaryType.Clamped:
+            A[0, 0] = 2 * h[0]
+            A[0, 1] = h[0]
+            A[-1, -1] = 2 * h[-1]
+            A[-1, -2] = h[-1]
+            B[0] = 6 * (b[0] - xx[0])
+            B[-1] = 6 * (xx[1] - b[-1])
+        elif self.boundary_type == self.BoundaryType.NotAKnot:
+            A[0, 0] = -h[1]
+            A[0, 1] = h[0] + h[1]
+            A[0, 2] = -h[0]
+            A[-1, -3] = -h[-1]
+            A[-1, -2] = h[-2] + h[-1]
+            A[-1, -1] = -h[-2]
 
-    def get_curve(self, control_points: np.ndarray, n_interpolation: int):
+        m = np.linalg.solve(A, B)  # shape=(n+1, 1)
+
+        a = y[:-1]
+        b = b - h * m[:-1] / 2 - h * (m[1:] - m[:-1]) / 6
+        c = m[:-1] / 2
+        d = (m[1:] - m[:-1]) / (6 * h)
+
+        return a, b, c, d
+
+    def get_curve(self, control_points: np.ndarray, xx: tuple = (0, 0), n_interpolation: int = 100):
         """Get the interpolation points of a curve.
 
         Args:
-            n_interpolation (int): The number of interpolations.
+            control_points (np.ndarray): The control points of the curve. The shape is (n + 1, 2).
+            xx (float): The first derivative of the curve at the first and the last control points. Default is (0, 0).
+            n_interpolation (int): The number of interpolations between every two control points. Default is 100.
+
+        Returns:
+            np.ndarray: The interpolation points of the curve. The shape is (n_interpolation * n + 1, 2).
         """
         self._check_validity(control_points)
+        a, b, c, d = self.get_parameters(control_points, xx)
+        n = control_points.shape[0] - 1
+
+        curve_points = []
+
+        for i in range(n):
+            x = np.linspace(control_points[i, 0], control_points[i + 1, 0], n_interpolation)
+            y = (
+                a[i]
+                + b[i] * (x - control_points[i, 0])
+                + c[i] * (x - control_points[i, 0]) ** 2
+                + d[i] * (x - control_points[i, 0]) ** 3
+            )
+            curve_points += list(zip(x, y))
+
+        curve_points.append(control_points[-1])
+
+        return np.array(curve_points)
