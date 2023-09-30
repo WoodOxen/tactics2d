@@ -2,10 +2,8 @@ from enum import Enum
 
 import numpy as np
 
-from .curve_base import CurveBase
 
-
-class CubicSpline(CurveBase):
+class CubicSpline:
     """This class implement a cubic spline interpolator."""
 
     class BoundaryType(Enum):

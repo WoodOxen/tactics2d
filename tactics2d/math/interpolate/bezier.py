@@ -1,12 +1,9 @@
-from typing import List
 from copy import deepcopy
 
 import numpy as np
 
-from .curve_base import CurveBase
 
-
-class Bezier(CurveBase):
+class Bezier:
     """This class implement a Bezier curve interpolator."""
 
     def __init__(self, order: int):

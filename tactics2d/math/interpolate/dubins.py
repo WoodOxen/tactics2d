@@ -2,10 +2,8 @@ import math
 
 import numpy as np
 
-from .curve_base import CurveBase
 
-
-class Dubins(CurveBase):
+class Dubins:
     """
     This class implements a Dubins curve interpolator. The curve comprises a sequence of three segments: RSR, RSL, LSL, LSR, RLR, and LRL. R stands for the right turn, L for the left turn, and S for the straight line. A Dubins path planner operates within the constraints of forward actions exclusively.
 

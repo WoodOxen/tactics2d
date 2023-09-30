@@ -1,9 +1,7 @@
 import numpy as np
 
-from .curve_base import CurveBase
 
-
-class ReedsShepp(CurveBase):
+class ReedsShepp:
     """This class implements a Reeds Shepp curve interpolator. The implementation follows the paper "Optimal paths for a car that goes both forwards and backwards" by Reeds and Shepp.
 
     Args:
