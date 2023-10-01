@@ -12,18 +12,32 @@ class Bezier:
             raise ValueError("The order of a Bezier curve must be greater than or equal to 1.")
 
     def _check_validity(self, control_points: np.ndarray):
-        if control_points.shape[1] != 2:
-            raise ValueError("The control points must be 2D.")
+        if len(control_points.shape) != 2 and control_points.shape[1] != 2:
+            raise ValueError("The shape of control_points is expected to be (n, 2).")
 
         if len(control_points) != self.order + 1:
             raise ValueError(
                 "The number of control points must be equal to the order of the Bezier curve plus one."
             )
 
+    def de_casteljau(self, points: np.ndarray, t: float, order: int) -> np.ndarray:
+        """The de Casteljau algorithm for Bezier curves.
+
+        Args:
+            points (np.ndarray): The interpolation points of the curve. The shape is (order + 1, 2).
+            t (float): The binomial coefficient.
+            order (int): The order of the Bezier curve.
+        """
+        if order == 1:
+            return points[0] * (1 - t) + points[1] * t
+        else:
+            new_points = points[:-1] * (1 - t) + points[1:] * t
+            return self.de_casteljau(new_points, t, order - 1)
+
     def get_curve(self, control_points: np.ndarray, n_interpolation: int):
         """
         Args:
-            control_points (np.ndarray): The control points of the curve. The shape is (n, 2).
+            control_points (np.ndarray): The control points of the curve. The shape is (order + 1, 2).
             n_interpolation (int): The number of interpolations.
 
         Returns:
@@ -31,25 +45,15 @@ class Bezier:
         """
         self._check_validity(control_points)
 
-        points = []
+        curve_points = []
+
+        interpolates = np.linspace(control_points[:-1], control_points[1:], n_interpolation)
+        if self.order == 1:
+            return np.squeeze(interpolates)
 
         for n in range(n_interpolation):
             t = n / (n_interpolation - 1)
-            if self.order == 1:
-                point = (1 - t) * control_points[0] + t * control_points[1]
-            elif self.order == 2:
-                point = (
-                    (1 - t) ** 2 * control_points[0]
-                    + 2 * t * (1 - t) * control_points[1]
-                    + t**2 * control_points[2]
-                )
-            else:
-                iter_points = deepcopy(control_points)
-                for i in range(self.order):
-                    for j in range(self.order - i):
-                        iter_points[j] = (1 - t) * iter_points[j] + t * iter_points[j + 1]
-                point = iter_points[0]
+            point = self.de_casteljau(interpolates[n], t, self.order - 1)
+            curve_points.append(point)
 
-            points.append(point)
-
-        return np.array(points)
+        return np.array(curve_points)

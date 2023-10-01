@@ -4,24 +4,28 @@ import numpy as np
 
 
 class CubicSpline:
-    """This class implement a cubic spline interpolator."""
+    """This class implement a cubic spline interpolator.
+
+    Attributes:
+        boundary_type (int, optional): Boundary condition type. The cubic spline interpolator offers three distinct boundary condition options: natural (1), clamped (2), and not-a-knot (3). By default, the not-a-knot boundary condition is applied, serving as a wise choice when specific boundary condition information is unavailable.
+    """
 
     class BoundaryType(Enum):
-        Natural = 0
-        Clamped = 1
-        NotAKnot = 2
+        Natural = 1
+        Clamped = 2
+        NotAKnot = 3
 
-    def __init__(self, boundary_type: int = 2):
+    def __init__(self, boundary_type=BoundaryType.NotAKnot):
         self.boundary_type = boundary_type
-        if isinstance(self.boundary_type, int):
-            self.boundary_type = self.BoundaryType(self.boundary_type)
 
         if self.boundary_type not in self.BoundaryType.__members__.values():
-            raise ValueError()
+            raise ValueError(
+                "The boundary type is not valid. Please choose from CubicSpline.BoundaryType.Natural, CubicSpline.BoundaryType.Clamped, and CubicSpline.BoundaryType.NotAKnot."
+            )
 
     def _check_validity(self, control_points: np.ndarray):
-        if control_points.shape[1] != 2:
-            raise ValueError("The control points must be 2D.")
+        if len(control_points.shape) != 2 and control_points.shape[1] != 2:
+            raise ValueError("The shape of control_points is expected to be (n, 2).")
 
         if len(control_points) < 3:
             raise ValueError(
@@ -33,7 +37,7 @@ class CubicSpline:
 
         Args:
             control_points (np.ndarray): The control points of the curve. The shape is (n + 1, 2).
-            xx (float): The first derivative of the curve at the first and the last control points. Default is (0, 0).
+            xx (float): The first derivative of the curve at the first and the last control points. Defaults to (0, 0).
 
         Returns:
             a (np.ndarray): The constant parameters of the cubic functions. The shape is (n, 1).
@@ -89,12 +93,12 @@ class CubicSpline:
         return a, b, c, d
 
     def get_curve(self, control_points: np.ndarray, xx: tuple = (0, 0), n_interpolation: int = 100):
-        """Get the interpolation points of a curve.
+        """Get the interpolation points of a cubic spline curve.
 
         Args:
             control_points (np.ndarray): The control points of the curve. The shape is (n + 1, 2).
-            xx (float): The first derivative of the curve at the first and the last control points. Default is (0, 0).
-            n_interpolation (int): The number of interpolations between every two control points. Default is 100.
+            xx (float): The first derivative of the curve at the first and the last control points. These conditions will be used when the boundary condition is "clamped". Defaults to (0, 0).
+            n_interpolation (int): The number of interpolations between every two control points. Defaults to 100.
 
         Returns:
             np.ndarray: The interpolation points of the curve. The shape is (n_interpolation * n + 1, 2).
