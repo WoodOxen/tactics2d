@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 import numpy as np
 
 # from tactics2d.envs import RacingEnv, ParkingEnv
-from tactics2d.envs import RacingEnv
+from tactics2d.envs import ParkingEnv
 
 
 # @pytest.mark.env
