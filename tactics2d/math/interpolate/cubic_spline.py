@@ -19,18 +19,21 @@ class CubicSpline:
         self.boundary_type = boundary_type
 
         if self.boundary_type not in self.BoundaryType.__members__.values():
-            raise ValueError(
+            raise NameError(
                 "The boundary type is not valid. Please choose from CubicSpline.BoundaryType.Natural, CubicSpline.BoundaryType.Clamped, and CubicSpline.BoundaryType.NotAKnot."
             )
 
     def _check_validity(self, control_points: np.ndarray):
-        if len(control_points.shape) != 2 and control_points.shape[1] != 2:
+        if len(control_points.shape) != 2 or control_points.shape[1] != 2:
             raise ValueError("The shape of control_points is expected to be (n, 2).")
 
         if len(control_points) < 3:
             raise ValueError(
                 "There is not enough control points to interpolate a cubic spline curve."
             )
+
+        if np.any((control_points[1:, 0] - control_points[:-1, 0]) < 0):
+            raise ValueError("The x coordinates of the control points must be non-decreasing.")
 
     def get_parameters(self, control_points: np.ndarray, xx: tuple = (0, 0)) -> np.ndarray:
         """Get the parameters of the cubic functions

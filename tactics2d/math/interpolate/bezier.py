@@ -9,7 +9,7 @@ class Bezier:
     def __init__(self, order: int):
         self.order = order
         if self.order < 1:
-            raise ValueError("The order of a Bezier curve must be greater than or equal to 1.")
+            raise ValueError("The order of a Bezier curve must be greater than or equal to one.")
 
     def _check_validity(self, control_points: np.ndarray):
         if len(control_points.shape) != 2 and control_points.shape[1] != 2:
