@@ -31,12 +31,11 @@ class Vehicle(ParticipantBase):
         speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit is meter per second. Defaults to None.
         accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
         comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration that is comfortable for the driver.
-        physics_model ()
+        physics_model (): Defaults to None.
         steer_range (Tuple[float, float], optional): The range of the steering angle. The unit is radian. Defaults to None.
         speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit is meter per second. Defaults to None.
         accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
         comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration that is comfortable for the driver.
-        physics_model ()
     """
 
     def __init__(

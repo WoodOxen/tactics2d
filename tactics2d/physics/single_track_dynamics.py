@@ -5,11 +5,7 @@ from tactics2d.trajectory.element import State
 
 
 class SingleTrackDynamics(PhysicsModelBase):
-    """Implementation of the dynamic single-track (bicycle) Model.
-
-    Args:
-        VehicleModelBase (_type_): _description_
-    """
+    """Implementation of the dynamic single-track (bicycle) Model."""
 
     abbrev = "ST"
 

@@ -239,9 +239,5 @@ class TopDownCamera(SensorBase):
         self._render_participants(participants, participant_ids, frame)
 
     def get_observation(self):
-        """_summary_
-
-        Returns:
-            _type_: _description_
-        """
+        """_summary_"""
         return pygame.surfarray.array3d(self.surface)

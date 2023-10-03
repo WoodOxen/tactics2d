@@ -248,6 +248,7 @@ class ParkingEnv(gym.Env):
             self.action_space = spaces.Discrete(5)
 
         self.observation_space = spaces.Box(0, 255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
+        self.hist_max_iou = 0
 
         self.scenario_manager = ParkingScenarioManager(
             bay_proportion, self.render_fps, self.render_mode != "human", self.max_step
@@ -255,6 +256,7 @@ class ParkingEnv(gym.Env):
 
     def reset(self, seed: int = None, options: dict = None):
         super().reset(seed=seed, options=options)
+        self.hist_max_iou = 0
         self.scenario_manager.reset()
         observations = self.scenario_manager.get_observation()
         observation = observations[0]
@@ -277,81 +279,33 @@ class ParkingEnv(gym.Env):
         return observation, info
 
     def _get_rewards(self, status: TrafficEvent):
-        # penalty for time exceed
-        time_exceeded_penalty = 0 if status != TrafficEvent.TIME_EXCEEDED else -1
-
-        # penalty for collision
-        collision_penalty = 0 if status != TrafficEvent.COLLISION_STATIC else -1
-
-        # penalty for driving out of the map boundary
-        outside_map_penalty = 0 if status != TrafficEvent.OUTSIDE_MAP else -1
-
-        # reward for completion
-        complete_reward = 0 if status != TrafficEvent.COMPLETED else 1
-
-        if status == TrafficEvent.NORMAL:
+        if status == TrafficEvent.COLLISION_STATIC:
+            reward = -50
+        elif status == TrafficEvent.TIME_EXCEEDED:
+            reward = -1
+        elif status == TrafficEvent.OUTSIDE_MAP:
+            reward = -50
+        elif status == TrafficEvent.COMPLETED:
+            reward = 50
+        elif status == TrafficEvent.NORMAL:
             # time penalty
-            time_penalty = -np.tanh(
-                self.scenario_manager.n_step / self.scenario_manager.max_step * 0.1  # TODO
+            time_penalty = -0.1 * np.tanh(
+                self.scenario_manager.n_step / self.scenario_manager.max_step * 0.1
             )
-
-            curr_state = self.scenario_manager.agent.get_state()
-            prev_frame = self.scenario_manager.agent.trajectory.frames[-2]
-            prev_state = self.scenario_manager.agent.get_state(prev_frame)
-
-            # distance reward
-            curr_dist = Point(curr_state.location).distance(
-                self.scenario_manager.target_area.geometry.centroid
-            )
-            prev_dist = Point(prev_state.location).distance(
-                self.scenario_manager.target_area.geometry.centroid
-            )
-            distance_reward = (prev_dist - curr_dist) / self.scenario_manager.dist_norm_ratio
-
-            # angle reward
-            curr_angle_diff = truncate_angle(
-                curr_state.heading - self.scenario_manager.target_heading
-            )
-            prev_angle_diff = truncate_angle(
-                prev_state.heading - self.scenario_manager.target_heading
-            )
-            angle_reward = (
-                prev_angle_diff - curr_angle_diff
-            ) / self.scenario_manager.angle_norm_factor
 
             # IoU reward
             curr_pose = Polygon(self.scenario_manager.agent.get_pose())
-            prev_pose = Polygon(self.scenario_manager.agent.get_pose(prev_frame))
             target_pose = self.scenario_manager.target_area.geometry
             curr_intersection = curr_pose.intersection(target_pose).area
             curr_union = curr_pose.union(target_pose).area
-            prev_intersection = prev_pose.intersection(target_pose).area
-            prev_union = prev_pose.union(target_pose).area
-
             curr_iou = curr_intersection / curr_union
-            prev_iou = prev_intersection / prev_union
-            iou_reward = curr_iou - prev_iou
 
-        else:
-            time_penalty = 0
-            distance_reward = 0
-            angle_reward = 0
-            iou_reward = 0
+            iou_reward = max(0, curr_iou - self.hist_max_iou)
+            self.hist_max_iou = max(self.hist_max_iou, curr_iou)
 
-        rewards = {  # TODO
-            "time_exceeded_penalty": time_exceeded_penalty,
-            "collision_penalty": collision_penalty,
-            "outside_map_penalty": outside_map_penalty,
-            "complete_reward": complete_reward,
-            "time_penalty": time_penalty,
-            "distance_reward": distance_reward,
-            "angle_reward": angle_reward,
-            "iou_reward": iou_reward,
-        }
+            reward = time_penalty + iou_reward
 
-        reward = np.sum(list(rewards.values()))
-
-        return rewards, reward
+        return reward
 
     def step(self, action: Union[np.array, int]):
         if not self.action_space.contains(action):

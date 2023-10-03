@@ -5,7 +5,8 @@ import logging
 import numpy as np
 from shapely.geometry import Point, LineString
 
-from tactics2d.math import Bezier, Circle
+from tactics2d.math import Circle
+from tactics2d.math.interpolate import Bezier
 from tactics2d.map.element import RoadLine, Lane, LaneRelationship, Map
 
 # Track related configurations
