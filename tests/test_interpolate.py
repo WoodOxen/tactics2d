@@ -38,20 +38,18 @@ def compare_similarity(curve1: np.ndarray, curve2: np.ndarray) -> bool:
 
 @pytest.mark.math
 @pytest.mark.parametrize(
-    "order",
-    "control_points",
-    "n_interpolation",
+    "order, control_points, n_interpolation",
     [
         (1, None, 100),
         (2, None, 1000),
-        (3, np.random.uniform(5, 2), 100),
-        (3, np.random.uniform(4, 3), 100),
+        (3, np.random.uniform(1, 5, (5, 2)), 100),
+        (3, np.random.uniform(1, 5, (4, 3)), 100),
         (4, None, 1000),
-        (4, np.random.uniform(4, 2), 100),
+        (4, np.random.uniform(1, 5, (4, 2)), 100),
         (5, None, 1000),
     ],
 )
-def test_bezier(order: int, control_points: np.ndarray = None, n_interpolation: int = 100):
+def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
     if control_points is None:
         control_points = np.zeros((order + 1, 2))
         for i in range(1, order + 1):
@@ -66,6 +64,8 @@ def test_bezier(order: int, control_points: np.ndarray = None, n_interpolation: 
             assert (
                 err.args[0] == "The order of a Bezier curve must be greater than or equal to one."
             ), "Test failed: error handling for invalid order."
+        return
+
     try:
         my_curve = my_bezier.get_curve(control_points, n_interpolation)
     except ValueError as err:
@@ -78,6 +78,8 @@ def test_bezier(order: int, control_points: np.ndarray = None, n_interpolation: 
                 err.args[0]
                 == "The number of control points must be equal to the order of the Bezier curve plus one."
             ), "Test failed: error handling for invalid number of control points."
+        return
+
     t2 = time.time()
 
     curve = bezier.Curve(control_points.T, degree=order).evaluate_multi(
@@ -91,29 +93,26 @@ def test_bezier(order: int, control_points: np.ndarray = None, n_interpolation: 
 
     if t2 - t1 > t3 - t2:
         logging.warning(
-            "The implemented Bezier interpolator is %.3f% times slower than the Python library bezier. The efficiency needs further improvement."
+            "The implemented Bezier interpolator is %.2f times slower than the Python library bezier. The efficiency needs further improvement."
             % ((t2 - t1) / (t3 - t2) * 100)
         )
 
 
 @pytest.mark.math
 @pytest.mark.parametrize(
-    "degree",
-    "control_points",
-    "knots",
-    "n_interpolation",
+    "degree, control_points, knots, n_interpolation",
     [
         (0, None, None, 100),
         (1, None, None, 1000),
         (
             2,
-            [[-1, 0], [-0.5, 0.5], [0.5, -0.5], [1, 0]],
-            [0, 0, 0, 1, 2, 2, 2],
+            np.array([[-1, 0], [-0.5, 0.5], [0.5, -0.5], [1, 0]]),
+            np.array([0, 0, 0, 1, 2, 2, 2]),
             100,
         ),
         (
             2,
-            [[-1, 0], [-0.5, 0.5], [0.5, -0.5], [1, 0], [-1, 0], [-0.5, 0.5], [0.5, -0.5]],
+            np.array([[-1, 0], [-0.5, 0.5], [0.5, -0.5], [1, 0], [-1, 0], [-0.5, 0.5], [0.5, -0.5]]),
             np.array(np.arange(0, 10)),
             100,
         ),
@@ -126,9 +125,9 @@ def test_bezier(order: int, control_points: np.ndarray = None, n_interpolation: 
 )
 def test_b_spline(
     degree: int,
-    control_points: np.ndarray = None,
-    knots: np.ndarray = None,
-    n_interpolation: int = 100,
+    control_points: np.ndarray,
+    knots: np.ndarray,
+    n_interpolation: int,
 ):
     if control_points is None:
         n_control_point = np.random.randint(3, 100)
@@ -136,15 +135,11 @@ def test_b_spline(
         for i in range(1, n_control_point):
             control_points[i, 0] = control_points[i - 1, 0] + np.random.uniform(0, 1)
             control_points[i, 1] = np.random.uniform(-1, 1)
-    elif not isinstance(control_points, np.ndarray):
-        control_points = np.array(control_points)
 
     if knots is None and np.random.rand() < 0.3:
         knots = np.zeros((len(control_points) + degree + 1,))
         for i in range(1, len(knots) - 1):
             knots[i] = knots[i - 1] + np.random.randint(0, 3)
-    elif not isinstance(knots, np.ndarray):
-        knots = np.array(knots)
 
     t1 = time.time()
     try:
@@ -154,6 +149,8 @@ def test_b_spline(
             assert (
                 err.args[0] == "The degree of a B-spline curve must be non-negative."
             ), "Test failed: error handling for invalid degree."
+        return
+
     try:
         my_curve = my_bspline.get_curve(control_points, knots, n_interpolation=n_interpolation)
     except ValueError as err:
@@ -170,8 +167,11 @@ def test_b_spline(
                 err.args[0]
                 == "The number of knots must be equal to the number of control points plus the degree of the B-spline curve plus one."
             ), "Test failed: error handling for invalid number of knots."
+        return
 
     t2 = time.time()
+    if knots is None:
+        knots = np.linspace(0, 1, len(control_points) + degree + 1)
     bspline = SciBSpline(knots, control_points, degree)
     us = np.linspace(knots[degree], knots[-degree - 1], n_interpolation, endpoint=False)
     curve = np.array([list(bspline(u)) for u in us])
@@ -183,17 +183,14 @@ def test_b_spline(
 
     if t2 - t1 > t3 - t2:
         logging.warning(
-            "The implemented B-Spline interpolator is %.3f% times slower than Scipy's implementation. The efficiency needs further improvement."
+            "The implemented B-Spline interpolator is %.2f times slower than Scipy's implementation. The efficiency needs further improvement."
             % ((t2 - t1) / (t3 - t2) * 100)
         )
 
 
 @pytest.mark.math
 @pytest.mark.parametrize(
-    "boundary_type",
-    "n",
-    "control_points",
-    "n_interpolation",
+    "boundary_type, n, control_points, n_interpolation",
     [
         ("hello-world", 2, None, 100),
         ("natural", 2, None, 100),
@@ -207,9 +204,7 @@ def test_b_spline(
         ("not-a-knot", None, None, 100),
     ],
 )
-def test_cubic_spline(
-    boundary_type: str, n: int = None, control_points: np.ndarray = None, n_interpolation: int = 100
-):
+def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_interpolation: int):
     if boundary_type == "natural":
         cubic_spline = CubicSpline(CubicSpline.BoundaryType.Natural)
     elif boundary_type == "clamped":
@@ -220,7 +215,7 @@ def test_cubic_spline(
         try:
             cubic_spline = CubicSpline(boundary_type)
         except NameError:
-            pass
+            return
 
     if control_points is None:
         n = np.random.randint(3, 1000) if n is None else n
@@ -242,6 +237,8 @@ def test_cubic_spline(
                 err.args[0]
                 == "There is not enough control points to interpolate a cubic spline curve."
             ), "Test failed: error handling for insufficient number of control points."
+        return
+
     t2 = time.time()
 
     sci_cubic = SciCubic(control_points[:, 0], control_points[:, 1], bc_type=boundary_type)
@@ -257,57 +254,20 @@ def test_cubic_spline(
 
     if t2 - t1 > t4 - t3:
         logging.warning(
-            "The implemented Cubic Spline interpolator is %.3f% times slower than Scipy's implementation. The efficiency needs further improvement."
+            "The implemented Cubic Spline interpolator is %.2f times slower than Scipy's implementation. The efficiency needs further improvement."
             % ((t2 - t1) / (t4 - t3) * 100)
         )
 
 
-@pytest.mark.math
+# @pytest.mark.math
 def test_dubins():
     pass
 
 
-@pytest.mark.math
+# @pytest.mark.math
 def test_reeds_shepp():
     pass
 
 
 if __name__ == "__main__":
-    degree = 2
-    # control_points = np.array([[-1, 0], [-0.5, 0.5], [0.5, -0.5], [1, 0]])
-    # control_points = np.array([[-1, 0], [-0.5, 0.5], [0.5, -0.5], [1, 0], [-1, 0], [-0.5, 0.5], [0.5, -0.5]])
-    control_points = np.array(
-        [
-            [0, -0.5],
-            [-0.5, -0.5],
-            [-0.5, 0.0],
-            [-0.5, 0.5],
-            [0.0, 0.5],
-            [0.5, 0.5],
-            [0.5, 0.0],
-            [0.5, -0.5],
-            [0.0, -0.5],
-        ]
-    )
-    n_interpolation = 100
-    # knots = np.array([0,0,0,1,2,2,2])
-    # knots = np.array(np.arange(0, 10))
-    knots = np.array([0, 0, 0, 1 / 4, 1 / 4, 1 / 2, 1 / 2, 3 / 4, 3 / 4, 1, 1, 1])
-
-    my_bspline = BSpline(degree)
-    my_curve = my_bspline.get_curve(control_points, knots, n_interpolation=n_interpolation)
-
-    bspline = SciBSpline(knots, control_points, degree)
-    us = np.linspace(knots[degree], knots[-degree - 1], n_interpolation, endpoint=False)
-    curve = np.array([list(bspline(u)) for u in us])
-
-    print(compare_similarity(my_curve, curve))
-
-    import matplotlib.pyplot as plt
-
-    plt.plot(control_points[:, 0], control_points[:, 1], "ro")
-    plt.plot(my_curve[:, 0], my_curve[:, 1], "g")
-    plt.plot(np.array(curve)[:, 0], np.array(curve)[:, 1], "b")
-    plt.gca().set_aspect("equal", adjustable="box")
-    plt.show()
-    plt.savefig("bspline.png")
+    pass
