@@ -167,6 +167,11 @@ def test_b_spline(
                 err.args[0]
                 == "The number of knots must be equal to the number of control points plus the degree of the B-spline curve plus one."
             ), "Test failed: error handling for invalid number of knots."
+        elif np.any((knots[1:] - knots[:-1]) < 0):
+            assert (
+                err.args[0]
+                == "The knot vectors must be non-decreasing."
+            ), "Test failed: error handling for invalid shape of control points."
         return
 
     t2 = time.time()
