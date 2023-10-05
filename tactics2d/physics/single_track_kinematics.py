@@ -33,7 +33,7 @@ class SingleTrackKinematics(PhysicsModelBase):
         wheel_base (float): The distance between the front and rear axles, which should be the sum of dist_front_hang and dist_rear_hang. The unit is meter.
         steer_range (list): The range of the steering angle. The unit is radian. Defaults to None.
         speed_range (list): The range of the vehicle speed. The unit is meter per second. Defaults to None.
-        accel_range
+        accel_range (list): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
         delta_t (float): The discrete time step for the simulation. The unit is second. Defaults to MAX_DELTA_T.
     """
 

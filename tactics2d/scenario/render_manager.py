@@ -104,7 +104,6 @@ class RenderManager:
 
         Args:
             sensor (SensorBase): The sensor instance to be added.
-            map_ (Map): The map that the sensor belongs to.
             main_sensor (bool, optional): Whether the sensor is the main sensor for display.
                 This argument only take effect when the the layout style is hierarchical.
                 Defaults to False.
@@ -146,9 +145,6 @@ class RenderManager:
 
         Args:
             sensor_id (int): The id of the sensor.
-
-        Returns:
-            bool: Whether the sensor is bound to a participant.
         """
         if sensor_id not in self.bound_sensors:
             return None

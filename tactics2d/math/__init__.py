@@ -1,4 +1,3 @@
 from .geometry import Circle, Vector
-from .bezier import Bezier
 
-__all__ = ["Bezier", "Circle", "Vector"]
+__all__ = ["Circle", "Vector"]
