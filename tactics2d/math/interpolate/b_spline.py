@@ -72,7 +72,9 @@ class BSpline:
             np.ndarray: The interpolation points of the curve. The shape is (n_interpolation, 2).
         """
         n = len(control_points) - 1
-        knot_vectors = np.linspace(0, 1, n + 1 + self.degree + 1) if knot_vectors is None else knot_vectors
+        knot_vectors = (
+            np.linspace(0, 1, n + 1 + self.degree + 1) if knot_vectors is None else knot_vectors
+        )
 
         self._check_validity(control_points, knot_vectors)
 
