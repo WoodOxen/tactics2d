@@ -8,7 +8,7 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-# import bezier
+import bezier
 import numpy as np
 from scipy.spatial.distance import directed_hausdorff
 from scipy.interpolate import BSpline as SciBSpline
@@ -36,66 +36,66 @@ def compare_similarity(curve1: np.ndarray, curve2: np.ndarray) -> bool:
     return ratio_len_diff < 0.001 and ratio_shape_diff < 0.001
 
 
-# @pytest.mark.math
-# @pytest.mark.parametrize(
-#     "order, control_points, n_interpolation",
-#     [
-#         (1, None, 100),
-#         (2, None, 1000),
-#         (3, np.random.uniform(1, 5, (5, 2)), 100),
-#         (3, np.random.uniform(1, 5, (4, 3)), 100),
-#         (4, None, 1000),
-#         (4, np.random.uniform(1, 5, (4, 2)), 100),
-#         (5, None, 1000),
-#     ],
-# )
-# def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
-#     if control_points is None:
-#         control_points = np.zeros((order + 1, 2))
-#         for i in range(1, order + 1):
-#             control_points[i, 0] = control_points[i - 1, 0] + np.random.uniform(0, 1)
-#             control_points[i, 1] = np.random.uniform(-1, 1)
+@pytest.mark.math
+@pytest.mark.parametrize(
+    "order, control_points, n_interpolation",
+    [
+        (1, None, 100),
+        (2, None, 1000),
+        (3, np.random.uniform(1, 5, (5, 2)), 100),
+        (3, np.random.uniform(1, 5, (4, 3)), 100),
+        (4, None, 1000),
+        (4, np.random.uniform(1, 5, (4, 2)), 100),
+        (5, None, 1000),
+    ],
+)
+def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
+    if control_points is None:
+        control_points = np.zeros((order + 1, 2))
+        for i in range(1, order + 1):
+            control_points[i, 0] = control_points[i - 1, 0] + np.random.uniform(0, 1)
+            control_points[i, 1] = np.random.uniform(-1, 1)
 
-#     t1 = time.time()
-#     try:
-#         my_bezier = Bezier(order)
-#     except ValueError as err:
-#         if order < 1:
-#             assert (
-#                 err.args[0] == "The order of a Bezier curve must be greater than or equal to one."
-#             ), "Test failed: error handling for invalid order."
-#         return
+    t1 = time.time()
+    try:
+        my_bezier = Bezier(order)
+    except ValueError as err:
+        if order < 1:
+            assert (
+                err.args[0] == "The order of a Bezier curve must be greater than or equal to one."
+            ), "Test failed: error handling for invalid order."
+        return
 
-#     try:
-#         my_curve = my_bezier.get_curve(control_points, n_interpolation)
-#     except ValueError as err:
-#         if len(control_points.shape) != 2 or control_points.shape[1] != 2:
-#             assert (
-#                 err.args[0] == "The shape of control_points is expected to be (n, 2)."
-#             ), "Test failed: error handling for invalid shape of control points."
-#         elif len(control_points) != order + 1:
-#             assert (
-#                 err.args[0]
-#                 == "The number of control points must be equal to the order of the Bezier curve plus one."
-#             ), "Test failed: error handling for invalid number of control points."
-#         return
+    try:
+        my_curve = my_bezier.get_curve(control_points, n_interpolation)
+    except ValueError as err:
+        if len(control_points.shape) != 2 or control_points.shape[1] != 2:
+            assert (
+                err.args[0] == "The shape of control_points is expected to be (n, 2)."
+            ), "Test failed: error handling for invalid shape of control points."
+        elif len(control_points) != order + 1:
+            assert (
+                err.args[0]
+                == "The number of control points must be equal to the order of the Bezier curve plus one."
+            ), "Test failed: error handling for invalid number of control points."
+        return
 
-#     t2 = time.time()
+    t2 = time.time()
 
-#     curve = bezier.Curve(control_points.T, degree=order).evaluate_multi(
-#         np.linspace(0, 1, n_interpolation)
-#     )
-#     t3 = time.time()
+    curve = bezier.Curve(control_points.T, degree=order).evaluate_multi(
+        np.linspace(0, 1, n_interpolation)
+    )
+    t3 = time.time()
 
-#     assert compare_similarity(
-#         my_curve, curve.T
-#     ), "The curve output of the Bezier interpolator is incorrect."
+    assert compare_similarity(
+        my_curve, curve.T
+    ), "The curve output of the Bezier interpolator is incorrect."
 
-#     if t2 - t1 > t3 - t2:
-#         logging.warning(
-#             "The implemented Bezier interpolator is %.2f times slower than the Python library bezier. The efficiency needs further improvement."
-#             % ((t2 - t1) / (t3 - t2) * 100)
-#         )
+    if t2 - t1 > t3 - t2:
+        logging.warning(
+            "The implemented Bezier interpolator is %.2f times slower than the Python library bezier. The efficiency needs further improvement."
+            % ((t2 - t1) / (t3 - t2) * 100)
+        )
 
 
 @pytest.mark.math
