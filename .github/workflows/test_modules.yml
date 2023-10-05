@@ -45,6 +45,11 @@ jobs:
       - name: Check Ubuntu version
         run: |
           cat /etc/lsb-release
+      - name: Install system-wise dependencies
+        run: |
+          apt-get update
+          apt-get upgrade
+          apt-get install -y glibc-source
       - uses: actions/checkout@v4
         with:
             submodules: recursive
