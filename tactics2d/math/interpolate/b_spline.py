@@ -14,7 +14,7 @@ class BSpline:
             raise ValueError("The degree of a B-spline curve must be non-negative.")
 
     def _check_validity(self, control_points: np.ndarray, knot_vectors: np.ndarray):
-        if len(control_points.shape) != 2 and control_points.shape[1] != 2:
+        if len(control_points.shape) != 2 or control_points.shape[1] != 2:
             raise ValueError("The shape of control_points is expected to be (n, 2).")
 
         if len(knot_vectors.shape) != 1:

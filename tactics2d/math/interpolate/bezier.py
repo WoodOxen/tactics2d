@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 import numpy as np
 
 
@@ -12,7 +10,7 @@ class Bezier:
             raise ValueError("The order of a Bezier curve must be greater than or equal to one.")
 
     def _check_validity(self, control_points: np.ndarray):
-        if len(control_points.shape) != 2 and control_points.shape[1] != 2:
+        if len(control_points.shape) != 2 or control_points.shape[1] != 2:
             raise ValueError("The shape of control_points is expected to be (n, 2).")
 
         if len(control_points) != self.order + 1:
