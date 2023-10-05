@@ -1,4 +1,3 @@
-bezier
 Pillow==9.5.0
 pytest-cov==4.1.0
 scipy==1.7.3
