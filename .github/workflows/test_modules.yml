@@ -36,7 +36,9 @@ jobs:
   
   test-modules-on-Ubuntu1804:
     runs-on: ubuntu-latest
-    container: ubuntu:18.04
+    container: 
+        image: ubuntu:18.04
+        options: --user root
     strategy:
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10"]
@@ -49,7 +51,7 @@ jobs:
         run: |
           apt-get update
           apt-get upgrade
-          apt-get install -y glibc-source
+          apt-get install -y git
       - uses: actions/checkout@v4
         with:
             submodules: recursive
