@@ -24,7 +24,8 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi
-          pip install bezier dubins
+          pip install bezier
+          pip install git+git://github.com/AndrewWalker/pydubins.git
       - name: Pytest
         run: |
           mkdir ./tests/runtime
@@ -73,6 +74,7 @@ jobs:
           python3 -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi
+          apt-get install libgeos-dev
           pip install bezier dubins
       - name: Pytest
         run: |
