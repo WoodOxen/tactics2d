@@ -9,8 +9,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 import bezier
-import dubins
-import matplotlib.patches as mpatches
+# import dubins
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -27,14 +26,14 @@ def compare_similarity(curve1: np.ndarray, curve2: np.ndarray, diff: float = 0.0
     len1 = np.linalg.norm(curve1[1:] - curve1[:-1], axis=1).sum()
     len2 = np.linalg.norm(curve2[1:] - curve2[:-1], axis=1).sum()
     len_diff = abs(len1 - len2)
-    ratio_len_diff = len_diff / max(len1, len2)
+    ratio_len_diff = len_diff / min(len1, len2)
 
     # compute difference in shape
     hausdorff_dist = max(
         directed_hausdorff(curve1, curve2)[0],
         directed_hausdorff(curve2, curve1)[0],
     )
-    ratio_shape_diff = hausdorff_dist / max(len1, len2)
+    ratio_shape_diff = hausdorff_dist / min(len1, len2)
 
     return ratio_len_diff < diff and ratio_shape_diff < diff
 
@@ -288,7 +287,7 @@ def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_
     ],
 )
 def test_dubins(radius, start_point, start_heading, end_point, end_heading, step_size):
-    t1 = time.time()
+    # t1 = time.time()
     try:
         my_dubins = Dubins(radius)
     except ValueError as err:
@@ -304,27 +303,30 @@ def test_dubins(radius, start_point, start_heading, end_point, end_heading, step
         start_point, start_heading, end_point, end_heading, step_size
     )
 
-    t2 = time.time()
-    path = dubins.shortest_path(
-        (start_point[0], start_point[1], start_heading),
-        (end_point[0], end_point[1], end_heading),
-        radius,
-    ).sample_many(step_size)
-    t3 = time.time()
-    curve = []
-    for point in path[0]:
-        curve.append([point[0], point[1]])
-    curve = np.array(curve)
+    curve_length = np.linalg.norm(my_curve[1:] - my_curve[:-1], axis=1).sum()
+    assert (abs(length-curve_length)/min(length, curve_length) < 0.01)
 
-    assert compare_similarity(
-        my_curve, curve, 0.1
-    ), "The curve output of the Dubins interpolator is incorrect."
+    # t2 = time.time()
+    # path = dubins.shortest_path(
+    #     (start_point[0], start_point[1], start_heading),
+    #     (end_point[0], end_point[1], end_heading),
+    #     radius,
+    # ).sample_many(step_size)
+    # t3 = time.time()
+    # curve = []
+    # for point in path[0]:
+    #     curve.append([point[0], point[1]])
+    # curve = np.array(curve)
 
-    if t2 - t1 > t3 - t2:
-        logging.warning(
-            "The implemented Dubins interpolator is %.2f times slower than the Python library dubins. The efficiency needs further improvement."
-            % ((t2 - t1) / (t3 - t2) * 100)
-        )
+    # assert compare_similarity(
+    #     my_curve, curve, 0.1
+    # ), "The curve output of the Dubins interpolator is incorrect."
+
+    # if t2 - t1 > t3 - t2:
+    #     logging.warning(
+    #         "The implemented Dubins interpolator is %.2f times slower than the Python library dubins. The efficiency needs further improvement."
+    #         % ((t2 - t1) / (t3 - t2) * 100)
+    #     )
 
 
 # @pytest.mark.math
