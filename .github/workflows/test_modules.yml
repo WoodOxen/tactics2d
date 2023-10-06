@@ -65,10 +65,10 @@ jobs:
           export PATH="$HOME/miniconda/bin:$PATH"
           conda init bash
           exec $SHELL
-      - name: Install dependencies
-        run: |
           conda create -n testenv python=${{ matrix.python-version }} -y
           conda activate testenv
+      - name: Install dependencies
+        run: |
           python3 -V
           python3 -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi

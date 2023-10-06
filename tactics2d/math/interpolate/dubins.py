@@ -98,29 +98,26 @@ class Dubins:
 
         tmp = np.arctan2(np.cos(alpha) - np.cos(beta), dist - np.sin(alpha) + np.sin(beta))
 
-        p = np.mod(np.arccos(discriminant), 2 * np.pi)
-        t = np.mod(
-            alpha - tmp + p / 2,
-            2 * np.pi,
-        )
+        p = np.mod(2 * np.pi - np.arccos(discriminant), 2 * np.pi)
+        t = np.mod(alpha - tmp + p / 2, 2 * np.pi)
         q = np.mod(alpha - beta - t + p, 2 * np.pi)
 
         return t, p, q
 
     def _LRL(self, alpha, beta, dist):
         discriminant = (
-            6 - dist**2 + 2 * np.cos(alpha - beta) + 2 * dist * (np.sin(alpha) - np.sin(beta))
+            6 - dist**2 + 2 * np.cos(alpha - beta) + 2 * dist * (-np.sin(alpha) + np.sin(beta))
         ) / 8
 
         if abs(discriminant) > 1:
             return None
 
-        p = np.mod(np.arccos(discriminant), 2 * np.pi)
+        p = np.mod(2 * np.pi - np.arccos(discriminant), 2 * np.pi)
 
-        tmp = np.arctan2(-np.cos(alpha) + np.cos(beta), dist + np.sin(alpha) - np.sin(beta))
+        tmp = np.arctan2(np.cos(alpha) - np.cos(beta), dist + np.sin(alpha) - np.sin(beta))
 
         t = np.mod(-alpha + tmp + p / 2, 2 * np.pi)
-        q = np.mod(beta - alpha + 2 * p, 2 * np.pi)
+        q = np.mod(beta - alpha - t + p, 2 * np.pi)
 
         return t, p, q
 
@@ -146,18 +143,14 @@ class Dubins:
         alpha = np.mod(start_heading - theta, 2 * np.pi)
         beta = np.mod(end_heading - theta, 2 * np.pi)
 
-        if d < 4:
-            candidate_paths = {
-                "LRL": self._LRL(alpha, beta, d),
-                "RLR": self._RLR(alpha, beta, d),
-            }
-        else:
-            candidate_paths = {
-                "RSR": self._RSR(alpha, beta, d),
-                "RSL": self._RSL(alpha, beta, d),
-                "LSL": self._LSL(alpha, beta, d),
-                "LSR": self._LSR(alpha, beta, d),
-            }
+        candidate_paths = {
+            "LRL": self._LRL(alpha, beta, d),
+            "RLR": self._RLR(alpha, beta, d),
+            "RSR": self._RSR(alpha, beta, d),
+            "RSL": self._RSL(alpha, beta, d),
+            "LSL": self._LSL(alpha, beta, d),
+            "LSR": self._LSR(alpha, beta, d),
+        }
 
         # filter out the invalid paths
         path_lengths = {}
@@ -189,8 +182,7 @@ class Dubins:
             step_size (float, optional): The step size of the curve. Defaults to 0.1.
         """
         segs, actions = self.get_path(start_point, start_heading, end_point, end_heading)
-        print(segs)
-        length = abs(segs[0]) + abs(segs[1]) + abs(segs[2]) * self.radius
+        length = (abs(segs[0]) + abs(segs[1]) + abs(segs[2])) * self.radius
 
         # get the first segment
         start_circle = Circle.get_circle(
@@ -224,20 +216,20 @@ class Dubins:
         else:
             theta1 = start_heading - np.pi / 2 + segs[0]
         point1 = start_circle[0] + np.array([np.cos(theta1), np.sin(theta1)]) * self.radius
-        print(start_heading, theta1)
 
         if actions[2] == "R":
             theta2 = end_heading + np.pi / 2 + segs[2]
         else:
             theta2 = end_heading - np.pi / 2 - segs[2]
         point2 = end_circle[0] + np.array([np.cos(theta2), np.sin(theta2)]) * self.radius
-        print(end_heading, theta2)
 
         if actions[1] == "S":
             n_points = np.linalg.norm(point2 - point1) / step_size
             second_seg = np.linspace(point1, point2, int(n_points))
         else:
-            middle_heading = (start_heading - segs[0]) if actions[0] == "R" else (start_heading + segs[0])
+            middle_heading = (
+                (start_heading - segs[0]) if actions[0] == "R" else (start_heading + segs[0])
+            )
             middle_circle = Circle.get_circle(
                 Circle.ConstructBy.TangentVector,
                 point1,
@@ -245,7 +237,14 @@ class Dubins:
                 self.radius,
                 actions[1],
             )
-            second_seg = Circle.get_arc(middle_circle[0], self.radius, segs[1], middle_heading, actions[1] == "R", step_size)
+            second_seg = Circle.get_arc(
+                middle_circle[0],
+                self.radius,
+                segs[1],
+                (middle_heading + np.pi / 2) if actions[1] == "R" else (middle_heading - np.pi / 2),
+                actions[1] == "R",
+                step_size,
+            )
 
         curve = np.concatenate((first_seg, second_seg, np.flip(third_seg, axis=0)))
-        return curve, actions, length, point1, point2
+        return curve, actions, length
