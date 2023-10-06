@@ -16,7 +16,7 @@ class Dubins:
     def __init__(self, radius: float) -> None:
         self.radius = radius
         if self.radius <= 0:
-            raise ValueError("The minimum radius must be greater than 0.")
+            raise ValueError("The minimum turning radius must be positive.")
 
     def _RSR(self, alpha, beta, dist):
         discriminant = (
@@ -181,6 +181,7 @@ class Dubins:
             end_heading (float): The heading of the end point. The unit is radian.
             step_size (float, optional): The step size of the curve. Defaults to 0.1.
         """
+
         segs, actions = self.get_path(start_point, start_heading, end_point, end_heading)
         length = (abs(segs[0]) + abs(segs[1]) + abs(segs[2])) * self.radius
 

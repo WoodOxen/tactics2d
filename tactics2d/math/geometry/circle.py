@@ -108,6 +108,6 @@ class Circle:
             angles = np.array(
                 np.arange(start_angle, (start_angle + delta_angle), step_size / radius)
             )
-        print(angles)
+
         arc_points = center_point + np.array([np.cos(angles), np.sin(angles)]).T * radius
         return arc_points

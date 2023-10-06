@@ -9,6 +9,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 import bezier
+import dubins
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,7 +22,7 @@ from tactics2d.math.geometry import Circle
 from tactics2d.math.interpolate import *
 
 
-def compare_similarity(curve1: np.ndarray, curve2: np.ndarray) -> bool:
+def compare_similarity(curve1: np.ndarray, curve2: np.ndarray, diff: float = 0.001) -> bool:
     # compute difference in length
     len1 = np.linalg.norm(curve1[1:] - curve1[:-1], axis=1).sum()
     len2 = np.linalg.norm(curve2[1:] - curve2[:-1], axis=1).sum()
@@ -35,7 +36,7 @@ def compare_similarity(curve1: np.ndarray, curve2: np.ndarray) -> bool:
     )
     ratio_shape_diff = hausdorff_dist / max(len1, len2)
 
-    return ratio_len_diff < 0.001 and ratio_shape_diff < 0.001
+    return ratio_len_diff < diff and ratio_shape_diff < diff
 
 
 @pytest.mark.math
@@ -80,6 +81,8 @@ def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
                 err.args[0]
                 == "The number of control points must be equal to the order of the Bezier curve plus one."
             ), "Test failed: error handling for invalid number of control points."
+        else:
+            raise err
         return
 
     t2 = time.time()
@@ -175,6 +178,8 @@ def test_b_spline(
             assert (
                 err.args[0] == "The knot vectors must be non-decreasing."
             ), "Test failed: error handling for invalid shape of control points."
+        else:
+            raise err
         return
 
     t2 = time.time()
@@ -245,6 +250,8 @@ def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_
                 err.args[0]
                 == "There is not enough control points to interpolate a cubic spline curve."
             ), "Test failed: error handling for insufficient number of control points."
+        else:
+            raise err
         return
 
     t2 = time.time()
@@ -267,117 +274,57 @@ def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_
         )
 
 
-# @pytest.mark.math
-def test_dubins():
-    pass
+@pytest.mark.math
+@pytest.mark.parametrize(
+    "radius, start_point, start_heading, end_point, end_heading, step_size",
+    [
+        (7.5, np.array([10, 10]), 1, np.array([-20, -10]), 2, 0.01),
+        (7.5, np.array([10, 10]), 1, np.array([-20, -10]), -1, 0.01),
+        (7.5, np.array([10, 10]), -1, np.array([-20, -10]), 2, 0.01),
+        (7.5, np.array([10, 10]), -1, np.array([-20, -10]), -1, 0.01),
+        (7.5, np.array([10, 10]), 4, np.array([15, 5]), 2, 0.01),
+        (7.5, np.array([10, 10]), 0.5, np.array([5, 5]), 2, 0.01),
+        (-7.5, np.array([10, 10]), 4, np.array([15, 5]), 2, 0.01),
+    ],
+)
+def test_dubins(radius, start_point, start_heading, end_point, end_heading, step_size):
+    t1 = time.time()
+    try:
+        my_dubins = Dubins(radius)
+    except ValueError as err:
+        if radius <= 0:
+            assert (
+                err.args[0] == "The minimum turning radius must be positive."
+            ), "Test failed: error handling for invalid radius."
+        else:
+            raise err
+        return
 
-
-def visualize_dubins(radius, start_point, start_heading, end_point, end_heading):
-    dubins = Dubins(radius)
-    curve, actions, length, point1, point2 = dubins.get_curve(
-        start_point, start_heading, end_point, end_heading
+    my_curve, actions, length = my_dubins.get_curve(
+        start_point, start_heading, end_point, end_heading, step_size
     )
-    print(actions, length)
 
-    fig, ax = plt.subplots(1, 1)
+    t2 = time.time()
+    path = dubins.shortest_path(
+        (start_point[0], start_point[1], start_heading),
+        (end_point[0], end_point[1], end_heading),
+        radius,
+    ).sample_many(step_size)
+    t3 = time.time()
+    curve = []
+    for point in path[0]:
+        curve.append([point[0], point[1]])
+    curve = np.array(curve)
 
-    # visualize original conditions
-    center1, _ = Circle.get_circle(
-        Circle.ConstructBy.TangentVector, start_point, start_heading, radius, actions[0]
-    )
-    center2, _ = Circle.get_circle(
-        Circle.ConstructBy.TangentVector, end_point, end_heading, radius, actions[2]
-    )
+    assert compare_similarity(
+        my_curve, curve, 0.1
+    ), "The curve output of the Dubins interpolator is incorrect."
 
-    patches1 = [
-        mpatches.Arrow(
-            start_point[0],
-            start_point[1],
-            np.cos(start_heading),
-            np.sin(start_heading),
-            edgecolor="green",
-        ),
-        mpatches.Arrow(
-            end_point[0], end_point[1], np.cos(end_heading), np.sin(end_heading), edgecolor="blue"
-        ),
-        mpatches.Circle(center1, radius, fill=False, edgecolor="gray"),
-        mpatches.Circle(center2, radius, fill=False, edgecolor="gray"),
-    ]
-
-    for patch in patches1:
-        ax.add_patch(patch)
-
-    ax.plot(curve[:, 0], curve[:, 1], "black")
-    ax.plot(point1[0], point1[1], "o", color="pink")
-    ax.plot(point2[0], point2[1], "o", color="pink")
-
-    # visualize the transported conditions
-    # theta = np.arctan2(end_point[1] - start_point[1], end_point[0] - start_point[0])
-    # d = np.linalg.norm(end_point - start_point) / radius
-    # alpha = np.mod(start_heading - theta, 2 * np.pi)
-    # beta = np.mod(end_heading - theta, 2 * np.pi)
-
-    # transform_matrix = np.array(
-    #     [
-    #         [
-    #             np.cos(-theta) / radius,
-    #             -np.sin(-theta) / radius,
-    #             (-start_point[0] * np.cos(-theta) + start_point[1] * np.sin(-theta)) / radius,
-    #         ],
-    #         [
-    #             np.sin(-theta) / radius,
-    #             np.cos(-theta) / radius,
-    #             (-start_point[0] * np.sin(-theta) - start_point[1] * np.cos(-theta)) / radius,
-    #         ],
-    #         [0, 0, 1],
-    #     ]
-    # )
-
-    # def get_transposed_point(transform_matrix, point):
-    #     vec = np.array([point[0], point[1], 1])
-    #     return np.dot(transform_matrix, vec)[:2]
-
-    # center1_ = get_transposed_point(transform_matrix, center1)
-    # center2_ = get_transposed_point(transform_matrix, center2)
-
-    # start_sign = -1 if actions[0] == "R" else 1
-    # start_rad = np.mod(alpha + start_sign * np.pi / 2, 2 * np.pi)
-    # end_sign = 1 if actions[2] == "R" else -1
-    # end_rad = np.mod(beta + end_sign * np.pi / 2, 2 * np.pi)
-    # line1 = []
-    # for rad in np.arange(start_rad, start_rad + shortest_path[0], 0.01):
-    #     line1.append([center1_[0] + np.cos(rad), center1_[1] + np.sin(rad)])
-    # line1 = np.array(line1)
-    # line2 = []
-    # for rad in np.arange(end_rad, end_rad + shortest_path[2], 0.01):
-    #     line2.append([center2_[0] + np.cos(rad), center2_[1] + np.sin(rad)])
-    # line2 = np.array(line2)
-
-    # patches2 = [
-    #     mpatches.Arrow(
-    #         0, 0, np.cos(start_heading - theta), np.sin(start_heading - theta), edgecolor="blue"
-    #     ),
-    #     mpatches.Arrow(
-    #         d, 0, np.cos(end_heading - theta), np.sin(end_heading - theta), edgecolor="green"
-    #     ),
-    #     mpatches.Circle(center1_, 1, fill=False, edgecolor="gray"),
-    #     mpatches.Circle(center2_, 1, fill=False, edgecolor="gray"),
-    # ]
-
-    # for patch in patches2:
-    #     ax[1].add_patch(patch)
-
-    # ax[1].plot(line1[:, 0], line1[:, 1], "black")
-    # ax[1].plot(line2[:, 0], line2[:, 1], "black")
-
-    ax.set_aspect("equal")
-    # ax[1].set_aspect("equal")
-
-    # ax[0].set_xlim(-30, 30)
-    # ax[0].set_ylim(-20, 20)
-    # ax[1].set_xlim(-15, 15)
-    # ax[1].set_ylim(-15, 15)
-    plt.savefig("dubins.png", dpi=300)
+    if t2 - t1 > t3 - t2:
+        logging.warning(
+            "The implemented Dubins interpolator is %.2f times slower than the Python library dubins. The efficiency needs further improvement."
+            % ((t2 - t1) / (t3 - t2) * 100)
+        )
 
 
 # @pytest.mark.math
@@ -386,7 +333,4 @@ def test_reeds_shepp():
 
 
 if __name__ == "__main__":
-    # visualize_dubins(7.5, np.array([10, 10]), 1, np.array([-20, -10]), 2)
-    visualize_dubins(7.5, np.array([10, 10]), 1, np.array([-20, -10]), -1)
-    # visualize_dubins(7.5, np.array([10, 10]), -1, np.array([-20, -10]), 2)
-    # visualize_dubins(7.5, np.array([10, 10]), -1, np.array([-20, -10]), -1)
+    pass
