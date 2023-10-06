@@ -2,11 +2,7 @@ import numpy as np
 
 
 class ReedsShepp:
-    """This class implements a Reeds Shepp curve interpolator. The implementation follows the paper "Optimal paths for a car that goes both forwards and backwards" by Reeds and Shepp.
-
-    Args:
-        CurveBase (_type_): _description_
-    """
+    """This class implements a Reeds Shepp curve interpolator. The implementation follows the paper "Optimal paths for a car that goes both forwards and backwards" by Reeds and Shepp."""
 
     def __init__(self) -> None:
         super().__init__()

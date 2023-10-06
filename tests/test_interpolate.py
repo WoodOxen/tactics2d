@@ -9,13 +9,15 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 import bezier
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 from scipy.spatial.distance import directed_hausdorff
 from scipy.interpolate import BSpline as SciBSpline
 from scipy.interpolate import CubicSpline as SciCubic
 
-import pytest
-
+from tactics2d.math.geometry import Circle
 from tactics2d.math.interpolate import *
 
 
@@ -112,7 +114,9 @@ def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
         ),
         (
             2,
-            np.array([[-1, 0], [-0.5, 0.5], [0.5, -0.5], [1, 0], [-1, 0], [-0.5, 0.5], [0.5, -0.5]]),
+            np.array(
+                [[-1, 0], [-0.5, 0.5], [0.5, -0.5], [1, 0], [-1, 0], [-0.5, 0.5], [0.5, -0.5]]
+            ),
             np.array(np.arange(0, 10)),
             100,
         ),
@@ -169,8 +173,7 @@ def test_b_spline(
             ), "Test failed: error handling for invalid number of knots."
         elif np.any((knots[1:] - knots[:-1]) < 0):
             assert (
-                err.args[0]
-                == "The knot vectors must be non-decreasing."
+                err.args[0] == "The knot vectors must be non-decreasing."
             ), "Test failed: error handling for invalid shape of control points."
         return
 
@@ -269,10 +272,121 @@ def test_dubins():
     pass
 
 
+def visualize_dubins(radius, start_point, start_heading, end_point, end_heading):
+    dubins = Dubins(radius)
+    curve, actions, length, point1, point2 = dubins.get_curve(
+        start_point, start_heading, end_point, end_heading
+    )
+    print(actions, length)
+
+    fig, ax = plt.subplots(1, 1)
+
+    # visualize original conditions
+    center1, _ = Circle.get_circle(
+        Circle.ConstructBy.TangentVector, start_point, start_heading, radius, actions[0]
+    )
+    center2, _ = Circle.get_circle(
+        Circle.ConstructBy.TangentVector, end_point, end_heading, radius, actions[2]
+    )
+
+    patches1 = [
+        mpatches.Arrow(
+            start_point[0],
+            start_point[1],
+            np.cos(start_heading),
+            np.sin(start_heading),
+            edgecolor="green",
+        ),
+        mpatches.Arrow(
+            end_point[0], end_point[1], np.cos(end_heading), np.sin(end_heading), edgecolor="blue"
+        ),
+        mpatches.Circle(center1, radius, fill=False, edgecolor="gray"),
+        mpatches.Circle(center2, radius, fill=False, edgecolor="gray"),
+    ]
+
+    for patch in patches1:
+        ax.add_patch(patch)
+
+    ax.plot(curve[:, 0], curve[:, 1], "black")
+    ax.plot(point1[0], point1[1], "o", color="pink")
+    ax.plot(point2[0], point2[1], "o", color="pink")
+
+    # visualize the transported conditions
+    # theta = np.arctan2(end_point[1] - start_point[1], end_point[0] - start_point[0])
+    # d = np.linalg.norm(end_point - start_point) / radius
+    # alpha = np.mod(start_heading - theta, 2 * np.pi)
+    # beta = np.mod(end_heading - theta, 2 * np.pi)
+
+    # transform_matrix = np.array(
+    #     [
+    #         [
+    #             np.cos(-theta) / radius,
+    #             -np.sin(-theta) / radius,
+    #             (-start_point[0] * np.cos(-theta) + start_point[1] * np.sin(-theta)) / radius,
+    #         ],
+    #         [
+    #             np.sin(-theta) / radius,
+    #             np.cos(-theta) / radius,
+    #             (-start_point[0] * np.sin(-theta) - start_point[1] * np.cos(-theta)) / radius,
+    #         ],
+    #         [0, 0, 1],
+    #     ]
+    # )
+
+    # def get_transposed_point(transform_matrix, point):
+    #     vec = np.array([point[0], point[1], 1])
+    #     return np.dot(transform_matrix, vec)[:2]
+
+    # center1_ = get_transposed_point(transform_matrix, center1)
+    # center2_ = get_transposed_point(transform_matrix, center2)
+
+    # start_sign = -1 if actions[0] == "R" else 1
+    # start_rad = np.mod(alpha + start_sign * np.pi / 2, 2 * np.pi)
+    # end_sign = 1 if actions[2] == "R" else -1
+    # end_rad = np.mod(beta + end_sign * np.pi / 2, 2 * np.pi)
+    # line1 = []
+    # for rad in np.arange(start_rad, start_rad + shortest_path[0], 0.01):
+    #     line1.append([center1_[0] + np.cos(rad), center1_[1] + np.sin(rad)])
+    # line1 = np.array(line1)
+    # line2 = []
+    # for rad in np.arange(end_rad, end_rad + shortest_path[2], 0.01):
+    #     line2.append([center2_[0] + np.cos(rad), center2_[1] + np.sin(rad)])
+    # line2 = np.array(line2)
+
+    # patches2 = [
+    #     mpatches.Arrow(
+    #         0, 0, np.cos(start_heading - theta), np.sin(start_heading - theta), edgecolor="blue"
+    #     ),
+    #     mpatches.Arrow(
+    #         d, 0, np.cos(end_heading - theta), np.sin(end_heading - theta), edgecolor="green"
+    #     ),
+    #     mpatches.Circle(center1_, 1, fill=False, edgecolor="gray"),
+    #     mpatches.Circle(center2_, 1, fill=False, edgecolor="gray"),
+    # ]
+
+    # for patch in patches2:
+    #     ax[1].add_patch(patch)
+
+    # ax[1].plot(line1[:, 0], line1[:, 1], "black")
+    # ax[1].plot(line2[:, 0], line2[:, 1], "black")
+
+    ax.set_aspect("equal")
+    # ax[1].set_aspect("equal")
+
+    # ax[0].set_xlim(-30, 30)
+    # ax[0].set_ylim(-20, 20)
+    # ax[1].set_xlim(-15, 15)
+    # ax[1].set_ylim(-15, 15)
+    plt.savefig("dubins.png", dpi=300)
+
+
 # @pytest.mark.math
 def test_reeds_shepp():
     pass
 
 
 if __name__ == "__main__":
-    pass
+    # visualize_dubins(7.5, np.array([10, 10]), 1, np.array([-20, -10]), 2)
+    visualize_dubins(7.5, np.array([10, 10]), 1, np.array([-20, -10]), -1)
+    # visualize_dubins(7.5, np.array([10, 10]), -1, np.array([-20, -10]), 2)
+    # visualize_dubins(7.5, np.array([10, 10]), -1, np.array([-20, -10]), -1)

@@ -69,10 +69,11 @@ jobs:
           conda init bash
           exec $SHELL
           conda create -n testenv python=${{ matrix.python-version }} -y
+          ls /usr/bin/python*
           conda activate testenv
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python3 -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi
           pip install bezier

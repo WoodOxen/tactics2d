@@ -92,7 +92,7 @@ class Circle:
         Args:
             center_point (np.ndarray): The center of the arc. The shape is (2,).
             radius (float): The radius of the arc.
-            delta_angle (float): The angle of the arc. The unit is radian.
+            delta_angle (float): The angle of the arc. This values is expected to be positive. The unit is radian.
             start_angle (float): The start angle of the arc. The unit is radian.
             clockwise (bool): The direction of the arc. True represents clockwise. False represents counterclockwise.
             step_size (float): The step size of the arc. The unit is radian.
@@ -102,12 +102,12 @@ class Circle:
         """
         if clockwise:
             angles = np.array(
-                np.arange(start_angle, (start_angle + delta_angle), step_size / radius)
+                np.arange(start_angle, (start_angle - delta_angle), -step_size / radius)
             )
         else:
             angles = np.array(
-                np.arange(start_angle, (start_angle - delta_angle), -step_size / radius)
+                np.arange(start_angle, (start_angle + delta_angle), step_size / radius)
             )
-
+        print(angles)
         arc_points = center_point + np.array([np.cos(angles), np.sin(angles)]).T * radius
         return arc_points
