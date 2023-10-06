@@ -67,6 +67,7 @@ jobs:
           ./Miniconda3-latest-Linux-x86_64.sh -b -p $HOME/miniconda
           export PATH="$HOME/miniconda/bin:$PATH"
           conda init bash
+          exec $SHELL
           conda create -n testenv python=${{ matrix.python-version }} -y
           conda activate testenv
       - name: Install dependencies
