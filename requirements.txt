@@ -2,7 +2,7 @@ gymnasium>=0.26.3
 joblib>=1.1.1
 numpy>=1.19.5
 pandas>=1.1.5
-pygame>=2.5.0
-pyproj>=3.2.1
+pygame>=2.5.2
+pyproj>=3.0.1
 scikit-learn>=1.0.0
 shapely==2.0.1
