@@ -44,7 +44,7 @@ jobs:
       - name: Start docker environment
         run: |
           docker pull ubuntu:18.04
-          docker run --it -v $PWD/tactics2d:/tactics2d ubuntu:18.04
+          docker run -it -v $PWD/tactics2d:/tactics2d ubuntu:18.04
       - name: Setup Python ${{ matrix.python-version }}
         run: |
           apt-get update
