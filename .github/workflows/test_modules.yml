@@ -41,23 +41,20 @@ jobs:
       - uses: actions/checkout@v4
         with:
             submodules: recursive
-      - name: Start docker environment
+      - name: Run Pytest in Docker
         run: |
           docker pull ubuntu:18.04
-          docker run -it -v $PWD/tactics2d:/tactics2d ubuntu:18.04
-      - name: Setup Python ${{ matrix.python-version }}
-        run: |
-          apt-get update
-          apt-get install -y python${{ matrix.python-version }}
-          apt-get install -y python${{ matrix.python-version }}-pip
-          python3.7 -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi
-          python3.7 -m pip install bezier
-      - name: Pytest
-        run: |
-          cd /tactics2d
-          mkdir ./tests/runtime
-          pytest tests --cov=tactics2d --cov-report=xml
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
+          docker run \
+            -v $PWD/tactics2d:/tactics2d \
+            ubuntu:18.04 \
+            /bin/bash -c "apt-get update && \
+              apt-get install -y python${{ matrix.python-version }} && \
+              apt-get install -y python${{ matrix.python-version }}-pip && \
+              python3 --version && \
+              python3 -m pip install --upgrade pip && \
+              if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && \
+              if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi && \
+              python3 -m pip install bezier && \
+              mkdir /tactics2d/tests/runtime && \
+              cd /tactics2d && \
+              pytest tests"
