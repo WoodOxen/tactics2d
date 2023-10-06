@@ -56,6 +56,8 @@ jobs:
               add-apt-repository ppa:deadsnakes/ppa && \
               apt-get update && \
               apt-get install -y python${{ matrix.python-version }} python3-pip && \
+              cd /tactics2d && \
+              ls && \
               python3 --version && \
               python3 -m pip install --upgrade pip && \
               if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && \
