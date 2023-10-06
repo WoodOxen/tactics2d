@@ -74,7 +74,7 @@ jobs:
           python3 -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi
-          apt-get install libgeos-dev
+          apt-get install -y libgeos-dev
           pip install bezier dubins
       - name: Pytest
         run: |
