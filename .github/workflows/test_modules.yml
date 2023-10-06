@@ -41,14 +41,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
             submodules: recursive
+      - name: Make runtime directory
+        run: mkdir ./tactics2d/tests/runtime
       - name: Run Pytest in Docker
         run: |
           docker pull ubuntu:18.04
           docker run \
             -v $GITHUB_WORKSPACE/tactics2d:/tactics2d \
             ubuntu:18.04 \
-            /bin/bash -c "ls && \
-              apt-get update && \
+            /bin/bash -c "apt-get update && \
               apt-get install -y software-properties-common && \
               add-apt-repository ppa:deadsnakes/ppa && \
               apt-get update && \
@@ -58,6 +59,6 @@ jobs:
               if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && \
               if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi && \
               python3 -m pip install bezier && \
-              mkdir /tactics2d/tests/runtime && \
               cd /tactics2d && \
+              ls && ls ./tests && \
               pytest tests"
