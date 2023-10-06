@@ -34,38 +34,30 @@ jobs:
   
   test-modules-on-Ubuntu1804:
     runs-on: ubuntu-latest
-    container: 
-        image: ubuntu:18.04
-        options: --user root
-    defaults:
-      run:
-        shell: bash
     strategy:
       matrix:
-        python-version: ["3.6", "3.7", "3.8"]
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
     steps:
-      - name: Install system-wise dependencies
-        run: |
-          apt-get update
-          apt-get install -y software-properties-common
-          add-apt-repository ppa:git-core/ppa -y
-          apt-get update
-          apt-get upgrade
-          apt-get install -y git
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
             submodules: recursive
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
+      - name: Start docker environment
         run: |
-          python3 -V
-          python3 -m pip install --upgrade pip
+          docker pull ubuntu:18.04
+          docker run --it -v $PWD/tactics2d:/tactics2d ubuntu:18.04
+      - name: Setup Python ${{ matrix.python-version }}
+        run: |
+          apt-get update
+          apt-get install -y python${{ matrix.python-version }}
+          apt-get install -y python${{ matrix.python-version }}-pip
+          python3.7 -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi
-          apt-get install -y libgeos-dev
+          python3.7 -m pip install bezier
       - name: Pytest
         run: |
+          cd /tactics2d
           mkdir ./tests/runtime
-          pytest tests
+          pytest tests --cov=tactics2d --cov-report=xml
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
