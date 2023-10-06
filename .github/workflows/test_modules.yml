@@ -43,10 +43,8 @@ jobs:
             submodules: recursive
       - name: Make runtime directory
         run: |
-          ls
           cd tactics2d
-          ls
-          mkdir ./tests/runtime
+          mkdir ./tests/runtime/
       - name: Run Pytest in Docker
         run: |
           docker pull ubuntu:18.04
