@@ -44,11 +44,12 @@ jobs:
       - name: Make runtime directory
         run: |
           mkdir ./tests/runtime/
+          echo $GITHUB_WORKSPACE
       - name: Run Pytest in Docker
         run: |
           docker pull ubuntu:18.04
           docker run \
-            -v $GITHUB_WORKSPACE/tactics2d:/tactics2d \
+            -v $GITHUB_WORKSPACE:/tactics2d \
             ubuntu:18.04 \
             /bin/bash -c "apt-get update && \
               apt-get install -y software-properties-common && \
@@ -60,6 +61,4 @@ jobs:
               if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && \
               if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi && \
               python3 -m pip install bezier && \
-              cd /tactics2d && \
-              ls && ls ./tests && \
               pytest tests"
