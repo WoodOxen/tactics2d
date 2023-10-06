@@ -36,15 +36,16 @@ jobs:
     runs-on: ubuntu-latest
     container: 
         image: ubuntu:18.04
-        shell: bash
         options: --user root
     strategy:
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10"]
     steps:
-      - name: Check Ubuntu version
-        run: |
-          cat /etc/lsb-release
+      - name: Display the path
+        shell: bash
+        run: echo $PATH
+      - name: Display Ubuntu version
+        run: cat /etc/lsb-release
       - name: Install system-wise dependencies
         run: |
           apt-get update
