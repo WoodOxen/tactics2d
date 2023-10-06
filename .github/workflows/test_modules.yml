@@ -60,6 +60,8 @@ jobs:
             submodules: recursive
       - name: Set up Python ${{ matrix.python-version }}
         run: |
+          add-apt-repository ppa:deadsnakes/ppa
+          apt-get update
           apt-get install -y python${{ matrix.python-version }} python${{ matrix.python-version }}-pip
       - name: Install dependencies
         run: |
