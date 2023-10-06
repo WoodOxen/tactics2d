@@ -50,6 +50,10 @@ jobs:
       - name: Install system-wise dependencies
         run: |
           apt-get update
+          apt-get install -y python-software-properties
+          apt-get install -y software-properties-common
+          add-apt-repository ppa:git-core/ppa -y
+          apt-get update
           apt-get upgrade
           apt-get install -y git
       - uses: actions/checkout@v3
