@@ -45,9 +45,10 @@ jobs:
         run: |
           docker pull ubuntu:18.04
           docker run \
-            -v $PWD/tactics2d:/tactics2d \
+            -v $GITHUB_WORKSPACE/tactics2d:/tactics2d \
             ubuntu:18.04 \
-            /bin/bash -c "apt-get update && \
+            /bin/bash -c "ls && \
+              apt-get update && \
               apt-get install -y software-properties-common && \
               add-apt-repository ppa:deadsnakes/ppa && \
               apt-get update && \
