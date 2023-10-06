@@ -45,7 +45,7 @@ jobs:
         run: |
           mkdir ./tests/runtime/
           echo $GITHUB_WORKSPACE
-      - name: Run Pytest in Docker
+      - name: Run pytest in docker
         run: |
           docker pull ubuntu:18.04
           docker run \
@@ -57,10 +57,9 @@ jobs:
               apt-get update && \
               apt-get install -y python${{ matrix.python-version }} python3-pip && \
               cd /tactics2d && \
-              ls && \
-              python3 --version && \
-              python3 -m pip install --upgrade pip && \
+              python${{ matrix.python-version }} --version && \
+              python${{ matrix.python-version }} -m pip install --upgrade pip && \
               if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && \
               if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi && \
-              python3 -m pip install bezier && \
-              pytest tests"
+              python${{ matrix.python-version }} -m pip install bezier && \
+              python${{ matrix.python-version }} -m pytest tests"
