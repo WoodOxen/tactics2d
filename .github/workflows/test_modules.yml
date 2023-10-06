@@ -25,7 +25,6 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi
           pip install bezier
-          pip install git+git://github.com/AndrewWalker/pydubins.git
       - name: Pytest
         run: |
           mkdir ./tests/runtime
@@ -56,18 +55,9 @@ jobs:
       - uses: actions/checkout@v3
         with:
             submodules: recursive
-      - name: Set up Python ${{ matrix.python-version }}
-        run: |
-          apt-get install -y python3 python3-pip
-          apt-get install -y wget 
-          wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
-          chmod +x ./Miniconda3-latest-Linux-x86_64.sh
-          ./Miniconda3-latest-Linux-x86_64.sh -b -p $HOME/miniconda
-          export PATH="$HOME/miniconda/bin:$PATH"
-          conda init bash
-          exec $SHELL
-          conda create -n testenv python=${{ matrix.python-version }} -y
-          conda activate testenv
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
           python3 -V
@@ -75,7 +65,6 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi
           apt-get install -y libgeos-dev
-          pip install bezier dubins
       - name: Pytest
         run: |
           mkdir ./tests/runtime
