@@ -1,4 +1,4 @@
 matplotlib>=3.3.4
-Pillow==9.5.0
+Pillow==8.4.0
 pytest-cov==4.1.0
 scipy==1.7.3
