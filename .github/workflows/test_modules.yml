@@ -60,7 +60,7 @@ jobs:
             submodules: recursive
       - name: Set up Python ${{ matrix.python-version }}
         run: |
-          apt-get install -y ${{ matrix.python-version }} ${{ matrix.python-version }}-pip
+          apt-get install -y python${{ matrix.python-version }} python${{ matrix.python-version }}-pip
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
