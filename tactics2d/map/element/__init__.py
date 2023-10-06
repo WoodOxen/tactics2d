@@ -10,6 +10,7 @@ __all__ = [
     "Node",
     "RoadLine",
     "Lane",
+    "LaneRelationship",
     "Area",
     "Map",
     "RegulatoryElement",

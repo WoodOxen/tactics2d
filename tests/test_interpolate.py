@@ -9,31 +9,33 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 import bezier
+# import dubins
+import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 from scipy.spatial.distance import directed_hausdorff
 from scipy.interpolate import BSpline as SciBSpline
 from scipy.interpolate import CubicSpline as SciCubic
 
-import pytest
-
+from tactics2d.math.geometry import Circle
 from tactics2d.math.interpolate import *
 
 
-def compare_similarity(curve1: np.ndarray, curve2: np.ndarray) -> bool:
+def compare_similarity(curve1: np.ndarray, curve2: np.ndarray, diff: float = 0.001) -> bool:
     # compute difference in length
     len1 = np.linalg.norm(curve1[1:] - curve1[:-1], axis=1).sum()
     len2 = np.linalg.norm(curve2[1:] - curve2[:-1], axis=1).sum()
     len_diff = abs(len1 - len2)
-    ratio_len_diff = len_diff / max(len1, len2)
+    ratio_len_diff = len_diff / min(len1, len2)
 
     # compute difference in shape
     hausdorff_dist = max(
         directed_hausdorff(curve1, curve2)[0],
         directed_hausdorff(curve2, curve1)[0],
     )
-    ratio_shape_diff = hausdorff_dist / max(len1, len2)
+    ratio_shape_diff = hausdorff_dist / min(len1, len2)
 
-    return ratio_len_diff < 0.001 and ratio_shape_diff < 0.001
+    return ratio_len_diff < diff and ratio_shape_diff < diff
 
 
 @pytest.mark.math
@@ -78,6 +80,8 @@ def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
                 err.args[0]
                 == "The number of control points must be equal to the order of the Bezier curve plus one."
             ), "Test failed: error handling for invalid number of control points."
+        else:
+            raise err
         return
 
     t2 = time.time()
@@ -112,7 +116,9 @@ def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
         ),
         (
             2,
-            np.array([[-1, 0], [-0.5, 0.5], [0.5, -0.5], [1, 0], [-1, 0], [-0.5, 0.5], [0.5, -0.5]]),
+            np.array(
+                [[-1, 0], [-0.5, 0.5], [0.5, -0.5], [1, 0], [-1, 0], [-0.5, 0.5], [0.5, -0.5]]
+            ),
             np.array(np.arange(0, 10)),
             100,
         ),
@@ -169,9 +175,10 @@ def test_b_spline(
             ), "Test failed: error handling for invalid number of knots."
         elif np.any((knots[1:] - knots[:-1]) < 0):
             assert (
-                err.args[0]
-                == "The knot vectors must be non-decreasing."
+                err.args[0] == "The knot vectors must be non-decreasing."
             ), "Test failed: error handling for invalid shape of control points."
+        else:
+            raise err
         return
 
     t2 = time.time()
@@ -242,6 +249,8 @@ def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_
                 err.args[0]
                 == "There is not enough control points to interpolate a cubic spline curve."
             ), "Test failed: error handling for insufficient number of control points."
+        else:
+            raise err
         return
 
     t2 = time.time()
@@ -264,9 +273,60 @@ def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_
         )
 
 
-# @pytest.mark.math
-def test_dubins():
-    pass
+@pytest.mark.math
+@pytest.mark.parametrize(
+    "radius, start_point, start_heading, end_point, end_heading, step_size",
+    [
+        (7.5, np.array([10, 10]), 1, np.array([-20, -10]), 2, 0.01),
+        (7.5, np.array([10, 10]), 1, np.array([-20, -10]), -1, 0.01),
+        (7.5, np.array([10, 10]), -1, np.array([-20, -10]), 2, 0.01),
+        (7.5, np.array([10, 10]), -1, np.array([-20, -10]), -1, 0.01),
+        (7.5, np.array([10, 10]), 4, np.array([15, 5]), 2, 0.01),
+        (7.5, np.array([10, 10]), 0.5, np.array([5, 5]), 2, 0.01),
+        (-7.5, np.array([10, 10]), 4, np.array([15, 5]), 2, 0.01),
+    ],
+)
+def test_dubins(radius, start_point, start_heading, end_point, end_heading, step_size):
+    # t1 = time.time()
+    try:
+        my_dubins = Dubins(radius)
+    except ValueError as err:
+        if radius <= 0:
+            assert (
+                err.args[0] == "The minimum turning radius must be positive."
+            ), "Test failed: error handling for invalid radius."
+        else:
+            raise err
+        return
+
+    my_curve, actions, length = my_dubins.get_curve(
+        start_point, start_heading, end_point, end_heading, step_size
+    )
+
+    curve_length = np.linalg.norm(my_curve[1:] - my_curve[:-1], axis=1).sum()
+    assert (abs(length-curve_length)/min(length, curve_length) < 0.01)
+
+    # t2 = time.time()
+    # path = dubins.shortest_path(
+    #     (start_point[0], start_point[1], start_heading),
+    #     (end_point[0], end_point[1], end_heading),
+    #     radius,
+    # ).sample_many(step_size)
+    # t3 = time.time()
+    # curve = []
+    # for point in path[0]:
+    #     curve.append([point[0], point[1]])
+    # curve = np.array(curve)
+
+    # assert compare_similarity(
+    #     my_curve, curve, 0.1
+    # ), "The curve output of the Dubins interpolator is incorrect."
+
+    # if t2 - t1 > t3 - t2:
+    #     logging.warning(
+    #         "The implemented Dubins interpolator is %.2f times slower than the Python library dubins. The efficiency needs further improvement."
+    #         % ((t2 - t1) / (t3 - t2) * 100)
+    #     )
 
 
 # @pytest.mark.math

@@ -7,7 +7,6 @@ from shapely.affinity import affine_transform
 from .participant_base import ParticipantBase
 from tactics2d.trajectory.element.trajectory import State, Trajectory
 from tactics2d.physics import PointMass, SingleTrackKinematics
-from tactics2d.physics import PointMass, SingleTrackKinematics
 
 from .defaults import VEHICLE_MODEL
 
