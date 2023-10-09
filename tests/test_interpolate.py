@@ -9,15 +9,14 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 import bezier
+
 # import dubins
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from scipy.spatial.distance import directed_hausdorff
 from scipy.interpolate import BSpline as SciBSpline
 from scipy.interpolate import CubicSpline as SciCubic
 
-from tactics2d.math.geometry import Circle
 from tactics2d.math.interpolate import *
 
 
@@ -304,7 +303,7 @@ def test_dubins(radius, start_point, start_heading, end_point, end_heading, step
     )
 
     curve_length = np.linalg.norm(my_curve[1:] - my_curve[:-1], axis=1).sum()
-    assert (abs(length-curve_length)/min(length, curve_length) < 0.01)
+    assert abs(length - curve_length) / min(length, curve_length) < 0.01
 
     # t2 = time.time()
     # path = dubins.shortest_path(

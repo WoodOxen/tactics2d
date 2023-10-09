@@ -120,6 +120,41 @@ class Dubins:
         q = np.mod(beta - alpha - t + p, 2 * np.pi)
 
         return t, p, q
+    
+    def get_all_path(
+        self,
+        start_point: np.ndarray,
+        start_heading: float,
+        end_point: np.ndarray,
+        end_heading: float,
+    ):
+        """Get all the Dubins paths connecting two points.
+
+        Args:
+            start_point (np.ndarray): The start point of the curve. The shape is (2,).
+            start_heading (float): The heading of the start point. The unit is radian.
+            end_point (np.ndarray): The end point of the curve. The shape is (2,).
+            end_heading (float): The heading of the end point. The unit is radian.
+
+        Returns:
+            _type_: _description_
+        """
+        # create a new coordinate system with the start point as the origin
+        theta = np.arctan2(end_point[1] - start_point[1], end_point[0] - start_point[0])
+        d = np.linalg.norm(end_point - start_point) / self.radius
+        alpha = np.mod(start_heading - theta, 2 * np.pi)
+        beta = np.mod(end_heading - theta, 2 * np.pi)
+
+        paths = {
+            "LRL": self._LRL(alpha, beta, d),
+            "RLR": self._RLR(alpha, beta, d),
+            "RSR": self._RSR(alpha, beta, d),
+            "RSL": self._RSL(alpha, beta, d),
+            "LSL": self._LSL(alpha, beta, d),
+            "LSR": self._LSR(alpha, beta, d),
+        }
+
+        return paths
 
     def get_path(
         self,
@@ -137,20 +172,7 @@ class Dubins:
             end_point (np.ndarray): The end point of the curve. The shape is (2,).
             end_heading (float): The heading of the end point. The unit is radian.
         """
-        # create a new coordinate system with the start point as the origin
-        theta = np.arctan2(end_point[1] - start_point[1], end_point[0] - start_point[0])
-        d = np.linalg.norm(end_point - start_point) / self.radius
-        alpha = np.mod(start_heading - theta, 2 * np.pi)
-        beta = np.mod(end_heading - theta, 2 * np.pi)
-
-        candidate_paths = {
-            "LRL": self._LRL(alpha, beta, d),
-            "RLR": self._RLR(alpha, beta, d),
-            "RSR": self._RSR(alpha, beta, d),
-            "RSL": self._RSL(alpha, beta, d),
-            "LSL": self._LSL(alpha, beta, d),
-            "LSR": self._LSR(alpha, beta, d),
-        }
+        candidate_paths = self.get_all_path(start_point, start_heading, end_point, end_heading)
 
         # filter out the invalid paths
         path_lengths = {}
@@ -163,6 +185,9 @@ class Dubins:
         shortest_path = min(path_lengths, key=path_lengths.get)
 
         return candidate_paths[shortest_path], shortest_path
+    
+    def get_curve_line(self):
+        return
 
     def get_curve(
         self,
