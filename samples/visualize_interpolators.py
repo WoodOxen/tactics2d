@@ -64,7 +64,7 @@ def visualize_dubins():
                 alpha=0.5,
             )
         )
-        curve, _, _ = my_dubins.get_curve(start_point, start_heading, end_point, end_heading)
+        path, curve = my_dubins.get_curve(start_point, start_heading, end_point, end_heading)
         ax.plot(curve[:, 0], curve[:, 1], "black")
 
     ax.set_aspect("equal")
