@@ -184,9 +184,8 @@ class Dubins:
         """
         candidate_paths = self.get_all_path(start_point, start_heading, end_point, end_heading)
 
-        # filter out the invalid paths
-        shortest_length = np.inf
         shortest_path = None
+        shortest_length = np.inf
         for path in candidate_paths:
             if path is None or path.length > shortest_length:
                 continue
@@ -207,19 +206,21 @@ class Dubins:
             circle_center, _ = Circle.get_circle(
                 Circle.ConstructBy.TangentVector, point, heading, radius, action
             )
+            clockwise = action == "R"
             start_angle = (heading + np.pi / 2) if action == "R" else (heading - np.pi / 2)
             arc_curve = Circle.get_arc(
                 circle_center,
                 radius,
                 radian,
                 start_angle,
-                action == "R",
+                clockwise,
                 step_size,
             )
 
-            end_angle = (start_angle - radian) if action == "R" else (start_angle + radian)
+            end_angle = (start_angle - radian) if clockwise else (start_angle + radian)
             end_point = circle_center + np.array([np.cos(end_angle), np.sin(end_angle)]) * radius
-            end_heading = (start_heading - radian) if action == "R" else (start_heading + radian)
+            end_heading = (start_heading - radian) if clockwise else (start_heading + radian)
+
             return arc_curve, end_point, end_heading
 
         def get_straight_line(point, heading, radius, length):
@@ -232,27 +233,21 @@ class Dubins:
 
             return straight_line, end_point, heading
 
-        actions = path.curve_type
-        first_seg, second_point, second_heading = get_arc(
-            start_point, start_heading, self.radius, abs(path.segments[0]), actions[0]
-        )
+        next_point = start_point
+        next_heading = start_heading
+        curves = []
+        for i, action in enumerate(path.curve_type):
+            if action == "S":
+                curve, next_point, next_heading = get_straight_line(
+                    next_point, next_heading, self.radius, abs(path.segments[i])
+                )
+            else:
+                curve, next_point, next_heading = get_arc(
+                    next_point, next_heading, self.radius, abs(path.segments[i]), action
+                )
+            curves.append(curve)
 
-        if actions[1] == "S":
-            second_seg, third_point, third_heading = get_straight_line(
-                second_point, second_heading, self.radius, path.segments[1]
-            )
-        else:
-            second_seg, third_point, third_heading = get_arc(
-                second_point, second_heading, self.radius, abs(path.segments[1]), actions[1]
-            )
-
-        third_seg, _, _ = get_arc(
-            third_point, third_heading, self.radius, abs(path.segments[2]), actions[2]
-        )
-
-        curve = np.concatenate((first_seg, second_seg, third_seg))
-
-        return curve
+        return np.concatenate(curves)
 
     def get_curve(
         self,
