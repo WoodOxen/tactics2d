@@ -139,8 +139,11 @@ class ReedsShepp:
         return paths
 
     def _CCC(self, x, y, phi):
-        def LpRnLp(x, y, phi):
-            """This function is related to Equation 8.3. It implements the L+R-L+ path, which can be converted to L-R+L-, R+L-R+, and R-L+R- by proper transformation."""
+        def LRL(signs, x, y, phi):
+            """This function is related to Equation 8.3 and Equation 8.4. It implements the L+R-L+ path, which can be converted to L-R+L-, R+L-R+, and R-L+R-, L+R-L-, L-R+L+, R+L-R-, R-L+R+, L-R-L+, L+R+L-, R-L-R+, and R+L+R- by proper transformation.
+
+            There are typos in the original paper. The implementation has corrected the equations.
+            """
             xi = x - np.sin(phi)
             eta = y - 1 + np.cos(phi)
             u1, theta = self._R(xi, eta)
@@ -153,43 +156,8 @@ class ReedsShepp:
             u = self._M(2 * A)
             v = self._M(phi - t + u)
 
-            if t < 0 or u > 0 or v < 0:
+            if t * signs[0] < 0 or u * signs[1] < 0 or v * signs[2] < 0:
                 return None
-
-            return (t, u, v)
-
-        def LpRnLn(x, y, phi):
-            """This function is related to Equation 8.4. It implements the L+R-L- path, which can be converted to L-R+L+, R+L-R-, and R-L+R+ by proper transformation."""
-            xi = x - np.sin(phi)
-            eta = y - 1 + np.cos(phi)
-            u1, theta = self._R(xi, eta)
-
-            if u1 > 4:
-                return None
-
-            A = np.arccos(u1 / 4)
-            t = self._M(theta + A + np.pi / 2)
-            u = self._M(np.pi - 2 * A)
-            v = self._M(t + u - phi)
-
-            return (t, u, v)
-
-        def LpRpLn(x, y, phi):
-            """This function is related to Equation 8.4. It implements the L+R+L- path, which can be converted to L-R-L+, R+L+R-, and R-L-R+ by proper transformation.
-
-            This is the corrected version of the original paper. The paths L-R-L+, R+L+R-, and R-L-R+ are equivalent to L+R+L-, L-R-L+, and R+L+R-L- with adjusted order of actions.
-            """
-            xi = x + np.sin(phi)
-            eta = y - 1 - np.cos(phi)
-            u1, theta = self._R(-eta, xi)
-
-            if u1 > 4:
-                return None
-
-            u = np.arccos(1 - u1**2 / 8)
-            A = np.arcsin(2 * np.sin(u) / u1)
-            t = self._M(theta - A + np.pi / 2)
-            v = self._M(t - u - phi)
 
             return (t, u, v)
 
@@ -201,23 +169,28 @@ class ReedsShepp:
         ]
 
         matrix1 = np.array([[1, 0, 0], [0, -1, 0], [0, 0, 1]])
+        signs1 = np.sign(np.sum(matrix1, axis=0))
         matrix2 = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
-        matrix3 = np.array([[1, 0, 0], [0, 1, 0], [0, 0, -1]])
+        signs2 = np.sign(np.sum(matrix2, axis=0))
+        matrix3 = np.array([[-1, 0, 0], [0, -1, 0], [0, 0, 1]])
+        signs3 = np.sign(np.sum(matrix3, axis=0))
 
-        # L+R-L+, L-R+L-, R+L-R+, R-L+R-, L+R-L-, L-R+L+, R+L-R-, R-L+R+
+        # paths 0-3: L+R-L+, L-R+L-, R+L-R+, R-L+R-
+        # paths 4-7: L+R-L-, L-R+L+, R+L-R-, R-L+R+
+        # paths 8-11: L-R-L+, L+R+L-, R-L-R+, R+L+R-
         paths = [
-            self._set_path(LpRnLp(*inputs[0]), matrix1, "LRL", "CCC"),
-            self._set_path(LpRnLp(*inputs[1]), -matrix1, "LRL", "CCC"),
-            self._set_path(LpRnLp(*inputs[2]), matrix1, "RLR", "CCC"),
-            self._set_path(LpRnLp(*inputs[3]), -matrix1, "RLR", "CCC"),
-            #     self._set_path(LpRnLn(*inputs[0]), matrix2, "LRL", "CCC"),
-            #     self._set_path(LpRnLn(*inputs[1]), -matrix2, "LRL", "CCC"),
-            #     self._set_path(LpRnLn(*inputs[2]), matrix2, "RLR", "CCC"),
-            #     self._set_path(LpRnLn(*inputs[3]), -matrix2, "RLR", "CCC"),
-            #     self._set_path(LpRpLn(*inputs[0]), matrix3, "LRL", "CCC"),
-            #     self._set_path(LpRpLn(*inputs[1]), -matrix3, "LRL", "CCC"),
-            #     self._set_path(LpRpLn(*inputs[2]), matrix3, "RLR", "CCC"),
-            #     self._set_path(LpRpLn(*inputs[3]), -matrix3, "RLR", "CCC"),
+            self._set_path(LRL(signs1, *inputs[0]), matrix1, "LRL", "CCC"),
+            self._set_path(LRL(signs1, *inputs[1]), -matrix1, "LRL", "CCC"),
+            self._set_path(LRL(signs1, *inputs[2]), matrix1, "RLR", "CCC"),
+            self._set_path(LRL(signs1, *inputs[3]), -matrix1, "RLR", "CCC"),
+            self._set_path(LRL(signs2, *inputs[0]), matrix2, "LRL", "CCC"),
+            self._set_path(LRL(signs2, *inputs[1]), -matrix2, "LRL", "CCC"),
+            self._set_path(LRL(signs2, *inputs[2]), matrix2, "RLR", "CCC"),
+            self._set_path(LRL(signs2, *inputs[3]), -matrix2, "RLR", "CCC"),
+            self._set_path(LRL(signs3, *inputs[0]), matrix3, "LRL", "CCC"),
+            self._set_path(LRL(signs3, *inputs[1]), -matrix3, "LRL", "CCC"),
+            self._set_path(LRL(signs3, *inputs[2]), matrix3, "RLR", "CCC"),
+            self._set_path(LRL(signs3, *inputs[3]), -matrix3, "RLR", "CCC"),
         ]
 
         return paths
@@ -425,10 +398,10 @@ class ReedsShepp:
         phi = end_heading - start_heading
 
         paths = (
-            self._CCC(x, y, phi)
-            + self._CSC(x, y, phi)
-            + self._CCSC(x, y, phi)
+            self._CSC(x, y, phi)
+            + self._CCC(x, y, phi)
             + self._CCCC(x, y, phi)
+            + self._CCSC(x, y, phi)
             + self._CCSCC(x, y, phi)
         )
 

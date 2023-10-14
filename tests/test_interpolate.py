@@ -327,9 +327,31 @@ def test_dubins(radius, start_point, start_heading, end_point, end_heading, step
 
 
 @pytest.mark.math
-def test_reeds_shepp(radius, start_point, start_heading, end_point, end_heading):
-    pass
+@pytest.mark.parametrize(
+    "radius, start_point, start_heading, end_point, end_heading, step_size",
+    [
+        (7.5, np.array([10, 10]), 1, np.array([-20, -10]), 2, 0.01),
+        (7.5, np.array([10, 10]), 1, np.array([-20, -10]), -1, 0.01),
+        (7.5, np.array([10, 10]), -1, np.array([-20, -10]), 2, 0.01),
+        (7.5, np.array([10, 10]), -1, np.array([-20, -10]), -1, 0.01),
+        (7.5, np.array([10, 10]), 4, np.array([15, 5]), 2, 0.01),
+        (7.5, np.array([10, 10]), 0.5, np.array([5, 5]), 2, 0.01),
+        (-7.5, np.array([10, 10]), 4, np.array([15, 5]), 2, 0.01),
+    ],
+)
+def test_reeds_shepp(radius, start_point, start_heading, end_point, end_heading, step_size):
+    try:
+        rs = ReedsShepp(radius)
+    except ValueError as err:
+        if radius <= 0:
+            assert (
+                err.args[0] == "The minimum turning radius must be positive."
+            ), "Test failed: error handling for invalid radius."
+        else:
+            raise err
+        return
 
+    path, curve = rs.get_curve(start_point, start_heading, end_point, end_heading, step_size)
 
-if __name__ == "__main__":
-    pass
+    curve_length = np.linalg.norm(curve[1:] - curve[:-1], axis=1).sum()
+    assert abs(path.length - curve_length) / min(path.length, curve_length) < 0.01
