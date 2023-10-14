@@ -9,15 +9,14 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 import bezier
+
 # import dubins
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from scipy.spatial.distance import directed_hausdorff
 from scipy.interpolate import BSpline as SciBSpline
 from scipy.interpolate import CubicSpline as SciCubic
 
-from tactics2d.math.geometry import Circle
 from tactics2d.math.interpolate import *
 
 
@@ -289,7 +288,7 @@ def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_
 def test_dubins(radius, start_point, start_heading, end_point, end_heading, step_size):
     # t1 = time.time()
     try:
-        my_dubins = Dubins(radius)
+        dubins = Dubins(radius)
     except ValueError as err:
         if radius <= 0:
             assert (
@@ -299,12 +298,10 @@ def test_dubins(radius, start_point, start_heading, end_point, end_heading, step
             raise err
         return
 
-    my_curve, actions, length = my_dubins.get_curve(
-        start_point, start_heading, end_point, end_heading, step_size
-    )
+    path, curve = dubins.get_curve(start_point, start_heading, end_point, end_heading, step_size)
 
-    curve_length = np.linalg.norm(my_curve[1:] - my_curve[:-1], axis=1).sum()
-    assert (abs(length-curve_length)/min(length, curve_length) < 0.01)
+    curve_length = np.linalg.norm(curve[1:] - curve[:-1], axis=1).sum()
+    assert abs(path.length - curve_length) / min(path.length, curve_length) < 0.01
 
     # t2 = time.time()
     # path = dubins.shortest_path(
@@ -329,10 +326,32 @@ def test_dubins(radius, start_point, start_heading, end_point, end_heading, step
     #     )
 
 
-# @pytest.mark.math
-def test_reeds_shepp():
-    pass
+@pytest.mark.math
+@pytest.mark.parametrize(
+    "radius, start_point, start_heading, end_point, end_heading, step_size",
+    [
+        (7.5, np.array([10, 10]), 1, np.array([-20, -10]), 2, 0.01),
+        (7.5, np.array([10, 10]), 1, np.array([-20, -10]), -1, 0.01),
+        (7.5, np.array([10, 10]), -1, np.array([-20, -10]), 2, 0.01),
+        (7.5, np.array([10, 10]), -1, np.array([-20, -10]), -1, 0.01),
+        (7.5, np.array([10, 10]), 4, np.array([15, 5]), 2, 0.01),
+        (7.5, np.array([10, 10]), 0.5, np.array([5, 5]), 2, 0.01),
+        (-7.5, np.array([10, 10]), 4, np.array([15, 5]), 2, 0.01),
+    ],
+)
+def test_reeds_shepp(radius, start_point, start_heading, end_point, end_heading, step_size):
+    try:
+        rs = ReedsShepp(radius)
+    except ValueError as err:
+        if radius <= 0:
+            assert (
+                err.args[0] == "The minimum turning radius must be positive."
+            ), "Test failed: error handling for invalid radius."
+        else:
+            raise err
+        return
 
+    path, curve = rs.get_curve(start_point, start_heading, end_point, end_heading, step_size)
 
-if __name__ == "__main__":
-    pass
+    curve_length = np.linalg.norm(curve[1:] - curve[:-1], axis=1).sum()
+    assert abs(path.length - curve_length) / min(path.length, curve_length) < 0.01

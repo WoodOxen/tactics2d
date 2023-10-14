@@ -121,15 +121,27 @@ class Dubins:
 
         return t, p, q
 
-    def get_path(
+    class Path:
+        def __init__(self, segments, curve_type, radius):
+            self.segments = segments
+            self.curve_type = curve_type
+            self.length = np.abs(segments).sum() * radius
+
+    def _set_path(self, segments, curve_type):
+        if segments is None:
+            return None
+
+        path = self.Path(segments, curve_type, self.radius)
+        return path
+
+    def get_all_path(
         self,
         start_point: np.ndarray,
         start_heading: float,
         end_point: np.ndarray,
         end_heading: float,
     ):
-        """
-        Get the shortest Dubins path connecting two points.
+        """Get all the Dubins paths connecting two points.
 
         Args:
             start_point (np.ndarray): The start point of the curve. The shape is (2,).
@@ -143,26 +155,99 @@ class Dubins:
         alpha = np.mod(start_heading - theta, 2 * np.pi)
         beta = np.mod(end_heading - theta, 2 * np.pi)
 
-        candidate_paths = {
-            "LRL": self._LRL(alpha, beta, d),
-            "RLR": self._RLR(alpha, beta, d),
-            "RSR": self._RSR(alpha, beta, d),
-            "RSL": self._RSL(alpha, beta, d),
-            "LSL": self._LSL(alpha, beta, d),
-            "LSR": self._LSR(alpha, beta, d),
-        }
+        paths = [
+            self._set_path(self._LRL(alpha, beta, d), "LRL"),
+            self._set_path(self._RLR(alpha, beta, d), "RLR"),
+            self._set_path(self._LSL(alpha, beta, d), "LSL"),
+            self._set_path(self._RSL(alpha, beta, d), "RSL"),
+            self._set_path(self._RSR(alpha, beta, d), "RSR"),
+            self._set_path(self._LSR(alpha, beta, d), "LSR"),
+        ]
 
-        # filter out the invalid paths
-        path_lengths = {}
-        for key, value in candidate_paths.items():
-            if value is None:
-                path_lengths[key] = np.inf
+        return paths
+
+    def get_path(
+        self,
+        start_point: np.ndarray,
+        start_heading: float,
+        end_point: np.ndarray,
+        end_heading: float,
+    ) -> Path:
+        """
+        Get the shortest Dubins path connecting two points.
+
+        Args:
+            start_point (np.ndarray): The start point of the curve. The shape is (2,).
+            start_heading (float): The heading of the start point. The unit is radian.
+            end_point (np.ndarray): The end point of the curve. The shape is (2,).
+            end_heading (float): The heading of the end point. The unit is radian.
+        """
+        candidate_paths = self.get_all_path(start_point, start_heading, end_point, end_heading)
+
+        shortest_path = None
+        shortest_length = np.inf
+        for path in candidate_paths:
+            if path is None or path.length > shortest_length:
+                continue
             else:
-                path_lengths[key] = abs(value[0]) + abs(value[1]) + abs(value[2])
+                shortest_length = path.length
+                shortest_path = path
 
-        shortest_path = min(path_lengths, key=path_lengths.get)
+        return shortest_path
 
-        return candidate_paths[shortest_path], shortest_path
+    def get_curve_line(
+        self,
+        path: Path,
+        start_point: np.ndarray,
+        start_heading: float,
+        step_size: float = 0.1,
+    ):
+        def get_arc(point, heading, radius, radian, action):
+            circle_center, _ = Circle.get_circle(
+                Circle.ConstructBy.TangentVector, point, heading, radius, action
+            )
+            clockwise = action == "R"
+            start_angle = (heading + np.pi / 2) if action == "R" else (heading - np.pi / 2)
+            arc_curve = Circle.get_arc(
+                circle_center,
+                radius,
+                radian,
+                start_angle,
+                clockwise,
+                step_size,
+            )
+
+            end_angle = (start_angle - radian) if clockwise else (start_angle + radian)
+            end_point = circle_center + np.array([np.cos(end_angle), np.sin(end_angle)]) * radius
+            end_heading = (start_heading - radian) if clockwise else (start_heading + radian)
+
+            return arc_curve, end_point, end_heading
+
+        def get_straight_line(point, heading, radius, length):
+            end_point = point + np.array([np.cos(heading), np.sin(heading)]) * radius * length
+            x_step = step_size * np.cos(heading)
+            y_step = step_size * np.sin(heading)
+            x = np.arange(point[0], end_point[0], x_step)
+            y = np.arange(point[1], end_point[1], y_step)
+            straight_line = np.vstack((x, y)).T
+
+            return straight_line, end_point, heading
+
+        next_point = start_point
+        next_heading = start_heading
+        curves = []
+        for i, action in enumerate(path.curve_type):
+            if action == "S":
+                curve, next_point, next_heading = get_straight_line(
+                    next_point, next_heading, self.radius, abs(path.segments[i])
+                )
+            else:
+                curve, next_point, next_heading = get_arc(
+                    next_point, next_heading, self.radius, abs(path.segments[i]), action
+                )
+            curves.append(curve)
+
+        return np.concatenate(curves)
 
     def get_curve(
         self,
@@ -180,72 +265,13 @@ class Dubins:
             end_point (np.ndarray): The end point of the curve. The shape is (2,).
             end_heading (float): The heading of the end point. The unit is radian.
             step_size (float, optional): The step size of the curve. Defaults to 0.1.
+
+        Returns:
+            shortest_path (Path): The shortest Dubins path connecting two points.
+            curve (np.ndarray): The shortest Dubins curve connecting two points.
         """
 
-        segs, actions = self.get_path(start_point, start_heading, end_point, end_heading)
-        length = (abs(segs[0]) + abs(segs[1]) + abs(segs[2])) * self.radius
+        shortest_path = self.get_path(start_point, start_heading, end_point, end_heading)
+        curve = self.get_curve_line(shortest_path, start_point, start_heading, step_size)
 
-        # get the first segment
-        start_circle = Circle.get_circle(
-            Circle.ConstructBy.TangentVector, start_point, start_heading, self.radius, actions[0]
-        )
-        first_seg = Circle.get_arc(
-            start_circle[0],
-            self.radius,
-            abs(segs[0]),
-            (start_heading + np.pi / 2) if actions[0] == "R" else (start_heading - np.pi / 2),
-            actions[0] == "R",
-            step_size,
-        )
-
-        # get the third segment
-        end_circle = Circle.get_circle(
-            Circle.ConstructBy.TangentVector, end_point, end_heading, self.radius, actions[2]
-        )
-        third_seg = Circle.get_arc(
-            end_circle[0],
-            self.radius,
-            abs(segs[2]),
-            (end_heading + np.pi / 2) if actions[2] == "R" else (end_heading - np.pi / 2),
-            actions[2] == "L",
-            step_size,
-        )
-
-        # get the second segment
-        if actions[0] == "R":
-            theta1 = start_heading + np.pi / 2 - segs[0]
-        else:
-            theta1 = start_heading - np.pi / 2 + segs[0]
-        point1 = start_circle[0] + np.array([np.cos(theta1), np.sin(theta1)]) * self.radius
-
-        if actions[2] == "R":
-            theta2 = end_heading + np.pi / 2 + segs[2]
-        else:
-            theta2 = end_heading - np.pi / 2 - segs[2]
-        point2 = end_circle[0] + np.array([np.cos(theta2), np.sin(theta2)]) * self.radius
-
-        if actions[1] == "S":
-            n_points = np.linalg.norm(point2 - point1) / step_size
-            second_seg = np.linspace(point1, point2, int(n_points))
-        else:
-            middle_heading = (
-                (start_heading - segs[0]) if actions[0] == "R" else (start_heading + segs[0])
-            )
-            middle_circle = Circle.get_circle(
-                Circle.ConstructBy.TangentVector,
-                point1,
-                middle_heading,
-                self.radius,
-                actions[1],
-            )
-            second_seg = Circle.get_arc(
-                middle_circle[0],
-                self.radius,
-                segs[1],
-                (middle_heading + np.pi / 2) if actions[1] == "R" else (middle_heading - np.pi / 2),
-                actions[1] == "R",
-                step_size,
-            )
-
-        curve = np.concatenate((first_seg, second_seg, np.flip(third_seg, axis=0)))
-        return curve, actions, length
+        return shortest_path, curve
