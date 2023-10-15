@@ -1,9 +1,14 @@
+import sys
+
+sys.path.append(".")
+sys.path.append("..")
+
 from heapdict import heapdict
 
 import numpy as np
 from shapely.geometry import LineString, Point, LinearRing
 
-import samples.rs_path as rsCurve
+from tactics2d.math.interpolate import ReedsShepp
 
 
 class RsPlanner:
@@ -76,34 +81,42 @@ class RsPlanner:
             rel_distance * np.sin(rel_angle),
             rel_dest_heading,
         )
+
+        rs_planner1 = ReedsShepp(self.radius)
         #  Find all possible reeds-shepp paths between current and goal node
-        reedsSheppPaths = rsCurve.calc_all_paths(
-            startX, startY, startYaw, goalX, goalY, goalYaw, 1.0 / self.radius, 0.1
+        reedsSheppPaths1 = rs_planner1.get_all_path(
+            np.array([startX, startY]), startYaw, np.array([goalX, goalY]), goalYaw
         )
 
         # Check if reedsSheppPaths is empty
-        if not reedsSheppPaths:
+        if not reedsSheppPaths1:
             return None
 
         # Find path with lowest cost considering non-holonomic constraints
-        costQueue = heapdict()  # TODO: deprecate the use of heapdict
-        for path in reedsSheppPaths:
-            costQueue[path] = path.L
+        costQueue1 = heapdict()  # TODO: deprecate the use of heapdict
+        for path in reedsSheppPaths1:
+            if path is None:
+                continue
+            costQueue1[path] = path.length
 
         # Find first path in priority queue that is collision free
         min_path_len = -1
         obstacles_params = self.construct_obstacles(info)
-        while len(costQueue) != 0:
-            path = costQueue.popitem()[0]
+        while len(costQueue1) != 0:
+            path = costQueue1.popitem()[0]
             if min_path_len < 0:
-                min_path_len = path.L
-            if path.L > 2 * min_path_len:
+                min_path_len = path.length
+            if path.length > 2 * min_path_len:
                 break
-            traj = []
-            traj = [[path.x[k], path.y[k], path.yaw[k]] for k in range(len(path.x))]
-            traj_valid2 = self.is_traj_valid(traj, obstacles_params)
-            if traj_valid2:
+
+            path.get_curve_line(np.array([startX, startY]), startYaw, self.radius, 0.1)
+            traj1 = [
+                [path.curve[k][0], path.curve[k][1], path.yaw[k]] for k in range(len(path.yaw))
+            ]
+            traj_valid1 = self.is_traj_valid(traj1, obstacles_params)
+            if traj_valid1:
                 return path
+
         return None
 
     def construct_obstacles(self, info):

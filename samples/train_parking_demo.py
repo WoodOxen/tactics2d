@@ -7,7 +7,7 @@ import os
 import random
 import time
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -95,9 +95,11 @@ def save_step(env: ParkingEnv, action):
 def execute_rs_path(rs_path, agent: DemoPPO, env, obs, step_ratio=max_speed / 2):
     action_type = {"L": 1, "S": 0, "R": -1}
     action_list = []
-    for i in range(len(rs_path.ctypes)):
-        steer = action_type[rs_path.ctypes[i]]
-        step_len = rs_path.lengths[i] / step_ratio
+    radius = WHEEL_BASE / np.tan(VALID_STEER[1])
+    
+    for i in range(len(rs_path.actions)):
+        steer = action_type[rs_path.actions[i]]
+        step_len = rs_path.signs[i] * rs_path.segments[i] / step_ratio * radius
         action_list.append([steer, step_len])
 
     # divide the action

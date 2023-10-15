@@ -1,3 +1,4 @@
+import os
 import sys
 
 sys.path.append(".")
@@ -64,12 +65,16 @@ def visualize_dubins():
                 alpha=0.5,
             )
         )
-        path, curve = my_dubins.get_curve(start_point, start_heading, end_point, end_heading)
+        path = my_dubins.get_curve(start_point, start_heading, end_point, end_heading)
+        curve = path.curve
         ax.plot(curve[:, 0], curve[:, 1], "black")
 
     ax.set_aspect("equal")
     plt.show()
-    plt.savefig("dubins.png", dpi=300)
+
+    if not os.path.exists("imgs"):
+        os.makedirs("imgs")
+    plt.savefig("./imgs/dubins.png", dpi=300)
 
 
 def visualize_RS():
@@ -103,7 +108,8 @@ def visualize_RS():
                 alpha=0.5,
             )
         )
-        _, curve = my_RS.get_curve(start_point, start_heading, end_point, end_heading)
+        path = my_RS.get_curve(start_point, start_heading, end_point, end_heading)
+        curve = path.curve
         # paths = my_RS.get_all_path(start_point, start_heading, end_point, end_heading)
         # for path in paths:
         #     if path is not None:
@@ -114,7 +120,10 @@ def visualize_RS():
 
     ax.set_aspect("equal")
     plt.show()
-    plt.savefig("reeds_shepp.png", dpi=300)
+
+    if not os.path.exists("imgs"):
+        os.makedirs("imgs")
+    plt.savefig("./imgs/reeds_shepp.png", dpi=300)
 
 
 if __name__ == "__main__":

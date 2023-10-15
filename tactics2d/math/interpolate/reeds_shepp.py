@@ -3,6 +3,91 @@ import numpy as np
 from tactics2d.math.geometry import Circle
 
 
+class ReedsSheppPath:
+    def __init__(self, segments, matrix, actions, curve_type, radius):
+        self.actions = actions
+        self.curve_type = curve_type
+
+        t, u, v = segments
+        self.segments = np.abs(
+            np.dot(
+                np.array([t, u, v, 1]) if curve_type in ["CCSC", "CCSCC"] else np.array([t, u, v]),
+                matrix,
+            )
+        )
+
+        self.signs = np.sign(np.sum(matrix, axis=0))
+
+        self.length = np.abs(self.segments).sum() * radius
+
+    def get_curve_line(
+        self,
+        start_point: np.ndarray,
+        start_heading: float,
+        radius: float,
+        step_size: float = 0.01,
+    ):
+        def get_arc(point, heading, radius, radian, forward, action):
+            circle_center, _ = Circle.get_circle(
+                Circle.ConstructBy.TangentVector, point, heading, radius, action
+            )
+            start_angle = (heading + np.pi / 2) if action == "R" else (heading - np.pi / 2)
+            clockwise = (action == "R" and forward > 0) or (action == "L" and forward < 0)
+            arc_curve = Circle.get_arc(
+                circle_center,
+                radius,
+                radian,
+                start_angle,
+                clockwise,
+                step_size,
+            )
+
+            end_angle = (start_angle - radian) if clockwise else (start_angle + radian)
+            end_point = circle_center + np.array([np.cos(end_angle), np.sin(end_angle)]) * radius
+            end_heading = (heading - radian) if clockwise else (heading + radian)
+            yaw = np.arange(heading, end_heading, (-1 if clockwise else 1) * step_size / radius)
+
+            return arc_curve, yaw, end_point, end_heading
+
+        def get_straight_line(point, heading, radius, length, forward):
+            end_point = (
+                point + np.array([np.cos(heading), np.sin(heading)]) * radius * length * forward
+            )
+            x_step = step_size * np.cos(heading) * forward
+            y_step = step_size * np.sin(heading) * forward
+            x = np.arange(point[0], end_point[0], x_step)
+            y = np.arange(point[1], end_point[1], y_step)
+            straight_line = np.array([x, y]).T
+            yaw = np.ones_like(x) * heading
+
+            return straight_line, yaw, end_point, heading
+
+        next_point = start_point
+        next_heading = start_heading
+        curves = []
+        yaws = []
+        for i, action in enumerate(self.actions):
+            if action == "S":
+                curve, yaw, next_point, next_heading = get_straight_line(
+                    next_point, next_heading, radius, self.segments[i], self.signs[i]
+                )
+            else:
+                curve, yaw, next_point, next_heading = get_arc(
+                    next_point,
+                    next_heading,
+                    radius,
+                    abs(self.segments[i]),
+                    self.signs[i],
+                    action,
+                )
+
+            curves.append(curve)
+            yaws.append(yaw)
+
+        self.curve = np.concatenate(curves)
+        self.yaw = np.concatenate(yaws)
+
+
 class ReedsShepp:
     """
     This class implements a Reeds Shepp curve interpolator. The implementation follows the paper "Optimal paths for a car that goes both forwards and backwards" by Reeds and Shepp
@@ -60,30 +145,11 @@ class ReedsShepp:
         y_ = x * np.sin(phi) - y * np.cos(phi)
         return (x_, y_, phi)
 
-    class Path:
-        def __init__(self, segments, matrix, actions, curve_type, radius):
-            self.actions = actions
-            self.curve_type = curve_type
-
-            t, u, v = segments
-            self.segments = np.abs(
-                np.dot(
-                    np.array([t, u, v, 1])
-                    if curve_type in ["CCSC", "CCSCC"]
-                    else np.array([t, u, v]),
-                    matrix,
-                )
-            )
-
-            self.signs = np.sign(np.sum(matrix, axis=0))
-
-            self.length = np.abs(self.segments).sum() * radius
-
-    def _set_path(self, segments, matrix, actions, curve_type) -> Path:
+    def _set_path(self, segments, matrix, actions, curve_type) -> ReedsSheppPath:
         if segments is None:
             return None
 
-        path = self.Path(segments, matrix, actions, curve_type, self.radius)
+        path = ReedsSheppPath(segments, matrix, actions, curve_type, self.radius)
         return path
 
     def _CSC(self, x, y, phi):
@@ -435,63 +501,6 @@ class ReedsShepp:
 
         return shortest_path
 
-    def get_curve_line(
-        self, path: Path, start_point: np.ndarray, start_heading: float, step_size: float = 0.01
-    ):
-        def get_arc(point, heading, radius, radian, forward, action):
-            circle_center, _ = Circle.get_circle(
-                Circle.ConstructBy.TangentVector, point, heading, radius, action
-            )
-            start_angle = (heading + np.pi / 2) if action == "R" else (heading - np.pi / 2)
-            clockwise = (action == "R" and forward > 0) or (action == "L" and forward < 0)
-            arc_curve = Circle.get_arc(
-                circle_center,
-                radius,
-                radian,
-                start_angle,
-                clockwise,
-                step_size,
-            )
-
-            end_angle = (start_angle - radian) if clockwise else (start_angle + radian)
-            end_point = circle_center + np.array([np.cos(end_angle), np.sin(end_angle)]) * radius
-            end_heading = (heading - radian) if clockwise else (heading + radian)
-
-            return arc_curve, end_point, end_heading
-
-        def get_straight_line(point, heading, radius, length, forward):
-            end_point = (
-                point + np.array([np.cos(heading), np.sin(heading)]) * radius * length * forward
-            )
-            x_step = step_size * np.cos(heading) * forward
-            y_step = step_size * np.sin(heading) * forward
-            x = np.arange(point[0], end_point[0], x_step)
-            y = np.arange(point[1], end_point[1], y_step)
-            straight_line = np.array([x, y]).T
-
-            return straight_line, end_point, heading
-
-        next_point = start_point
-        next_heading = start_heading
-        curves = []
-        for i, action in enumerate(path.actions):
-            if action == "S":
-                curve, next_point, next_heading = get_straight_line(
-                    next_point, next_heading, self.radius, path.segments[i], path.signs[i]
-                )
-            else:
-                curve, next_point, next_heading = get_arc(
-                    next_point,
-                    next_heading,
-                    self.radius,
-                    abs(path.segments[i]),
-                    path.signs[i],
-                    action,
-                )
-            curves.append(curve)
-
-        return np.concatenate(curves)
-
     def get_curve(
         self,
         start_point: np.ndarray,
@@ -499,7 +508,7 @@ class ReedsShepp:
         end_point: np.ndarray,
         end_heading: float,
         step_size: float = 0.01,
-    ):
+    ) -> ReedsSheppPath:
         """Get the shortest Reeds-Shepp curve connecting two points.
 
         Args:
@@ -507,8 +516,12 @@ class ReedsShepp:
             start_heading (float): The start heading of the curve.
             end_point (np.ndarray): The end point of the curve. The shape is (2,).
             end_heading (float): The end heading of the curve.
+
+        Returns:
+            shortest_path (ReedsSheppPath): The shortest Reeds-Shepp curve connecting two points.
         """
         shortest_path = self.get_path(start_point, start_heading, end_point, end_heading)
-        curve = self.get_curve_line(shortest_path, start_point, start_heading, step_size)
+        if shortest_path is not None:
+            shortest_path.get_curve_line(start_point, start_heading, self.radius, step_size)
 
-        return shortest_path, curve
+        return shortest_path

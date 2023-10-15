@@ -298,7 +298,8 @@ def test_dubins(radius, start_point, start_heading, end_point, end_heading, step
             raise err
         return
 
-    path, curve = dubins.get_curve(start_point, start_heading, end_point, end_heading, step_size)
+    path = dubins.get_curve(start_point, start_heading, end_point, end_heading, step_size)
+    curve = path.curve
 
     curve_length = np.linalg.norm(curve[1:] - curve[:-1], axis=1).sum()
     assert abs(path.length - curve_length) / min(path.length, curve_length) < 0.01
@@ -351,7 +352,8 @@ def test_reeds_shepp(radius, start_point, start_heading, end_point, end_heading,
             raise err
         return
 
-    path, curve = rs.get_curve(start_point, start_heading, end_point, end_heading, step_size)
+    path = rs.get_curve(start_point, start_heading, end_point, end_heading, step_size)
+    curve = path.curve
 
     curve_length = np.linalg.norm(curve[1:] - curve[:-1], axis=1).sum()
     assert abs(path.length - curve_length) / min(path.length, curve_length) < 0.01
