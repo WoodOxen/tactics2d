@@ -25,7 +25,7 @@ class SingleTrackKinematics(PhysicsModelBase):
 
     The implementation is referred to the following paper:
         Kong, Jason, et al. "Kinematic and dynamic vehicle models for autonomous driving
-        control design." 2015 IEEE intelligent vehicles symposium (IV). IEEE, 2015.
+        control design." *2015 IEEE intelligent vehicles symposium* (IV). IEEE, 2015.
 
     Attributes:
         dist_front_hang (float): The distance from the center of the mass to the front axles. The unit is meter.

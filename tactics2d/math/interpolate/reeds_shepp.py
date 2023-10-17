@@ -89,8 +89,11 @@ class ReedsSheppPath:
 
 
 class ReedsShepp:
-    """
-    This class implements a Reeds Shepp curve interpolator. The implementation follows the paper "Optimal paths for a car that goes both forwards and backwards" by Reeds and Shepp
+    """Implementation of the Reeds-Shepp path interpolator.
+
+    The implementation is referred to the following paper:
+        Reeds, James, and Lawrence Shepp. "Optimal paths for a car that goes both forwards
+        and backwards." *Pacific journal of mathematics* 145.2 (1990): 367-393.
 
     Attributes:
         radius (float): The minimum turning radius of the vehicle.

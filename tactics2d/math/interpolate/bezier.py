@@ -39,7 +39,7 @@ class Bezier:
             n_interpolation (int): The number of interpolations.
 
         Returns:
-            np.ndarray: The interpolation points of the curve. The shape is (n_interpolation, 2).
+            curve_points (np.ndarray): The interpolated points of the curve. The shape is (n_interpolation, 2).
         """
         self._check_validity(control_points)
 
