@@ -2,62 +2,48 @@
 
 [![Codacy](https://app.codacy.com/project/badge/Grade/2bb48186b56d4e3ab963121a5923d6b5)](https://app.codacy.com/gh/WoodOxen/tactics2d/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Codecov](https://codecov.io/gh/WoodOxen/tactics2d/graph/badge.svg?token=X81Z6AOIMV)](https://codecov.io/gh/WoodOxen/tactics2d)
-
-![Test Modules](https://github.com/WoodOxen/tactics2d/actions/workflows/test_modules.yml/badge.svg?branch=feature-1)
+![Test Modules](https://github.com/WoodOxen/tactics2d/actions/workflows/test_modules.yml/badge.svg?)
 [![Read the Docs](https://img.shields.io/readthedocs/tactics2d)](https://tactics2d.readthedocs.io/en/latest/)
+[![Downloads](https://img.shields.io/pypi/dm/tactics2d)](https://pypi.org/project/tactics2d/)
+
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Github license](https://img.shields.io/github/license/WoodOxen/tactics2d)](https://github.com/WoodOxen/tactics2d/blob/dev/LICENSE)
 
 ## About
 
-Tactics2d provides 
+Tactics2D is a Python library that provides diverse traffic environments, facilitating the development of driving decision-making models.
 
 ## Quick Start
 
-## Development
+### Install from PyPI
 
-### Folder Structure
+You can simply install Tactics2D from PyPI with the following command
 
 ```shell
-.
-├── data
-│   └── maps
-│       ├── configs
-│       └── defaults
-├── tactics2d
-│   ├── common
-│   ├── envs
-│   ├── env_wrapper
-│   ├── interface
-│   ├── map_base
-│   ├── map_converter
-│   ├── map_parser
-│   ├── object_base
-│   ├── render
-│   ├── utils
-│   └── vehicle_kinematics
-│       └── base
-└── tests
+pip install tactics2d
 ```
 
-### Map Naming
+### Install from Github
 
-`<scenario type>_<data source>_<index>_<country>.osm/xodr`
+You can also install Tactics2D from from its source on GitHub.
 
-The available scenario types include
+[TODO]
 
-| Notation | Scenario |
-| ---------- | ---------- |
-| C | Racing track, racing circuit |
-| H | Highway |
-| I | Intersection without traffic signs |
-| P | Parking lot |
-| R | Roundabout |
-| SI | Intersection with traffic signs |
-| U | Unknown scenario or custom scenario |
+If no errors occurs, you should have installed Tactics2D successfully.
 
-Some modified maps from the following track datasets are available in `Tactics2D`. They are provided in the Lanelet2 format.
+### Samples
 
--   [HighD](https://www.highd-dataset.com/)
--   [InD](https://www.ind-dataset.com/)
--   [RounD](https://www.round-dataset.com/)
--   [INTERACTION](https://interaction-dataset.com/)
+[TODO: The command lines to run sample codes.]
+
+## Citation
+
+If you find Tactics2D useful, please cite this in your publication.
+
+```bibtex
+@misc{li2023tactics2d,
+    author  =   {Yueyuan Li and Mingyang Jiang and Xingyuan Chen and Ming Yang},
+    title   =   {},
+    year    =   {2023},
+    url     =   {https://github.com/WoodOxen/tactics2d}
+}
+```

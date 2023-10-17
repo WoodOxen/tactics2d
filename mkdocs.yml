@@ -1,7 +1,7 @@
 # Check https://www.mkdocs.org/user-guide/configuration/
 # for more MkDocs configuration details
 
-site_name: Tactics2d-doc
+site_name: Tactics2d
 site_url: https://tactics2d.readthedocs.io/en/latest/
 site_description: The official documentation of Tactics2d.
 site_author: WoodOxen
@@ -10,17 +10,50 @@ repo_url: https://github.com/WoodOxen/tactics2d
 docs_dir: docs
 nav:
   - Home: "index.md"
-  - Install: "install.md"
   - Python API:
       - tactics2d.envs: "api_envs.md"
       - tactics2d.map: "api_map.md"
+      - tactics2d.math: "api_math.md"
       - tactics2d.participant: "api_participant.md"
       - tactics2d.physics: "api_physics.md"
       - tactics2d.scenario: "api_scenario.md"
       - tactics2d.sensor: "api_sensor.md"
       - tactics2d.trajectory: "api_trajectory.md"
 
-theme: "material"
+theme: 
+  name: "material"
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      toggle:
+        icon: material/brightness-7 
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: "Roboto Slab"
+    code: "Source Code Pro"
+  features:
+    - content.action.view
+    - content.code.copy
+    - content.code.prettify
+    - navigation.footer
+    - search.suggest
 
 plugins:
   - mkdocstrings:
