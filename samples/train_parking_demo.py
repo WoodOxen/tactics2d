@@ -4,10 +4,8 @@ sys.path.append(".")
 sys.path.append("..")
 
 import os
-import random
 import time
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -20,42 +18,10 @@ from samples.action_mask import ActionMask, VehicleBox, physic_model, WHEEL_BASE
 from samples.rs_planner import RsPlanner
 from samples.parking_config import *
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 action_mask = ActionMask()
 dist_rear_hang = physic_model.dist_rear_hang
-
-
-class RewardShaping:
-    def __init__(self) -> None:
-        self.prev_max_iou = 0
-        self.reward_scale = 0.1
-        self.curr_iou = 0
-
-    def reward_shaping(self, info):
-        rewards = info["rewards"]
-        self.curr_iou += rewards["iou_reward"]
-        r_iou = max(0, self.curr_iou - self.prev_max_iou)
-        if rewards["collision_penalty"] < -1e-4:
-            reward = -50
-        elif rewards["time_exceeded_penalty"] < -1e-4:
-            reward = -1
-        elif rewards["outside_map_penalty"] < -1e-4:
-            reward = -50
-        elif rewards["complete_reward"] > 1e-4:
-            reward = 50
-        else:
-            reward = rewards["time_penalty"] + r_iou * 10  # + rewards['distance_reward']*10
-        reward *= self.reward_scale
-        self.prev_max_iou = max(self.prev_max_iou, self.curr_iou)
-        return reward
-
-    def reset(
-        self,
-    ):
-        self.prev_max_iou = 0
-        self.curr_iou = 0
-
-
-reward_shaping = RewardShaping()
 
 
 def save_step(env: ParkingEnv, action):
@@ -96,7 +62,7 @@ def execute_rs_path(rs_path, agent: DemoPPO, env, obs, step_ratio=max_speed / 2)
     action_type = {"L": 1, "S": 0, "R": -1}
     action_list = []
     radius = WHEEL_BASE / np.tan(VALID_STEER[1])
-    
+
     for i in range(len(rs_path.actions)):
         steer = action_type[rs_path.actions[i]]
         step_len = rs_path.signs[i] * rs_path.segments[i] / step_ratio * radius
@@ -126,7 +92,6 @@ def execute_rs_path(rs_path, agent: DemoPPO, env, obs, step_ratio=max_speed / 2)
     for action in filtered_actions:
         log_prob = agent.get_log_prob(obs, action)
         next_obs, reward, terminate, truncated, info = save_step(env, action)
-        reward = reward_shaping.reward_shaping(info)
         env.render()
         done = terminate or truncated
         total_reward += reward
@@ -140,7 +105,7 @@ def execute_rs_path(rs_path, agent: DemoPPO, env, obs, step_ratio=max_speed / 2)
                 info["status"] = TrafficEvent.COLLISION_VEHICLE
             break
 
-    return total_reward, done, info
+    return total_reward, done, reward, info
 
 
 def preprocess_obs(info):
@@ -156,7 +121,7 @@ def preprocess_obs(info):
     dest_coords = np.mean(np.array(info["target_area"]), axis=0)
     dest_heading = info["target_heading"]
     dest_pos = _move_center(dest_coords[0], dest_coords[1], dest_heading)
-    ego_pos = _move_center(info["position_x"], info["position_y"], info["heading"])
+    ego_pos = _move_center(info["location"][0], info["location"][1], info["heading"])
     rel_distance = np.sqrt((dest_pos[0] - ego_pos[0]) ** 2 + (dest_pos[1] - ego_pos[1]) ** 2)
     rel_angle = np.arctan2(dest_pos[1] - ego_pos[1], dest_pos[0] - ego_pos[0]) - ego_pos[2]
     rel_dest_heading = dest_pos[2] - ego_pos[2]
@@ -208,41 +173,34 @@ def test_parking_env(save_path):
     writer = SummaryWriter(save_path)
 
     reward_list = []
-    reward_info_list = []
     succ_record = []
     status_info = []
     print("start train!")
     for i in range(100000):
-        # print(i)
-        reward_shaping.reset()
         _, info = env.reset()
         obs = preprocess_obs(info)
         done = False
         total_reward = 0
         step_num = 0
-        reward_info = []
         while not done:
             step_num += 1
             rs_path = rs_planner.get_rs_path(info)
             if rs_path is not None:
-                total_reward, done, info = execute_rs_path(
+                total_reward, done, reward, info = execute_rs_path(
                     rs_path,
                     agent,
                     env,
                     obs,
                 )
-                reward_info.append(list(info["rewards"].values()))
                 if not done:
                     info["status"] = "RS FAIL"
                     done = True
             else:
                 action, log_prob = agent.choose_action(obs)  # time consume: 3ms
-                _, _, terminate, truncated, info = save_step(env, action)
+                _, reward, terminate, truncated, info = save_step(env, action)
                 env.render()
-                reward = reward_shaping.reward_shaping(info)
                 done = terminate or truncated
                 next_obs = preprocess_obs(info)
-                reward_info.append(list(info["rewards"].values()))
                 total_reward += reward
                 agent.push_memory((obs, action, reward, done, log_prob, next_obs))
                 obs = next_obs
@@ -264,9 +222,6 @@ def test_parking_env(save_path):
         writer.add_scalar("log_std2", agent.log_std.detach().cpu().numpy().reshape(-1)[1], i)
         writer.add_scalar("step_num", step_num, i)
         reward_list.append(total_reward)
-        reward_info = np.sum(np.array(reward_info), axis=0)
-        reward_info = np.round(reward_info, 2)
-        reward_info_list.append(list(reward_info))
 
         if i % 10 == 0 and i > 0:
             print("success rate:", np.sum(succ_record), "/", len(succ_record))
@@ -275,7 +230,7 @@ def test_parking_env(save_path):
             print(np.mean(agent.actor_loss_list[-100:]), np.mean(agent.critic_loss_list[-100:]))
             print("time_cost ,rs_dist_reward ,dist_reward ,angle_reward ,box_union_reward")
             for j in range(10):
-                print(reward_list[-(10 - j)], reward_info_list[-(10 - j)], status_info[-(10 - j)])
+                print(reward_list[-(10 - j)], status_info[-(10 - j)])
             print("")
 
         if (i + 1) % 5000 == 0:

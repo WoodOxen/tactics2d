@@ -195,17 +195,20 @@ class ParkingScenarioManager(ScenarioManager):
 class ParkingEnv(gym.Env):
     """A simple parking environment.
 
+    ## Action Space
+    The action space is either continuous or discrete.
+
+    When continuous, it is a Box(2,). The first action is steering. Its value range is [-0.75, 0.75]. The second action is acceleration. Its value range is [-1, 1]. The unit of acceleration is $m^2/s$.
+
+    When discrete, it is a Discrete(5). The action value is 0 (do nothing), 1 (steer left), 2 (steer right), 3 (accelerate), 4 (decelerate), which means
+
+    ## Observation Space
+
+    ## Reward
+    
+    The 
+
     Attributes:
-        action_space (gym.spaces): The action space is either continuous or discrete.
-            When continuous, it is a Box(2,). The first action is steering. Its value range is
-            [-0.75, 0.75]. The second action is acceleration. Its value range is [-1, 1]. The unit of acceleration is $m^2/s$.
-            When discrete, it is a Discrete(5). The action value is 0, 1, 2, 3, 4, which means
-            - 0: do nothing
-            - 1: steer left
-            - 2: steer right
-            - 3: accelerate
-            - 4: decelerate
-        observation_space ():
         bay_proportion(float, optional): The proportion of the parking bay in the randomly
             generated environment. Defaults to 0.5.
         render_mode (str, optional): The rendering mode. Possible choices are "human" and
@@ -248,7 +251,8 @@ class ParkingEnv(gym.Env):
             self.action_space = spaces.Discrete(5)
 
         self.observation_space = spaces.Box(0, 255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
-        self.hist_max_iou = 0
+
+        self.max_iou = 0
 
         self.scenario_manager = ParkingScenarioManager(
             bay_proportion, self.render_fps, self.render_mode != "human", self.max_step
@@ -256,15 +260,14 @@ class ParkingEnv(gym.Env):
 
     def reset(self, seed: int = None, options: dict = None):
         super().reset(seed=seed, options=options)
-        self.hist_max_iou = 0
         self.scenario_manager.reset()
         observations = self.scenario_manager.get_observation()
         observation = observations[0]
+        self.max_iou = 0
 
         info = {
             "lidar": observations[1],
-            "position_x": self.scenario_manager.agent.get_state().location[0],
-            "position_y": self.scenario_manager.agent.get_state().location[1],
+            "location": self.scenario_manager.agent.get_state().location,
             "velocity": self.scenario_manager.agent.velocity,
             "speed": self.scenario_manager.agent.speed,
             "acceleration": self.scenario_manager.agent.accel,
@@ -272,36 +275,36 @@ class ParkingEnv(gym.Env):
             "target_area": self.scenario_manager.target_area.geometry.exterior.coords[:-1],
             "target_heading": self.scenario_manager.target_heading,
             "status": self.scenario_manager.status,
-            "rewards": dict(),
             "reward": 0,
         }
 
         return observation, info
 
-    def _get_rewards(self, status: TrafficEvent):
-        if status == TrafficEvent.COLLISION_STATIC:
-            reward = -50
-        elif status == TrafficEvent.TIME_EXCEEDED:
+    def _get_reward(self, status: TrafficEvent):
+        reward = 0
+        if status == TrafficEvent.TIME_EXCEEDED:
             reward = -1
-        elif status == TrafficEvent.OUTSIDE_MAP:
-            reward = -50
+        elif status == TrafficEvent.COLLISION_STATIC:
+            reward = -5
+        elif status ==TrafficEvent.OUTSIDE_MAP:
+            reward = -5
         elif status == TrafficEvent.COMPLETED:
-            reward = 50
-        elif status == TrafficEvent.NORMAL:
+            reward = 5
+        else:
             # time penalty
             time_penalty = -0.1 * np.tanh(
                 self.scenario_manager.n_step / self.scenario_manager.max_step * 0.1
             )
 
             # IoU reward
-            curr_pose = Polygon(self.scenario_manager.agent.get_pose())
+            current_pose = Polygon(self.scenario_manager.agent.get_pose())
             target_pose = self.scenario_manager.target_area.geometry
-            curr_intersection = curr_pose.intersection(target_pose).area
-            curr_union = curr_pose.union(target_pose).area
-            curr_iou = curr_intersection / curr_union
+            current_intersection = current_pose.intersection(target_pose).area
+            current_union = current_pose.union(target_pose).area
+            current_iou = current_intersection / current_union
 
-            iou_reward = max(0, curr_iou - self.hist_max_iou)
-            self.hist_max_iou = max(self.hist_max_iou, curr_iou)
+            iou_reward = max(0, current_iou - self.max_iou)
+            self.max_iou = max(self.max_iou, current_iou)
 
             reward = time_penalty + iou_reward
 
@@ -319,12 +322,11 @@ class ParkingEnv(gym.Env):
         terminated = status == TrafficEvent.COMPLETED
         truncated = status != TrafficEvent.NORMAL
 
-        rewards, reward = self._get_rewards(self.scenario_manager.status)
+        reward = self._get_reward(self.scenario_manager.status)
 
         info = {  # TODO
             "lidar": observations[1],
-            "position_x": self.scenario_manager.agent.get_state().location[0],
-            "position_y": self.scenario_manager.agent.get_state().location[1],
+            "location": self.scenario_manager.agent.get_state().location,
             "velocity": self.scenario_manager.agent.velocity,
             "speed": self.scenario_manager.agent.speed,
             "acceleration": self.scenario_manager.agent.accel,
@@ -332,7 +334,6 @@ class ParkingEnv(gym.Env):
             "target_area": self.scenario_manager.target_area.geometry.exterior.coords[:-1],
             "target_heading": self.scenario_manager.target_heading,
             "status": self.scenario_manager.status,
-            "rewards": rewards,
             "reward": reward,
         }
 

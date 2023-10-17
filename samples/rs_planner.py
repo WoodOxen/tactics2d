@@ -67,7 +67,7 @@ class RsPlanner:
         if self.center_shift != 0:
             dest_coords[0] -= self.center_shift * np.cos(dest_heading)
             dest_coords[1] -= self.center_shift * np.sin(dest_heading)
-        ego_pos = (info["position_x"], info["position_y"], info["heading"])
+        ego_pos = (info["location"][0], info["location"][1], info["heading"])
         dest_pos = (dest_coords[0], dest_coords[1], dest_heading)
         self.dest_pos = dest_pos
         rel_distance = np.sqrt((dest_pos[0] - ego_pos[0]) ** 2 + (dest_pos[1] - ego_pos[1]) ** 2)
