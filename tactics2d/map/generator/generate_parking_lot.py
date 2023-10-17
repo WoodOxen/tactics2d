@@ -71,7 +71,8 @@ class ParkingLotGenerator:
     """Generate a random bay parking lot scenario with determined start and destination.
 
     Attributes:
-        vehicle_size
+        vehicle_size (Tuple[float, float]): The size of the vehicle. The first element is the 
+            length and the second element is the width.
         bay_proportion (float): The proportion of "bay" parking scenario in all
             generated scenarios. It should be in the range of [0, 1]. When it is 0, the
             generator only generates parallel parking scenario. When it is 1, the generator only
