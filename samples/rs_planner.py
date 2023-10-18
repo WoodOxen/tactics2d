@@ -27,9 +27,7 @@ class RsPlanner:
         self.lidar_range = lidar_range
         self.threshold_distance = lidar_range - 2.0
 
-    def init_vehicle_base(
-        self,
-    ):
+    def init_vehicle_base(self):
         self.lidar_lines = []
         lidar_num = self.lidar_num
         lidar_range = 100.0
@@ -67,7 +65,7 @@ class RsPlanner:
         if self.center_shift != 0:
             dest_coords[0] -= self.center_shift * np.cos(dest_heading)
             dest_coords[1] -= self.center_shift * np.sin(dest_heading)
-        ego_pos = (info["location"][0], info["location"][1], info["heading"])
+        ego_pos = (info["state"].x, info["state"].y, info["state"].heading)
         dest_pos = (dest_coords[0], dest_coords[1], dest_heading)
         self.dest_pos = dest_pos
         rel_distance = np.sqrt((dest_pos[0] - ego_pos[0]) ** 2 + (dest_pos[1] - ego_pos[1]) ** 2)

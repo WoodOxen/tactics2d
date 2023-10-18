@@ -6,7 +6,7 @@ from tactics2d.physics.single_track_kinematics import SingleTrackKinematics
 
 # TODO: these parameters should also be modified in parking.py when changed
 lidar_num = 120  #
-lidar_range = 10.0  #
+lidar_range = 20.0  #
 max_speed = 2  #
 VALID_STEER = [-0.75, 0.75]
 
@@ -16,13 +16,12 @@ vehicle_type = "medium_car"
 WHEEL_BASE = VEHICLE_MODEL[vehicle_type]["wheel_base"]  # wheelbase
 LENGTH = VEHICLE_MODEL[vehicle_type]["length"]
 WIDTH = VEHICLE_MODEL[vehicle_type]["width"]
-tolerance = 0.0
 VehicleBox = LinearRing(
     [
-        [0.5 * LENGTH + tolerance, -0.5 * WIDTH - tolerance],
-        [0.5 * LENGTH + tolerance, 0.5 * WIDTH + tolerance],
-        [-0.5 * LENGTH - tolerance, 0.5 * WIDTH + tolerance],
-        [-0.5 * LENGTH - tolerance, -0.5 * WIDTH - tolerance],
+        [0.5 * LENGTH, -0.5 * WIDTH],
+        [0.5 * LENGTH, 0.5 * WIDTH],
+        [-0.5 * LENGTH, 0.5 * WIDTH],
+        [-0.5 * LENGTH, -0.5 * WIDTH],
     ]
 )
 physic_model = SingleTrackKinematics(

@@ -34,3 +34,4 @@ class TrafficEvent(Enum):
     OUTSIDE_MAP = 11
     TIME_EXCEEDED = 12
     NO_ACTION = 13
+    FAILED = 14

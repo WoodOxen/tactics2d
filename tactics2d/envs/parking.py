@@ -12,7 +12,8 @@ from tactics2d.participant.element import Vehicle
 from tactics2d.trajectory.element import State
 from tactics2d.sensor import TopDownCamera, SingleLineLidar
 from tactics2d.map.generator import ParkingLotGenerator
-from tactics2d.scenario import ScenarioManager, RenderManager, TrafficEvent
+from tactics2d.scenario import ScenarioManager, RenderManager
+from tactics2d.scenario.traffic_event import TrafficEvent
 
 STATE_W = 200
 STATE_H = 200
@@ -21,11 +22,12 @@ WIN_H = 500
 
 FPS = 60
 MAX_FPS = 200
-TIME_STEP = 0.01  # state update time step: 0.01 s/step
-MAX_STEP = 20000  # steps
-max_speed = 2.0
-lidar_num = 120
-lidar_range = 10.0
+TIME_STEP = 0.01
+MAX_STEP = 20000
+MAX_SPEED = 2.0
+MAX_STEER = 0.75
+LIDAR_RANGE = 20.0
+LIDAR_LINE = 120
 
 DISCRETE_ACTION = np.array(
     [
@@ -50,17 +52,15 @@ def truncate_angle(angle: float):
 
 
 class ParkingScenarioManager(ScenarioManager):
-    """_summary_
+    """This class provides a parking scenario manager.
 
     Attributes:
         bay_proportion (float): The proportion of the parking bay in randomly generated
             parking scenarios.
-        map_ (Map): The map of the scenario.
-        map_generator (ParkingLotGenerator): The map generator.
-        render_manager (RenderManager): The render manager.
         render_fps (int): The FPS of the rendering.
         off_screen (bool): Whether to render the scene on the screen.
-        n_step (int): The number of steps since the beginning of the episode.
+        max_step (int, optional): The maximum number of steps. Defaults to 20000.
+        step_size (float): The time duration of each step. Defaults to 0.5.
     """
 
     def __init__(
@@ -68,17 +68,16 @@ class ParkingScenarioManager(ScenarioManager):
         bay_proportion: float,
         render_fps: int,
         off_screen: bool,
-        max_step: int,
-        step_len: float = 0.5,
-        max_speed: float = 2.0,
+        max_step: float = MAX_STEP,
+        step_size: float = 0.5,
     ):
-        super().__init__(render_fps, off_screen, max_step, step_len)
+        super().__init__(render_fps, off_screen, max_step, step_size)
 
         self.agent = Vehicle(
             id_=0,
             type_="medium_car",
-            steer_range=(-0.75, 0.75),
-            speed_range=(-max_speed, max_speed),
+            steer_range=(-MAX_STEER, MAX_STEER),
+            speed_range=(-MAX_SPEED, MAX_SPEED),
             accel_range=(-1.0, 1.0),
         )
         self.participants = {self.agent.id_: self.agent}
@@ -112,7 +111,7 @@ class ParkingScenarioManager(ScenarioManager):
 
     def update(self, action: np.ndarray) -> TrafficEvent:
         self.n_step += 1
-        self.agent.update(action, self.step_len)
+        self.agent.update(action, self.step_size)
         self.render_manager.update(self.participants, [0], self.agent.current_state.frame)
 
         return self.get_observation()
@@ -177,8 +176,8 @@ class ParkingScenarioManager(ScenarioManager):
         lidar = SingleLineLidar(
             id_=1,
             map_=self.map_,
-            perception_range=lidar_range,
-            freq_detect=lidar_num * 10,
+            perception_range=LIDAR_RANGE,
+            freq_detect=LIDAR_LINE * 10,
             window_size=(STATE_W, STATE_H),
             off_screen=self.off_screen,
         )
@@ -193,20 +192,23 @@ class ParkingScenarioManager(ScenarioManager):
 
 
 class ParkingEnv(gym.Env):
-    """A simple parking environment.
+    """This class provides a parking environment.
 
     ## Action Space
     The action space is either continuous or discrete.
 
-    When continuous, it is a Box(2,). The first action is steering. Its value range is [-0.75, 0.75]. The second action is acceleration. Its value range is [-1, 1]. The unit of acceleration is $m^2/s$.
+    When continuous, it is a Box(2,). The first action is steering. Its value range is
+        [-0.75, 0.75]. The second action is acceleration. Its value range is [-1, 1]. The unit of
+        acceleration is $m^2/s$.
 
-    When discrete, it is a Discrete(5). The action value is 0 (do nothing), 1 (steer left), 2 (steer right), 3 (accelerate), 4 (decelerate), which means
+    When discrete, it is a Discrete(5). The action value is 0 (do nothing), 1 (steer left),
+        2 (steer right), 3 (accelerate), 4 (decelerate), which means
 
     ## Observation Space
 
     ## Reward
-    
-    The 
+
+    When the vehicle
 
     Attributes:
         bay_proportion(float, optional): The proportion of the parking bay in the randomly
@@ -214,6 +216,7 @@ class ParkingEnv(gym.Env):
         render_mode (str, optional): The rendering mode. Possible choices are "human" and
             "rgb_array". Defaults to "human".
         render_fps (int, optional): The rendering FPS. Defaults to 60.
+        max_step (int, optional): The maximum number of steps. Defaults to 20000.
         continuous (bool, optional): Whether to use continuous action space. Defaults to True.
     """
 
@@ -245,7 +248,7 @@ class ParkingEnv(gym.Env):
 
         if self.continuous:
             self.action_space = spaces.Box(
-                np.array([-0.75, -max_speed]), np.array([0.75, max_speed])
+                np.array([-MAX_STEER, -MAX_SPEED]), np.array([MAX_STEER, MAX_SPEED])
             )
         else:
             self.action_space = spaces.Discrete(5)
@@ -258,24 +261,39 @@ class ParkingEnv(gym.Env):
             bay_proportion, self.render_fps, self.render_mode != "human", self.max_step
         )
 
+    def _get_relative_pose(self, state: State):
+        target_pose = np.array(
+            [
+                self.scenario_manager.target_area.geometry.centroid.x,
+                self.scenario_manager.target_area.geometry.centroid.y,
+            ]
+        )
+        target_heading = self.scenario_manager.target_heading
+        diff_position = np.linalg.norm(target_pose - np.array(state.location))
+        diff_angle = np.arctan2(target_pose[1] - state.y, target_pose[0] - state.x) - state.heading
+        diff_heading = target_heading - state.heading
+
+        return diff_position, diff_angle, diff_heading
+
     def reset(self, seed: int = None, options: dict = None):
         super().reset(seed=seed, options=options)
         self.scenario_manager.reset()
         observations = self.scenario_manager.get_observation()
         observation = observations[0]
-        self.max_iou = 0
+
+        diff_position, diff_angle, diff_heading = self._get_relative_pose(
+            self.scenario_manager.agent.current_state
+        )
 
         info = {
             "lidar": observations[1],
-            "location": self.scenario_manager.agent.get_state().location,
-            "velocity": self.scenario_manager.agent.velocity,
-            "speed": self.scenario_manager.agent.speed,
-            "acceleration": self.scenario_manager.agent.accel,
-            "heading": self.scenario_manager.agent.heading,
+            "state": self.scenario_manager.agent.get_state(),
             "target_area": self.scenario_manager.target_area.geometry.exterior.coords[:-1],
             "target_heading": self.scenario_manager.target_heading,
+            "diff_position": diff_position,
+            "diff_angle": diff_angle,
+            "diff_heading": diff_heading,
             "status": self.scenario_manager.status,
-            "reward": 0,
         }
 
         return observation, info
@@ -286,7 +304,7 @@ class ParkingEnv(gym.Env):
             reward = -1
         elif status == TrafficEvent.COLLISION_STATIC:
             reward = -5
-        elif status ==TrafficEvent.OUTSIDE_MAP:
+        elif status == TrafficEvent.OUTSIDE_MAP:
             reward = -5
         elif status == TrafficEvent.COMPLETED:
             reward = 5
@@ -317,24 +335,25 @@ class ParkingEnv(gym.Env):
 
         observations = self.scenario_manager.update(action)
         observation = observations[0]
-
         status = self.scenario_manager.check_status()
         terminated = status == TrafficEvent.COMPLETED
         truncated = status != TrafficEvent.NORMAL
 
         reward = self._get_reward(self.scenario_manager.status)
 
-        info = {  # TODO
+        diff_position, diff_angle, diff_heading = self._get_relative_pose(
+            self.scenario_manager.agent.current_state
+        )
+
+        info = {
             "lidar": observations[1],
-            "location": self.scenario_manager.agent.get_state().location,
-            "velocity": self.scenario_manager.agent.velocity,
-            "speed": self.scenario_manager.agent.speed,
-            "acceleration": self.scenario_manager.agent.accel,
-            "heading": self.scenario_manager.agent.heading,
+            "state": self.scenario_manager.agent.get_state(),
             "target_area": self.scenario_manager.target_area.geometry.exterior.coords[:-1],
             "target_heading": self.scenario_manager.target_heading,
+            "diff_position": diff_position,
+            "diff_angle": diff_angle,
+            "diff_heading": diff_heading,
             "status": self.scenario_manager.status,
-            "reward": reward,
         }
 
         return observation, reward, terminated, truncated, info
