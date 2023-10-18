@@ -12,7 +12,7 @@ from .defaults import VEHICLE_MODEL
 
 
 class Vehicle(ParticipantBase):
-    """_summary_
+    """This class implements a vehicle with commonly used properties.
 
     Attributes:
         id_ (int): The unique identifier of the vehicle.

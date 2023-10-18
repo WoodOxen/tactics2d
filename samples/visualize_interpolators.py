@@ -10,7 +10,6 @@ import numpy as np
 from shapely.geometry import Polygon
 from shapely.affinity import rotate
 
-from tactics2d.math.geometry import Circle
 from tactics2d.math.interpolate import *
 
 

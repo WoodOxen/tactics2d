@@ -72,8 +72,8 @@ class Trajectory(object):
     def get_state(self, frame: int = None) -> State:
         """Obtain the object's state at the requested frame.
 
-        If the frame is not specified, the function will return the current state.
-        If the frame is given but not found, the function will raise a TrajectoryKeyError.
+        If the frame is not specified, the function will return the current state. If the
+            frame is given but not found, the function will raise a TrajectoryKeyError.
         """
         if frame is None:
             return self.current_state

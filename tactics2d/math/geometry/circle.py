@@ -75,8 +75,8 @@ class Circle:
             return Circle.get_circle_by_three_points(*args)
         elif method == Circle.ConstructBy.TangentVector:
             return Circle.get_circle_by_tangent_vector(*args)
-        else:
-            raise NotImplementedError
+
+        raise NotImplementedError
 
     @staticmethod
     def get_arc(
