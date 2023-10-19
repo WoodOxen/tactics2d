@@ -44,7 +44,9 @@ class ActionMask:
         for action in self.action_space:
             state = State(0, 0, 0, 0, 0, 0, 0)
             for _ in range(self.n_iter):
-                state, _ = self.vehicle.physics_model.step(state, action, self.step_time / self.n_iter)
+                state, _ = self.vehicle.physics_model.step(
+                    state, action, self.step_time / self.n_iter
+                )
                 x, y, heading = state.x, state.y, state.heading
                 car_x_ = car_coords_x * np.cos(heading) - car_coords_y * np.sin(heading) + x  # (4)
                 car_y_ = car_coords_x * np.sin(heading) + car_coords_y * np.cos(heading) + y

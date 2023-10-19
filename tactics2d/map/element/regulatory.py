@@ -1,21 +1,24 @@
 class RegulatoryElement:
-    """Implementation of the lanelet2-style regulatory element.
+    """This class implements the lenelet2-style map element *RegulatoryElement*.
 
-    Detailed definition of lanelet2-style regulatory element:
-        <https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/RegulatoryElementTagging.md>
+    This class is still under development. It is supposed to support the detection of traffic
+        events in the future.
+
+    Detailed definition of lanelet2-style lane:
+        [LaneletPrimitives](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md)
 
     Attributes:
         id_ (str): The unique identifier of the regulatory element.
-        relation_ids ():
-        way_ids ():
+        relation_ids (set, optional): The road elements that the regulatory is applied to. Defaults to None.
+        way_ids (set, optional): The road elements that the regulatory is applied to. Defaults to None.
         type_ (str): The type of the regulatory element. The default value is
             "regulatory_element".
-        subtype (): By default it is one of [traffic_sign, traffic_light, speed_limit,
+        subtype (str, optional): By default it is one of [traffic_sign, traffic_light, speed_limit,
             right_of_way, all_way_stop]
-        dynamic (bool): Whether the regulatory element will be changed by time or not.
-        fallback (bool): Whether the regulatory element has a lower priority than other
+        dynamic (bool, optional): Whether the regulatory element will be changed by time or not.
+        fallback (bool, optional): Whether the regulatory element has a lower priority than other
             RegulatoryElements.
-        custom_tags (dict): The custom tags of the regulatory element. Defaults to None.
+        custom_tags (dict, optional): The custom tags of the regulatory element. Defaults to None.
     """
 
     def __init__(

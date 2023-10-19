@@ -91,8 +91,8 @@ class ParkingScenarioManager(ScenarioManager):
                 dist_front_hang=0.5 * vehicle_configs["length"] - vehicle_configs["front_overhang"],
                 dist_rear_hang=0.5 * vehicle_configs["length"] - vehicle_configs["rear_overhang"],
                 steer_range=(-MAX_STEER, MAX_STEER),
-                speed_range=(-MAX_SPEED, MAX_SPEED)
-            )
+                speed_range=(-MAX_SPEED, MAX_SPEED),
+            ),
         )
         self.participants = {self.agent.id_: self.agent}
 
