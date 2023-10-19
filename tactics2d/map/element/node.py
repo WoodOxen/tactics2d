@@ -15,6 +15,7 @@ class Node:
     """
 
     def __init__(self, id_: str, x: float, y: float):
+        """Initialize the attributes in the class."""
         self.id_ = id_
         self.x = x
         self.y = y

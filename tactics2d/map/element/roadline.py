@@ -69,5 +69,4 @@ class RoadLine:
 
     @property
     def shape(self) -> list:
-        """Get shape of the roadline"""
         return list(self.linestring.coords)

@@ -13,7 +13,6 @@ logging.basicConfig(level=logging.DEBUG)
 import pytest
 
 from tactics2d.map.parser import Lanelet2Parser
-from tactics2d.map.parser import MapParseError
 from tactics2d.trajectory.parser import DLPParser, InteractionParser, LevelXParser
 
 
@@ -47,7 +46,7 @@ def test_lanelet2_parser():
             map_root = ET.parse(map_path).getroot()
             map_ = map_parser.parse(map_root, map_config)
             parsed_map_set.add(map_.name)
-        except MapParseError as err:
+        except SyntaxError as err:
             logging.error(err)
         except KeyError as err:
             logging.error(err)

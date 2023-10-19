@@ -26,6 +26,7 @@ class RacingTrackGenerator:
     """
 
     def __init__(self, bezier_param: tuple = (2, 50)):
+        """Initialize the attributes in the class."""
         self.bezier_generator = Bezier(*bezier_param)
 
     def _get_checkpoints(self) -> Tuple[List[np.ndarray], List[np.ndarray], bool]:
@@ -176,6 +177,11 @@ class RacingTrackGenerator:
         return tiles
 
     def generate(self, map_: Map) -> Dict[str, Lane]:
+        """Generate a random racing scenario.
+
+        Args:
+            map_ (Map): The map instance to store the generated racing scenario.
+        """
         t1 = time.time()
 
         # generate the checkpoints

@@ -76,10 +76,11 @@ class ParkingLotGenerator:
         bay_proportion (float): The proportion of "bay" parking scenario in all
             generated scenarios. It should be in the range of [0, 1]. When it is 0, the
             generator only generates parallel parking scenario. When it is 1, the generator only
-            generates bay parking scenario.
+            generates bay parking scenario. Defaults to 0.5.
     """
 
     def __init__(self, vehicle_size: Tuple[float, float], bay_proportion: float = 0.5):
+        """Initialize the attributes in the class."""
         self.vehicle_size = vehicle_size
         self.bay_proportion = bay_proportion
         self.mode = None
@@ -230,6 +231,11 @@ class ParkingLotGenerator:
         return not state_shape.intersects(target_area.geometry)
 
     def generate(self, map_: Map):
+        """Generate a random parking scenario.
+
+        Args:
+            map_ (Map): The map instance to store the generated parking scenario.
+        """
         t1 = time.time()
 
         self.mode = "bay" if np.random.rand() < self.bay_proportion else "parallel"

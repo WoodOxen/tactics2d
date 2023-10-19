@@ -6,7 +6,6 @@ from shapely.geometry import Point, LineString, Polygon
 
 from tactics2d.map.element import Node, Lane, Area, RoadLine, RegulatoryElement, Map
 from tactics2d.map.element import LANE_CHANGE_MAPPING
-from tactics2d.map.parser import MapParseWarning, MapParseError
 
 
 def _load_node(xml_node: ET.Element, projector: Proj, origin: Point) -> Node:
@@ -33,7 +32,7 @@ def _get_tags(xml_node: ET.Element) -> dict:
             tags["temporary"] = tag.attrib["v"] == "yes"
         elif "lane_change" in tag.attrib["k"]:  # only for roadline
             if "lane_change" in tags:
-                raise MapParseError("Conflict tags on lane changing property.")
+                raise SyntaxError("Conflict tags on lane changing property.")
             else:
                 if tag.attrib["k"] == "lane_change":
                     tags["lane_change"] = (
@@ -98,7 +97,7 @@ def _append_point_list(point_list, new_points, component_id):
     elif point_list[-1] == new_points[-1]:
         new_points.reverse()
     else:
-        raise MapParseError(f"Points on the side of relation {component_id} is not continuous.")
+        raise SyntaxError(f"Points on the side of relation {component_id} is not continuous.")
 
     point_list += new_points[1:]
 
@@ -135,7 +134,7 @@ def _load_lane(xml_node: ET.Element, map_: Map) -> Lane:
         right_side = LineString(point_list["right"])
 
     if left_side.crosses(right_side):
-        warnings.warn(f"The sides of lane {lane_id} is intersected.", MapParseWarning)
+        warnings.warn(f"The sides of lane {lane_id} is intersected.", SyntaxWarning)
 
     lane_tags = _get_tags(xml_node)
 
@@ -159,7 +158,7 @@ def _load_area(xml_node: ET.Element, map_: Map) -> Area:
         new_points = list(map_.roadlines[line_id].linestring.coords)
         _append_point_list(outer_point_list, new_points, area_id)
     if outer_point_list[0] != outer_point_list[-1]:
-        warnings.warn(f"The outer boundary of area {area_id} is not closed.", MapParseWarning)
+        warnings.warn(f"The outer boundary of area {area_id} is not closed.", SyntaxWarning)
 
     inner_point_list = [[]]
     inner_idx = 0
@@ -176,7 +175,7 @@ def _load_area(xml_node: ET.Element, map_: Map) -> Area:
         del inner_point_list[-1]
     else:
         if inner_point_list[-1][0] != inner_point_list[-1][-1]:
-            warnings.warn(f"The inner boundary of area {area_id} is not closed.", MapParseWarning)
+            warnings.warn(f"The inner boundary of area {area_id} is not closed.", SyntaxWarning)
     polygon = Polygon(outer_point_list, inner_point_list)
 
     area_tags = _get_tags(xml_node)
@@ -203,14 +202,16 @@ class Lanelet2Parser(object):
 
     @staticmethod
     def parse(xml_root: ET.ElementTree, map_config: dict) -> Map:
-        """_summary_
+        """Parse the map from lanelet2 format.
 
         Args:
-            xml_root (ET.ElementTree): _description_
-            map_config (dict): _description_
+            xml_root (ET.ElementTree): A xml tree of the map. The xml tree should be
+                denoted in lanelet2 format.
+            map_config (dict): The configuration of the map. The configuration should include
+                the following keys: name, scenario_type, country, gps_origin, project_rule.
 
         Returns:
-            Map: _description_
+            Map: A map instance.
         """
         name = map_config["name"]
         scenario_type = map_config["scenario_type"]

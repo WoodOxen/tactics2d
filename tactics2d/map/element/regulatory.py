@@ -33,6 +33,7 @@ class RegulatoryElement:
         fallback: bool = False,
         custom_tags: dict = None,
     ):
+        """Initialize the attributes in the class."""
         if subtype is None:
             raise ValueError("The subtype of RegulatoryElement %s is not defined!" % id_)
 
