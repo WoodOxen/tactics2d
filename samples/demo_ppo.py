@@ -7,11 +7,8 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 import numpy as np
 
-from action_mask import ActionMask
-from samples.parking_config import *
 
-
-OBS_SHAPE = {"lidar": (lidar_num,), "action_mask": (42,), "other": (6,)}
+OBS_SHAPE = {"lidar": (120,), "action_mask": (42,), "other": (6,)}
 ACTOR_CONFIGS = {
     "lidar_shape": OBS_SHAPE["lidar"][0],
     "other_shape": 6,
@@ -35,6 +32,53 @@ CRITIC_CONFIGS = {
     "n_embed_layers": 2,
     "use_tanh_output": False,
 }
+
+VALID_STEER = [-0.75, 0.75]
+MAX_SPEED = 2
+PRECISION = 10
+discrete_actions = []
+for i in np.arange(
+    VALID_STEER[-1], -(VALID_STEER[-1] + VALID_STEER[-1] / PRECISION), -VALID_STEER[-1] / PRECISION
+):
+    discrete_actions.append([i, MAX_SPEED])
+for i in np.arange(
+    VALID_STEER[-1], -(VALID_STEER[-1] + VALID_STEER[-1] / PRECISION), -VALID_STEER[-1] / PRECISION
+):
+    discrete_actions.append([i, -MAX_SPEED])
+
+
+def choose_action(action_mean, action_std, action_mask):
+    action_space = discrete_actions
+
+    if isinstance(action_mean, torch.Tensor):
+        action_mean = action_mean.cpu().numpy()
+        action_std = action_std.cpu().numpy()
+    if isinstance(action_mask, torch.Tensor):
+        action_mask = action_mask.cpu().numpy()
+    if len(action_mean.shape) == 2:
+        action_mean = action_mean.squeeze(0)
+        action_std = action_std.squeeze(0)
+    if len(action_mask.shape) == 2:
+        action_mask = action_mask.squeeze(0)
+
+    def calculate_probability(mean, std, values):
+        z_scores = (values - mean) / std
+        log_probabilities = -0.5 * z_scores**2 - np.log((np.sqrt(2 * np.pi) * std))
+        return np.sum(np.clip(log_probabilities, -10, 10), axis=1)
+
+    possible_actions = np.array(action_space)
+    # deal the scaling
+    action_mean[1] = 1 if action_mean[1] > 0 else -1
+    scale_steer = VALID_STEER[1]
+    scale_speed = 1
+    possible_actions = possible_actions / np.array([scale_steer, scale_speed])
+    prob = calculate_probability(action_mean, action_std, possible_actions)
+    exp_prob = np.exp(prob) * action_mask
+    prob_softmax = exp_prob / np.sum(exp_prob)
+    actions = np.arange(len(possible_actions))
+    action_chosen = np.random.choice(actions, p=prob_softmax)
+
+    return possible_actions[action_chosen]
 
 
 class StateNorm:
@@ -249,7 +293,6 @@ class DemoPPO:
         self.policy_entropy = False
         self.entropy_coef = 0.01
         self.observation_shape = OBS_SHAPE
-        self.action_mask = ActionMask()
 
         # the networks
         self.actor_net = Network(ACTOR_CONFIGS).to(self.device)
@@ -344,7 +387,7 @@ class DemoPPO:
 
         # action = dist.sample()
         action_mask = obs["action_mask"]
-        action = self.action_mask.choose_action(mean, std, action_mask)
+        action = choose_action(mean, std, action_mask)
         action = torch.FloatTensor(action).to(self.device)
         action = torch.clamp(action, -1, 1)
         log_prob = dist.log_prob(action)

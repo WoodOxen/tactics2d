@@ -5,26 +5,38 @@ from scipy.ndimage.filters import minimum_filter1d
 from shapely.geometry import LineString, Point
 
 from tactics2d.trajectory.element.state import State
-from samples.parking_config import *
+
+VALID_STEER = [-0.75, 0.75]
+MAX_SPEED = 2
+PRECISION = 10
+discrete_actions = []
+for i in np.arange(
+    VALID_STEER[-1], -(VALID_STEER[-1] + VALID_STEER[-1] / PRECISION), -VALID_STEER[-1] / PRECISION
+):
+    discrete_actions.append([i, MAX_SPEED])
+for i in np.arange(
+    VALID_STEER[-1], -(VALID_STEER[-1] + VALID_STEER[-1] / PRECISION), -VALID_STEER[-1] / PRECISION
+):
+    discrete_actions.append([i, -MAX_SPEED])
 
 
 class ActionMask:
-    def __init__(self, VehicleBox=VehicleBox, n_iter=10) -> None:
-        self.vehicle_box_base = VehicleBox
+    def __init__(self, vehicle, n_iter=10) -> None:
+        self.vehicle = vehicle
         self.n_iter = n_iter
         self.action_space = discrete_actions
         self.step_time = 0.5
         self.vehicle_boxes = self.init_vehicle_box()
         self.vehicle_lidar_base = 0
-        self.lidar_num = lidar_num
-        self.lidar_range = lidar_range
+        self.lidar_num = 120
+        self.lidar_range = 20
         self.distance_tolerance = 0.1
         self.vehicle_base = self.init_vehicle_base()
 
     def init_vehicle_box(
         self,
     ):
-        VehicleBox = self.vehicle_box_base
+        VehicleBox = self.vehicle.bbox
         car_coords = np.array(VehicleBox.coords)[:4]  # (4,2)
         car_coords_x = car_coords[:, 0].reshape(-1)
         car_coords_y = car_coords[:, 1].reshape(-1)  # (4)
@@ -32,7 +44,7 @@ class ActionMask:
         for action in self.action_space:
             state = State(0, 0, 0, 0, 0, 0, 0)
             for _ in range(self.n_iter):
-                state, _ = physic_model.step(state, action, self.step_time / self.n_iter)
+                state, _ = self.vehicle.physics_model.step(state, action, self.step_time / self.n_iter)
                 x, y, heading = state.x, state.y, state.heading
                 car_x_ = car_coords_x * np.cos(heading) - car_coords_y * np.sin(heading) + x  # (4)
                 car_y_ = car_coords_x * np.sin(heading) + car_coords_y * np.cos(heading) + y
@@ -68,7 +80,7 @@ class ActionMask:
         lidar_base = []
         ORIGIN = Point((0, 0))
         for l in self.lidar_lines:
-            distance = l.intersection(VehicleBox).distance(ORIGIN)
+            distance = l.intersection(self.vehicle.bbox).distance(ORIGIN)
             lidar_base.append(distance)
         return np.array(lidar_base)
 
@@ -163,34 +175,3 @@ class ActionMask:
         forward_step_len_ = minimum_filter1d(forward_step_len, kernel)
         backward_step_len_ = minimum_filter1d(backward_step_len, kernel)
         return np.clip(np.concatenate((forward_step_len_, backward_step_len_)), 0, 10) / 10
-
-    def choose_action(self, action_mean, action_std, action_mask):
-        if isinstance(action_mean, torch.Tensor):
-            action_mean = action_mean.cpu().numpy()
-            action_std = action_std.cpu().numpy()
-        if isinstance(action_mask, torch.Tensor):
-            action_mask = action_mask.cpu().numpy()
-        if len(action_mean.shape) == 2:
-            action_mean = action_mean.squeeze(0)
-            action_std = action_std.squeeze(0)
-        if len(action_mask.shape) == 2:
-            action_mask = action_mask.squeeze(0)
-
-        def calculate_probability(mean, std, values):
-            z_scores = (values - mean) / std
-            log_probabilities = -0.5 * z_scores**2 - np.log((np.sqrt(2 * np.pi) * std))
-            return np.sum(np.clip(log_probabilities, -10, 10), axis=1)
-
-        possible_actions = np.array(self.action_space)
-        # deal the scaling
-        action_mean[1] = 1 if action_mean[1] > 0 else -1
-        scale_steer = VALID_STEER[1]
-        scale_speed = 1
-        possible_actions = possible_actions / np.array([scale_steer, scale_speed])
-        prob = calculate_probability(action_mean, action_std, possible_actions)
-        exp_prob = np.exp(prob) * action_mask
-        prob_softmax = exp_prob / np.sum(exp_prob)
-        actions = np.arange(len(possible_actions))
-        action_chosen = np.random.choice(actions, p=prob_softmax)
-
-        return possible_actions[action_chosen]

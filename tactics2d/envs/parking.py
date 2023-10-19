@@ -8,12 +8,15 @@ from gymnasium import spaces
 from gymnasium.error import InvalidAction
 
 from tactics2d.map.element import Map
-from tactics2d.participant.element import Vehicle
-from tactics2d.trajectory.element import State
-from tactics2d.sensor import TopDownCamera, SingleLineLidar
 from tactics2d.map.generator import ParkingLotGenerator
+from tactics2d.participant.element import Vehicle
+from tactics2d.physics import SingleTrackKinematics
 from tactics2d.scenario import ScenarioManager, RenderManager
 from tactics2d.scenario.traffic_event import TrafficEvent
+from tactics2d.sensor import TopDownCamera, SingleLineLidar
+from tactics2d.trajectory.element import State
+
+from tactics2d.participant.element.defaults import VEHICLE_MODEL
 
 STATE_W = 200
 STATE_H = 200
@@ -73,12 +76,23 @@ class ParkingScenarioManager(ScenarioManager):
     ):
         super().__init__(render_fps, off_screen, max_step, step_size)
 
+        vehicle_configs = VEHICLE_MODEL["medium_car"]
+
         self.agent = Vehicle(
             id_=0,
             type_="medium_car",
+            length=vehicle_configs["length"],
+            width=vehicle_configs["width"],
+            wheel_base=vehicle_configs["wheel_base"],
             steer_range=(-MAX_STEER, MAX_STEER),
             speed_range=(-MAX_SPEED, MAX_SPEED),
             accel_range=(-1.0, 1.0),
+            physics_model=SingleTrackKinematics(
+                dist_front_hang=0.5 * vehicle_configs["length"] - vehicle_configs["front_overhang"],
+                dist_rear_hang=0.5 * vehicle_configs["length"] - vehicle_configs["rear_overhang"],
+                steer_range=(-MAX_STEER, MAX_STEER),
+                speed_range=(-MAX_SPEED, MAX_SPEED)
+            )
         )
         self.participants = {self.agent.id_: self.agent}
 
