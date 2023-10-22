@@ -32,20 +32,9 @@ MAX_STEER = 0.75
 LIDAR_RANGE = 20.0
 LIDAR_LINE = 120
 
-DISCRETE_ACTION = np.array(
-    [
-        [0, 0],  # do nothing
-        [-0.3, 0],  # steer left
-        [0.3, 0],  # steer right
-        [0, 0.2],  # accelerate
-        [0, -0.2],  # decelerate
-    ]
-)
-
 
 def truncate_angle(angle: float):
     """Truncate angle to [-pi, pi]"""
-
     while angle > np.pi:
         angle -= 2 * np.pi
     while angle < -np.pi:
@@ -65,6 +54,12 @@ class ParkingScenarioManager(ScenarioManager):
         max_step (int, optional): The maximum number of steps. Defaults to 20000.
         step_size (float): The time duration of each step. Defaults to 0.5.
     """
+    max_steer = MAX_STEER
+    max_speed = MAX_SPEED
+    lidar_line = LIDAR_LINE
+    lidar_range = LIDAR_RANGE
+    window_size = (WIN_W, WIN_H)
+    state_size = (STATE_W, STATE_H)
 
     def __init__(
         self,
@@ -76,22 +71,22 @@ class ParkingScenarioManager(ScenarioManager):
     ):
         super().__init__(render_fps, off_screen, max_step, step_size)
 
-        vehicle_configs = VEHICLE_MODEL["medium_car"]
+        self.vehicle_configs = VEHICLE_MODEL["medium_car"]
 
         self.agent = Vehicle(
             id_=0,
             type_="medium_car",
-            length=vehicle_configs["length"],
-            width=vehicle_configs["width"],
-            wheel_base=vehicle_configs["wheel_base"],
-            steer_range=(-MAX_STEER, MAX_STEER),
-            speed_range=(-MAX_SPEED, MAX_SPEED),
+            length=self.vehicle_configs["length"],
+            width=self.vehicle_configs["width"],
+            wheel_base=self.vehicle_configs["wheel_base"],
+            speed_range=(-self.max_speed, self.max_speed),
+            steer_range=(-self.max_steer, self.max_steer),
             accel_range=(-1.0, 1.0),
             physics_model=SingleTrackKinematics(
-                dist_front_hang=0.5 * vehicle_configs["length"] - vehicle_configs["front_overhang"],
-                dist_rear_hang=0.5 * vehicle_configs["length"] - vehicle_configs["rear_overhang"],
-                steer_range=(-MAX_STEER, MAX_STEER),
-                speed_range=(-MAX_SPEED, MAX_SPEED),
+                dist_front_hang=0.5 * self.vehicle_configs["length"] - self.vehicle_configs["front_overhang"],
+                dist_rear_hang=0.5 * self.vehicle_configs["length"] - self.vehicle_configs["rear_overhang"],
+                steer_range=(-self.max_steer, self.max_steer),
+                speed_range=(-self.max_speed, self.max_speed),
             ),
         )
         self.participants = {self.agent.id_: self.agent}
@@ -102,7 +97,7 @@ class ParkingScenarioManager(ScenarioManager):
         )
 
         self.render_manager = RenderManager(
-            fps=self.render_fps, windows_size=(WIN_W, WIN_H), off_screen=self.off_screen
+            fps=self.render_fps, windows_size=self.window_size, off_screen=self.off_screen
         )
 
         self.start_state: State = None
@@ -181,7 +176,7 @@ class ParkingScenarioManager(ScenarioManager):
             id_=0,
             map_=self.map_,
             perception_range=(20, 20, 20, 20),
-            window_size=(STATE_W, STATE_H),
+            window_size=self.state_size,
             off_screen=self.off_screen,
         )
         self.render_manager.add_sensor(camera)
@@ -190,9 +185,9 @@ class ParkingScenarioManager(ScenarioManager):
         lidar = SingleLineLidar(
             id_=1,
             map_=self.map_,
-            perception_range=LIDAR_RANGE,
-            freq_detect=LIDAR_LINE * 10,
-            window_size=(STATE_W, STATE_H),
+            perception_range=self.lidar_range,
+            freq_detect=self.lidar_line * 10,
+            window_size=self.state_size,
             off_screen=self.off_screen,
         )
         self.render_manager.add_sensor(lidar)
@@ -201,7 +196,7 @@ class ParkingScenarioManager(ScenarioManager):
 
         self.dist_norm_ratio = max(
             Point(self.start_state.location).distance(self.target_area.geometry.centroid),
-            10.0,
+            self.lidar_range,
         )
 
 
@@ -235,6 +230,20 @@ class ParkingEnv(gym.Env):
     """
 
     metadata = {"render_modes": ["human", "rgb_array"]}
+    max_fps = MAX_FPS
+    max_steer = MAX_STEER
+    max_speed = MAX_SPEED
+    state_w = STATE_W
+    state_h = STATE_H
+    discrete_action = np.array(
+    [
+        [0, 0],  # do nothing
+        [-0.3, 0],  # steer left
+        [0.3, 0],  # steer right
+        [0, 0.2],  # accelerate
+        [0, -0.2],  # decelerate
+    ]
+)
 
     def __init__(
         self,
@@ -250,24 +259,24 @@ class ParkingEnv(gym.Env):
             raise NotImplementedError(f"Render mode {render_mode} is not supported.")
         self.render_mode = render_mode
 
-        if render_fps > MAX_FPS:
+        if render_fps > self.max_fps:
             logging.warning(
                 f"The input rendering FPS is too high. \
-                            Set the FPS with the upper limit {MAX_FPS}."
+                            Set the FPS with the upper limit {self.max_fps}."
             )
-        self.render_fps = min(render_fps, MAX_FPS)
+        self.render_fps = min(render_fps, self.max_fps)
 
         self.max_step = max_step
         self.continuous = continuous
 
         if self.continuous:
             self.action_space = spaces.Box(
-                np.array([-MAX_STEER, -MAX_SPEED]), np.array([MAX_STEER, MAX_SPEED])
+                np.array([-self.max_steer, -self.max_speed]), np.array([self.max_steer, self.max_speed])
             )
         else:
             self.action_space = spaces.Discrete(5)
 
-        self.observation_space = spaces.Box(0, 255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
+        self.observation_space = spaces.Box(0, 255, shape=(self.state_h, self.state_w, 3), dtype=np.uint8)
 
         self.max_iou = 0
 
@@ -345,7 +354,7 @@ class ParkingEnv(gym.Env):
     def step(self, action: Union[np.array, int]):
         if not self.action_space.contains(action):
             raise InvalidAction(f"Action {action} is invalid.")
-        action = action if self.continuous else DISCRETE_ACTION[action]
+        action = action if self.continuous else self.discrete_action[action]
 
         observations = self.scenario_manager.update(action)
         observation = observations[0]

@@ -7,26 +7,26 @@ import os
 import time
 from typing import Union
 
-from gymnasium import Env, Wrapper
+import gymnasium as gym
+from gymnasium import Wrapper
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from shapely.geometry import LineString
 from shapely.affinity import affine_transform
 
-
 from tactics2d.envs import ParkingEnv
 from tactics2d.scenario.traffic_event import TrafficEvent
 from tactics2d.math.interpolate import ReedsShepp
 from samples.demo_ppo import DemoPPO
-from samples.action_mask import ActionMask, VehicleBox, physic_model, WHEEL_BASE
+from samples.action_mask import ActionMask
 from samples.rs_planner import RsPlanner
-from samples.parking_config import *
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-action_mask = ActionMask()
-dist_rear_hang = physic_model.dist_rear_hang
+MAX_SPEED = 2.0
+LIDAR_RANGE = 20.0
+LIDAR_LINE = 120
 
 
 class PathPlanner:
@@ -70,21 +70,24 @@ class PathPlanner:
         return None
 
 
-def _get_box(x, y, heading, vehicle_box=VehicleBox):
-    transform_matrix = [
-        np.cos(heading),
-        -np.sin(heading),
-        np.sin(heading),
-        np.cos(heading),
-        x,
-        y,
-    ]
+def _get_box(state, vehicle_box):
+    x = state.x
+    y = state.y
+    heading = state.heading
+    transform_matrix = [np.cos(heading), -np.sin(heading), np.sin(heading), np.cos(heading), x, y]
     return affine_transform(vehicle_box, transform_matrix)
 
 
 class ParkingWrapper(Wrapper):
-    def __init__(self, env: Env):
+    def __init__(self, env: gym.Env):
         super().__init__(env)
+        self.action_mask = ActionMask(self.env.scenario_manager.agent)
+        self.observation_space = gym.spaces.Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=(120+42+6,1),
+            dtype=np.float32,
+        )
 
     def _preprocess_action(self, action):
         action = np.array(action, dtype=np.float32)
@@ -95,13 +98,15 @@ class ParkingWrapper(Wrapper):
             + (action_space.high + action_space.low) / 2
         )
 
+        # force the agent to avoid collision by split the action to smaller time scale
         agent_state = self.env.scenario_manager.agent.get_state()
         n_iter = 10
         for i in range(n_iter):
             collide = False
-            agent_state, _ = physic_model.step(agent_state, action, 0.5 / n_iter)
-            agent_pos = agent_state.x, agent_state.y, agent_state.heading
-            agent_pose = _get_box(*agent_pos)
+            agent_state, _ = self.env.scenario_manager.agent.physics_model.step(
+                agent_state, action, 0.5 / n_iter
+            )
+            agent_pose = _get_box(agent_state, self.env.scenario_manager.agent.bbox)
             for _, area in self.env.scenario_manager.map_.areas.items():
                 if area.type_ == "obstacle" and agent_pose.intersects(area.geometry):
                     collide = True
@@ -113,42 +118,46 @@ class ParkingWrapper(Wrapper):
         return action
 
     def _preprocess_observation(self, info):
-        lidar_info = np.clip(info["lidar"], 0, 10)
-        observation = {
-            "lidar": lidar_info,
-            "other": np.array(
-                [
-                    info["diff_position"],
-                    np.cos(info["diff_angle"]),
-                    np.sin(info["diff_angle"]),
-                    np.cos(info["diff_heading"]),
-                    np.sin(info["diff_heading"]),
-                    info["state"].speed,
-                ]
-            ),
-            "action_mask": action_mask.get_steps(lidar_info),
-        }
+        lidar_info = np.clip(info["lidar"], 0, self.env.scenario_manager.lidar_range)
+        lidar_feature = lidar_info
+        action_mask_feature = self.action_mask.get_steps(lidar_info)
+        other_feature = np.array(
+            [
+                info["diff_position"],
+                np.cos(info["diff_angle"]),
+                np.sin(info["diff_angle"]),
+                np.cos(info["diff_heading"]),
+                np.sin(info["diff_heading"]),
+                info["state"].speed,
+            ]
+        )
 
-        return observation
+        observation = np.concatenate([lidar_feature, action_mask_feature, other_feature])
+
+        return observation, action_mask_feature
 
     def reset(self, seed: int = None, options: dict = None):
         _, info = self.env.reset(seed, options)
-        custom_observation = self._preprocess_observation(info)
+        custom_observation, action_mask_feature = self._preprocess_observation(info)
+        info["action_mask"] = action_mask_feature
 
         return custom_observation, info
 
     def step(self, action):
         action = self._preprocess_action(action)
         _, reward, terminated, truncated, info = self.env.step(action)
-        custom_observation = self._preprocess_observation(info)
+        custom_observation, action_mask_feature = self._preprocess_observation(info)
+        info["action_mask"] = action_mask_feature
 
         return custom_observation, reward, terminated, truncated, info
 
 
-def execute_rs_path(rs_path, agent: DemoPPO, env, obs, step_ratio=max_speed / 2):
+def execute_rs_path(rs_path, agent: DemoPPO, env, obs, step_ratio=MAX_SPEED / 2):
     action_type = {"L": 1, "S": 0, "R": -1}
     action_list = []
-    radius = WHEEL_BASE / np.tan(VALID_STEER[1])
+    radius = env.scenario_manager.agent.wheel_base / np.tan(
+        env.scenario_manager.agent.steer_range[1]
+    )
 
     for i in range(len(rs_path.actions)):
         steer = action_type[rs_path.actions[i]]
@@ -184,8 +193,8 @@ def execute_rs_path(rs_path, agent: DemoPPO, env, obs, step_ratio=max_speed / 2)
         total_reward += reward
         agent.push_memory((obs, action, reward, done, log_prob, next_obs))
         obs = next_obs
-        if len(agent.memory) % agent.batch_size == 0:
-            _ = agent.update()
+        if len(agent.memory) % agent.configs.horizon == 0:
+            agent.update()
         if done:
             if info["status"] == TrafficEvent.COLLISION_STATIC:
                 info["status"] = TrafficEvent.COLLISION_VEHICLE
@@ -198,16 +207,11 @@ def test_parking_env(save_path):
     render_mode = ["rgb_array", "human"][0]
     env = ParkingEnv(render_mode=render_mode, render_fps=60, max_step=200)
     env = ParkingWrapper(env)
-    env.reset(42)
+    env = gym.wrappers.NormalizeObservation(env)
+    env.reset()
     agent = DemoPPO()
-    rs_planner = RsPlanner(
-        VehicleBox,
-        radius=WHEEL_BASE / np.tan(VALID_STEER[1]),
-        lidar_num=lidar_num,
-        dist_rear_hang=dist_rear_hang,
-        lidar_range=lidar_range,
-    )
-    agent.load("./PPO_parking_demo.pt", params_only=True)
+    rs_planner = RsPlanner(env.scenario_manager.agent)
+    # agent.load("./PPO_parking_demo.pt", params_only=True)
     writer = SummaryWriter(save_path)
 
     reward_list = []
@@ -230,20 +234,18 @@ def test_parking_env(save_path):
                     obs,
                 )
                 if not done:
-                    info["status"] = "RS FAIL"
+                    info["status"] = TrafficEvent.FAILED
                     done = True
             else:
-                action, log_prob = agent.choose_action(obs)  # time consume: 3ms
+                action, log_prob = agent.choose_action(obs, info)  # time consume: 3ms
                 next_obs, reward, terminate, truncated, info = env.step(action)
                 env.render()
                 done = terminate or truncated
                 total_reward += reward
                 agent.push_memory((obs, action, reward, done, log_prob, next_obs))
                 obs = next_obs
-                if len(agent.memory) % agent.batch_size == 0:
-                    actor_loss, critic_loss = agent.update()
-                    writer.add_scalar("actor_loss", actor_loss, i)
-                    writer.add_scalar("critic_loss", critic_loss, i)
+                if len(agent.memory) % agent.configs.horizon == 0:
+                    agent.update()
 
             if done:
                 status_info.append(info["status"])
@@ -263,14 +265,10 @@ def test_parking_env(save_path):
             print("success rate:", np.sum(succ_record), "/", len(succ_record))
             print(agent.log_std.detach().cpu().numpy().reshape(-1))
             print("episode:%s  average reward:%s" % (i, np.mean(reward_list[-50:])))
-            print(np.mean(agent.actor_loss_list[-100:]), np.mean(agent.critic_loss_list[-100:]))
             print("time_cost ,rs_dist_reward ,dist_reward ,angle_reward ,box_union_reward")
             for j in range(10):
                 print(reward_list[-(10 - j)], status_info[-(10 - j)])
             print("")
-
-        if (i + 1) % 5000 == 0:
-            agent.save("%s/PPO_%s.pt" % (save_path, i), params_only=True)
 
 
 if __name__ == "__main__":

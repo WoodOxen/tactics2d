@@ -97,7 +97,7 @@ class ReedsShepp:
 
     Attributes:
         radius (float): The minimum turning radius of the vehicle.
-    ."""
+    """
 
     def __init__(self, radius: float) -> None:
         self.radius = radius
