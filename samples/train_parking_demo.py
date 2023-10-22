@@ -85,7 +85,7 @@ class ParkingWrapper(Wrapper):
         self.observation_space = gym.spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(120+42+6,1),
+            shape=(120 + 42 + 6, 1),
             dtype=np.float32,
         )
 
@@ -186,15 +186,15 @@ def execute_rs_path(rs_path, agent: DemoPPO, env, obs, step_ratio=MAX_SPEED / 2)
     # step actions
     total_reward = 0
     for action in filtered_actions:
-        log_prob = agent.get_log_prob(obs, action)
+        log_prob, value = agent.get_log_prob(obs, action)
         next_obs, reward, terminate, truncated, info = env.step(action)
+        observations = ([next_obs], [reward], [terminate], [truncated], [info])
         env.render()
         done = terminate or truncated
         total_reward += reward
-        agent.push_memory((obs, action, reward, done, log_prob, next_obs))
+        agent.push((observations, [obs], [action], [log_prob], [value]))
         obs = next_obs
-        if len(agent.memory) % agent.configs.horizon == 0:
-            agent.update()
+        agent.train()
         if done:
             if info["status"] == TrafficEvent.COLLISION_STATIC:
                 info["status"] = TrafficEvent.COLLISION_VEHICLE
@@ -237,15 +237,15 @@ def test_parking_env(save_path):
                     info["status"] = TrafficEvent.FAILED
                     done = True
             else:
-                action, log_prob = agent.choose_action(obs, info)  # time consume: 3ms
+                action, log_prob, value = agent.choose_action(obs, info)  # time consume: 3ms
                 next_obs, reward, terminate, truncated, info = env.step(action)
+                observations = ([next_obs], [reward], [terminate], [truncated], [info])
                 env.render()
                 done = terminate or truncated
                 total_reward += reward
-                agent.push_memory((obs, action, reward, done, log_prob, next_obs))
+                agent.push((observations, [obs], [action], [log_prob], [value]))
                 obs = next_obs
-                if len(agent.memory) % agent.configs.horizon == 0:
-                    agent.update()
+                agent.train()
 
             if done:
                 status_info.append(info["status"])
@@ -256,14 +256,18 @@ def test_parking_env(save_path):
 
         writer.add_scalar("total_reward", total_reward, i)
         writer.add_scalar("success_rate", np.mean(succ_record[-100:]), i)
-        writer.add_scalar("log_std1", agent.log_std.detach().cpu().numpy().reshape(-1)[0], i)
-        writer.add_scalar("log_std2", agent.log_std.detach().cpu().numpy().reshape(-1)[1], i)
+        writer.add_scalar(
+            "log_std1", agent.actor_net.log_std.detach().cpu().numpy().reshape(-1)[0], i
+        )
+        writer.add_scalar(
+            "log_std2", agent.actor_net.log_std.detach().cpu().numpy().reshape(-1)[1], i
+        )
         writer.add_scalar("step_num", step_num, i)
         reward_list.append(total_reward)
 
         if i % 10 == 0 and i > 0:
             print("success rate:", np.sum(succ_record), "/", len(succ_record))
-            print(agent.log_std.detach().cpu().numpy().reshape(-1))
+            print(agent.actor_net.log_std.detach().cpu().numpy().reshape(-1))
             print("episode:%s  average reward:%s" % (i, np.mean(reward_list[-50:])))
             print("time_cost ,rs_dist_reward ,dist_reward ,angle_reward ,box_union_reward")
             for j in range(10):

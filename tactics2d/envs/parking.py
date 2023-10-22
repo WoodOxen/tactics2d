@@ -54,6 +54,7 @@ class ParkingScenarioManager(ScenarioManager):
         max_step (int, optional): The maximum number of steps. Defaults to 20000.
         step_size (float): The time duration of each step. Defaults to 0.5.
     """
+
     max_steer = MAX_STEER
     max_speed = MAX_SPEED
     lidar_line = LIDAR_LINE
@@ -83,8 +84,10 @@ class ParkingScenarioManager(ScenarioManager):
             steer_range=(-self.max_steer, self.max_steer),
             accel_range=(-1.0, 1.0),
             physics_model=SingleTrackKinematics(
-                dist_front_hang=0.5 * self.vehicle_configs["length"] - self.vehicle_configs["front_overhang"],
-                dist_rear_hang=0.5 * self.vehicle_configs["length"] - self.vehicle_configs["rear_overhang"],
+                dist_front_hang=0.5 * self.vehicle_configs["length"]
+                - self.vehicle_configs["front_overhang"],
+                dist_rear_hang=0.5 * self.vehicle_configs["length"]
+                - self.vehicle_configs["rear_overhang"],
                 steer_range=(-self.max_steer, self.max_steer),
                 speed_range=(-self.max_speed, self.max_speed),
             ),
@@ -236,14 +239,14 @@ class ParkingEnv(gym.Env):
     state_w = STATE_W
     state_h = STATE_H
     discrete_action = np.array(
-    [
-        [0, 0],  # do nothing
-        [-0.3, 0],  # steer left
-        [0.3, 0],  # steer right
-        [0, 0.2],  # accelerate
-        [0, -0.2],  # decelerate
-    ]
-)
+        [
+            [0, 0],  # do nothing
+            [-0.3, 0],  # steer left
+            [0.3, 0],  # steer right
+            [0, 0.2],  # accelerate
+            [0, -0.2],  # decelerate
+        ]
+    )
 
     def __init__(
         self,
@@ -271,12 +274,15 @@ class ParkingEnv(gym.Env):
 
         if self.continuous:
             self.action_space = spaces.Box(
-                np.array([-self.max_steer, -self.max_speed]), np.array([self.max_steer, self.max_speed])
+                np.array([-self.max_steer, -self.max_speed]),
+                np.array([self.max_steer, self.max_speed]),
             )
         else:
             self.action_space = spaces.Discrete(5)
 
-        self.observation_space = spaces.Box(0, 255, shape=(self.state_h, self.state_w, 3), dtype=np.uint8)
+        self.observation_space = spaces.Box(
+            0, 255, shape=(self.state_h, self.state_w, 3), dtype=np.uint8
+        )
 
         self.max_iou = 0
 

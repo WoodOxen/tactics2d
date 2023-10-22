@@ -4,7 +4,6 @@ sys.path.append(".")
 sys.path.append("./rllib")
 
 from copy import deepcopy
-from collections import deque
 
 import torch
 import torch.nn as nn
@@ -14,7 +13,7 @@ import numpy as np
 
 from rllib.algorithms.ppo import *
 
-OBS_SHAPE = {"state": (120+42+6,)}
+OBS_SHAPE = {"state": (120 + 42 + 6,)}
 
 agent_config = PPOConfig(
     {
@@ -90,77 +89,11 @@ def choose_action(action_mean, action_std, action_mask):
     return possible_actions[action_chosen]
 
 
-class ReplayMemory(object):
-    def __init__(self, memory_size: int, extra_items: list = []):
-        self.items = ["state", "action", "reward", "done"] + extra_items
-        self.memory = {}
-        for item in self.items:
-            self.memory[item] = deque([], maxlen=memory_size)
-
-    def push(self, observations: tuple):
-        """Save a transition"""
-        for i, item in enumerate(self.items):
-            self.memory[item].append(observations[i])
-
-    def get_items(self, idx_list: np.ndarray):
-        batches = {}
-        for item in self.items:
-            batches[item] = []
-        batches["next_state"] = []
-        for idx in idx_list:
-            for item in self.items:
-                batches[item].append(self.memory[item][idx])
-            if idx == self.__len__() - 1 or self.memory["done"][idx]:
-                batches["next_state"].append(None)
-            else:
-                batches["next_state"].append(self.memory["state"][idx + 1])
-        for idx in batches.keys():
-            if isinstance(batches[idx][0], np.ndarray) and idx not in ["state", "next_state"]:
-                batches[idx] = np.array(batches[idx])
-        return batches
-
-    def sample(self, batch_size: int):
-        idx_list = np.random.randint(self.__len__(), size=batch_size)
-        return self.get_items(idx_list)
-
-    def shuffle(self, idx_range: int = None):
-        idx_range = self.__len__() if idx_range is None else idx_range
-        idx_list = np.arange(idx_range)
-        np.random.shuffle(idx_list)
-        return self.get_items(idx_list)
-
-    def clear(self):
-        for item in self.items:
-            self.memory[item].clear()
-
-    def __len__(self):
-        return len(self.memory["state"])
-
-
 class DemoPPO(PPO):
-    def __init__(
-        self, configs = None, device = None
-    ) -> None:
+    def __init__(self, configs=None, device=None) -> None:
         device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         configs = agent_config
         super().__init__(configs, device)
-
-        # the networks
-        self.log_std = nn.Parameter(torch.zeros(2), requires_grad=False).to(self.device)
-        self.log_std.requires_grad = True
-        self.actor_optimizer = torch.optim.Adam(
-            [{"params": self.actor_net.parameters()}, {"params": self.log_std}],
-            self.configs.lr_actor,
-            eps=self.configs.adam_epsilon,
-        )
-        self.critic_optimizer = torch.optim.Adam(
-            self.critic_net.parameters(), self.configs.lr_critic, eps=self.configs.adam_epsilon
-        )
-        self.critic_target = deepcopy(self.critic_net)
-
-        # As a on-policy RL algorithm, PPO does not have memory, the self.memory represents
-        # the buffer
-        self.memory = ReplayMemory(self.configs.horizon, ["log_prob", "next_obs"])
 
     def choose_action(self, obs: np.ndarray, info: dict):
         observation = deepcopy(obs)
@@ -169,7 +102,7 @@ class DemoPPO(PPO):
         with torch.no_grad():
             policy_dist = self.actor_net(observation)
             mean = torch.clamp(policy_dist, -1, 1)
-            log_std = self.log_std.expand_as(mean)
+            log_std = self.actor_net.log_std.expand_as(mean)
             std = torch.exp(log_std)
             dist = Normal(mean, std)
 
@@ -179,9 +112,13 @@ class DemoPPO(PPO):
         action = torch.FloatTensor(action).to(self.device)
         action = torch.clamp(action, -1, 1)
         log_prob = dist.log_prob(action)
+        value = self.critic_net(observation)
+
         action = action.detach().cpu().numpy().flatten()
         log_prob = log_prob.detach().cpu().numpy().flatten()
-        return action, log_prob
+        value = value.detach().cpu().numpy().flatten()
+
+        return action, log_prob, value
 
     def get_log_prob(self, obs: np.ndarray, action: np.ndarray):
         """get the log probability for given action based on current policy
@@ -198,7 +135,7 @@ class DemoPPO(PPO):
         with torch.no_grad():
             policy_dist = self.actor_net(observation)
             mean = torch.clamp(policy_dist, -1, 1)
-            log_std = self.log_std.expand_as(
+            log_std = self.actor_net.log_std.expand_as(
                 mean
             )  # To make 'log_std' have the same dimension as 'mean'
             std = torch.exp(log_std)
@@ -206,105 +143,8 @@ class DemoPPO(PPO):
 
         action = torch.FloatTensor(action).to(self.device)
         log_prob = dist.log_prob(action)
+        value = self.critic_net(observation)
         log_prob = log_prob.detach().cpu().numpy().flatten()
-        return log_prob
+        value = value.detach().cpu().numpy().flatten()
 
-    def push_memory(self, observations):
-        """
-        Args:
-            observations(tuple): (obs, action, reward, done, log_prob, next_obs)
-        """
-        obs, action, reward, done, log_prob, next_obs = deepcopy(observations)
-        observations = (obs, action, reward, done, log_prob, next_obs)
-        self.memory.push(observations)
-
-    def update(self):
-        # convert batches to tensors
-
-        # GAE computation cannot use shuffled data
-        # batches = self.memory.shuffle()
-        batches = self.memory.get_items(np.arange(len(self.memory)))
-        state_batch = torch.FloatTensor(batches["state"]).to(self.device)
-
-        action_batch = torch.FloatTensor(batches["action"]).to(self.device)
-        rewards = torch.FloatTensor(np.array(batches["reward"])).unsqueeze(1)
-        reward_batch = rewards
-        reward_batch = reward_batch.to(self.device)
-        done_batch = torch.FloatTensor(batches["done"]).to(self.device).unsqueeze(1)
-        old_log_prob_batch = torch.FloatTensor(batches["log_prob"]).to(self.device)
-        next_state_batch = torch.FloatTensor(batches["next_obs"]).to(self.device)
-        self.memory.clear()
-
-        # GAE
-        gae = 0
-        adv = []
-
-        with torch.no_grad():
-            value = self.critic_net(state_batch)
-            next_value = self.critic_net(next_state_batch)
-            deltas = reward_batch + self.configs.gamma * (1 - done_batch) * next_value - value
-
-            # gae
-            for delta, done in zip(
-                reversed(deltas.cpu().flatten().numpy()),
-                reversed(done_batch.cpu().flatten().numpy()),
-            ):
-                gae = delta + self.configs.gamma * self.configs.gae_lambda * gae * (1.0 - done)
-                adv.append(gae)
-            adv.reverse()
-            adv = torch.FloatTensor(adv).view(-1, 1).to(self.device)
-
-            v_target = adv + self.critic_target(state_batch)
-            if self.configs.adv_norm:  # advantage normalization
-                adv = (adv - adv.mean()) / (adv.std() + 1e-5)
-
-        # apply multi update epoch
-        for _ in range(self.configs.num_epochs):
-            # use mini batch and shuffle data
-            mini_batch = self.configs.batch_size
-            batchsize = self.configs.horizon
-            train_times = (
-                batchsize // mini_batch
-                if batchsize % mini_batch == 0
-                else batchsize // mini_batch + 1
-            )
-            random_idx = np.arange(batchsize)
-            np.random.shuffle(random_idx)
-            for i in range(train_times):
-                if i == batchsize // mini_batch:
-                    ri = random_idx[i * mini_batch :]
-                else:
-                    ri = random_idx[i * mini_batch : (i + 1) * mini_batch]
-                state = state_batch[ri]
-                policy_dist = self.actor_net(state)
-                mean = torch.clamp(policy_dist, -1, 1)
-                log_std = self.log_std.expand_as(mean)
-                std = torch.exp(log_std)
-                dist = Normal(mean, std)
-
-                log_prob = dist.log_prob(action_batch[ri])
-                log_prob = torch.sum(log_prob, dim=1, keepdim=True)
-                old_log_prob = torch.sum(old_log_prob_batch[ri], dim=1, keepdim=True)
-                prob_ratio = (log_prob - old_log_prob).exp()
-
-                loss1 = prob_ratio * adv[ri]
-                loss2 = (
-                    torch.clamp(
-                        prob_ratio, 1 - self.configs.clip_epsilon, 1 + self.configs.clip_epsilon
-                    )
-                    * adv[ri]
-                )
-
-                actor_loss = -torch.min(loss1, loss2)
-                critic_loss = F.mse_loss(v_target[ri], self.critic_net(state))
-
-                self.actor_optimizer.zero_grad()
-                self.critic_optimizer.zero_grad()
-                actor_loss.mean().backward()
-                critic_loss.mean().backward()
-
-                if self.configs.gradient_clip:  # gradient clip
-                    nn.utils.clip_grad_norm_(self.critic_net.parameters(), 0.5)
-                    nn.utils.clip_grad_norm_(self.actor_net.parameters(), 0.5)
-                self.actor_optimizer.step()
-                self.critic_optimizer.step()
+        return log_prob, value
