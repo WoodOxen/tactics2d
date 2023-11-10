@@ -12,13 +12,9 @@ class Cyclist(ParticipantBase):
         self,
         id_: int,
         type_: str = None,
-        length: float = 1.60,
-        width: float = 0.65,
-        height: float = 1.70,
-        color: tuple = None,
-        trajectory: Trajectory = None,
+        **kwargs,
     ):
-        super().__init__(id_, type_, length, width, height, color, trajectory)
+        super().__init__(id_, type_, **kwargs)
 
         self.bbox = LinearRing(
             [

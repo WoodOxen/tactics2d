@@ -6,6 +6,8 @@ from tactics2d.trajectory.element.trajectory import State, Trajectory
 class ParticipantBase(ABC):
     """This class defines an interface for all the traffic participants provided in tactics2d.
 
+    Please feel free to inherit this class to define their own traffic participants.
+
     Attributes:
         id_ (int): The unique identifier of the traffic participant.
         type_ (str): The type of the traffic participant. Defaults to None.
@@ -18,26 +20,67 @@ class ParticipantBase(ABC):
         trajectory (Trajectory): The trajectory of the traffic participant. Defaults to None.
     """
 
+    default_attributes = {
+        "length": float,
+        "width": float,
+        "height": float,
+    }
+
     def __init__(
         self,
         id_: int,
         type_: str,
-        length: float = None,
-        width: float = None,
-        height: float = None,
-        color: tuple = None,
-        trajectory: Trajectory = None,
+        **kwargs,
     ):
+        """The basic constructor of the traffic participant.
+
+        By defaults the traffic participant has the properties id_, type_, length, width, and
+        height.
+
+        If you need to customize more attributes, you can define them in the inherent
+        class in the dictionary ```attributes```. The key of the dictionary is the name of
+        the attribute, and the value of the dictionary is the type of the attribute. If the
+        type of the custom attribute is not determined, the corresponding dictionary value
+        should be ```None```. The type of the attributes will be checked in the construction.
+        If the type is not correct, the constructor will try to convert the value to the correct
+        type. If the conversion fails, the constructor will assign ```None``` to the attribute.
+
+        All the attributes defined in the dictionaries ```default_attributes``` and ```attributes```
+        will be initialized. If their values are not specified in the constructor, they will be
+        initialized as ```None```.
+
+        If ```**kwargs``` contains any key that is not defined in the dictionaries ```default_attributes```
+        and ```attributes```, the constructor will assign the value of the key to the attribute with the
+        same name.
+        """
         self.id_ = id_
         self.type_ = type_
-        self.length = length
-        self.width = width
-        self.height = height
-        self.color = color
+
+        attribute_dict = (
+            self.default_attributes
+            if not hasattr(self, "attributes")
+            else {**self.default_attributes, **self.attributes}
+        )
+
+        for key, value in attribute_dict.items():
+            if key in kwargs:
+                if value is None or isinstance(kwargs[key], value):
+                    setattr(self, key, kwargs[key])
+                else:
+                    try:
+                        setattr(self, key, value(kwargs[key]))
+                    except:
+                        setattr(self, key, None)
+            else:
+                setattr(self, key, None)
+
+        for key in kwargs.keys():
+            if key not in attribute_dict:
+                setattr(self, key, kwargs[key])
 
         self.trajectory = Trajectory(id_=self.id_)
-        if trajectory is not None:
-            self.bind_trajectory(trajectory)
+        if kwargs.get("trajectory", None) is not None:
+            self.bind_trajectory(kwargs["trajectory"])
 
     @property
     def current_state(self) -> State:

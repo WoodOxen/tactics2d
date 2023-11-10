@@ -2,7 +2,7 @@ from typing import Tuple
 
 import numpy as np
 from shapely.geometry import LinearRing, LineString
-from shapely.affinity import affine_transform
+from shapely.affinity import translate, affine_transform
 
 from .participant_base import ParticipantBase
 from tactics2d.trajectory.element.trajectory import State, Trajectory
@@ -14,9 +14,15 @@ from .defaults import VEHICLE_MODEL
 class Vehicle(ParticipantBase):
     """This class defines a four-wheeled vehicle with its common properties.
 
+    The location of the vehicle refers to its center. The vehicle center is defined by its physical model. If the vehicle is front-wheel driven, which means its engine straddling the front axle, the vehicle center is the midpoint of the front axle. If the vehicle is rear-wheel driven, which means its engine straddling the rear axle, the vehicle center is the midpoint of the rear axle. If the vehicle is four-wheel driven, which means its engine straddling both the front and rear axles, the vehicle center is the midpoint of the wheel base. If the vehicle is all-wheel driven, which means its engine straddling all the axles, the vehicle center is the midpoint of the wheel base.
+
+    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/vehicle_driven.png" alt="Front-wheel driven, rear-wheel driven, four-wheel driven, and all-wheel driven vehicles"/>
+
+    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/vehicle_centers.png" alt="Vehicle center definition for different vehicle types."/>
+
     Attributes:
         id_ (int): The unique identifier of the vehicle.
-        type_ (str, optional):
+        type_ (str): The type of the vehicle.
         length (float, optional): The length of the vehicle. The default unit is meter (m).
             Defaults to None.
         width (float, optional): The width of the vehicle. The default unit is meter (m).
@@ -37,77 +43,54 @@ class Vehicle(ParticipantBase):
         comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration that is comfortable for the driver.
     """
 
+    attributes = {
+        "color": tuple,
+        "kerb_weight": float,
+        "front_overhang": float,
+        "wheel_base": float,
+        "rear_overhang": float,
+        "speed_range": tuple,
+        "steer_range": tuple,
+        "accel_range": tuple,
+        "comfort_accel_range": tuple,
+        "driven_type": str,
+        "physics_model": None,
+    }
+    default_vehicle_types = set(VEHICLE_MODEL.keys())
+    default_driven_types = {
+        "front_wheel_driven",
+        "rear_wheel_driven",
+        "four_wheel_driven",
+        "all_wheel_driven",
+    }
+
     def __init__(
         self,
         id_: int,
-        type_: str,
-        length: float = None,
-        width: float = None,
-        height: float = None,
-        color: tuple = None,
-        kerb_weight: float = None,
-        wheel_base: float = None,
-        front_overhang: float = None,
-        rear_overhang: float = None,
-        speed_range: Tuple[float, float] = None,
-        steer_range: Tuple[float, float] = (-np.pi / 6, np.pi / 6),
-        accel_range: Tuple[float, float] = None,
-        comfort_accel_range: Tuple[float, float] = None,
-        physics_model=None,
-        trajectory: Trajectory = None,
+        type_: str = "sedan",
+        **kwargs,
     ):
-        super().__init__(id_, type_, length, width, height, color, trajectory)
+        super().__init__(id_, type_, **kwargs)
 
-        attribs = [
-            "length",
-            "width",
-            "height",
-            "kerb_weight",
-            "wheel_base",
-            "front_overhang",
-            "rear_overhang",
-            "front_overhang",
-            "rear_overhang",
-        ]
+        attribute_dict = {**self.default_attributes, **self.attributes}
 
-        for attrib in attribs:
-            setattr(self, attrib, locals()[attrib])
-            if getattr(self, attrib) is None:
-                try:
-                    setattr(self, attrib, VEHICLE_MODEL[self.type_][attrib])
-                except:
-                    pass
+        if self.type_ in self.default_vehicle_types:
+            for attr in attribute_dict:
+                if getattr(self, attr) is None and attr in VEHICLE_MODEL[self.type_]:
+                    setattr(self, attr, VEHICLE_MODEL[self.type_][attr])
 
-        self.speed_range = speed_range
-        self.steer_range = steer_range
-        self.accel_range = accel_range
-        self.comfort_accel_range = comfort_accel_range
-
-        if self.speed_range is None:
-            try:
+            if self.speed_range is None:
                 self.speed_range = (0, VEHICLE_MODEL[self.type_]["max_speed"])
-            except:
-                pass
 
-        if self.accel_range is None:
-            try:
+            if self.accel_range is None:
                 self.accel_range = (
                     VEHICLE_MODEL[self.type_]["max_decel"],
                     VEHICLE_MODEL[self.type_]["max_accel"],
                 )
-            except:
-                pass
 
-        if self.comfort_accel_range is None:
-            try:
-                self.comfort_accel_range = (
-                    VEHICLE_MODEL[self.type_]["max_comfort_decel"],
-                    VEHICLE_MODEL[self.type_]["max_accel"],
-                )
-            except:
-                pass
+        if self.steer_range is None:
+            self.steer_range = (-np.pi / 6, np.pi / 6)
 
-        self.physics_model = physics_model
         if self.physics_model is None:
             if None not in (self.width, self.front_overhang, self.rear_overhang):
                 dist_front_hang = 0.5 * self.length - self.front_overhang
@@ -130,14 +113,27 @@ class Vehicle(ParticipantBase):
             else:
                 self.physics_model = PointMass(self.steer_range, self.speed_range, self.accel_range)
 
-        self.bbox = LinearRing(
-            [
-                [0.5 * self.length, -0.5 * self.width],
-                [0.5 * self.length, 0.5 * self.width],
-                [-0.5 * self.length, 0.5 * self.width],
-                [-0.5 * self.length, -0.5 * self.width],
-            ]
-        )
+        if self.driven_type not in self.default_driven_types:
+            self.driven_type = "rear_wheel_driven"
+
+        if not None in [self.width, self.length]:
+            self.bbox = LinearRing(
+                [
+                    [self.length, 0.5 * self.width],
+                    [self.length, -0.5 * self.width],
+                    [0, -0.5 * self.width],
+                    [0, 0.5 * self.width],
+                ]
+            )
+
+            if self.driven_type == "front_wheel_driven" and self.front_overhang is not None:
+                self.center_shift = self.front_overhang - self.length
+            elif self.driven_type == "rear_wheel_driven" and self.rear_overhang is not None:
+                self.center_shift = -self.rear_overhang
+            elif not None in [self.wheel_base, self.rear_overhang]:
+                self.center_shift = -self.rear_overhang - 0.5 * self.wheel_base
+            else:
+                self.center_shift = -0.5 * self.length
 
     def add_state(self, state: State):
         if self.physics_model.verify_state(state, self.trajectory.current_state):
@@ -170,7 +166,8 @@ class Vehicle(ParticipantBase):
             state.location[0],
             state.location[1],
         ]
-        return affine_transform(self.bbox, transform_matrix)
+        bbox = translate(self.bbox, self.center_shift)
+        return affine_transform(bbox, transform_matrix)
 
     def get_trace(self, frame_range: tuple = None):
         states = self.trajectory.get_states(frame_range)
@@ -181,8 +178,10 @@ class Vehicle(ParticipantBase):
             trace = self.get_pose(states[0].frame)
         else:
             center_line = []
-            start_point = (0.5 * self.length * np.cos(states[0] + np.pi) + states[0].x, 0.5 * self.length * np.sin(states[0] + np.pi) + states[0].y)
-            end_point = (0.5 * self.length * np.cos(states[-1]) + states[-1].x, 0.5 * self.length * np.sin(states[-1]) + states[-1].y)
+            start_pose = np.array(list(self.get_pose(states[0].frame).coords))
+            end_pose = np.array(list(self.get_pose(states[-1].frame).coords))
+            start_point = tuple(np.mean(start_pose[2:4], axis=0))  # the midpoint of the rear
+            end_point = tuple(np.mean(end_pose[0:2], axis=0))  # the midpoint of the front
             center_line.append(start_point)
             for state in states:
                 trajectory.append(state.location)

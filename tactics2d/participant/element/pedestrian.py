@@ -28,13 +28,9 @@ class Pedestrian(ParticipantBase):
         self,
         id_: int,
         type_: str = None,
-        length: float = None,
-        width: float = None,
-        height: float = None,
-        color: tuple = None,
-        trajectory=None,
+        **kwargs,
     ):
-        super().__init__(id_, type_, length, width, height, color, trajectory)
+        super().__init__(id_, type_, **kwargs)
 
         self.controller = None
 
