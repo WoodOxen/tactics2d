@@ -52,6 +52,7 @@ theme:
     - content.action.view
     - content.code.copy
     - content.code.prettify
+    - navigation.expand
     - navigation.footer
     - search.suggest
 
