@@ -198,7 +198,8 @@ def execute_rs_path(rs_path, agent: DemoPPO, env, obs, step_ratio=MAX_SPEED / 2)
         env.render()
         done = terminate or truncated
         total_reward += reward
-        agent.push((obs, action, next_obs, reward, done, log_prob, value))
+        observations = [[next_obs], [reward], [terminate], [truncated], [info]]
+        agent.push([observations, [obs], [action], [log_prob], [value]])
         obs = next_obs
         agent.train()
         if done:
@@ -248,7 +249,8 @@ def test_parking_env(save_path):
                 env.render()
                 done = terminate or truncated
                 total_reward += reward
-                agent.push((obs, action, next_obs, reward, done, log_prob, value))
+                observations = [[next_obs], [reward], [terminate], [truncated], [info]]
+                agent.push([observations, [obs], [action], [log_prob], [value]])
                 obs = next_obs
                 agent.train()
 

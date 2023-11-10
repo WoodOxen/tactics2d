@@ -12,17 +12,14 @@ from tactics2d.math.interpolate import ReedsShepp
 
 
 class RsPlanner:
-    def __init__(
-        self, vehicle_box: LinearRing, radius, lidar_num=500, dist_rear_hang=None, lidar_range=10.0
-    ) -> None:
-        self.radius = radius
-        self.VehicleBox = vehicle_box
+    def __init__(self, vehicle, lidar_num=120, lidar_range=20.0) -> None:
+        self.radius = vehicle.wheel_base / np.tan(0.75)
+        self.VehicleBox = vehicle.bbox
         self.lidar_num = lidar_num
         self.vehicle_base = self.init_vehicle_base()
-        self.center_shift = 0 if dist_rear_hang is None else dist_rear_hang
+        self.center_shift = vehicle.physics_model.dist_rear_hang
         self.start_pos = [0, 0, 0]
-        if dist_rear_hang:
-            self.move_vehicle_center()
+        self.move_vehicle_center()
         self.distance_tolerance = 0.05
         self.lidar_range = lidar_range
         self.threshold_distance = lidar_range - 2.0

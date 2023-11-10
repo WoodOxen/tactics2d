@@ -6,13 +6,10 @@ sys.path.append("./rllib")
 from copy import deepcopy
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from torch.distributions import Normal
 import numpy as np
 
 from rllib.algorithms.ppo import *
-from rllib.buffer import RandomReplayBuffer
 
 OBS_SHAPE = {"state": (120 + 42 + 6,)}
 
@@ -120,23 +117,6 @@ class DemoPPO(PPO):
         configs = agent_config
         super().__init__(configs, device)
 
-        # the networks
-        self.actor_optimizer = torch.optim.Adam(
-            self.actor_net.parameters(),
-            self.configs.lr,
-            eps=self.configs.adam_epsilon,
-        )
-        self.critic_optimizer = torch.optim.Adam(
-            self.critic_net.parameters(), self.configs.lr, eps=self.configs.adam_epsilon
-        )
-        self.critic_target = deepcopy(self.critic_net)
-
-        # As a on-policy RL algorithm, PPO does not have memory, the self.buffer represents
-        # the buffer
-        self.buffer = RandomReplayBuffer(
-            self.configs.horizon + 1, extra_items=["log_prob", "value"]
-        )
-
     def get_action(self, obs: np.ndarray, info: dict):
         observation = deepcopy(obs)
         observation = torch.FloatTensor(observation).to(self.device)
@@ -166,74 +146,3 @@ class DemoPPO(PPO):
         value = value.detach().cpu().numpy().flatten()
 
         return log_prob, value
-
-    def push(self, observations):
-        """
-        Args:
-            observations(tuple): (obs, action, reward, done, log_prob, next_obs)
-        """
-        self.buffer.push(observations)
-
-    def train(self):
-        if len(self.buffer) < self.configs.horizon + 1:
-            return
-
-        batches = self.buffer.all()
-
-        adv, v_target = self._compute_gae(batches["reward"], batches["value"], batches["done"])
-        if self.configs.adv_norm:  # advantage normalization
-            adv = (adv - adv.mean()) / (adv.std() + 1e-5)
-        state_batch = torch.FloatTensor(batches["state"]).to(self.device)
-        action_batch = torch.FloatTensor(batches["action"]).to(self.device)
-        old_log_prob_batch = torch.FloatTensor(batches["log_prob"]).to(self.device)
-        adv = torch.FloatTensor(adv).to(self.device)
-        v_target = torch.FloatTensor(v_target).to(self.device)
-
-        # apply multi update epoch
-        for _ in range(self.configs.num_epochs):
-            # use mini batch and shuffle data
-            mini_batch = self.configs.batch_size
-            batchsize = self.configs.horizon
-            train_times = (
-                batchsize // mini_batch
-                if batchsize % mini_batch == 0
-                else batchsize // mini_batch + 1
-            )
-            random_idx = np.arange(batchsize)
-            np.random.shuffle(random_idx)
-            for i in range(train_times):
-                if i == batchsize // mini_batch:
-                    ri = random_idx[i * mini_batch :]
-                else:
-                    ri = random_idx[i * mini_batch : (i + 1) * mini_batch]
-                state = state_batch[ri]
-                dist = self.actor_net.get_dist(state)
-
-                log_prob = dist.log_prob(action_batch[ri])
-                log_prob = torch.sum(log_prob, dim=1, keepdim=True)
-                old_log_prob = torch.sum(old_log_prob_batch[ri], dim=1, keepdim=True)
-                prob_ratio = (log_prob - old_log_prob).exp()
-
-                loss1 = prob_ratio * adv[ri]
-                loss2 = (
-                    torch.clamp(
-                        prob_ratio, 1 - self.configs.clip_epsilon, 1 + self.configs.clip_epsilon
-                    )
-                    * adv[ri]
-                )
-
-                actor_loss = -torch.min(loss1, loss2)
-                critic_loss = F.mse_loss(v_target[ri], self.critic_net(state))
-
-                self.actor_optimizer.zero_grad()
-                self.critic_optimizer.zero_grad()
-                actor_loss.mean().backward()
-                critic_loss.mean().backward()
-
-                if self.configs.gradient_clip:  # gradient clip
-                    nn.utils.clip_grad_norm_(self.critic_net.parameters(), 0.5)
-                    nn.utils.clip_grad_norm_(self.actor_net.parameters(), 0.5)
-                self.actor_optimizer.step()
-                self.critic_optimizer.step()
-
-        self.buffer.clear()
