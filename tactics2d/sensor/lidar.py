@@ -13,7 +13,8 @@ from tactics2d.map.element import Map
 class SingleLineLidar(SensorBase):
     """This class implements a pseudo single line lidar.
 
-    The default parameters are from the lidar STL-06P.
+    The default parameters refer to lidar STL-06P. This lidar sensor has only one scan line.
+    Its documentation is [here](https://www.ldrobot.com/images/2023/03/02/LDROBOT_STL-06P_Datasheet_EN_v1.3_txOyicBl.pdf).
 
     Attributes:
         id_ (int): The unique identifier of the sensor.
@@ -173,9 +174,7 @@ class SingleLineLidar(SensorBase):
         self.scan_result = lidar_obs
 
     def _rotate_and_filter_obstacles(self, ego_pos: tuple, obstacles: list):
-        """
-        Rotate the obstacles around the vehicle and remove the obstalces out of perception range.
-        """
+        # Rotate the obstacles around the vehicle and remove the obstacles out of perception range.
         origin = Point((0, 0))
         x, y, theta = ego_pos
         a = np.cos(theta)
@@ -239,4 +238,10 @@ class SingleLineLidar(SensorBase):
             self._render_lidar_points()
 
     def get_observation(self) -> np.ndarray:
+        """Get the lidar points at current frame. The points are sorted counter clockwise.
+        The points are given in the global coordinate system.
+
+        Returns:
+            np.ndarray: The lidar points at current frame.
+        """
         return np.array(self.scan_result)

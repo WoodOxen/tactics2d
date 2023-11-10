@@ -56,6 +56,9 @@ theme:
     - search.suggest
 
 plugins:
+  - attr_list
+  - glightbox
+  - md_in_html
   - mkdocstrings:
       custom_templates: templates
       default_handler: python
