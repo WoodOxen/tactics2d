@@ -57,7 +57,6 @@ theme:
 
 plugins:
   - glightbox
-  - md_in_html
   - mkdocstrings:
       custom_templates: templates
       default_handler: python
