@@ -6,10 +6,6 @@ import numpy as np
 from .state import State
 
 
-class TrajectoryKeyError(KeyError):
-    pass
-
-
 class Trajectory(object):
     """_summary_
 
@@ -59,13 +55,6 @@ class Trajectory(object):
         return self.frames[-1]
 
     @property
-    def trace(self) -> List[tuple]:
-        trace = []
-        for frame in self.frames:
-            trace.append(self.history_states[frame].location)
-        return trace
-
-    @property
     def average_speed(self):
         return np.mean([state.speed for state in self.history_states.values()])
 
@@ -73,23 +62,21 @@ class Trajectory(object):
         """Obtain the object's state at the requested frame.
 
         If the frame is not specified, the function will return the current state. If the
-            frame is given but not found, the function will raise a TrajectoryKeyError.
+            frame is given but not found, the function will raise a KeyError.
         """
         if frame is None:
             return self.current_state
         if frame not in self.history_states:
-            raise TrajectoryKeyError(
-                f"Time stamp {frame} is not found in the trajectory {self.id_}."
-            )
+            raise KeyError(f"Time stamp {frame} is not found in the trajectory {self.id_}.")
         return self.history_states[frame]
 
     def append_state(self, state: State):
         if state.frame in self.history_states:
-            raise TrajectoryKeyError(
+            raise KeyError(
                 f"State at time stamp {state.frame} is already in trajectory {self.id_}."
             )
         if len(self.frames) > 0 and state.frame < self.frames[-1]:
-            raise TrajectoryKeyError(
+            raise KeyError(
                 f"Trying to insert an early time stamp {state.frame} happening \
                     before the last stamp {self.frames[-1]} in trajectory {self.id_}"
             )

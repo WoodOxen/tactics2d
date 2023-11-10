@@ -4,7 +4,7 @@ from tactics2d.trajectory.element.trajectory import State, Trajectory
 
 
 class ParticipantBase(ABC):
-    """This class define an interface for all the traffic participants provided in tactics2d.
+    """This class defines an interface for all the traffic participants provided in tactics2d.
 
     Attributes:
         id_ (int): The unique identifier of the traffic participant.
@@ -64,7 +64,7 @@ class ParticipantBase(ABC):
         return self.current_state.accel
 
     def is_active(self, frame: int) -> bool:
-        """Check if the participant has state information at the given frame."""
+        """Check if the participant has state information at the requested frame."""
         if frame < self.trajectory.first_frame or frame > self.trajectory.last_frame:
             return False
         return True
@@ -86,18 +86,125 @@ class ParticipantBase(ABC):
         """Get the traffic participant's pose at the requested frame.
 
         If the frame is not specified, the function will return the current pose.
-        If the frame is given but not found, the function will raise a TrajectoryKeyError.
+        If the frame is requested but not found, the function will raise a TrajectoryKeyError.
         """
 
     def get_state(self, frame: int = None):
-        """Get the traffic participant's state at the requested frame. If the frame is not
-        specified, the function will return the current state. If the frame is given
-        but not found, the function will raise a TrajectoryKeyError.
+        """Get the traffic participant's state at the requested frame.
+
+        Args:
+            frame (int, optional): The requested frame. If the frame is not specified, the
+                function will return the current state. If the frame is requested but not found,
+                the function will raise a KeyError.
+
+        Returns:
+            State: The traffic participant's state at the requested frame.
+
+        Raises:
+            KeyError: The requested frame is not found in the trajectory.
         """
         return self.trajectory.get_state(frame)
 
+    def get_states(self, frame_range=None) -> list:
+        """Get the traffic participant's states within the requested frame range.
+
+        Args:
+            frame_range (_type_, optional): The requested frame range. If the frame range is
+                not specified, the function will return all states. If the frame range is a tuple,
+                the function will return the states within the requested range. If the frame range
+                is a list, the function will return the states at the requested frames. If the frame
+                range is an element same as the frame id, the function will return a list only containing
+                the state. Defaults to None.
+
+        Returns:
+            list: A list of the traffic participant's states.
+
+        Raises:
+            TypeError: The frame range must be a tuple, or a list, or an element same as the frame id.
+            ValueError: The frame range must be a tuple with two elements.
+            KeyError: Any requested frame is not found in the trajectory.
+        """
+        frames = self.trajectory.frames
+        states = []
+        if frame_range is None:
+            for frame in frames:
+                states.append(self.trajectory.get_state(frame))
+        elif isinstance(frame_range, tuple):
+            if len(frame_range) == 2:
+                start_frame, end_frame = frame_range
+                for frame in frames:
+                    if frame >= start_frame and frame <= end_frame:
+                        states.append(self.trajectory.get_state(frame))
+            else:
+                raise ValueError("The frame range must be a tuple with two elements.")
+        elif isinstance(frame_range, list):
+            for frame in frame_range:
+                states.append(self.trajectory.get_state(frame))
+        else:
+            try:
+                states.append(self.trajectory.get_state(frame_range))
+            except:
+                raise TypeError(
+                    "The frame range must be a tuple, or a list, or an element same as the frame id."
+                )
+
+        return states
+
+    def get_trajectory(self, frame_range=None) -> list:
+        """Get the traffic participant's trajectory within the requested frame range.
+
+        Args:
+            frame_range (_type_, optional): The requested frame range. If the frame range is
+                not specified, the function will return the whole trajectory. If the frame range
+                is a tuple, the function will return the trajectory within the requested range. If the
+                frame range is a list, the function will return the trajectory at the requested frames.
+                If the frame range is an element same as the frame id, the function will return
+                a list only containing the location. Defaults to None.
+
+        Returns:
+            list: A list of the traffic participant's history locations.
+
+        Raises:
+            TypeError: The frame range must be a tuple, or a list, or an element same as the frame id.
+            ValueError: The frame range must be a tuple with two elements.
+            KeyError: Any requested frame is not found in the trajectory.
+        """
+        frames = self.trajectory.frames
+        trajectory = []
+        if frame_range is None:
+            for frame in frames:
+                trajectory.append(self.trajectory.get_location(frame).location)
+        elif isinstance(frame_range, tuple):
+            if len(frame_range) == 2:
+                start_frame, end_frame = frame_range
+                for frame in frames:
+                    if frame >= start_frame and frame <= end_frame:
+                        trajectory.append(self.trajectory.get_location(frame).location)
+            else:
+                raise ValueError("The frame range must be a tuple with two elements.")
+        elif isinstance(frame_range, list):
+            for frame in frame_range:
+                trajectory.append(self.trajectory.get_location(frame).location)
+        else:
+            try:
+                trajectory.append(self.trajectory.get_location(frame_range).location)
+            except:
+                raise TypeError(
+                    "The frame range must be a tuple, or a list, or an element same as the frame id."
+                )
+
+        return trajectory
+
+    @abstractmethod
+    def get_trace(self, frame_range=None):
+        """Get the region boundary that the traffic participant has occupied within the requested frame range.
+
+        Args:
+            frame_range (_type_, optional): The requested frame range. Defaults to None.
+        """
+
     def reset(self, state: State = None, keep_trajectory: bool = False):
-        """Reset the object to a given state. If the initial state is not specified, the object
+        """Reset the object to a requested state. If the initial state is not specified, the object
                 will be reset to the same initial state as previous.
 
         Args:

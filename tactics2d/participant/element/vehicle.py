@@ -1,7 +1,7 @@
 from typing import Tuple
 
 import numpy as np
-from shapely.geometry import LinearRing
+from shapely.geometry import LinearRing, LineString
 from shapely.affinity import affine_transform
 
 from .participant_base import ParticipantBase
@@ -12,7 +12,7 @@ from .defaults import VEHICLE_MODEL
 
 
 class Vehicle(ParticipantBase):
-    """This class implements a vehicle with commonly used properties.
+    """This class defines a four-wheeled vehicle with its common properties.
 
     Attributes:
         id_ (int): The unique identifier of the vehicle.
@@ -171,6 +171,30 @@ class Vehicle(ParticipantBase):
             state.location[1],
         ]
         return affine_transform(self.bbox, transform_matrix)
+
+    def get_trace(self, frame_range: tuple = None):
+        states = self.trajectory.get_states(frame_range)
+        trace = None
+        if len(states) == 0:
+            pass
+        elif len(states) == 1:
+            trace = self.get_pose(states[0].frame)
+        else:
+            center_line = []
+            start_point = (0.5 * self.length * np.cos(states[0] + np.pi) + states[0].x, 0.5 * self.length * np.sin(states[0] + np.pi) + states[0].y)
+            end_point = (0.5 * self.length * np.cos(states[-1]) + states[-1].x, 0.5 * self.length * np.sin(states[-1]) + states[-1].y)
+            center_line.append(start_point)
+            for state in states:
+                trajectory.append(state.location)
+            center_line.append(end_point)
+            trajectory = LineString(trajectory)
+
+            left_bound = trajectory.offset_curve(self.width / 2)
+            right_bound = trajectory.offset_curve(-self.width / 2)
+
+            trace = LinearRing(list(left_bound.coords) + list(reversed(list(right_bound.coords))))
+
+        return trace
 
     def update(self, action: np.ndarray, step: float):
         """Update the agent's state with the given action."""

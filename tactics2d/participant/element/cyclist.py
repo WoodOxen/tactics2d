@@ -53,3 +53,6 @@ class Cyclist(ParticipantBase):
             self.trajectory = trajectory
         else:
             raise RuntimeError()
+
+    def get_trace(self, frame_range=None):
+        return None

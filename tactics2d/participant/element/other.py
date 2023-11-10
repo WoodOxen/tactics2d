@@ -61,3 +61,6 @@ class Other(ParticipantBase):
             state.location[1],
         ]
         return affine_transform(self.shape, transform_matrix)
+
+    def get_trace(self, frame_range=None):
+        return None
