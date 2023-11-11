@@ -2,10 +2,10 @@ from abc import ABC, abstractmethod
 
 from shapely.geometry import Polygon
 
-from .traffic_event import TrafficEvent
+from .violation_detection import TrafficEvent
 
 
-class ScenarioManager(ABC):
+class TrafficScenarioManager(ABC):
     """The base class for scenario managers.
 
     The scenario manager is used to reset a scenario (including the map, agent, and
