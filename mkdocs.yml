@@ -10,6 +10,8 @@ repo_url: https://github.com/WoodOxen/tactics2d
 docs_dir: docs
 nav:
   - Home: "index.md"
+  - Release Notes: "release_notes.md"
+  
   - Python API:
       - tactics2d.envs: "api_envs.md"
       - tactics2d.map: "api_map.md"
