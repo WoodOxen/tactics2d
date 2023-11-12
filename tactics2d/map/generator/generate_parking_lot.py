@@ -71,18 +71,27 @@ class ParkingLotGenerator:
     """Generate a random bay parking lot scenario with determined start and destination.
 
     Attributes:
-        vehicle_size (Tuple[float, float]): The size of the vehicle. The first element is the
-            length and the second element is the width.
+        vehicle_size (Tuple[float, float], optional): The size of the vehicle. The first element
+            is the length and the second element is the width. Defaults to (5.3, 2.5).
         bay_proportion (float): The proportion of "bay" parking scenario in all
-            generated scenarios. It should be in the range of [0, 1]. When it is 0, the
-            generator only generates parallel parking scenario. When it is 1, the generator only
-            generates bay parking scenario. Defaults to 0.5.
+            generated scenarios. It should be in the range of [0, 1]. If the input is out of the
+            range, it will be clipped to the range. When it is 0, the generator only generates
+            parallel parking scenario. When it is 1, the generator only generates bay parking
+            scenario. Defaults to 0.5.
     """
 
-    def __init__(self, vehicle_size: Tuple[float, float], bay_proportion: float = 0.5):
+    target_color = (0, 238, 118, 100)
+    map_margin = 13
+
+    def __init__(self, vehicle_size: Tuple[float, float] = (5.3, 2.5), bay_proportion: float = 0.5):
         """Initialize the attributes in the class."""
-        self.vehicle_size = vehicle_size
-        self.bay_proportion = bay_proportion
+        if vehicle_size[0] < vehicle_size[1] or vehicle_size[0] <= 0 or vehicle_size[1] <= 0:
+            self.vehicle_size = (5.3, 2.5)
+            logging.warning("The input vehicle size is invalid. Use default value instead.")
+        else:
+            self.vehicle_size = vehicle_size
+
+        self.bay_proportion = np.clip(bay_proportion, 0, 1)
         self.mode = None
 
     def _get_target_area(self) -> Area:
@@ -98,7 +107,7 @@ class ParkingLotGenerator:
         center_point = Point(0.0, truncate_gaussian(y_min + 0.4, 0.2, y_min, y_min + 0.8))
 
         shape = _get_bbox(center_point, heading, *self.vehicle_size)
-        area = Area(id_=0, geometry=shape, color=(0, 238, 118, 100))
+        area = Area(id_=0, geometry=shape, color=self.target_color)
 
         return area, heading
 
@@ -238,6 +247,12 @@ class ParkingLotGenerator:
         """
         t1 = time.time()
 
+        if map_.name is None:
+            map_.name = "parking_lot"
+
+        if map_.scenario_type is None:
+            map_.scenario_type = "parking"
+
         self.mode = "bay" if np.random.rand() < self.bay_proportion else "parallel"
         logging.info(f"Start generating a {self.mode} parking scenario.")
 
@@ -363,8 +378,8 @@ class ParkingLotGenerator:
         target_y = target_box_center[1]
         if np.random.rand() > 0.5:
             start_x, start_y, start_heading = (
-                start_state.location[0],
-                start_state.location[1],
+                start_state.x,
+                start_state.y,
                 start_state.heading,
             )
             start_box = _get_bbox(
@@ -382,13 +397,13 @@ class ParkingLotGenerator:
                 target_shape = _get_bbox(
                     Point(target_x, target_y), target_heading, *self.vehicle_size
                 )
-                target_area = Area(id_=0, geometry=target_shape, color=(0, 238, 118, 100))
+                target_area = Area(id_=0, geometry=target_shape, color=self.target_color)
                 map_.areas[target_area.id_] = target_area
 
-        xmin = np.floor(min(start_state.location[0], target_x) - 13)
-        xmax = np.ceil(max(start_state.location[0], target_x) + 13)
-        ymin = np.floor(min(start_state.location[1], target_y) - 13)
-        ymax = np.ceil(max(start_state.location[1], target_y) + 13)
+        xmin = np.floor(min(start_state.x, target_x) - self.map_margin)
+        xmax = np.ceil(max(start_state.x, target_x) + self.map_margin)
+        ymin = np.floor(min(start_state.y, target_y) - self.map_margin)
+        ymax = np.ceil(max(start_state.y, target_y) + self.map_margin)
         map_._boundary = (xmin, xmax, ymin, ymax)
 
         # record time cost

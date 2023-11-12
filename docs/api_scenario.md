@@ -1,1 +1,0 @@
-::: tactics2d.scenario
