@@ -34,23 +34,10 @@ from samples.rs_planner import RsPlanner
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-MAX_SPEED = 2.0
 LIDAR_RANGE = 20.0
 LIDAR_LINE = 120
 
 OBS_SHAPE = {"state": (120 + 42 + 6,)}
-
-VALID_STEER = [-0.75, 0.75]
-PRECISION = 10
-discrete_actions = []
-for i in np.arange(
-    VALID_STEER[-1], -(VALID_STEER[-1] + VALID_STEER[-1] / PRECISION), -VALID_STEER[-1] / PRECISION
-):
-    discrete_actions.append([i, MAX_SPEED])
-for i in np.arange(
-    VALID_STEER[-1], -(VALID_STEER[-1] + VALID_STEER[-1] / PRECISION), -VALID_STEER[-1] / PRECISION
-):
-    discrete_actions.append([i, -MAX_SPEED])
 
 
 class PathPlanner:
@@ -115,7 +102,7 @@ class ParkingWrapper(Wrapper):
         self.scaled_actions = np.concatenate(
             [
                 np.linspace([1, 2], [-1, 2], 21),
-                np.linspace([1,-2], [-1, -2], 21),
+                np.linspace([1, -2], [-1, -2], 21),
             ]
         )
 
@@ -182,7 +169,7 @@ class ParkingWrapper(Wrapper):
         return custom_observation, reward, terminated, truncated, info
 
 
-def execute_path(path, agent, env, obs, step_size=1):
+def execute_path(path, agent, env, obs, speed_step=1):
     action_type = {"L": 1, "S": 0, "R": -1}
     radius = env.scenario_manager.agent.wheel_base / np.tan(
         env.scenario_manager.agent.steer_range[1]
@@ -191,21 +178,21 @@ def execute_path(path, agent, env, obs, step_size=1):
     actions = []
     for i in range(len(path.actions)):
         steer = action_type[path.actions[i]]
-        step_len = path.signs[i] * path.segments[i] / step_size * radius
-        if 1e-3 < abs(step_len) <= 1:
-            actions.append([steer, step_len])
-        elif step_len > step_size:
-            while step_len > step_size:
-                actions.append([steer, step_size])
-                step_len -= step_size
-            if abs(step_len) > 1e-3:
-                actions.append([steer, step_len])
-        elif step_len < -step_size:
-            while step_len < -step_size:
-                actions.append([steer, -1])
-                step_len += step_size
-            if abs(step_len) > 1e-3:
-                actions.append([steer, step_len])
+        speed = path.signs[i] * path.segments[i] / speed_step * radius
+        if 1e-3 < abs(speed) <= 1:
+            actions.append([steer, speed])
+        elif speed > speed_step:
+            while speed > speed_step:
+                actions.append([steer, speed_step])
+                speed -= speed_step
+            if abs(speed) > 1e-3:
+                actions.append([steer, speed])
+        elif speed < -speed_step:
+            while speed < -speed_step:
+                actions.append([steer, -speed_step])
+                speed += speed_step
+            if abs(speed) > 1e-3:
+                actions.append([steer, speed])
 
     # step actions
     total_reward = 0
@@ -257,7 +244,7 @@ class ParkingAgent(PPO):
 
         if not isinstance(scaled_actions, torch.Tensor):
             scaled_actions = torch.FloatTensor(scaled_actions).to(self.device)
-        
+
         if not isinstance(action_mask, torch.Tensor):
             action_mask = torch.FloatTensor(action_mask).to(self.device)
 
@@ -268,14 +255,6 @@ class ParkingAgent(PPO):
         return action, log_prob, value
 
     def evaluate_action(self, states, actions: np.ndarray):
-        """get the log probability for given action based on current policy
-
-        Args:
-            observation(np.ndarray): np.ndarray with the same shape of self.state_dim.
-
-        Returns:
-            log_prob(np.ndarray): the log probability of taken action.
-        """
         if not isinstance(states, torch.Tensor):
             states = torch.FloatTensor(states).to(self.device)
 
@@ -359,7 +338,9 @@ def trainer(args):
                     info["status"] = TrafficEvent.FAILED
                     done = True
             else:
-                action, log_prob, value = agent.get_action(state, scaled_actions, info["action_mask"])
+                action, log_prob, value = agent.get_action(
+                    state, scaled_actions, info["action_mask"]
+                )
                 next_state, reward, terminate, truncated, info = env.step(action)
                 env.render()
                 done = terminate or truncated

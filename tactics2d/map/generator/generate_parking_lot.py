@@ -46,7 +46,6 @@ def _get_random_position(
 
 
 def _get_bbox(center_point: Point, heading: float, length: float, width: float) -> Polygon:
-    """Generate a bounding box."""
     bbox = Polygon(
         [
             [0.5 * length, -0.5 * width],  # top_right
@@ -244,6 +243,11 @@ class ParkingLotGenerator:
 
         Args:
             map_ (Map): The map instance to store the generated parking scenario.
+
+        Returns:
+            start_state (State): The start state of the vehicle.
+            target_area (Area): The target area of the parking scenario.
+            target_heading (float): The heading of the target area.
         """
         t1 = time.time()
 
