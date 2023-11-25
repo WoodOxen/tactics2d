@@ -123,12 +123,12 @@ class SingleLineLidar(SensorBase):
 
         # convert obstacles(LinerRing) to edges ((x1,y1), (x2,y2))
         x1s, x2s, y1s, y2s = [], [], [], []
-        for obst in considered_obstacles:
-            obst_coords = np.array(obst.coords)  # (n+1,2)
-            x1s.extend(list(obst_coords[:-1, 0]))
-            x2s.extend(list(obst_coords[1:, 0]))
-            y1s.extend(list(obst_coords[:-1, 1]))
-            y2s.extend(list(obst_coords[1:, 1]))
+        for obstacle in considered_obstacles:
+            obstacle_coords = np.array(obstacle.coords)  # (n+1,2)
+            x1s.extend(list(obstacle_coords[:-1, 0]))
+            x2s.extend(list(obstacle_coords[1:, 0]))
+            y1s.extend(list(obstacle_coords[:-1, 1]))
+            y2s.extend(list(obstacle_coords[1:, 1]))
         if len(x1s) == 0:  # no obstacle around
             self.scan_result = np.ones((self.point_density)) * float("inf")
             return
@@ -150,7 +150,7 @@ class SingleLineLidar(SensorBase):
         raw_x = (b * f - c * e) / det  # (point_density, E)
         raw_y = (c * d - a * f) / det
 
-        # select the true intersections, set the false positive interesections to inf
+        # select the true intersections, set the false positive intersections to inf
         tmp_inf = self.perception_range * 10
         tmp_zero = 1e-8
         # the false positive intersections on line L1(not on ray L1)

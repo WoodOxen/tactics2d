@@ -56,12 +56,7 @@ class Map:
     @property
     def boundary(self):
         if self._boundary is None:
-            x_min, x_max, y_min, y_max = (
-                float("inf"),
-                float("-inf"),
-                float("inf"),
-                float("-inf"),
-            )
+            x_min, x_max, y_min, y_max = (float("inf"), float("-inf"), float("inf"), float("-inf"))
 
             for node in self.nodes.values():
                 x_min = min(x_min, node.x)

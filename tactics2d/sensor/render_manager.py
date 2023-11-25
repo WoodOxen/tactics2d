@@ -68,21 +68,14 @@ class RenderManager:
                         self.windows_size[0] / sensor.window_size[0],
                         self.windows_size[1] / sensor.window_size[1],
                     )
-                    coords = (
-                        0.5 * (self.windows_size[0] - scale * sensor.window_size[0]),
-                        0,
-                    )
+                    coords = (0.5 * (self.windows_size[0] - scale * sensor.window_size[0]), 0)
                 else:
                     sub_width = self.windows_size[0] / n - 10
                     sub_height = self.windows_size[1] / n - 10
                     scale = min(
-                        sub_width / sensor.window_size[0],
-                        sub_height / sensor.window_size[1],
+                        sub_width / sensor.window_size[0], sub_height / sensor.window_size[1]
                     )
-                    coords = (
-                        sub_cnt * (sub_width + 10) + 5,
-                        self.windows_size[1] - sub_height + 5,
-                    )
+                    coords = (sub_cnt * (sub_width + 10) + 5, self.windows_size[1] - sub_height + 5)
                     sub_cnt += 1
 
                 self.layouts[sensor.id_] = (scale, coords)
@@ -204,11 +197,7 @@ class RenderManager:
                 try:
                     state = participant.trajectory.get_state(frame)
                     sensor.update(
-                        participants,
-                        participant_ids,
-                        frame,
-                        Point(state.location),
-                        state.heading,
+                        participants, participant_ids, frame, Point(state.location), state.heading
                     )
                 except KeyError:
                     self.unbind(sensor_id)

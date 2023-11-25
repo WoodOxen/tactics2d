@@ -21,11 +21,7 @@ class ReedsSheppPath:
         self.length = np.abs(self.segments).sum() * radius
 
     def get_curve_line(
-        self,
-        start_point: np.ndarray,
-        start_heading: float,
-        radius: float,
-        step_size: float = 0.01,
+        self, start_point: np.ndarray, start_heading: float, radius: float, step_size: float = 0.01
     ):
         def get_arc(point, heading, radius, radian, forward, action):
             circle_center, _ = Circle.get_circle(
@@ -34,12 +30,7 @@ class ReedsSheppPath:
             start_angle = (heading + np.pi / 2) if action == "R" else (heading - np.pi / 2)
             clockwise = (action == "R" and forward > 0) or (action == "L" and forward < 0)
             arc_curve = Circle.get_arc(
-                circle_center,
-                radius,
-                radian,
-                start_angle,
-                clockwise,
-                step_size,
+                circle_center, radius, radian, start_angle, clockwise, step_size
             )
 
             end_angle = (start_angle - radian) if clockwise else (start_angle + radian)
@@ -73,12 +64,7 @@ class ReedsSheppPath:
                 )
             else:
                 curve, yaw, next_point, next_heading = get_arc(
-                    next_point,
-                    next_heading,
-                    radius,
-                    abs(self.segments[i]),
-                    self.signs[i],
-                    action,
+                    next_point, next_heading, radius, abs(self.segments[i]), self.signs[i], action
                 )
 
             curves.append(curve)

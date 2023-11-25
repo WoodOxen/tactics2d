@@ -60,9 +60,7 @@ class LevelXParser:
         stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
     ):
         df_track_chunk = pd.read_csv(
-            os.path.join(folder_path, "%02d_tracks.csv" % file_id),
-            iterator=True,
-            chunksize=10000,
+            os.path.join(folder_path, "%02d_tracks.csv" % file_id), iterator=True, chunksize=10000
         )
         df_track_meta = pd.read_csv(os.path.join(folder_path, "%02d_tracksMeta.csv" % file_id))
         df_recording_meta = pd.read_csv(

@@ -24,12 +24,7 @@ class Pedestrian(ParticipantBase):
         trajectory (Trajectory, optional): The trajectory of the pedestrian. Defaults to None.
     """
 
-    def __init__(
-        self,
-        id_: int,
-        type_: str = None,
-        **kwargs,
-    ):
+    def __init__(self, id_: int, type_: str = None, **kwargs):
         super().__init__(id_, type_, **kwargs)
 
         self.controller = None

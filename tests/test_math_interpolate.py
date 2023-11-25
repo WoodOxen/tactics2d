@@ -29,8 +29,7 @@ def compare_similarity(curve1: np.ndarray, curve2: np.ndarray, diff: float = 0.0
 
     # compute difference in shape
     hausdorff_dist = max(
-        directed_hausdorff(curve1, curve2)[0],
-        directed_hausdorff(curve2, curve1)[0],
+        directed_hausdorff(curve1, curve2)[0], directed_hausdorff(curve2, curve1)[0]
     )
     ratio_shape_diff = hausdorff_dist / min(len1, len2)
 
@@ -128,12 +127,7 @@ def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
         (4, None, None, 1000),
     ],
 )
-def test_b_spline(
-    degree: int,
-    control_points: np.ndarray,
-    knots: np.ndarray,
-    n_interpolation: int,
-):
+def test_b_spline(degree: int, control_points: np.ndarray, knots: np.ndarray, n_interpolation: int):
     if control_points is None:
         n_control_point = np.random.randint(3, 100)
         control_points = np.zeros((n_control_point, 2))

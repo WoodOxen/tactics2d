@@ -163,11 +163,9 @@ class ParkingScenarioManager(TrafficScenarioManager):
         self.status = TrafficEvent.NORMAL
         # reset map
         self.map_.reset()
-        (
-            self.start_state,
-            self.target_area,
-            self.target_heading,
-        ) = self.map_generator.generate(self.map_)
+        (self.start_state, self.target_area, self.target_heading) = self.map_generator.generate(
+            self.map_
+        )
 
         # reset agent
         self.agent.reset(self.start_state)

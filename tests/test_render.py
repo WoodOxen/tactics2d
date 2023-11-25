@@ -131,18 +131,10 @@ def test_render_manager(layout_style, off_screen):
     perception_range = (30, 30, 45, 15)
     main_camera = TopDownCamera(1, map_, window_size=(600, 600), off_screen=off_screen)
     camera1 = TopDownCamera(
-        2,
-        map_,
-        perception_range=perception_range,
-        window_size=(200, 200),
-        off_screen=off_screen,
+        2, map_, perception_range=perception_range, window_size=(200, 200), off_screen=off_screen
     )
     camera2 = TopDownCamera(
-        3,
-        map_,
-        perception_range=perception_range,
-        window_size=(200, 200),
-        off_screen=off_screen,
+        3, map_, perception_range=perception_range, window_size=(200, 200), off_screen=off_screen
     )
 
     render_manager.add_sensor(main_camera, main_sensor=True)

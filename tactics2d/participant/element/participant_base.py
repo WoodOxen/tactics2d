@@ -20,18 +20,9 @@ class ParticipantBase(ABC):
         trajectory (Trajectory): The trajectory of the traffic participant. Defaults to None.
     """
 
-    default_attributes = {
-        "length": float,
-        "width": float,
-        "height": float,
-    }
+    default_attributes = {"length": float, "width": float, "height": float}
 
-    def __init__(
-        self,
-        id_: int,
-        type_: str,
-        **kwargs,
-    ):
+    def __init__(self, id_: int, type_: str, **kwargs):
         """The basic constructor of the traffic participant.
 
         By defaults the traffic participant has the properties id_, type_, length, width, and

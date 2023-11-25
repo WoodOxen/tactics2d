@@ -213,13 +213,7 @@ class RacingScenarioManager(TrafficScenarioManager):
         start_loc = np.mean(start_line, axis=0)
         start_loc -= self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
         state = State(
-            self.n_step,
-            heading=heading,
-            x=start_loc[0],
-            y=start_loc[1],
-            vx=0,
-            vy=0,
-            accel=0,
+            self.n_step, heading=heading, x=start_loc[0], y=start_loc[1], vx=0, vy=0, accel=0
         )
 
         self.agent.reset(state)

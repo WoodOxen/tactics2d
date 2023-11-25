@@ -204,10 +204,7 @@ class ParkingLotGenerator:
         return obstacle
 
     def _verify_obstacles(
-        self,
-        target_area: Area,
-        obstacles: list,
-        dist_target_to_obstacle: Tuple[float, float],
+        self, target_area: Area, obstacles: list, dist_target_to_obstacle: Tuple[float, float]
     ) -> bool:
         target_polygon = target_area.geometry
         for obstacle in obstacles:
@@ -381,11 +378,7 @@ class ParkingLotGenerator:
         target_x = target_box_center[0]
         target_y = target_box_center[1]
         if np.random.rand() > 0.5:
-            start_x, start_y, start_heading = (
-                start_state.x,
-                start_state.y,
-                start_state.heading,
-            )
+            start_x, start_y, start_heading = (start_state.x, start_state.y, start_state.heading)
             start_box = _get_bbox(
                 Point(start_state.location), start_state.heading, *self.vehicle_size
             )

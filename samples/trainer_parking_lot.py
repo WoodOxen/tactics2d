@@ -94,16 +94,10 @@ class ParkingWrapper(Wrapper):
         super().__init__(env)
         self.action_mask = ActionMask(self.env.scenario_manager.agent)
         self.observation_space = gym.spaces.Box(
-            low=-np.inf,
-            high=np.inf,
-            shape=(120 + 42 + 6, 1),
-            dtype=np.float32,
+            low=-np.inf, high=np.inf, shape=(120 + 42 + 6, 1), dtype=np.float32
         )
         self.scaled_actions = np.concatenate(
-            [
-                np.linspace([1, 2], [-1, 2], 21),
-                np.linspace([1, -2], [-1, -2], 21),
-            ]
+            [np.linspace([1, 2], [-1, 2], 21), np.linspace([1, -2], [-1, -2], 21)]
         )
 
     def _preprocess_action(self, action):
@@ -292,10 +286,7 @@ def trainer(args):
                 "hidden_size": 256,
                 "continuous": True,
             },
-            "critic_kwargs": {
-                "state_dim": env.observation_space.shape[0],
-                "hidden_size": 256,
-            },
+            "critic_kwargs": {"state_dim": env.observation_space.shape[0], "hidden_size": 256},
             "horizon": 8192,
             "batch_size": 32,
             "adam_epsilon": 1e-8,
@@ -317,7 +308,7 @@ def trainer(args):
     loss_list = deque(maxlen=100)
     status_info = deque(maxlen=100)
 
-    step_num = int(5e6)
+    step_num = int(1e6)
     step_cnt = 0
     episode_cnt = 0
 

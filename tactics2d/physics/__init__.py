@@ -3,9 +3,4 @@ from .point_mass import PointMass
 from .single_track_kinematics import SingleTrackKinematics
 from .single_track_dynamics import SingleTrackDynamics
 
-__all__ = [
-    "PhysicsModelBase",
-    "PointMass",
-    "SingleTrackKinematics",
-    "SingleTrackDynamics",
-]
+__all__ = ["PhysicsModelBase", "PointMass", "SingleTrackKinematics", "SingleTrackDynamics"]

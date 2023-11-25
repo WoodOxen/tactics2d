@@ -10,11 +10,7 @@ class DubinsPath:
         self.length = np.abs(segments).sum() * radius
 
     def get_curve_line(
-        self,
-        start_point: np.ndarray,
-        start_heading: float,
-        radius: float,
-        step_size: float = 0.1,
+        self, start_point: np.ndarray, start_heading: float, radius: float, step_size: float = 0.1
     ):
         def get_arc(point, heading, radius, radian, action):
             circle_center, _ = Circle.get_circle(
@@ -23,12 +19,7 @@ class DubinsPath:
             clockwise = action == "R"
             start_angle = (heading + np.pi / 2) if action == "R" else (heading - np.pi / 2)
             arc_curve = Circle.get_arc(
-                circle_center,
-                radius,
-                radian,
-                start_angle,
-                clockwise,
-                step_size,
+                circle_center, radius, radian, start_angle, clockwise, step_size
             )
 
             end_angle = (start_angle - radian) if clockwise else (start_angle + radian)

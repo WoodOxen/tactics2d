@@ -13,12 +13,7 @@ class Other(ParticipantBase):
 
     """
 
-    def __init__(
-        self,
-        id_: int,
-        type_: str = None,
-        **kwargs,
-    ):
+    def __init__(self, id_: int, type_: str = None, **kwargs):
         super().__init__(id_, type_, **kwargs)
 
         if not hasattr(self, "shape"):

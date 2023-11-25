@@ -33,9 +33,7 @@ class ActionMask:
         self.distance_tolerance = 0.1
         self.vehicle_base = self.init_vehicle_base()
 
-    def init_vehicle_box(
-        self,
-    ):
+    def init_vehicle_box(self):
         VehicleBox = self.vehicle.bbox
         car_coords = np.array(VehicleBox.coords)[:4]  # (4,2)
         car_coords_x = car_coords[:, 0].reshape(-1)
@@ -61,9 +59,7 @@ class ActionMask:
         )  # (10, 42, 4, 2)
         return vehicle_boxes
 
-    def init_vehicle_base(
-        self,
-    ):
+    def init_vehicle_base(self):
         self.lidar_lines = []
         lidar_num = self.lidar_num
         lidar_range = 100.0

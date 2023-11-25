@@ -8,12 +8,7 @@ from tactics2d.trajectory.element.trajectory import Trajectory
 
 
 class Cyclist(ParticipantBase):
-    def __init__(
-        self,
-        id_: int,
-        type_: str = None,
-        **kwargs,
-    ):
+    def __init__(self, id_: int, type_: str = None, **kwargs):
         super().__init__(id_, type_, **kwargs)
 
         self.bbox = LinearRing(
