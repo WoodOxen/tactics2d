@@ -5,36 +5,35 @@ from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
 from tactics2d.trajectory.element import State, Trajectory
 
 
-TYPE_MAPPING = {
-    "Car": "car",
-    "Medium Vehicle": "car",
-    "Bus": "bus",
-    "Motorcycle": "motorcycle",
-    "Bicycle": "bicycle",
-    "Pedestrian": "pedestrian",
-    "Undefined": "other",
-}
-
-CLASS_MAPPING = {
-    "Car": Vehicle,
-    "Medium Vehicle": Vehicle,
-    "Bus": Vehicle,
-    "Motorcycle": Cyclist,
-    "Bicycle": Cyclist,
-    "Pedestrian": Pedestrian,
-    "Undefined": Other,
-}
-
-
 class DLPParser:
     """This class implements a parser of the Dragon Lake Parking Dataset.
 
     Shen, Xu, et al. "Parkpredict: Motion and intent prediction of vehicles in parking lots." 2020 IEEE Intelligent Vehicles Symposium (IV). IEEE, 2020.
     """
 
+    TYPE_MAPPING = {
+        "Car": "car",
+        "Medium Vehicle": "car",
+        "Bus": "bus",
+        "Motorcycle": "motorcycle",
+        "Bicycle": "bicycle",
+        "Pedestrian": "pedestrian",
+        "Undefined": "other",
+    }
+
+    CLASS_MAPPING = {
+        "Car": Vehicle,
+        "Medium Vehicle": Vehicle,
+        "Bus": Vehicle,
+        "Motorcycle": Cyclist,
+        "Bicycle": Cyclist,
+        "Pedestrian": Pedestrian,
+        "Undefined": Other,
+    }
+
     def _generate_participant(self, instance, id_):
-        type_ = TYPE_MAPPING[instance["type"]]
-        class_ = CLASS_MAPPING[instance["type"]]
+        type_ = self.TYPE_MAPPING[instance["type"]]
+        class_ = self.CLASS_MAPPING[instance["type"]]
         participant = class_(
             id_=id_,
             type_=type_,
@@ -45,7 +44,20 @@ class DLPParser:
 
         return participant
 
-    def load(self, file_id: int, folder_path: str):
+    def parse_trajectory(
+        self,
+        file_id: int,
+        folder_path: str,
+        stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
+    ):
+        """Parse the trajectory data of DLP dataset. The states were collected at 25Hz.
+
+        Args:
+            file_id (int): _description_
+            folder_path (str): _description_
+            stamp_range (Tuple[float, float], optional): _description_. Defaults to None.
+        """
+
         with open("%s/DJI_%04d_agents.json" % (folder_path, file_id), "r") as f_agent:
             df_agent = json.load(f_agent)
         with open("%s/DJI_%04d_frames.json" % (folder_path, file_id), "r") as f_frame:
@@ -54,24 +66,6 @@ class DLPParser:
             df_instance = json.load(f_instance)
         with open("%s/DJI_%04d_obstacles.json" % (folder_path, file_id), "r") as f_obstacle:
             df_obstacle = json.load(f_obstacle)
-
-        return df_agent, df_frame, df_instance, df_obstacle
-
-    def parse(
-        self,
-        file_id: int,
-        folder_path: str,
-        stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
-    ):
-        """_summary_
-
-        Args:
-            file_id (int): _description_
-            folder_path (str): _description_
-            stamp_range (Tuple[float, float], optional): _description_. Defaults to None.
-        """
-
-        df_agent, df_frame, df_instance, df_obstacle = self.load(file_id, folder_path)
 
         participants = {}
         id_cnt = 0

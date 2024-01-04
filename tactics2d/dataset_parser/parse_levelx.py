@@ -8,44 +8,61 @@ from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist
 from tactics2d.trajectory.element import State, Trajectory
 
 
-REGISTERED_DATASET = ["highD", "inD", "rounD", "exiD", "uniD"]
-
-TYPE_MAPPING = {
-    "car": "car",
-    "Car": "car",
-    "van": "van",
-    "truck": "truck",
-    "Truck": "truck",
-    "truck_bus": "bus",
-    "bus": "bus",
-    "trailer": "trailer",
-    "motorcycle": "motorcycle",
-    "bicycle": "bicycle",
-    "cycle": "bicycle",
-    "pedestrian": "pedestrian",
-}
-
-CLASS_MAPPING = {
-    "car": Vehicle,
-    "Car": Vehicle,
-    "van": Vehicle,
-    "truck": Vehicle,
-    "Truck": Vehicle,
-    "truck_bus": Vehicle,
-    "bus": Vehicle,
-    "trailer": Vehicle,
-    "motorcycle": Cyclist,
-    "bicycle": Cyclist,
-    "cycle": Cyclist,
-    "pedestrian": Pedestrian,
-}
-
-
 class LevelXParser:
+    """This class implements a parser for the series of datasets collected by the Institute for Automotive Engineering (ika) of RWTH Aachen University. Because the commercial version of the datasets are held by LevelXData, we call this series of datasets LevelX-series datasets. The datasets include: highD, inD, rounD, exiD, uniD.
+
+    Krajewski, Robert, et al. "The highd dataset: A drone dataset of naturalistic vehicle trajectories on german highways for validation of highly automated driving systems." 2018 21st international conference on intelligent transportation systems (ITSC). IEEE, 2018.
+
+    Bock, Julian, et al. "The ind dataset: A drone dataset of naturalistic road user trajectories at german intersections." 2020 IEEE Intelligent Vehicles Symposium (IV). IEEE, 2020.
+
+    Krajewski, Robert, et al. "The round dataset: A drone dataset of road user trajectories at roundabouts in germany." 2020 IEEE 23rd International Conference on Intelligent Transportation Systems (ITSC). IEEE, 2020.
+
+    Moers, Tobias, et al. "The exiD dataset: A real-world trajectory dataset of highly interactive highway scenarios in Germany." 2022 IEEE Intelligent Vehicles Symposium (IV). IEEE, 2022.
+
+    Bock, Julian, et al. "Highly accurate scenario and reference data for automated driving." ATZ worldwide 123.5 (2021): 50-55.
+    """
+
+    REGISTERED_DATASET = ["highD", "inD", "rounD", "exiD", "uniD"]
+
+    TYPE_MAPPING = {
+        "car": "car",
+        "Car": "car",
+        "van": "van",
+        "truck": "truck",
+        "Truck": "truck",
+        "truck_bus": "bus",
+        "bus": "bus",
+        "trailer": "trailer",
+        "motorcycle": "motorcycle",
+        "bicycle": "bicycle",
+        "cycle": "bicycle",
+        "pedestrian": "pedestrian",
+    }
+
+    CLASS_MAPPING = {
+        "car": Vehicle,
+        "Car": Vehicle,
+        "van": Vehicle,
+        "truck": Vehicle,
+        "Truck": Vehicle,
+        "truck_bus": Vehicle,
+        "bus": Vehicle,
+        "trailer": Vehicle,
+        "motorcycle": Cyclist,
+        "bicycle": Cyclist,
+        "cycle": Cyclist,
+        "pedestrian": Pedestrian,
+    }
+
     def __init__(self, dataset: str = ""):
-        if dataset not in REGISTERED_DATASET:
+        """Initialize the parser.
+
+        Args:
+            dataset (str, optional): The dataset you want to parse. The available choices are: highD, inD, rounD, exiD, uniD. Defaults to "".
+        """
+        if dataset not in self.REGISTERED_DATASET:
             raise KeyError(
-                f"{dataset} is not an available LevelX-series dataset. The available datasets are {REGISTERED_DATASET}."
+                f"{dataset} is not an available LevelX-series dataset. The available datasets are {self.REGISTERED_DATASET}."
             )
 
         self.dataset = dataset
@@ -80,8 +97,8 @@ class LevelXParser:
                 continue
 
             id_ = participant_info[id_key]
-            class_ = CLASS_MAPPING[participant_info["class"]]
-            type_ = TYPE_MAPPING[participant_info["class"]]
+            class_ = self.CLASS_MAPPING[participant_info["class"]]
+            type_ = self.TYPE_MAPPING[participant_info["class"]]
 
             if self.dataset == "highD":
                 participant = class_(

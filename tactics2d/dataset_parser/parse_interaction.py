@@ -8,16 +8,17 @@ from tactics2d.participant.guess_type import GuessType
 from tactics2d.trajectory.element import State, Trajectory
 
 
-TYPE_MAPPING = {"cyclist": Cyclist, "pedestrian": Pedestrian}
+CLASS_MAPPING = {"cyclist": Cyclist, "pedestrian": Pedestrian}
 
 
 class InteractionParser:
-    """This class provides pure static methods to parse trajectory data from the
-    INTERACTION dataset.
+    """This class implements a parser for INTERACTION dataset.
+
+    Zhan, Wei, et al. "Interaction dataset: An international, adversarial and cooperative motion dataset in interactive driving scenarios with semantic maps." arXiv preprint arXiv:1910.03088 (2019).
     """
 
-    @staticmethod
     def parse_vehicle(
+        self,
         file_id: int,
         folder_path: str,
         stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
@@ -42,7 +43,7 @@ class InteractionParser:
                 vehicles[vehicle_id] = vehicle
 
             if vehicle_id not in trajectories:
-                trajectories[vehicle_id] = Trajectory(vehicle_id)
+                trajectories[vehicle_id] = Trajectory(vehicle_id, fps=10)
 
             state = State(
                 frame=state_info["timestamp_ms"],
@@ -59,8 +60,8 @@ class InteractionParser:
 
         return vehicles
 
-    @staticmethod
     def parse_pedestrians(
+        self,
         participants: dict,
         file_id: int,
         folder_path: str,
@@ -99,19 +100,24 @@ class InteractionParser:
 
         for trajectory_id, trajectory in trajectories.items():
             type_ = type_guesser.guess_by_trajectory(trajectory)
-            class_ = TYPE_MAPPING[type_]
+            class_ = CLASS_MAPPING[type_]
             participants[trajectory_id] = class_(trajectory_id, type_, trajectory=trajectory)
 
         return participants
 
-    @staticmethod
-    def parse(
+    def parse_trajectory(
+        self,
         file_id: int,
         folder_path: str,
         stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
     ):
-        participants = InteractionParser.parse_vehicle(file_id, folder_path, stamp_range)
-        participants = InteractionParser.parse_pedestrians(
-            participants, file_id, folder_path, stamp_range
-        )
+        """Parse the trajectory data of INTERACTION dataset. The states were collected at 10Hz.
+
+        Args:
+            file_id (int): The id of the trajectory file.
+            folder_path (str): The path of the trajectory file.
+            stamp_range (Tuple[float, float], optional): The time range of the trajectory data. Defaults to (-float("inf"), float("inf")).
+        """
+        participants = self.parse_vehicle(file_id, folder_path, stamp_range)
+        participants = self.parse_pedestrians(participants, file_id, folder_path, stamp_range)
         return participants
