@@ -18,7 +18,7 @@ import pygame
 import pytest
 
 from tactics2d.map.parser import Lanelet2Parser
-from tactics2d.trajectory.parser import LevelXParser
+from tactics2d.dataset_parser import LevelXParser
 from tactics2d.sensor import TopDownCamera, SingleLineLidar, RenderManager
 
 
@@ -37,8 +37,8 @@ def test_camera(follow_view: bool):
     map_ = map_parser.parse(map_root, configs["inD_4"])
 
     frame = 40
-    trajectory_parser = LevelXParser("inD")
-    participants = trajectory_parser.parse(0, trajectory_path, (0.0, 200.0))
+    dataset_parser = LevelXParser("inD")
+    participants = dataset_parser.parse_trajectory(0, trajectory_path, (0.0, 200.0))
     participant_ids = [
         participant.id_ for participant in participants.values() if participant.is_active(frame)
     ]
@@ -79,8 +79,8 @@ def test_lidar(perception_range):
     map_ = map_parser.parse(map_root, configs["inD_4"])
 
     frame = 40
-    trajectory_parser = LevelXParser("inD")
-    participants = trajectory_parser.parse(0, trajectory_path, (0.0, 200.0))
+    dataset_parser = LevelXParser("inD")
+    participants = dataset_parser.parse_trajectory(0, trajectory_path, (0.0, 200.0))
     participant_ids = [
         participant.id_ for participant in participants.values() if participant.is_active(frame)
     ]
@@ -121,8 +121,8 @@ def test_render_manager(layout_style, off_screen):
     map_root = ET.parse(map_path).getroot()
     map_ = map_parser.parse(map_root, configs["inD_4"])
 
-    trajectory_parser = LevelXParser("inD")
-    participants = trajectory_parser.parse(0, trajectory_path, (0.0, 200.0))
+    dataset_parser = LevelXParser("inD")
+    participants = dataset_parser.parse_trajectory(0, trajectory_path, (0.0, 200.0))
 
     render_manager = RenderManager(
         fps=100, windows_size=(600, 600), layout_style=layout_style, off_screen=off_screen

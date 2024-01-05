@@ -20,12 +20,15 @@ class NuPlanParser:
     }
 
     def parse_trajectory(
-        self, file_id: str, folder_path: str, stamp_range: tuple = (-float("inf"), float("inf"))
+        self, file_name: str, folder_path: str, stamp_range: tuple = (-float("inf"), float("inf"))
     ):
-        participants = {}
-        data_file = os.path.join(folder_path, file_id)
+        file_path = os.path.join(folder_path, file_name)
+        if stamp_range is None:
+            stamp_range = (-float("inf"), float("inf"))
 
-        with sqlite3.connect(data_file) as connection:
+        participants = dict()
+
+        with sqlite3.connect(file_path) as connection:
             cursor = connection.cursor()
             cursor.execute("SELECT * FROM track;")
             rows = cursor.fetchall()
@@ -52,12 +55,7 @@ class NuPlanParser:
                 if timestamp < stamp_range[0] or timestamp > stamp_range[1]:
                     continue
                 state = State(
-                    frame=timestamp,
-                    x=row[5],
-                    y=row[6],
-                    heading=row[14],
-                    vx=row[11],
-                    vy=row[12],
+                    frame=timestamp, x=row[5], y=row[6], heading=row[14], vx=row[11], vy=row[12]
                 )
                 participants[row[2]].trajectory.append_state(state)
 

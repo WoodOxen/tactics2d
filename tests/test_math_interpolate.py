@@ -8,8 +8,6 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-import bezier
-
 # import dubins
 import numpy as np
 import pytest
@@ -83,6 +81,11 @@ def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
         return
 
     t2 = time.time()
+
+    try:
+        import bezier
+    except:
+        return
 
     curve = bezier.Curve(control_points.T, degree=order).evaluate_multi(
         np.linspace(0, 1, n_interpolation)

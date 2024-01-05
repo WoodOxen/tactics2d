@@ -88,11 +88,7 @@ if __name__ == "__main__":
         episode_cnt += 1
         print(
             "Stop reason: %s, average action: (%f, %f)"
-            % (
-                info["status"].name,
-                average_action[0] / iter_cnt,
-                average_action[1] / iter_cnt,
-            )
+            % (info["status"].name, average_action[0] / iter_cnt, average_action[1] / iter_cnt)
         )
         if episode_cnt % print_interval == 0:
             print(

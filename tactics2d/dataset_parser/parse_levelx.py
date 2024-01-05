@@ -70,19 +70,26 @@ class LevelXParser:
     def _calibrate_location(self, x: float, y: float):
         return x, y
 
-    def parse(
+    def parse_trajectory(
         self,
         file_id: int,
         folder_path: str,
         stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
     ):
+        """
+
+        Args:
+            file_id (int):
+            folder_path (str): _description_
+            stamp_range (Tuple[float, float], optional): _description_. Defaults to (-float("inf"), float("inf")).
+
+        Returns:
+            _type_: _description_
+        """
         df_track_chunk = pd.read_csv(
             os.path.join(folder_path, "%02d_tracks.csv" % file_id), iterator=True, chunksize=10000
         )
         df_track_meta = pd.read_csv(os.path.join(folder_path, "%02d_tracksMeta.csv" % file_id))
-        df_recording_meta = pd.read_csv(
-            os.path.join(folder_path, "%02d_recordingMeta.csv" % file_id)
-        )
 
         # load the vehicles that have frame in the arbitrary range
         participants = dict()

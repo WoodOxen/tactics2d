@@ -25,8 +25,8 @@ class InteractionParser:
     ):
         df_vehicle = pd.read_csv(os.path.join(folder_path, "vehicle_tracks_%03d.csv" % file_id))
 
-        vehicles = {}
-        trajectories = {}
+        vehicles = dict()
+        trajectories = dict()
 
         for _, state_info in df_vehicle.iterrows():
             if state_info["frame_id"] < stamp_range[0] or state_info["frame_id"] > stamp_range[1]:
