@@ -45,17 +45,14 @@ class DLPParser:
         return participant
 
     def parse_trajectory(
-        self,
-        file_id: int,
-        folder_path: str,
-        stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
+        self, file_id: int, folder_path: str, stamp_range: Tuple[float, float] = None
     ):
         """Parse the trajectory data of DLP dataset. The states were collected at 25Hz.
 
         Args:
-            file_id (int): _description_
-            folder_path (str): _description_
-            stamp_range (Tuple[float, float], optional): _description_. Defaults to None.
+            file_id (int): The id of the scenario to parse. With the given file id, the parser will parse the trajectory data from the following files: DJI_{file_id}_agents.json, DJI_{file_id}_frames.json, DJI_{file_id}_instances.json, DJI_{file_id}_obstacles.json.
+            folder_path (str): The path to the folder containing the trajectory data.
+            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
         """
 
         with open("%s/DJI_%04d_agents.json" % (folder_path, file_id), "r") as f_agent:
@@ -69,6 +66,9 @@ class DLPParser:
 
         participants = {}
         id_cnt = 0
+
+        if stamp_range is None:
+            stamp_range = (-float("inf"), float("inf"))
 
         for frame in df_frame.values():
             if frame["timestamp"] < stamp_range[0] or frame["timestamp"] > stamp_range[1]:

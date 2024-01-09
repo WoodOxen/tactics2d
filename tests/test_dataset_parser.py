@@ -119,11 +119,13 @@ def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
 @pytest.mark.dataset_parser
 def test_womd_parser():
     folder_path = "./tactics2d/data/trajectory_sample/WOMD"
-    file_path = "motion_data_one_scenario.tfrecord"
+    file_name = "motion_data_one_scenario.tfrecord"
 
     dataset_parser = WOMDParser()
 
     t1 = time.time()
-    participants = dataset_parser.parse_trajectory(file_path, folder_path)
+    participants = dataset_parser.parse_trajectory(
+        None, file_name=file_name, folder_path=folder_path
+    )
     t2 = time.time()
     logging.info(f"The time needed to parse a WOMD scenario: {t2 - t1}s")

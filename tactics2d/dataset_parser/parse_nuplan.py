@@ -1,13 +1,18 @@
 import os
+from typing import Tuple
 
 import sqlite3
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
 from tactics2d.trajectory.element import State, Trajectory
+from tactics2d.map.element import Map
 
 
 class NuPlanParser:
-    """This class implements a parser for NuPlan dataset."""
+    """This class implements a parser for NuPlan dataset.
+
+    Caesar, Holger, et al. "nuplan: A closed-loop ml-based planning benchmark for autonomous vehicles." arXiv preprint arXiv:2106.11810 (2021).
+    """
 
     CLASS_MAPPING = {
         "vehicle": Vehicle,
@@ -20,9 +25,20 @@ class NuPlanParser:
     }
 
     def parse_trajectory(
-        self, file_name: str, folder_path: str, stamp_range: tuple = (-float("inf"), float("inf"))
+        self, file_name: str, folder_path: str, stamp_range: Tuple[float, float] = None
     ):
+        """This function parses trajectories from a single NuPlan database file.
+
+        Args:
+            file_name (str): _description_
+            folder_path (str): _description_
+            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+
+        Returns:
+            dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
+        """
         file_path = os.path.join(folder_path, file_name)
+
         if stamp_range is None:
             stamp_range = (-float("inf"), float("inf"))
 

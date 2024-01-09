@@ -71,30 +71,32 @@ class LevelXParser:
         return x, y
 
     def parse_trajectory(
-        self,
-        file_id: int,
-        folder_path: str,
-        stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
+        self, file_id: int, folder_path: str, stamp_range: Tuple[float, float] = None
     ):
         """
 
         Args:
-            file_id (int):
-            folder_path (str): _description_
-            stamp_range (Tuple[float, float], optional): _description_. Defaults to (-float("inf"), float("inf")).
+            file_id (int): The id of the trajectory file. With the given file id, the parser will parse the trajectory data from the following files: {file_id}_tracks.csv, {file_id}_tracksMeta.csv.
+            folder_path (str): The path to the folder containing the trajectory data.
+            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
 
         Returns:
-            _type_: _description_
+            dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
         """
         df_track_chunk = pd.read_csv(
             os.path.join(folder_path, "%02d_tracks.csv" % file_id), iterator=True, chunksize=10000
         )
-        df_track_meta = pd.read_csv(os.path.join(folder_path, "%02d_tracksMeta.csv" % file_id))
+        df_track_meta = pd.read_csv(
+            os.path.join(folder_path, "%02d_tracksMeta.csv" % file_id), engine="pyarrow"
+        )
 
         # load the vehicles that have frame in the arbitrary range
         participants = dict()
 
         id_key = "id" if self.dataset == "highD" else "trackId"
+
+        if stamp_range is None:
+            time_stamp = (-float("inf"), float("inf"))
 
         for _, participant_info in df_track_meta.iterrows():
             first_stamp = participant_info["initialFrame"] / 25.0

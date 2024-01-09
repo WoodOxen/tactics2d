@@ -1,4 +1,5 @@
 from typing import Tuple
+import logging
 
 import shapely
 from shapely.geometry import LineString, Point
@@ -18,7 +19,7 @@ class RoadLine:
         color (tuple, optional): The color of the lane marking. Defaults to None.
         lane_change (Tuple[bool, bool], optional): Whether a vehicle can switch to a left lane
             or a right lane. The first element in the tuple indicates the left. The second
-            element in the tuple indicates the right. Defaults to (True, True).
+            element in the tuple indicates the right. Defaults to None.
         width (float, optional): The width of the line (in m). The linestring then represents
             the centerline of the object. Defaults to None.
         height (float, optional): The height of line (in m). The linestring then represents the
@@ -41,7 +42,7 @@ class RoadLine:
         type_: str = "virtual",
         subtype: str = None,
         color: tuple = None,
-        lane_change: Tuple[bool, bool] = (True, True),
+        lane_change: Tuple[bool, bool] = None,
         width: float = None,
         height: float = None,
         temporary: bool = False,
@@ -59,6 +60,8 @@ class RoadLine:
         self.temporary = temporary
         self.custom_tags = custom_tags
 
+        self._check_lane_change()
+
     @property
     def head(self) -> Point:
         return shapely.get_point(self.linestring, 0)
@@ -70,3 +73,48 @@ class RoadLine:
     @property
     def shape(self) -> list:
         return list(self.linestring.coords)
+
+    def _check_lane_change(self):
+        if self.subtype == "solid":
+            if self.lane_change is None:
+                self.lane_change = (False, False)
+            elif self.lane_change != (False, False):
+                logging.warning(
+                    f"The lane change rule of a solid roadline is supposed to be (False, False). Line {self.id_} has lane change rule {self.lane_change}."
+                )
+
+        elif self.subtype == "solid_solid":
+            if self.lane_change is None:
+                self.lane_change = (False, False)
+            elif self.lane_change != (False, False):
+                logging.warning(
+                    f"The lane change rule of a solid_solid roadline is supposed to be (False, False). Line {self.id_} has lane change rule {self.lane_change}."
+                )
+
+        elif self.subtype == "dashed":
+            if self.lane_change is None:
+                self.lane_change = (True, True)
+            elif self.lane_change != (True, True):
+                logging.warning(
+                    f"The lane change rule of a dashed roadline is supposed to be (True, True). Line {self.id_} has lane change rule {self.lane_change}."
+                )
+
+        elif self.subtype == "solid_dashed":
+            if self.lane_change is None:
+                self.lane_change = (True, False)
+            elif self.lane_change != (True, False):
+                logging.warning(
+                    f"The lane change rule of a solid_dashed roadline is supposed to be (True, False). Line {self.id_} has lane change rule {self.lane_change}."
+                )
+
+        elif self.subtype == "dashed_solid":
+            if self.lane_change is None:
+                self.lane_change = (False, True)
+            elif self.lane_change != (False, True):
+                logging.warning(
+                    f"The lane change rule of a dashed_solid roadline is supposed to be (False, True). Line {self.id_} has lane change rule {self.lane_change}."
+                )
+
+        else:
+            if self.lane_change is None:
+                self.lane_change = (True, True)

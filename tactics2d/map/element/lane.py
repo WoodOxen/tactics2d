@@ -1,5 +1,6 @@
-import warnings
+from typing import Union
 from enum import Enum
+import logging
 
 from shapely.geometry import LineString, LinearRing
 
@@ -82,7 +83,7 @@ class Lane:
         self.custom_tags = custom_tags
 
         if self.speed_limit_unit not in LEGAL_SPEED_UNIT:
-            warnings.warn(
+            logging.warning(
                 "Invalid speed limit unit %s. The legal units types are %s"
                 % (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
             )
@@ -123,21 +124,39 @@ class Lane:
         elif id_ in self.right_neighbors:
             return LaneRelationship.RIGHT_NEIGHBOR
 
-    def add_related_lane(self, id_: str, relationship: LaneRelationship):
+    def add_related_lane(self, id_: Union[str, list], relationship: LaneRelationship):
         """Add a related lane's id to the corresponding list
 
         Args:
             id_ (str): The related lane's id
             relationship (LaneRelationship): The relationship of the lanes
         """
-        if id_ == self.id_:
-            warnings.warn(f"Lane {self.id_} cannot be a related lane to itself.")
+        if id_ is None:
             return
-        if relationship == LaneRelationship.PREDECESSOR:
-            self.predecessors.add(id_)
-        elif relationship == LaneRelationship.SUCCESSOR:
-            self.successors.add(id_)
-        elif relationship == LaneRelationship.LEFT_NEIGHBOR:
-            self.left_neighbors.add(id_)
-        elif relationship == LaneRelationship.RIGHT_NEIGHBOR:
-            self.right_neighbors.add(id_)
+
+        if isinstance(id_, str):
+            if id_ == self.id_:
+                logging.warning(f"Lane {self.id_} cannot be a related lane to itself.")
+                return
+            if relationship == LaneRelationship.PREDECESSOR:
+                self.predecessors.add(id_)
+            elif relationship == LaneRelationship.SUCCESSOR:
+                self.successors.add(id_)
+            elif relationship == LaneRelationship.LEFT_NEIGHBOR:
+                self.left_neighbors.add(id_)
+            elif relationship == LaneRelationship.RIGHT_NEIGHBOR:
+                self.right_neighbors.add(id_)
+
+        elif isinstance(id_, list):
+            if self.id_ in id_:
+                id_ = [i for i in id_ if i != self.id_]
+                logging.warning(f"Lane {self.id_} cannot be a related lane to itself.")
+
+            if relationship == LaneRelationship.PREDECESSOR:
+                self.predecessors.update(id_)
+            elif relationship == LaneRelationship.SUCCESSOR:
+                self.successors.update(id_)
+            elif relationship == LaneRelationship.LEFT_NEIGHBOR:
+                self.left_neighbors.update(id_)
+            elif relationship == LaneRelationship.RIGHT_NEIGHBOR:
+                self.right_neighbors.update(id_)

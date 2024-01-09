@@ -18,15 +18,15 @@ class InteractionParser:
     """
 
     def parse_vehicle(
-        self,
-        file_id: int,
-        folder_path: str,
-        stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
+        self, file_id: int, folder_path: str, stamp_range: Tuple[float, float] = None
     ):
         df_vehicle = pd.read_csv(os.path.join(folder_path, "vehicle_tracks_%03d.csv" % file_id))
 
         vehicles = dict()
         trajectories = dict()
+
+        if stamp_range is None:
+            stamp_range = (-float("inf"), float("inf"))
 
         for _, state_info in df_vehicle.iterrows():
             if state_info["frame_id"] < stamp_range[0] or state_info["frame_id"] > stamp_range[1]:
@@ -65,7 +65,7 @@ class InteractionParser:
         participants: dict,
         file_id: int,
         folder_path: str,
-        stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
+        stamp_range: Tuple[float, float] = None,
     ):
         type_guesser = GuessType()
 
@@ -78,6 +78,9 @@ class InteractionParser:
         trajectories = {}
         pedestrian_ids = {}
         id_cnt = max(list(participants.keys())) + 1
+
+        if stamp_range is None:
+            stamp_range = (-float("inf"), float("inf"))
 
         for _, state_info in df_pedestrian.iterrows():
             time_stamp = float(state_info["frame_id"]) / 100.0
@@ -106,17 +109,17 @@ class InteractionParser:
         return participants
 
     def parse_trajectory(
-        self,
-        file_id: int,
-        folder_path: str,
-        stamp_range: Tuple[float, float] = (-float("inf"), float("inf")),
+        self, file_id: int, folder_path: str, stamp_range: Tuple[float, float] = None
     ):
         """Parse the trajectory data of INTERACTION dataset. The states were collected at 10Hz.
 
         Args:
-            file_id (int): The id of the trajectory file.
-            folder_path (str): The path of the trajectory file.
-            stamp_range (Tuple[float, float], optional): The time range of the trajectory data. Defaults to (-float("inf"), float("inf")).
+            file_id (int): The id of the trajectory file. With the given file id, the parser will parse the trajectory data from the following files: vehicle_tracks_{file_id}.csv, pedestrian_tracks_{file_id}.csv. When the pedestrian trajectory file is not available, the parser will ignore the pedestrian data.
+            folder_path (str): The path to the folder containing the trajectory data.
+            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+
+        Returns:
+            dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
         """
         participants = self.parse_vehicle(file_id, folder_path, stamp_range)
         participants = self.parse_pedestrians(participants, file_id, folder_path, stamp_range)

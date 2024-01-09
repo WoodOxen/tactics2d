@@ -1,3 +1,6 @@
+from shapely.geometry import LineString
+
+
 class RegulatoryElement:
     """This class implements the lenelet2-style map element *RegulatoryElement*.
 
@@ -9,8 +12,6 @@ class RegulatoryElement:
 
     Attributes:
         id_ (str): The unique identifier of the regulatory element.
-        relation_ids (set, optional): The road elements that the regulatory is applied to. Defaults to None.
-        way_ids (set, optional): The road elements that the regulatory is applied to. Defaults to None.
         type_ (str): The type of the regulatory element. The default value is
             "regulatory_element".
         subtype (str, optional): By default it is one of [traffic_sign, traffic_light, speed_limit,
@@ -24,8 +25,6 @@ class RegulatoryElement:
     def __init__(
         self,
         id_: str,
-        relation_ids: set = None,
-        way_ids: set = None,
         type_: str = "regulatory_element",
         subtype: str = None,
         location: str = None,
@@ -38,11 +37,17 @@ class RegulatoryElement:
             raise ValueError("The subtype of RegulatoryElement %s is not defined!" % id_)
 
         self.id_ = id_
-        self.relation_ids = relation_ids
-        self.way_ids = way_ids
         self.type_ = type_
         self.subtype = subtype
         self.location = location
         self.dynamic = dynamic
         self.fallback = fallback
         self.custom_tags = custom_tags
+
+
+class CrossWalk(RegulatoryElement):
+    def __init__(self, id_: str, left_side: LineString, right_side: LineString, **kwargs):
+        super().__init__(id_, **kwargs)
+        self.subtype = "crosswalk"
+        self.left_side = left_side
+        self.right_side = right_side
