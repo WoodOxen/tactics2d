@@ -1,10 +1,15 @@
 import os
 
+import sys
+
+sys.path.append("../../")
+
 import tensorflow as tf
+from shapely.geometry import Point, LineString, Polygon
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
 from tactics2d.trajectory.element import State, Trajectory
-from tactics2d.map.element import Map
+from tactics2d.map.element import RoadLine, Lane, LaneRelationship, Area, Regulatory, Map
 from tactics2d.dataset_parser.womd_proto import scenario_pb2
 
 
@@ -17,6 +22,20 @@ class WOMDParser:
     TYPE_MAPPING = {0: "unknown", 1: "vehicle", 2: "pedestrian", 3: "cyclist", 4: "other"}
 
     CLASS_MAPPING = {0: Other, 1: Vehicle, 2: Pedestrian, 3: Cyclist, 4: Other}
+
+    ROADLINE_TYPE_MAPPING = {
+        0: ["virtual", None, None],
+        1: ["line_thin", "dashed", "white"],
+        2: ["line_thin", "solid", "white"],
+        3: ["line_thin", "solid_solid", "white"],
+        4: ["line_thin", "dashed", "yellow"],
+        5: ["line_thin", "dashed_dashed", "yellow"],
+        6: ["line_thin", "solid", "yellow"],
+        7: ["line_thin", "solid_solid", "yellow"],
+        8: [None, "dashed", "yellow"],
+    }
+
+    LANE_TYPE_MAPPING = {0: "road", 1: "highway", 2: "road", 3: "bicycle_lane"}
 
     def get_scenario_ids(self, file_name: str, folder_path: str):
         """This function get the list of scenario ids from the given tfrecord file.
@@ -110,7 +129,77 @@ class WOMDParser:
 
         return None
 
-    def _parse_map_features(self, map_feature):
+    def _parse_map_features(self, map_feature, map_: Map):
+        if map_feature.HasField("lane"):
+            # TODO: parse the polygon in lane to left and right side
+            # lane = Lane(
+            #     id_="%05d" % map_feature.id,
+            #     subtype=self.LANE_TYPE_MAPPING[map_feature.lane.type],
+            #     speed_limit=map_feature.lane.speed_limit_mph,
+            #     speed_limit_unit="mi/h",
+            # )
+            # for entry_lane in map_feature.lane.entry_lanes:
+            #     lane.add_related_lane("%05d" % entry_lane, LaneRelationship.PREDECESSOR)
+            # for exit_lane in map_feature.lane.exit_lanes:
+            #     lane.add_related_lane("%05d" % exit_lane, LaneRelationship.SUCCESSOR)
+            # for left_neighbor in map_feature.lane.left_neighbors:
+            #     lane.add_related_lane("%05d" % left_neighbor, LaneRelationship.LEFT_NEIGHBOR)
+            # for right_neighbor in map_feature.lane.right_neighbors:
+            #     lane.add_related_lane("%05d" % right_neighbor, LaneRelationship.RIGHT_NEIGHBOR)
+            pass
+
+        elif map_feature.HasField("road_line"):
+            type_, subtype, color = self.ROADLINE_TYPE_MAPPING[map_feature.road_line.type]
+            roadline = RoadLine(
+                id_="%05d" % map_feature.id,
+                linestring=LineString(
+                    [[point.x, point.y] for point in map_feature.road_line.polyline]
+                ),
+                type_=type_,
+                subtype=subtype,
+                color=color,
+            )
+            map_.add_roadline(roadline)
+
+        elif map_feature.HasField("road_edge"):
+            roadline = RoadLine(
+                id_="%05d" % map_feature.id,
+                linestring=LineString(
+                    [[point.x, point.y] for point in map_feature.road_edge.polyline]
+                ),
+                type_="road_boarder",
+            )
+            map_.add_roadline(roadline)
+
+        elif map_feature.HasField("stop_sign"):
+            stop_sign = Regulatory(
+                id_="%05d" % map_feature.id,
+                way_ids=set(["%05d" % way_id for way_id in map_feature.stop_sign.lane]),
+                subtype="stop_sign",
+                position=Point(map_feature.stop_sign.position.x, map_feature.stop_sign.position.y),
+            )
+            map_.add_regulatory(stop_sign)
+
+        elif map_feature.HasField("crosswalk"):
+            crosswalk = Area(
+                id_="%05d" % map_feature.id,
+                geometry=Polygon([[point.x, point.y] for point in map_feature.crosswalk.polygon]),
+                subtype="crosswalk",
+            )
+            map_.add_area(crosswalk)
+
+        elif map_feature.HasField("speed_bump"):
+            map_.add_regulatory()
+
+        elif map_feature.HasField("driveway"):
+            area = Area(
+                id_="%05d" % map_feature.id,
+                geometry=Polygon([[point.x, point.y] for point in map_feature.driveway.polygon]),
+                subtype="free_space",
+            )
+            map_.add_area(area)
+
+    def _parse_dynamic_map_features(self, map_feature, map_: Map):
         return
 
     def parse_map(self, scenario_id=None, **kwargs):
@@ -143,4 +232,6 @@ class WOMDParser:
             if scenario_id == scenario.scenario_id:
                 map_ = Map(name="nuplan_" + scenario.scenario_id)
                 for map_feature in scenario.map_features:
-                    return
+                    self._parse_map_features(map_feature, map_)
+                for dynamic_map_state in scenario.dynamic_map_states:
+                    self._parse_dynamic_map_features(dynamic_map_state, map_)

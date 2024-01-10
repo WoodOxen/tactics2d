@@ -115,6 +115,22 @@ class RoadLine:
                     f"The lane change rule of a dashed_solid roadline is supposed to be (False, True). Line {self.id_} has lane change rule {self.lane_change}."
                 )
 
+        elif self.type_ in ["curbstone", "road_border"] or self.subtype in [
+            "guard_rail",
+            "wall",
+            "fence",
+            "zebra_marking",
+            "pedestrian_marking",
+            "bike_marking",
+            "keepout",
+            "jersey_barrier",
+            "gate",
+            "door",
+            "rail",
+        ]:
+            if self.lane_change is None:
+                self.lane_change = (False, False)
+
         else:
             if self.lane_change is None:
                 self.lane_change = (True, True)

@@ -5,7 +5,7 @@ import numpy as np
 from .area import Area
 from .lane import Lane
 from .node import Node
-from .regulatory import RegulatoryElement
+from .regulatory import Regulatory
 from .roadline import RoadLine
 
 
@@ -145,11 +145,11 @@ class Map:
         self.ids.add(area.id_)
         self.areas[area.id_] = area
 
-    def add_regulatory(self, regulatory: RegulatoryElement):
+    def add_regulatory(self, regulatory: Regulatory):
         """Add a regulatory to the map.
 
         Args:
-            regulatory (RegulatoryElement): The regulatory to be added to the map.
+            regulatory (Regulatory): The regulatory to be added to the map.
 
         Raises:
             KeyError: If the id of the regulatory is used by any other road element.

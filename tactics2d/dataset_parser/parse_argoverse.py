@@ -6,11 +6,11 @@ import sys
 sys.path.append("../../")
 
 import pandas as pd
-from shapely.geometry import Polygon, LineString
+from shapely.geometry import LineString, Polygon
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist
 from tactics2d.trajectory.element import State, Trajectory
-from tactics2d.map.element import Area, RoadLine, Lane, LaneRelationship, CrossWalk, Map
+from tactics2d.map.element import Area, RoadLine, Lane, LaneRelationship, Map
 
 
 class ArgoverseParser:
@@ -45,9 +45,9 @@ class ArgoverseParser:
         "rideless_bicycle": (2.0, 0.7),
     }
 
-    LANE_TYPE_MAPPING = {"VEHICLE": ["vehicle"], "BICYCLE": ["bicycle"]}
+    LANE_TYPE_MAPPING = {"VEHICLE": "road", "BICYCLE": "bicycle_lane"}
 
-    MARK_TYPE_MAPPING = {
+    ROADLINE_TYPE_MAPPING = {
         "SOLID_WHITE": ["line_thin", "solid", "white"],
         "SOLID_YELLOW": ["line_thin", "solid", "yellow"],
         "SOLID_BLUE": ["line_thin", "solid", "blue"],
@@ -132,9 +132,11 @@ class ArgoverseParser:
         roadline_id_counter = 0
         if "lane_segments" in map_data:
             for road_element in map_data["lane_segments"].values():
-                left_type, left_subtype, left_color = self.MARK_TYPE_MAPPING["left_lane_mark_type"]
+                left_type, left_subtype, left_color = self.ROADLINE_TYPE_MAPPING[
+                    "left_lane_mark_type"
+                ]
                 left_road_line = RoadLine(
-                    id_="%04d" % roadline_id_counter,
+                    id_="%05d" % roadline_id_counter,
                     linestring=LineString(
                         [[point["x"], point["y"]] for point in road_element["left_lane_boundary"]]
                     ),
@@ -143,11 +145,11 @@ class ArgoverseParser:
                     color=left_color,
                 )
 
-                right_type, right_subtype, right_color = self.MARK_TYPE_MAPPING[
+                right_type, right_subtype, right_color = self.ROADLINE_TYPE_MAPPING[
                     "right_lane_mark_type"
                 ]
                 right_road_line = RoadLine(
-                    id_="%04d" % roadline_id_counter,
+                    id_="%05d" % roadline_id_counter,
                     linestring=LineString(
                         [[point["x"], point["y"]] for point in road_element["right_lane_boundary"]]
                     ),
@@ -161,9 +163,8 @@ class ArgoverseParser:
                     left_side=left_road_line,
                     right_side=right_road_line,
                     line_ids=set(left_road_line.id_, right_road_line.id_),
-                    subtype="road",
+                    subtype=self.TYPE_MAPPING[road_element["lane_type"]],
                     location="urban",
-                    inferred_participants=self.LANE_TYPE_MAPPING[road_element["lane_type"]],
                     custom_tags={"is_intersection": road_element["is_intersection"]},
                 )
                 lane.add_related_lane(road_element["predecessors"], LaneRelationship.PREDECESSOR)
@@ -181,16 +182,15 @@ class ArgoverseParser:
 
         if "pedestrian_crossings" in map_data:
             for road_element in map_data["pedestrian_crossings"].values():
-                left_edge = LineString(
-                    [[point["x"], point["y"]] for point in road_element["left_edge"]]
-                )
-                right_edge = LineString(
-                    [[point["x"], point["y"]] for point in road_element["right_edge"]]
-                )
-                map_.add_regulatory_element(
-                    CrossWalk(
-                        id_=str(road_element["id"]), left_side=left_edge, right_side=right_edge
-                    )
+                left_edge = [[point["x"], point["y"]] for point in road_element["left_edge"]]
+                right_edge = [[point["x"], point["y"]] for point in road_element["right_edge"]]
+
+                polygon = Polygon(left_edge + right_edge)
+                if not polygon.is_simple:
+                    polygon = Polygon(right_edge + list(reversed(left_edge)))
+
+                map_.add_area(
+                    Area(id_=str(road_element["id"]), geometry=polygon, subtype="crosswalk")
                 )
 
         return map_

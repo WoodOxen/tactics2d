@@ -4,7 +4,7 @@ import warnings
 from pyproj import Proj
 from shapely.geometry import Point, LineString, Polygon
 
-from tactics2d.map.element import Node, Lane, Area, RoadLine, RegulatoryElement, Map
+from tactics2d.map.element import Node, Lane, Area, RoadLine, Regulatory, Map
 from tactics2d.map.element import LANE_CHANGE_MAPPING
 
 
@@ -62,6 +62,7 @@ def _get_tags(xml_node: ET.Element) -> dict:
             tags["fallback"] = tag.attrib["v"] == "yes"
         else:
             tags["custom_tags"][tag.attrib["k"]] = tag.attrib["v"]
+
     return tags
 
 
@@ -183,7 +184,7 @@ def _load_area(xml_node: ET.Element, map_: Map) -> Area:
     return Area(area_id, polygon, line_ids, **area_tags)
 
 
-def _load_regulatory(xml_node: ET.Element) -> RegulatoryElement:
+def _load_regulatory(xml_node: ET.Element) -> Regulatory:
     regulatory_id = xml_node.attrib["id"]
     relation_list = []
     lane_list = []
@@ -194,7 +195,8 @@ def _load_regulatory(xml_node: ET.Element) -> RegulatoryElement:
             lane_list.append((member.attrib["ref"], member.attrib["role"]))
 
     regulatory_tags = _get_tags(xml_node)
-    return RegulatoryElement(regulatory_id, relation_list, lane_list, **regulatory_tags)
+    print(regulatory_tags)
+    return Regulatory(regulatory_id, relation_list, lane_list, **regulatory_tags)
 
 
 class Lanelet2Parser(object):
