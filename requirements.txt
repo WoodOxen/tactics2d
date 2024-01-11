@@ -1,4 +1,4 @@
-fastparquet==2023.10.1
+fastparquet==0.8.1
 geopandas==0.13.2
 gymnasium>=0.28.0
 joblib>=1.3.2
