@@ -1,3 +1,11 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: parse_dlp.py
+# @Description: This file implements a parser of the Dragon Lake Parking Dataset.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 from typing import Tuple
 import json
 
