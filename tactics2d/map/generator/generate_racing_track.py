@@ -21,12 +21,14 @@ class RacingTrackGenerator:
     """Generate a random racing track.
 
     Attributes:
-        bezier_generator (Bezier): The Bezier curve generator. The default parameters for
-            the generator are (2, 50), i.e., 2nd order, 50 interpolation points.
+        bezier_order (int): The order of the Bezier curve. Defaults to 2.
+        bezier_interpolation (int): The number of interpolation points for each Bezier curve. Defaults to 50.
     """
 
-    def __init__(self, bezier_param: tuple = (2, 50)):
-        self.bezier_generator = Bezier(*bezier_param)
+    def __init__(self, bezier_order=2, bezier_interpolation=50):
+        """Initialize the attributes in the class."""
+        self.bezier_generator = Bezier(bezier_order)
+        self.bezier_interpolation = bezier_interpolation
 
     def _get_checkpoints(self) -> Tuple[List[np.ndarray], List[np.ndarray], bool]:
         n_checkpoint = np.random.randint(*N_CHECKPOINT)
@@ -119,15 +121,17 @@ class RacingTrackGenerator:
         points = []
         # get the center line by Bezier curve generator
         for i in range(checkpoints.shape[1]):
-            points += self.bezier_generator.get_points(
+            new_points = self.bezier_generator.get_curve(
                 np.array(
                     [
                         control_points[start_id - i - 1][1],
                         checkpoints[:, start_id - i - 1],
                         control_points[start_id - i - 1][0],
                     ]
-                )
+                ),
+                self.bezier_interpolation,
             )
+            points.extend(new_points)
 
         # create the new map by the centerline
         center_line = LineString([start_point] + points + [start_point])
@@ -175,7 +179,12 @@ class RacingTrackGenerator:
 
         return tiles
 
-    def generate(self, map_: Map) -> Dict[str, Lane]:
+    def generate(self, map_: Map):
+        """Generate a random racing scenario.
+
+        Args:
+            map_ (Map): The map instance to store the generated racing scenario.
+        """
         t1 = time.time()
 
         # generate the checkpoints

@@ -104,7 +104,7 @@ class CubicSpline:
             n_interpolation (int): The number of interpolations between every two control points. Defaults to 100.
 
         Returns:
-            np.ndarray: The interpolation points of the curve. The shape is (n_interpolation * n + 1, 2).
+            curve_points (np.ndarray): The interpolation points of the curve. The shape is (n_interpolation * n + 1, 2).
         """
         self._check_validity(control_points)
         a, b, c, d = self.get_parameters(control_points, xx)

@@ -1,0 +1,154 @@
+import os
+from typing import Tuple
+
+import geopandas as gpd
+import sqlite3
+import numpy as np
+from shapely.geometry import LineString, Polygon
+
+from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
+from tactics2d.trajectory.element import State, Trajectory
+from tactics2d.map.element import RoadLine, Lane, Area, Regulatory, Map
+
+
+class NuPlanParser:
+    """This class implements a parser for NuPlan dataset.
+
+    Caesar, Holger, et al. "nuplan: A closed-loop ml-based planning benchmark for autonomous vehicles." arXiv preprint arXiv:2106.11810 (2021).
+    """
+
+    CLASS_MAPPING = {
+        "vehicle": Vehicle,
+        "bicycle": Cyclist,
+        "pedestrian": Pedestrian,
+        "traffic_cone": Other,
+        "barrier": Other,
+        "czone_sign": Other,
+        "generic_object": Other,
+    }
+
+    def parse_trajectory(
+        self, file_name: str, folder_path: str, stamp_range: Tuple[float, float] = None
+    ):
+        """This function parses trajectories from a single NuPlan database file.
+
+        Args:
+            file_name (str): _description_
+            folder_path (str): _description_
+            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+
+        Returns:
+            dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
+        """
+        file_path = os.path.join(folder_path, file_name)
+
+        if stamp_range is None:
+            stamp_range = (-float("inf"), float("inf"))
+
+        participants = dict()
+
+        with sqlite3.connect(file_path) as connection:
+            cursor = connection.cursor()
+            cursor.execute("SELECT * FROM track;")
+            rows = cursor.fetchall()
+
+            for row in rows:
+                category_token = row[1]
+                cursor.execute("SELECT * FROM category WHERE token=?;", (category_token,))
+                category_name = cursor.fetchone()[1]
+                participants[row[0]] = self.CLASS_MAPPING[category_name](
+                    id_=row[0],
+                    type_=category_name,
+                    length=row[3],
+                    width=row[2],
+                    height=row[4],
+                    trajectory=Trajectory(id_=row[0], fps=20, stable_freq=False),
+                )
+
+            cursor.execute("SELECT * FROM lidar_box;")
+            rows = cursor.fetchall()
+
+            for row in rows:
+                cursor.execute("SELECT * FROM lidar_pc WHERE token=?;", (row[1],))
+                timestamp = cursor.fetchone()[7]
+                if timestamp < stamp_range[0] or timestamp > stamp_range[1]:
+                    continue
+                state = State(
+                    frame=timestamp, x=row[5], y=row[6], heading=row[14], vx=row[11], vy=row[12]
+                )
+                participants[row[2]].trajectory.append_state(state)
+
+        cursor.close()
+        connection.close()
+        return participants
+
+    def parse_map(self, file_name: str, folder_name: str):
+        """
+
+        A NuPlan map includes the following layers: 'baseline_paths', 'carpark_areas', 'generic_drivable_areas', 'dubins_nodes', 'lane_connectors', 'intersections', 'boundaries', 'crosswalks', 'lanes_polygons', 'lane_group_connectors', 'lane_groups_polygons', 'road_segments', 'stop_polygons', 'traffic_lights', 'walkways', 'gen_lane_connectors_scaled_width_polygons', 'meta'. In this parser, we only parse the following layers: 'boundaries', 'lanes_polygons', 'lane_connectors', 'carpark_areas', 'crosswalks', 'walkways', 'stop_polygons', 'traffic_lights'
+        """
+        map_file = os.path.join(folder_name, file_name)
+        map_ = Map()
+        max_id = -np.inf
+
+        boundaries = gpd.read_file(map_file, layer="boundaries")
+        for _, row in boundaries.iterrows():
+            boundary = RoadLine(
+                id_=str(row["boundary_segment_fids"]), linestring=LineString(row["geometry"])
+            )
+            max_id = max(max_id, row["boundary_segment_fids"])
+            map_.add_roadline(boundary)
+
+        lane_polygons = gpd.read_file(map_file, layer="lanes_polygons")
+        for _, row in lane_polygons.iterrows():
+            lane_polygon = Lane(
+                id_=str(row["lane_fid"]),
+                left_side=map_.roadlines[str(row["left_boundary_fid"])],
+                right_side=map_.roadlines[str(row["right_boundary_fid"])],
+                line_ids=set([str(row["left_boundary_fid"]), str(row["right_boundary_fid"])]),
+                subtype=None,
+                speed_limit=row["speed_limit_mps"],
+                speed_limit_unit="m/s",
+            )
+            lane_polygon.add_related_lane(str(row["from_edge_fid"]), LaneRelationship.PREDECESSOR)
+            lane_polygon.add_related_lane(str(row["to_edge_fid"]), LaneRelationship.SUCCESSOR)
+            max_id = max(max_id, row["lane_fid"])
+            map_.add_lane(lane_polygon)
+
+        lane_connectors = gpd.read_file(map_file, layer="lane_connectors")
+        for _, row in lane_connectors.iterrows():
+            #TODO: parse the polygon in lane to left and right side
+            pass
+
+        id_cnt = max_id + 1
+        area_dict = {
+            "crosswalks": "crosswalk",
+            "carpark_areas": "parking",
+            "walkways": "walkway",
+            "stop_polygons": "stop",
+        }
+
+        for key, value in area_dict.items():
+            df_areas = gpd.read_file(map_file, layer=key)
+            for _, row in df_areas.iterrows():
+                area = Area(
+                    id_=str(id_cnt),
+                    geometry=Polygon(row["geometry"]),
+                    subtype=value,
+                    custom_tags={"heading": row["heading"]} if key == "carpark_areas" else None,
+                )
+                id_cnt += 1
+                map_.add_area(area)
+
+        traffic_lights = gpd.read_file(map_file, layer="traffic_lights")
+        for _, row in traffic_lights.iterrows():
+            traffic_light = Regulatory(
+                id_=str(id_cnt),
+                subtype="traffic_light",
+                position=Point(row["geometry"].x, row["geometry"].y),
+                custom_tags={"heading": row["ori_mean_yaw"]},
+            )
+            id_cnt += 1
+            map_.add_regulatory(traffic_light)
+
+        return map_

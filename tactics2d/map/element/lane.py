@@ -1,5 +1,6 @@
-import warnings
+from typing import Union
 from enum import Enum
+import logging
 
 from shapely.geometry import LineString, LinearRing
 
@@ -14,16 +15,16 @@ class LaneRelationship(Enum):
 
 
 class Lane:
-    """Implementation of the lanelet2-style lanelet with neighbors detected.
+    """This class implements the lenelet2-style map element *Lane*.
 
     Detailed definition of lanelet2-style lane:
-        <https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md>
+        [LaneletPrimitives](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md)
 
     Attributes:
         id_ (str): The unique identifier of the lane.
-        left_side (LineString): _description_
-        right_side (LineString): _description_
-        line_ids (set, optional): the ids of the roadline components. Defaults to None.
+        left_side (LineString): The left side of the lane.
+        right_side (LineString): The right side of the lane.
+        line_ids (set, optional): The ids of the roadline components. Defaults to None.
         type_ (str): The type of the lane. The default value is "lanelet".
         subtype (str, optional): The subtype of the lane. Defaults to None.
         location (str, optional): The location of the lane (urban, nonurban, etc.). Defaults to
@@ -31,8 +32,8 @@ class Lane:
         inferred_participants (list, optional): The allowing type of traffic participants that
             can pass the lane. Defaults to None.
         speed_limit (float, optional): The speed limit in this lane. Defaults to None.
-        speed_limit_unit (str, optional): The unit of speed limit in this lane. Defaults to
-            "km/h".
+        speed_limit_unit (str, optional): The unit of speed limit in this area. The valid units
+            are "km/h", "mi/h", and "m/s". Defaults to "km/h".
         speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or
             not. Defaults to True.
         custom_tags (dict, optional): The custom tags of the lane. Defaults to None.
@@ -42,10 +43,15 @@ class Lane:
             lane.
         right_neighbors (set): The ids of the available lanes on the right side of the current
             lane.
-        start (list): The start points of the lane.
-        end (list): The end points of the lane.
-        shape (list): The shape of the lane.
+        starts (list): The start points of the lane. This attribute is automatically calculated
+            when requested.
+        ends (list): The end points of the lane. This attribute is automatically calculated when
+            requested.
+        shape (list): The shape of the lane. This attribute is automatically calculated when
+            requested.
     """
+
+    speed_limit_units = ["km/h", "mi/h", "m/s", "mph"]
 
     def __init__(
         self,
@@ -63,6 +69,7 @@ class Lane:
         speed_limit_mandatory: bool = True,
         custom_tags: dict = None,
     ):
+        """Initialize the attributes in the class."""
         self.id_ = id_
         self.left_side = left_side
         self.right_side = right_side
@@ -78,7 +85,7 @@ class Lane:
         self.custom_tags = custom_tags
 
         if self.speed_limit_unit not in LEGAL_SPEED_UNIT:
-            warnings.warn(
+            logging.warning(
                 "Invalid speed limit unit %s. The legal units types are %s"
                 % (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
             )
@@ -119,21 +126,39 @@ class Lane:
         elif id_ in self.right_neighbors:
             return LaneRelationship.RIGHT_NEIGHBOR
 
-    def add_related_lane(self, id_: str, relationship: LaneRelationship):
+    def add_related_lane(self, id_: Union[str, list], relationship: LaneRelationship):
         """Add a related lane's id to the corresponding list
 
         Args:
             id_ (str): The related lane's id
             relationship (LaneRelationship): The relationship of the lanes
         """
-        if id_ == self.id_:
-            warnings.warn(f"Lane {self.id_} cannot be a related lane to itself.")
+        if id_ is None:
             return
-        if relationship == LaneRelationship.PREDECESSOR:
-            self.predecessors.add(id_)
-        elif relationship == LaneRelationship.SUCCESSOR:
-            self.successors.add(id_)
-        elif relationship == LaneRelationship.LEFT_NEIGHBOR:
-            self.left_neighbors.add(id_)
-        elif relationship == LaneRelationship.RIGHT_NEIGHBOR:
-            self.right_neighbors.add(id_)
+
+        if isinstance(id_, str):
+            if id_ == self.id_:
+                logging.warning(f"Lane {self.id_} cannot be a related lane to itself.")
+                return
+            if relationship == LaneRelationship.PREDECESSOR:
+                self.predecessors.add(id_)
+            elif relationship == LaneRelationship.SUCCESSOR:
+                self.successors.add(id_)
+            elif relationship == LaneRelationship.LEFT_NEIGHBOR:
+                self.left_neighbors.add(id_)
+            elif relationship == LaneRelationship.RIGHT_NEIGHBOR:
+                self.right_neighbors.add(id_)
+
+        elif isinstance(id_, list):
+            if self.id_ in id_:
+                id_ = [i for i in id_ if i != self.id_]
+                logging.warning(f"Lane {self.id_} cannot be a related lane to itself.")
+
+            if relationship == LaneRelationship.PREDECESSOR:
+                self.predecessors.update(id_)
+            elif relationship == LaneRelationship.SUCCESSOR:
+                self.successors.update(id_)
+            elif relationship == LaneRelationship.LEFT_NEIGHBOR:
+                self.left_neighbors.update(id_)
+            elif relationship == LaneRelationship.RIGHT_NEIGHBOR:
+                self.right_neighbors.update(id_)

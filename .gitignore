@@ -5,7 +5,7 @@ tactics2d/data/trajectory_raw
 tactics2d/data/trajectory_processed
 tactics2d/data/trajectory_sample/DLP
 tests/runtime
-samples/log
+samples/logs
 
 #  vscode
 *.code-workspace

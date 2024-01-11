@@ -65,8 +65,11 @@ class BSpline:
         """Get the interpolation points of a b-spline curve.
 
         Args:
-            control_points (np.ndarray): control_points (np.ndarray): The control points of the curve. Usually denoted as P_0, P_1, ..., P_n in literature. The shape is (n + 1, 2).
-            knots (np.ndarray): The knots of the curve. Usually denoted as u_0, u_1, ..., u_t in literature. The shape is (t + 1, ).
+            control_points (np.ndarray): control_points (np.ndarray): The control points of the
+                curve. Usually denoted as P_0, P_1, ..., P_n in literature. The shape is (n + 1, 2).
+            knot_vectors (np.ndarray): The knots of the curve. Usually denoted as
+                u_0, u_1, ..., u_t in literature. The shape is (t + 1, ).
+            n_interpolation (int): The number of interpolation points.
 
         Returns:
             np.ndarray: The interpolation points of the curve. The shape is (n_interpolation, 2).

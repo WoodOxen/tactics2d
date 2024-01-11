@@ -4,10 +4,4 @@ from .cubic_spline import CubicSpline
 from .dubins import Dubins
 from .reeds_shepp import ReedsShepp
 
-__all__ = [
-    "BSpline",
-    "Bezier",
-    "CubicSpline",
-    "Dubins",
-    "ReedsShepp",
-]
+__all__ = ["BSpline", "Bezier", "CubicSpline", "Dubins", "ReedsShepp"]

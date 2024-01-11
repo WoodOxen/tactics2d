@@ -10,9 +10,10 @@ from gymnasium.error import InvalidAction
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.trajectory.element import State
-from tactics2d.sensor import TopDownCamera
+from tactics2d.sensor import TopDownCamera, RenderManager
 from tactics2d.map.generator import RacingTrackGenerator
-from tactics2d.scenario import ScenarioManager, RenderManager, TrafficEvent
+from tactics2d.traffic import TrafficScenarioManager
+from tactics2d.traffic.violation_detection import TrafficEvent
 
 
 STATE_W = 200
@@ -38,7 +39,7 @@ DISCRETE_ACTION = np.array(
 THRESHOLD_NON_DRIVABLE = 0.5
 
 
-class RacingScenarioManager(ScenarioManager):
+class RacingScenarioManager(TrafficScenarioManager):
     """_summary_
 
     Attributes:
@@ -212,13 +213,7 @@ class RacingScenarioManager(ScenarioManager):
         start_loc = np.mean(start_line, axis=0)
         start_loc -= self.agent.length / 2 / np.linalg.norm(vec) * np.array([-vec[1], vec[0]])
         state = State(
-            self.n_step,
-            heading=heading,
-            x=start_loc[0],
-            y=start_loc[1],
-            vx=0,
-            vy=0,
-            accel=0,
+            self.n_step, heading=heading, x=start_loc[0], y=start_loc[1], vx=0, vy=0, accel=0
         )
 
         self.agent.reset(state)

@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 import numpy as np
 
 # from tactics2d.envs import RacingEnv, ParkingEnv
-from tactics2d.envs import RacingEnv
+from tactics2d.envs import ParkingEnv
 
 
 # @pytest.mark.env
@@ -39,7 +39,6 @@ from tactics2d.envs import RacingEnv
 
 
 @pytest.mark.env
-@pytest.mark.skipif("DISPLAY" not in os.environ, reason="requires display server")
 def test_parking_env():
     render_mode = "human"
     env = ParkingEnv(render_mode=render_mode, render_fps=60, max_step=2000)

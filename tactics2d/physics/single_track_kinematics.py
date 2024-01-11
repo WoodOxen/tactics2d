@@ -25,7 +25,7 @@ class SingleTrackKinematics(PhysicsModelBase):
 
     The implementation is referred to the following paper:
         Kong, Jason, et al. "Kinematic and dynamic vehicle models for autonomous driving
-        control design." 2015 IEEE intelligent vehicles symposium (IV). IEEE, 2015.
+        control design." *2015 IEEE intelligent vehicles symposium* (IV). IEEE, 2015.
 
     Attributes:
         dist_front_hang (float): The distance from the center of the mass to the front axles. The unit is meter.
@@ -56,16 +56,7 @@ class SingleTrackKinematics(PhysicsModelBase):
         self.accel_range = accel_range
         self.delta_t = min(delta_t, MAX_DELTA_T)
 
-    def _step(
-        self,
-        x: float,
-        y: float,
-        heading: float,
-        speed: float,
-        accel: float,
-        steer: float,
-        dt: float,
-    ):
+    def _step(self, x, y, heading, speed, accel, steer, dt):
         new_x = x + speed * np.cos(heading) * dt
         new_y = y + speed * np.sin(heading) * dt
 
@@ -124,16 +115,10 @@ class SingleTrackKinematics(PhysicsModelBase):
                 step - (dt - self.delta_t),
             )
         # recover the geometry center from rear axle center
-        x, y = rear_center_x + self.dist_rear_hang * np.cos(
-            heading
-        ), rear_center_y + self.dist_rear_hang * np.sin(heading)
+        x = rear_center_x + self.dist_rear_hang * np.cos(heading)
+        y = rear_center_y + self.dist_rear_hang * np.sin(heading)
         new_state = State(
-            state.frame + int(step * 1000),
-            x=x,
-            y=y,
-            heading=heading,
-            speed=speed,
-            accel=accel,
+            state.frame + int(step * 1000), x=x, y=y, heading=heading, speed=speed, accel=accel
         )
 
         return new_state, (steer, accel)

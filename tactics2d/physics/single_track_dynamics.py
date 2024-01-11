@@ -10,11 +10,7 @@ class SingleTrackDynamics(PhysicsModelBase):
     abbrev = "ST"
 
     def __init__(
-        self,
-        wheel_base: float,
-        steer_range: list,
-        speed_range: list,
-        delta_t: float = 0.01,
+        self, wheel_base: float, steer_range: list, speed_range: list, delta_t: float = 0.01
     ):
         self.wheel_base = wheel_base
         self.speed_range = speed_range
