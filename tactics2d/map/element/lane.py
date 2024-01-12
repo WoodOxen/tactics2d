@@ -25,7 +25,7 @@ class Lane:
         left_side (LineString): The left side of the lane.
         right_side (LineString): The right side of the lane.
         line_ids (set, optional): The ids of the roadline components. Defaults to None.
-        type_ (str): The type of the lane. The default value is "lanelet".
+        type_ (str): The type of the lane. The default value is `"lanelet"`.
         subtype (str, optional): The subtype of the lane. Defaults to None.
         location (str, optional): The location of the lane (urban, nonurban, etc.). Defaults to
             None.
@@ -33,7 +33,7 @@ class Lane:
             can pass the lane. Defaults to None.
         speed_limit (float, optional): The speed limit in this lane. Defaults to None.
         speed_limit_unit (str, optional): The unit of speed limit in this area. The valid units
-            are "km/h", "mi/h", and "m/s". Defaults to "km/h".
+            are `"km/h"`, `"mi/h"`, and `"m/s"`. Defaults to `"km/h"`.
         speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or
             not. Defaults to True.
         custom_tags (dict, optional): The custom tags of the lane. Defaults to None.

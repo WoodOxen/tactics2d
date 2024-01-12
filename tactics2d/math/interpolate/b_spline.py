@@ -29,10 +29,10 @@ class BSpline:
             raise ValueError("The knot vectors must be non-decreasing.")
 
     def cox_deBoor(self, knot_vectors, degree: int, u: float) -> float:
-        """Get the value of the basis function N_{i,p}(u) at u.
+        """Get the value of the basis function N<sub>i</sub>,p(u) at u.
 
         Args:
-            knot_vectors (np.ndarray): The subset of knot vectors {u_i, u_{i+1}, ..., u_{i+p+1}}. The shape is (p + 2, ).
+            knot_vectors (np.ndarray): The subset of knot vectors {u<sub>i</sub>, u<sub>i+1</sub>, ..., u<sub>i+p+1</sub>}. The shape is (p + 2, ).
             degree (int): The degree of the basis function. Usually denoted as p in the literature.
             u (float): The value at which the basis function is evaluated.
         """
@@ -66,9 +66,9 @@ class BSpline:
 
         Args:
             control_points (np.ndarray): control_points (np.ndarray): The control points of the
-                curve. Usually denoted as P_0, P_1, ..., P_n in literature. The shape is (n + 1, 2).
+                curve. Usually denoted as P<sub>0</sub>, P<sub>1</sub>, ..., P<sub>n</sub> in literature. The shape is (n + 1, 2).
             knot_vectors (np.ndarray): The knots of the curve. Usually denoted as
-                u_0, u_1, ..., u_t in literature. The shape is (t + 1, ).
+                u<sub>0</sub>, u<sub>1</sub>, ..., u<sub>t</sub> in literature. The shape is (t + 1, ).
             n_interpolation (int): The number of interpolation points.
 
         Returns:

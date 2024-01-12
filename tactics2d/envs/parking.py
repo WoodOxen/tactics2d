@@ -226,6 +226,7 @@ class ParkingEnv(gym.Env):
     ## Status
 
     The status is a TrafficEvent. The possible values are (sorted by detection priority):
+
     - TrafficEvent.TIME_EXCEEDED: The simulation reaches the maximum time step.
     - TrafficEvent.COLLISION_STATIC: The agent collides with any obstacle.
     - TrafficEvent.OUTSIDE_MAP: The agent is outside the map boundary.
@@ -236,16 +237,17 @@ class ParkingEnv(gym.Env):
     ## Reward
 
     The reward is calculated as follows:
+
     - If the agent's status is TIME_EXCEEDED, the reward is -1.
     - If the agent's status is in [COLLISION_STATIC, OUTSIDE_MAP], the reward is -5.
     - If the agent's status is COMPLETED, the reward is 5.
     - Otherwise, the reward is calculated as the weighted sum of time penalty and IoU reward.
 
     Attributes:
-        bay_proportion(float, optional): The proportion of the parking bay in the randomly
+        bay_proportion (float, optional): The proportion of the parking bay in the randomly
             generated environment. Defaults to 0.5.
-        render_mode (str, optional): The rendering mode. Possible choices are "human" and
-            "rgb_array". Defaults to "human".
+        render_mode (str, optional): The rendering mode. Possible choices are `"human"` and
+            `"rgb_array"`. Defaults to `"human"`.
         render_fps (int, optional): The rendering FPS. Defaults to 60.
         max_step (int, optional): The maximum number of steps. Defaults to 20000.
         continuous (bool, optional): Whether to use continuous action space. Defaults to True.
