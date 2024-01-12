@@ -90,9 +90,12 @@ class Lane:
                 % (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
             )
 
-        self.geometry = LinearRing(
-            list(self.left_side.coords) + list(reversed(list(self.right_side.coords)))
-        )
+        if not self.left_side is None and not self.right_side is None:
+            self.geometry = LinearRing(
+                list(self.left_side.coords) + list(reversed(list(self.right_side.coords)))
+            )
+        else:
+            self.geometry = None
 
         self.predecessors = set()
         self.successors = set()

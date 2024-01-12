@@ -6,14 +6,19 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Tuple
 import os
+from typing import Tuple, Union
+import re
 import math
+
+# import xml.etree.ElementTree as ET
 
 import pandas as pd
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist
 from tactics2d.trajectory.element import State, Trajectory
+
+# from tactics2d.map.parser import Lanelet2Parser
 
 
 class LevelXParser:
@@ -78,25 +83,50 @@ class LevelXParser:
     def _calibrate_location(self, x: float, y: float):
         return x, y
 
-    def parse_trajectory(
-        self, file_id: int, folder_path: str, stamp_range: Tuple[float, float] = None
-    ):
-        """
+    def _get_file_id(self, file: Union[int, str]):
+        if isinstance(file, str):
+            file_id = int(re.findall(r"\d+", file)[0])
+        elif isinstance(file, int):
+            file_id = file
+        else:
+            raise TypeError("The input file must be an integer or a string.")
+
+        return file_id
+
+    def get_location(self, file: Union[int, str], folder: str) -> int:
+        """_summary_
 
         Args:
-            file_id (int): The id of the trajectory file. With the given file id, the parser will parse the trajectory data from the following files: {file_id}_tracks.csv, {file_id}_tracksMeta.csv.
-            folder_path (str): The path to the folder containing the trajectory data.
+            file (Union[int, str]): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: "%02d_recordingMeta.csv" % file. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            folder (str): The path to the folder containing the trajectory data.
+
+        Returns:
+            int: The id of the location.
+        """
+        file_id = self._get_file_id(file)
+        df_track_meta = pd.read_csv(os.path.join(folder, "%02d_recordingMeta.csv" % file_id))
+
+        return df_track_meta.iloc[0]["locationId"]
+
+    def parse_trajectory(
+        self, file: Union[int, str], folder: str, stamp_range: Tuple[float, float] = None
+    ) -> dict:
+        """This function parses the trajectory data of LevelX-series datasets. The states were collected at 25Hz.
+
+        Args:
+            file (int): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: "%02d_tracks.csv" % file and "%02d_tracksMeta.csv" % file. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            folder (str): The path to the folder containing the trajectory data.
             stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
 
         Returns:
             dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
         """
+        file_id = self._get_file_id(file)
+
         df_track_chunk = pd.read_csv(
-            os.path.join(folder_path, "%02d_tracks.csv" % file_id), iterator=True, chunksize=10000
+            os.path.join(folder, "%02d_tracks.csv" % file_id), iterator=True, chunksize=10000
         )
-        df_track_meta = pd.read_csv(
-            os.path.join(folder_path, "%02d_tracksMeta.csv" % file_id), engine="pyarrow"
-        )
+        df_track_meta = pd.read_csv(os.path.join(folder, "%02d_tracksMeta.csv" % file_id))
 
         # load the vehicles that have frame in the arbitrary range
         participants = dict()
@@ -104,7 +134,7 @@ class LevelXParser:
         id_key = "id" if self.dataset == "highD" else "trackId"
 
         if stamp_range is None:
-            time_stamp = (-float("inf"), float("inf"))
+            stamp_range = (-float("inf"), float("inf"))
 
         for _, participant_info in df_track_meta.iterrows():
             first_stamp = participant_info["initialFrame"] / 25.0
@@ -173,3 +203,9 @@ class LevelXParser:
             participants[participant_id].bind_trajectory(trajectories[participant_id])
 
         return participants
+
+    # def parse_map(self, **kwargs):
+    #     """_summary_
+    #     """
+
+    # map_ = Lanelet2Parser.parse()

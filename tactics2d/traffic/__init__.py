@@ -1,3 +1,3 @@
-from .traffic_scenario_manager import TrafficScenarioManager
+from .scenario_manager import ScenarioManager
 
-__all__ = ["TrafficScenarioManager"]
+__all__ = ["ScenarioManager"]

@@ -6,8 +6,9 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Tuple
 import os
+from typing import Tuple, Union
+import re
 
 import pandas as pd
 
@@ -25,10 +26,20 @@ class InteractionParser:
     Zhan, Wei, et al. "Interaction dataset: An international, adversarial and cooperative motion dataset in interactive driving scenarios with semantic maps." arXiv preprint arXiv:1910.03088 (2019).
     """
 
-    def parse_vehicle(
-        self, file_id: int, folder_path: str, stamp_range: Tuple[float, float] = None
-    ):
-        df_vehicle = pd.read_csv(os.path.join(folder_path, "vehicle_tracks_%03d.csv" % file_id))
+    type_guesser = GuessType()
+
+    def _get_file_id(self, file: Union[int, str]):
+        if isinstance(file, str):
+            file_id = int(re.findall(r"\d+", file)[0])
+        elif isinstance(file, int):
+            file_id = file
+        else:
+            raise TypeError("The input file must be an integer or a string.")
+
+        return file_id
+
+    def parse_vehicle(self, file_path: str, stamp_range: Tuple[float, float] = None):
+        df_vehicle = pd.read_csv(file_path)
 
         vehicles = dict()
         trajectories = dict()
@@ -69,19 +80,9 @@ class InteractionParser:
         return vehicles
 
     def parse_pedestrians(
-        self,
-        participants: dict,
-        file_id: int,
-        folder_path: str,
-        stamp_range: Tuple[float, float] = None,
+        self, participants: dict, file_path: str, stamp_range: Tuple[float, float] = None
     ):
-        type_guesser = GuessType()
-
-        pedestrian_path = os.path.join(folder_path, "pedestrian_tracks_%03d.csv" % file_id)
-        if os.path.exists(pedestrian_path):
-            df_pedestrian = pd.read_csv(pedestrian_path)
-        else:
-            return {}
+        df_pedestrian = pd.read_csv(file_path)
 
         trajectories = {}
         pedestrian_ids = {}
@@ -110,25 +111,32 @@ class InteractionParser:
             trajectories[pedestrian_ids[state_info["track_id"]]].append_state(state)
 
         for trajectory_id, trajectory in trajectories.items():
-            type_ = type_guesser.guess_by_trajectory(trajectory)
+            type_ = self.type_guesser.guess_by_trajectory(trajectory)
             class_ = CLASS_MAPPING[type_]
             participants[trajectory_id] = class_(trajectory_id, type_, trajectory=trajectory)
 
         return participants
 
     def parse_trajectory(
-        self, file_id: int, folder_path: str, stamp_range: Tuple[float, float] = None
-    ):
+        self, file: Union[int, str], folder: str, stamp_range: Tuple[float, float] = None
+    ) -> dict:
         """Parse the trajectory data of INTERACTION dataset. The states were collected at 10Hz.
 
         Args:
-            file_id (int): The id of the trajectory file. With the given file id, the parser will parse the trajectory data from the following files: vehicle_tracks_{file_id}.csv, pedestrian_tracks_{file_id}.csv. When the pedestrian trajectory file is not available, the parser will ignore the pedestrian data.
-            folder_path (str): The path to the folder containing the trajectory data.
+            file_id (Union[int, str]): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: vehicle_tracks_{file_id}.csv, pedestrian_tracks_{file_id}.csv. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            folder (str): The path to the folder containing the trajectory data.
             stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
 
         Returns:
             dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
         """
-        participants = self.parse_vehicle(file_id, folder_path, stamp_range)
-        participants = self.parse_pedestrians(participants, file_id, folder_path, stamp_range)
+        file_id = self._get_file_id(file)
+
+        vehicle_file_path = os.path.join(folder, "vehicle_tracks_%03d.csv" % file_id)
+        participants = self.parse_vehicle(vehicle_file_path, stamp_range)
+
+        pedestrian_file_path = os.path.join(folder, "pedestrian_tracks_%03d.csv" % file_id)
+        if os.path.exists(pedestrian_file_path):
+            participants = self.parse_pedestrians(participants, pedestrian_file_path, stamp_range)
+
         return participants

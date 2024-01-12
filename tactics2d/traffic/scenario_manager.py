@@ -5,7 +5,7 @@ from shapely.geometry import Polygon
 from .violation_detection import TrafficEvent
 
 
-class TrafficScenarioManager(ABC):
+class ScenarioManager(ABC):
     """The base class for scenario managers.
 
     The scenario manager is used to reset a scenario (including the map, agent, and

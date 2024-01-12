@@ -6,7 +6,7 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Tuple
+from typing import Tuple, Union
 import json
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
@@ -53,23 +53,30 @@ class DLPParser:
         return participant
 
     def parse_trajectory(
-        self, file_id: int, folder_path: str, stamp_range: Tuple[float, float] = None
+        self, file: Union[int, str], folder: str, stamp_range: Tuple[float, float] = None
     ):
-        """Parse the trajectory data of DLP dataset. The states were collected at 25Hz.
+        """This function parses trajectories from a series of DLP dataset files. The states were collected at 25Hz.
 
         Args:
-            file_id (int): The id of the scenario to parse. With the given file id, the parser will parse the trajectory data from the following files: DJI_{file_id}_agents.json, DJI_{file_id}_frames.json, DJI_{file_id}_instances.json, DJI_{file_id}_obstacles.json.
-            folder_path (str): The path to the folder containing the trajectory data.
+            file (Union[int, str]): The id or the name of the trajectory file. The file is expected to be a json file (.json). If the input is an integer, the parser will parse the trajectory data from the following files: DJI_{file}_agents.json, DJI_{file}_frames.json, DJI_{file}_instances.json, DJI_{file}_obstacles.json. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            With the given file id, the parser will parse the trajectory data from the following files: DJI_{file_id}_agents.json, DJI_{file_id}_frames.json, DJI_{file_id}_instances.json, DJI_{file_id}_obstacles.json.
+            folder (str): The path to the folder containing the trajectory data.
             stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
         """
+        if isinstance(file, str):
+            file_id = [int(s) for s in file.split("_") if s.isdigit()][0]
+        elif isinstance(file, int):
+            file_id = file
+        else:
+            raise TypeError("The input file must be an integer or a string.")
 
-        with open("%s/DJI_%04d_agents.json" % (folder_path, file_id), "r") as f_agent:
+        with open("%s/DJI_%04d_agents.json" % (folder, file_id), "r") as f_agent:
             df_agent = json.load(f_agent)
-        with open("%s/DJI_%04d_frames.json" % (folder_path, file_id), "r") as f_frame:
+        with open("%s/DJI_%04d_frames.json" % (folder, file_id), "r") as f_frame:
             df_frame = json.load(f_frame)
-        with open("%s/DJI_%04d_instances.json" % (folder_path, file_id), "r") as f_instance:
+        with open("%s/DJI_%04d_instances.json" % (folder, file_id), "r") as f_instance:
             df_instance = json.load(f_instance)
-        with open("%s/DJI_%04d_obstacles.json" % (folder_path, file_id), "r") as f_obstacle:
+        with open("%s/DJI_%04d_obstacles.json" % (folder, file_id), "r") as f_obstacle:
             df_obstacle = json.load(f_obstacle)
 
         participants = {}

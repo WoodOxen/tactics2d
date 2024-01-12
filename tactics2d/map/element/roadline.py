@@ -71,6 +71,10 @@ class RoadLine:
         return shapely.get_point(self.linestring, -1)
 
     @property
+    def geometry(self) -> LineString:
+        return self.linestring
+
+    @property
     def shape(self) -> list:
         return list(self.linestring.coords)
 

@@ -12,11 +12,11 @@ from typing import Tuple
 import geopandas as gpd
 import sqlite3
 import numpy as np
-from shapely.geometry import LineString, Polygon
+from shapely.geometry import Point, LineString, Polygon
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
 from tactics2d.trajectory.element import State, Trajectory
-from tactics2d.map.element import RoadLine, Lane, Area, Regulatory, Map
+from tactics2d.map.element import RoadLine, Lane, LaneRelationship, Area, Regulatory, Map
 
 
 class NuPlanParser:
@@ -35,20 +35,37 @@ class NuPlanParser:
         "generic_object": Other,
     }
 
-    def parse_trajectory(
-        self, file_name: str, folder_path: str, stamp_range: Tuple[float, float] = None
-    ):
+    def get_location(self, file: str, folder: str) -> str:
+        """This function gets the location of a single trajectory data file.
+
+        Args:
+            file (str): The name of the trajectory data file. The file is expected to be a sqlite3 database file (.db).
+            folder (str): The path to the folder containing the trajectory file.
+
+        Returns:
+            str: The location of the trajectory data file.
+        """
+        file_path = os.path.join(folder, file)
+
+        with sqlite3.connect(file_path) as connection:
+            cursor = connection.cursor()
+            cursor.execute("SELECT location FROM log;")
+            location = cursor.fetchone()[0]
+
+        return location
+
+    def parse_trajectory(self, file: str, folder: str, stamp_range: Tuple[float, float] = None):
         """This function parses trajectories from a single NuPlan database file.
 
         Args:
-            file_name (str): _description_
-            folder_path (str): _description_
+            file (str): The name of the trajectory data file. The file is expected to be a sqlite3 database file (.db).
+            folder (str): The path to the folder containing the trajectory file.
             stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
 
         Returns:
             dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
         """
-        file_path = os.path.join(folder_path, file_name)
+        file_path = os.path.join(folder, file)
 
         if stamp_range is None:
             stamp_range = (-float("inf"), float("inf"))
@@ -90,29 +107,29 @@ class NuPlanParser:
         connection.close()
         return participants
 
-    def parse_map(self, file_name: str, folder_name: str):
-        """
+    def parse_map(self, file: str, folder: str):
+        """This function parses a map from a single NuPlan map file. The map file is expected to be a geopackage file (.gpkg).
 
         A NuPlan map includes the following layers: 'baseline_paths', 'carpark_areas', 'generic_drivable_areas', 'dubins_nodes', 'lane_connectors', 'intersections', 'boundaries', 'crosswalks', 'lanes_polygons', 'lane_group_connectors', 'lane_groups_polygons', 'road_segments', 'stop_polygons', 'traffic_lights', 'walkways', 'gen_lane_connectors_scaled_width_polygons', 'meta'. In this parser, we only parse the following layers: 'boundaries', 'lanes_polygons', 'lane_connectors', 'carpark_areas', 'crosswalks', 'walkways', 'stop_polygons', 'traffic_lights'
         """
-        map_file = os.path.join(folder_name, file_name)
+        map_file = os.path.join(folder, file)
         map_ = Map()
         max_id = -np.inf
 
         boundaries = gpd.read_file(map_file, layer="boundaries")
         for _, row in boundaries.iterrows():
-            boundary = RoadLine(
-                id_=str(row["boundary_segment_fids"]), linestring=LineString(row["geometry"])
-            )
-            max_id = max(max_id, row["boundary_segment_fids"])
+            boundary_ids = [int(s) for s in row["boundary_segment_fids"].split(",") if s.isdigit()]
+            boundary_id = boundary_ids[0] - 1
+            boundary = RoadLine(id_=str(boundary_id), linestring=LineString(row["geometry"]))
+            max_id = max(max_id, max(boundary_ids))
             map_.add_roadline(boundary)
 
         lane_polygons = gpd.read_file(map_file, layer="lanes_polygons")
         for _, row in lane_polygons.iterrows():
             lane_polygon = Lane(
                 id_=str(row["lane_fid"]),
-                left_side=map_.roadlines[str(row["left_boundary_fid"])],
-                right_side=map_.roadlines[str(row["right_boundary_fid"])],
+                left_side=map_.get_by_id(str(row["left_boundary_fid"])).geometry,
+                right_side=map_.get_by_id(str(row["right_boundary_fid"])).geometry,
                 line_ids=set([str(row["left_boundary_fid"]), str(row["right_boundary_fid"])]),
                 subtype=None,
                 speed_limit=row["speed_limit_mps"],
@@ -125,7 +142,7 @@ class NuPlanParser:
 
         lane_connectors = gpd.read_file(map_file, layer="lane_connectors")
         for _, row in lane_connectors.iterrows():
-            #TODO: parse the polygon in lane to left and right side
+            # TODO: parse the polygon in lane to left and right side
             pass
 
         id_cnt = max_id + 1

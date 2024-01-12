@@ -11,7 +11,7 @@ from tactics2d.map.element import Map
 from tactics2d.map.generator import ParkingLotGenerator
 from tactics2d.participant.element import Vehicle
 from tactics2d.physics import SingleTrackKinematics
-from tactics2d.traffic import TrafficScenarioManager
+from tactics2d.traffic import ScenarioManager
 from tactics2d.traffic.violation_detection import TrafficEvent
 from tactics2d.sensor import TopDownCamera, SingleLineLidar, RenderManager
 from tactics2d.trajectory.element import State
@@ -43,7 +43,7 @@ def truncate_angle(angle: float):
     return angle
 
 
-class ParkingScenarioManager(TrafficScenarioManager):
+class ParkingScenarioManager(ScenarioManager):
     """This class provides a parking scenario manager.
 
     Attributes:
