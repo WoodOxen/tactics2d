@@ -56,6 +56,7 @@ h1.doc-heading {
 
 /******************* H2 Doc Heading ***************************/
 h2.doc-heading {
+	margin-top: 3px;
 	font-family: Arial, Helvetica, sans-serif;
 	font-size: 40px;
 	line-height: 1.2;
