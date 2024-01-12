@@ -21,7 +21,7 @@ nav:
       - tactics2d.participant: "api/participant.md"
       - tactics2d.map: "api/map.md"
       - tactics2d.trajectory: "api/trajectory.md"
-      - tactics2d.trajectory: "api/map_parser.md"
+      - tactics2d.dataset_parser: "api/dataset_parser.md"
       - tactics2d.sensor: "api/sensor.md"
       - tactics2d.traffic: "api/traffic.md"
       - tactics2d.envs: "api/envs.md"
