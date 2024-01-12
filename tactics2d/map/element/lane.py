@@ -51,7 +51,7 @@ class Lane:
             requested.
     """
 
-    speed_limit_units = ["km/h", "mi/h", "m/s", "mph"]
+    speed_limit_units = ["km/h", "mi/h", "m/s"]
 
     def __init__(
         self,
