@@ -20,7 +20,8 @@ from tactics2d.map.element import Area, RoadLine, Lane, LaneRelationship, Map
 class ArgoverseParser:
     """This class implements a parser for Argoverse dataset. The default size of the participants are referred to the [official visualization toolkit](https://github.com/argoverse/av2-api/blob/main/src/av2/datasets/motion_forecasting/viz/scenario_visualization.py).
 
-    Wilson, Benjamin, et al. "Argoverse 2: Next generation datasets for self-driving perception and forecasting." arXiv preprint arXiv:2301.00493 (2023).
+    !!! info "Reference"
+        Wilson, Benjamin, et al. "Argoverse 2: Next generation datasets for self-driving perception and forecasting." arXiv preprint arXiv:2301.00493 (2023).
     """
 
     TYPE_MAPPING = {

@@ -16,7 +16,8 @@ from tactics2d.trajectory.element import State, Trajectory
 class DLPParser:
     """This class implements a parser of the Dragon Lake Parking Dataset.
 
-    Shen, Xu, et al. "Parkpredict: Motion and intent prediction of vehicles in parking lots." 2020 IEEE Intelligent Vehicles Symposium (IV). IEEE, 2020.
+    !!! info "Reference"
+        Shen, Xu, et al. "Parkpredict: Motion and intent prediction of vehicles in parking lots." 2020 IEEE Intelligent Vehicles Symposium (IV). IEEE, 2020.
     """
 
     TYPE_MAPPING = {
@@ -58,8 +59,7 @@ class DLPParser:
         """This function parses trajectories from a series of DLP dataset files. The states were collected at 25Hz.
 
         Args:
-            file (Union[int, str]): The id or the name of the trajectory file. The file is expected to be a json file (.json). If the input is an integer, the parser will parse the trajectory data from the following files: DJI_{file}_agents.json, DJI_{file}_frames.json, DJI_{file}_instances.json, DJI_{file}_obstacles.json. If the input is a string, the parser will extract the integer id first and repeat the above process.
-            With the given file id, the parser will parse the trajectory data from the following files: DJI_{file_id}_agents.json, DJI_{file_id}_frames.json, DJI_{file_id}_instances.json, DJI_{file_id}_obstacles.json.
+            file (Union[int, str]): The id or the name of the trajectory file. The file is expected to be a json file (.json). If the input is an integer, the parser will parse the trajectory data from the following files: DJI_%04d_agents.json % file, DJI_%04d_frames.json % file, DJI_%04d_instances.json % file, DJI_%04d_obstacles.json % file. If the input is a string, the parser will extract the integer id first and repeat the above process.
             folder (str): The path to the folder containing the trajectory data.
             stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
         """

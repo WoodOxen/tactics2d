@@ -23,7 +23,8 @@ CLASS_MAPPING = {"cyclist": Cyclist, "pedestrian": Pedestrian}
 class InteractionParser:
     """This class implements a parser for INTERACTION dataset.
 
-    Zhan, Wei, et al. "Interaction dataset: An international, adversarial and cooperative motion dataset in interactive driving scenarios with semantic maps." arXiv preprint arXiv:1910.03088 (2019).
+    !!! info "Reference"
+        Zhan, Wei, et al. "Interaction dataset: An international, adversarial and cooperative motion dataset in interactive driving scenarios with semantic maps." arXiv preprint arXiv:1910.03088 (2019).
     """
 
     type_guesser = GuessType()
@@ -38,7 +39,16 @@ class InteractionParser:
 
         return file_id
 
-    def parse_vehicle(self, file_path: str, stamp_range: Tuple[float, float] = None):
+    def parse_vehicle(self, file_path: str, stamp_range: Tuple[float, float] = None) -> dict:
+        """This function parses the vehicle trajectory file in INTERACTION dataset.
+
+        Args:
+            file_path: The path to the vehicle trajectory file.
+            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+
+        Returns:
+            dict: A dictionary of vehicles. The keys are the ids of the vehicles. The values are the vehicles.
+        """
         df_vehicle = pd.read_csv(file_path)
 
         vehicles = dict()
@@ -81,7 +91,17 @@ class InteractionParser:
 
     def parse_pedestrians(
         self, participants: dict, file_path: str, stamp_range: Tuple[float, float] = None
-    ):
+    ) -> dict:
+        """This function parses the pedestrian trajectory file in INTERACTION dataset. Because the original dataset does not distinguish cyclist and pedestrian, this function calls a type guesser, which is built from other datasets, to guess the type of the participants.
+
+        Args:
+            participants (dict): A dictionary of participants.
+            file_path (str): The path to the pedestrian trajectory file.
+            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+
+        Returns:
+            dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
+        """
         df_pedestrian = pd.read_csv(file_path)
 
         trajectories = {}
@@ -123,7 +143,7 @@ class InteractionParser:
         """Parse the trajectory data of INTERACTION dataset. The states were collected at 10Hz.
 
         Args:
-            file_id (Union[int, str]): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: vehicle_tracks_{file_id}.csv, pedestrian_tracks_{file_id}.csv. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            file (Union[int, str]): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: vehicle_tracks_%03d.csv % file, pedestrian_tracks_%03d.csv % file. If the input is a string, the parser will extract the integer id first and repeat the above process.
             folder (str): The path to the folder containing the trajectory data.
             stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
 

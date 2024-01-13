@@ -22,7 +22,8 @@ from tactics2d.map.element import RoadLine, Lane, LaneRelationship, Area, Regula
 class NuPlanParser:
     """This class implements a parser for NuPlan dataset.
 
-    Caesar, Holger, et al. "nuplan: A closed-loop ml-based planning benchmark for autonomous vehicles." arXiv preprint arXiv:2106.11810 (2021).
+    !!! info "Reference"
+        Caesar, Holger, et al. "nuplan: A closed-loop ml-based planning benchmark for autonomous vehicles." arXiv preprint arXiv:2106.11810 (2021).
     """
 
     CLASS_MAPPING = {
@@ -54,7 +55,9 @@ class NuPlanParser:
 
         return location
 
-    def parse_trajectory(self, file: str, folder: str, stamp_range: Tuple[float, float] = None):
+    def parse_trajectory(
+        self, file: str, folder: str, stamp_range: Tuple[float, float] = None
+    ) -> dict:
         """This function parses trajectories from a single NuPlan database file.
 
         Args:
@@ -107,8 +110,10 @@ class NuPlanParser:
         connection.close()
         return participants
 
-    def parse_map(self, file: str, folder: str):
+    def parse_map(self, file: str, folder: str) -> Map:
         """This function parses a map from a single NuPlan map file. The map file is expected to be a geopackage file (.gpkg).
+
+        TODO: the parsing of lane connectors is not implemented yet.
 
         A NuPlan map includes the following layers: 'baseline_paths', 'carpark_areas', 'generic_drivable_areas', 'dubins_nodes', 'lane_connectors', 'intersections', 'boundaries', 'crosswalks', 'lanes_polygons', 'lane_group_connectors', 'lane_groups_polygons', 'road_segments', 'stop_polygons', 'traffic_lights', 'walkways', 'gen_lane_connectors_scaled_width_polygons', 'meta'. In this parser, we only parse the following layers: 'boundaries', 'lanes_polygons', 'lane_connectors', 'carpark_areas', 'crosswalks', 'walkways', 'stop_polygons', 'traffic_lights'
         """
