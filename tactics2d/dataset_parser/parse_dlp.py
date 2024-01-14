@@ -9,6 +9,8 @@
 from typing import Tuple, Union
 import json
 
+import numpy as np
+
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
 from tactics2d.trajectory.element import State, Trajectory
 
@@ -55,14 +57,25 @@ class DLPParser:
 
     def parse_trajectory(
         self, file: Union[int, str], folder: str, stamp_range: Tuple[float, float] = None
-    ):
+    ) -> Tuple[dict, Tuple[int, int]]:
         """This function parses trajectories from a series of DLP dataset files. The states were collected at 25Hz.
 
         Args:
-            file (Union[int, str]): The id or the name of the trajectory file. The file is expected to be a json file (.json). If the input is an integer, the parser will parse the trajectory data from the following files: DJI_%04d_agents.json % file, DJI_%04d_frames.json % file, DJI_%04d_instances.json % file, DJI_%04d_obstacles.json % file. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            file (Union[int, str]): The id or the name of the trajectory file. The file is expected to be a json file (.json). If the input is an integer, the parser will parse the trajectory data from the following files: `DJI_%04d_agents.json % file`, `DJI_%04d_frames.json % file`, `DJI_%04d_instances.json % file`, `DJI_%04d_obstacles.json % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
             folder (str): The path to the folder containing the trajectory data.
-            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+
+        Returns:
+            dict: A dictionary of vehicles. The keys are the ids of the vehicles. The values are the vehicles.
+            Tuple[int, int]: The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
         """
+        if stamp_range is None:
+            stamp_range = (-np.inf, np.inf)
+
+        participants = {}
+        actual_stamp_range = (np.inf, -np.inf)
+        id_cnt = 0
+
         if isinstance(file, str):
             file_id = [int(s) for s in file.split("_") if s.isdigit()][0]
         elif isinstance(file, int):
@@ -79,19 +92,18 @@ class DLPParser:
         with open("%s/DJI_%04d_obstacles.json" % (folder, file_id), "r") as f_obstacle:
             df_obstacle = json.load(f_obstacle)
 
-        participants = {}
-        id_cnt = 0
-
-        if stamp_range is None:
-            stamp_range = (-float("inf"), float("inf"))
-
         for frame in df_frame.values():
-            if frame["timestamp"] < stamp_range[0] or frame["timestamp"] > stamp_range[1]:
+            time_stamp = int(frame["timestamp"] * 1000)
+            if time_stamp < stamp_range[0] or time_stamp > stamp_range[1]:
                 continue
+            actual_stamp_range = (
+                min(actual_stamp_range[0], time_stamp),
+                max(actual_stamp_range[1], time_stamp),
+            )
 
             for obstacle in df_obstacle.values():
                 state = State(
-                    frame=round(frame["timestamp"] * 1000),
+                    frame=time_stamp,
                     x=obstacle["coords"][0],
                     y=obstacle["coords"][1],
                     heading=obstacle["heading"],
@@ -129,4 +141,4 @@ class DLPParser:
 
                 participants[instance["agent_token"]].trajectory.append_state(state)
 
-        return participants
+        return participants, actual_stamp_range

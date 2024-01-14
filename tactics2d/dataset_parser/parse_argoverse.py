@@ -8,8 +8,10 @@
 
 import os
 import json
+from typing import Tuple
 
 import pandas as pd
+import numpy as np
 from shapely.geometry import LineString, Polygon
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
@@ -74,7 +76,7 @@ class ArgoverseParser:
         "UNKNOWN": ["virtual", None, None],
     }
 
-    def parse_trajectory(self, file: str, folder: str) -> dict:
+    def parse_trajectory(self, file: str, folder: str) -> Tuple[dict, Tuple[int, int]]:
         """This function parses trajectories from a single Argoverse parquet file. Because the duration of the scenario is well articulated, the parser will not provide an option to select time range within a single scenario. The states were collected at 10Hz.
 
         Args:
@@ -83,11 +85,13 @@ class ArgoverseParser:
 
         Returns:
             dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
+            Tuple[int, int]: The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
         """
+        participants = dict()
+        actual_stamp_range = (np.inf, -np.inf)
+
         file_path = os.path.join(folder, file)
         df = pd.read_parquet(file_path, engine="fastparquet")
-
-        participants = dict()
 
         for _, state_info in df.iterrows():
             if state_info["track_id"] not in participants:
@@ -100,8 +104,14 @@ class ArgoverseParser:
                     trajectory=Trajectory(id_=state_info["track_id"], fps=10.0),
                 )
 
+            time_stamp = int(state_info["timestep"] * 100)
+            actual_stamp_range = (
+                min(actual_stamp_range[0], time_stamp),
+                max(actual_stamp_range[1], time_stamp),
+            )
+
             state = State(
-                frame=state_info["timestep"],
+                frame=time_stamp,
                 x=state_info["position_x"],
                 y=state_info["position_y"],
                 heading=state_info["heading"],
@@ -111,7 +121,7 @@ class ArgoverseParser:
 
             participants[state_info["track_id"]].trajectory.append_state(state)
 
-        return participants
+        return participants, actual_stamp_range
 
     def parse_map(self, file: str, folder: str) -> Map:
         """This function parses a map from a single Argoverse json file.

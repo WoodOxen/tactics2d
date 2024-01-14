@@ -7,12 +7,15 @@
 # @Version: 1.0.0
 
 import os
-from typing import Tuple
+import datetime
+import json
+from typing import Tuple, List
 
 import geopandas as gpd
 import sqlite3
 import numpy as np
 from shapely.geometry import Point, LineString, Polygon
+from shapely.affinity import affine_transform
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
 from tactics2d.trajectory.element import State, Trajectory
@@ -36,6 +39,12 @@ class NuPlanParser:
         "generic_object": Other,
     }
 
+    # millisecond-level time stamp at 2021-01-01 00:00:00
+    THE_DATETIME = datetime.datetime(2021, 1, 1, 0, 0, 0).timestamp() * 1000
+
+    def __init__(self):
+        self.transform_matrix = np.zeros((6, 1))
+
     def get_location(self, file: str, folder: str) -> str:
         """This function gets the location of a single trajectory data file.
 
@@ -55,9 +64,32 @@ class NuPlanParser:
 
         return location
 
+    def update_transform_matrix(self, file: str, folder: str):
+        """This function updates the transform matrix of the map.
+
+        Args:
+            file (str): The name of the trajectory data file. The file is expected to be a sqlite3 database file (.db).
+            folder (str): The path to the folder containing the trajectory file.
+        """
+        with open("./tactics2d/data/map/NuPlan/nuplan-maps-v1.0.json", "r") as f:
+            configs = json.load(f)
+
+        location = self.get_location(file, folder)
+        transform_matrix = configs[location]["layers"]["Intensity"]["transform_matrix"]
+        self.transform_matrix = np.array(
+            [
+                1/transform_matrix[0][0],
+                transform_matrix[1][0],
+                transform_matrix[0][1],
+                1/transform_matrix[1][1],
+                -transform_matrix[0][3]/transform_matrix[0][0],
+                -transform_matrix[1][3]/transform_matrix[1][1],
+            ]
+        )
+
     def parse_trajectory(
         self, file: str, folder: str, stamp_range: Tuple[float, float] = None
-    ) -> dict:
+    ) -> Tuple[dict, List[int]]:
         """This function parses trajectories from a single NuPlan database file.
 
         Args:
@@ -67,13 +99,15 @@ class NuPlanParser:
 
         Returns:
             dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
+            List[int]: The actual time range of the trajectory data. Because nuplan collects data at an unstable frequency, the parser will return a list of time stamps.
         """
+        participants = dict()
+        time_stamps = set()
+
         file_path = os.path.join(folder, file)
 
         if stamp_range is None:
             stamp_range = (-float("inf"), float("inf"))
-
-        participants = dict()
 
         with sqlite3.connect(file_path) as connection:
             cursor = connection.cursor()
@@ -98,17 +132,22 @@ class NuPlanParser:
 
             for row in rows:
                 cursor.execute("SELECT * FROM lidar_pc WHERE token=?;", (row[1],))
-                timestamp = cursor.fetchone()[7]
-                if timestamp < stamp_range[0] or timestamp > stamp_range[1]:
+                time_stamp = int(cursor.fetchone()[7] / 1000 - self.THE_DATETIME)
+
+                if time_stamp < stamp_range[0] or time_stamp > stamp_range[1]:
                     continue
+                time_stamps.add(time_stamp)
+
                 state = State(
-                    frame=timestamp, x=row[5], y=row[6], heading=row[14], vx=row[11], vy=row[12]
+                    frame=time_stamp, x=row[5], y=row[6], heading=row[14], vx=row[11], vy=row[12]
                 )
                 participants[row[2]].trajectory.append_state(state)
 
         cursor.close()
         connection.close()
-        return participants
+        actual_time_range = sorted(list(time_stamps))
+
+        return participants, actual_time_range
 
     def parse_map(self, file: str, folder: str) -> Map:
         """This function parses a map from a single NuPlan map file. The map file is expected to be a geopackage file (.gpkg).
@@ -125,7 +164,10 @@ class NuPlanParser:
         for _, row in boundaries.iterrows():
             boundary_ids = [int(s) for s in row["boundary_segment_fids"].split(",") if s.isdigit()]
             boundary_id = boundary_ids[0] - 1
-            boundary = RoadLine(id_=str(boundary_id), linestring=LineString(row["geometry"]))
+            boundary = RoadLine(
+                id_=str(boundary_id),
+                linestring=affine_transform(LineString(row["geometry"]), self.transform_matrix),
+            )
             max_id = max(max_id, max(boundary_ids))
             map_.add_roadline(boundary)
 
@@ -163,7 +205,7 @@ class NuPlanParser:
             for _, row in df_areas.iterrows():
                 area = Area(
                     id_=str(id_cnt),
-                    geometry=Polygon(row["geometry"]),
+                    geometry=affine_transform(Polygon(row["geometry"]), self.transform_matrix),
                     subtype=value,
                     custom_tags={"heading": row["heading"]} if key == "carpark_areas" else None,
                 )
@@ -175,7 +217,9 @@ class NuPlanParser:
             traffic_light = Regulatory(
                 id_=str(id_cnt),
                 subtype="traffic_light",
-                position=Point(row["geometry"].x, row["geometry"].y),
+                position=affine_transform(
+                    Point(row["geometry"].x, row["geometry"].y), self.transform_matrix
+                ),
                 custom_tags={"heading": row["ori_mean_yaw"]},
             )
             id_cnt += 1

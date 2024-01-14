@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from shapely.geometry import Polygon
 
-from .violation_detection import TrafficEvent
+from tactics2d.traffic.violation_detection import TrafficEvent
 
 
 class ScenarioManager(ABC):

@@ -14,6 +14,7 @@ import math
 # import xml.etree.ElementTree as ET
 
 import pandas as pd
+import numpy as np
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist
 from tactics2d.trajectory.element import State, Trajectory
@@ -80,6 +81,9 @@ class LevelXParser:
             )
 
         self.dataset = dataset
+        self.id_key = "id" if self.dataset == "highD" else "trackId"
+        self.x_key = "x" if self.dataset == "highD" else "xCenter"
+        self.y_key = "y" if self.dataset == "highD" else "yCenter"
 
     def _calibrate_location(self, x: float, y: float):
         return x, y
@@ -95,10 +99,10 @@ class LevelXParser:
         return file_id
 
     def get_location(self, file: Union[int, str], folder: str) -> int:
-        """_summary_
+        """This function retrieves the location from which a trajectory data file is obtained.
 
         Args:
-            file (Union[int, str]): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: "%02d_recordingMeta.csv" % file. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            file (Union[int, str]): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: `%02d_recordingMeta.csv % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
             folder (str): The path to the folder containing the trajectory data.
 
         Returns:
@@ -109,19 +113,44 @@ class LevelXParser:
 
         return df_track_meta.iloc[0]["locationId"]
 
+    def get_stamp_range(self, file: Union[int, str], folder: str) -> Tuple[int, int]:
+        """This function gets the time range of a single trajectory data file.
+
+        Args:
+            file (Union[int, str]): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: `%02d_recordingMeta.csv" % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            folder (str): The path to the folder containing the trajectory data.
+
+        Returns:
+            Tuple[int, int]: The time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
+        """
+        file_id = self._get_file_id(file)
+        df_track_meta = pd.read_csv(os.path.join(folder, "%02d_recordingMeta.csv" % file_id))
+        start_frame = int(min(df_track_meta["initialFrame"]) * 40)
+        end_frame = int(max(df_track_meta["finalFrame"]) * 40)
+
+        return start_frame, end_frame
+
     def parse_trajectory(
-        self, file: Union[int, str], folder: str, stamp_range: Tuple[float, float] = None
-    ) -> dict:
+        self, file: Union[int, str], folder: str, stamp_range: Tuple[int, int] = None
+    ) -> Tuple[dict, Tuple[int, int]]:
         """This function parses the trajectory data of LevelX-series datasets. The states were collected at 25Hz.
 
         Args:
-            file (int): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: "%02d_tracks.csv" % file and "%02d_tracksMeta.csv" % file. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            file (int): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: `%02d_tracks.csv % file` and `%02d_tracksMeta.csv % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
             folder (str): The path to the folder containing the trajectory data.
-            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+            stamp_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
 
         Returns:
             dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
+            Tuple[int, int]: The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
         """
+        if stamp_range is None:
+            stamp_range = (-np.inf, np.inf)
+
+        # load the vehicles that have frame in the arbitrary range
+        participants = dict()
+        actual_stamp_range = (np.inf, -np.inf)
+
         file_id = self._get_file_id(file)
 
         df_track_chunk = pd.read_csv(
@@ -129,22 +158,14 @@ class LevelXParser:
         )
         df_track_meta = pd.read_csv(os.path.join(folder, "%02d_tracksMeta.csv" % file_id))
 
-        # load the vehicles that have frame in the arbitrary range
-        participants = dict()
-
-        id_key = "id" if self.dataset == "highD" else "trackId"
-
-        if stamp_range is None:
-            stamp_range = (-float("inf"), float("inf"))
-
         for _, participant_info in df_track_meta.iterrows():
-            first_stamp = participant_info["initialFrame"] / 25.0
-            last_stamp = participant_info["finalFrame"] / 25.0
+            first_stamp = participant_info["initialFrame"] * 40  # ms
+            last_stamp = participant_info["finalFrame"] * 40  # ms
 
             if last_stamp < stamp_range[0] or first_stamp > stamp_range[1]:
                 continue
 
-            id_ = participant_info[id_key]
+            id_ = participant_info[self.id_key]
             class_ = self.CLASS_MAPPING[participant_info["class"]]
             type_ = self.TYPE_MAPPING[participant_info["class"]]
 
@@ -171,39 +192,49 @@ class LevelXParser:
         trajectories = dict()
 
         for chunk in df_track_chunk:
-            chunk_ids = set(pd.unique(chunk[id_key]))
+            chunk_ids = set(pd.unique(chunk[self.id_key]))
             if len(chunk_ids.union(participant_ids)) == 0:
                 continue
 
+            if self.dataset == "highD":
+                chunk["heading_"] = np.round(np.arctan2(chunk["xVelocity"], chunk["yVelocity"]), 5)
+            else:
+                chunk["heading_"] = chunk["heading"] * 2 * math.pi / 360
+
             for _, state_info in chunk.iterrows():
-                time_stamp = state_info["frame"] / 25.0
-                frame = round(time_stamp * 1000)
+                time_stamp = int(state_info["frame"] * 40)  # ms
 
                 if time_stamp < stamp_range[0] or time_stamp > stamp_range[1]:
                     continue
 
-                trajectory_id = int(state_info[id_key])
+                actual_stamp_range = (
+                    min(actual_stamp_range[0], time_stamp),
+                    max(actual_stamp_range[1], time_stamp),
+                )
+
+                trajectory_id = int(state_info[self.id_key])
                 if trajectory_id not in trajectories:
                     trajectories[trajectory_id] = Trajectory(id_=trajectory_id, fps=25.0)
 
-                if self.dataset == "highD":
-                    x, y = self._calibrate_location(state_info["x"], state_info["y"])
-                    heading = round(math.atan2(state_info["xVelocity"], state_info["yVelocity"]), 5)
-                    state = State(frame, x=x, y=y, heading=heading)
-                else:
-                    x, y = self._calibrate_location(state_info["xCenter"], state_info["yCenter"])
-                    state = State(
-                        frame, x=x, y=y, heading=state_info["heading"] * 2 * math.pi / 360
-                    )
-                state.set_velocity(state_info["xVelocity"], state_info["yVelocity"])
-                state.set_accel(state_info["xAcceleration"], state_info["yAcceleration"])
+                x, y = self._calibrate_location(state_info[self.x_key], state_info[self.y_key])
+                heading = state_info["heading_"]
+                state = State(
+                    time_stamp,
+                    x=x,
+                    y=y,
+                    heading=heading,
+                    vx=state_info["xVelocity"],
+                    vy=state_info["yVelocity"],
+                    ax=state_info["xAcceleration"],
+                    ay=state_info["yAcceleration"],
+                )
 
                 trajectories[trajectory_id].append_state(state)
 
         for participant_id in participants.keys():
             participants[participant_id].bind_trajectory(trajectories[participant_id])
 
-        return participants
+        return participants, actual_stamp_range
 
     def parse_map(self, **kwargs):
         """TODO: provide an API similar to other parsers to parse the map data. At present the map data are self-built and can be parsed by the Lanelet2Parser."""

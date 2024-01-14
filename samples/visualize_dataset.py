@@ -27,6 +27,7 @@ from tactics2d.dataset_parser import (
     WOMDParser,
 )
 from tactics2d.map.parser import Lanelet2Parser
+from tactics2d.traffic.scenario_display import ScenarioDisplay
 
 
 DATASET_MAPPING = {
@@ -42,6 +43,18 @@ DATASET_MAPPING = {
     "womd": "WOMD",
 }
 
+DATASET_FPS = {
+    "highd": 25,
+    "ind": 25,
+    "round": 25,
+    "exid": 25,
+    "unid": 25,
+    "argoverse": 10,
+    "dlp": 25,
+    "interaction": 10,
+    "nuplan": 20,
+}
+
 
 def parse_data(args):
     map_path = "./tactics2d/data/map"
@@ -53,7 +66,7 @@ def parse_data(args):
 
     if args.dataset in ["highd", "ind", "round", "exid"]:
         dataset_parser = LevelXParser(DATASET_MAPPING[args.dataset])
-        trajectories = dataset_parser.parse_trajectory(args.file, args.folder)
+        trajectories, actual_time_range = dataset_parser.parse_trajectory(args.file, args.folder)
 
         map_id = dataset_parser.get_location(args.file, args.folder)
         map_name = (
@@ -68,13 +81,13 @@ def parse_data(args):
 
     elif args.dataset == "argoverse":
         dataset_parser = ArgoverseParser()
-        trajectories = dataset_parser.parse_trajectory(args.file, args.folder)
+        trajectories, actual_time_range = dataset_parser.parse_trajectory(args.file, args.folder)
 
         map_ = dataset_parser.parse_map(args.map_file, args.folder)
 
     elif args.dataset == "dlp":
         dataset_parser = DLPParser()
-        trajectories = dataset_parser.parse_trajectory(args.file, args.folder)
+        trajectories, actual_time_range = dataset_parser.parse_trajectory(args.file, args.folder)
 
         map_config = configs["DLP"]
         map_path = os.path.join(map_path, map_config["osm_path"])
@@ -83,7 +96,7 @@ def parse_data(args):
 
     elif args.dataset == "interaction":
         dataset_parser = InteractionParser()
-        trajectories = dataset_parser.parse_trajectory(args.file, args.folder)
+        trajectories, actual_time_range = dataset_parser.parse_trajectory(args.file, args.folder)
 
         map_config = configs[args.map_name]
         map_path = os.path.join(map_path, map_config["osm_path"])
@@ -92,7 +105,8 @@ def parse_data(args):
 
     elif args.dataset == "nuplan":
         dataset_parser = NuPlanParser()
-        trajectories = dataset_parser.parse_trajectory(args.file, args.folder)
+        trajectories, actual_time_range = dataset_parser.parse_trajectory(args.file, args.folder)
+        dataset_parser.update_transform_matrix(args.file, args.folder)
 
         location = dataset_parser.get_location(args.file, args.folder)
         map_ = dataset_parser.parse_map(configs[location]["gpkg_path"], map_path)
@@ -111,11 +125,7 @@ def parse_data(args):
     t2 = time.time()
     print("Time to parse a %s scenario: %.03f" % (DATASET_MAPPING[args.dataset], t2 - t1))
 
-    return trajectories, map_
-
-
-def visualize_data(trajectories, map_, args):
-    return
+    return trajectories, actual_time_range, map_
 
 
 if __name__ == "__main__":
@@ -156,4 +166,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    parse_data(args)
+    participants, actual_range, map_ = parse_data(args)
+
+    scenario_display = ScenarioDisplay()
+    if len(actual_range) == 2:
+        actual_time_range = (actual_range[0], actual_range[0] + 10000)
+    else:
+        actual_time_range = [t for t in actual_range if t <= actual_range[0]+10000]
+    scenario_display.display(participants, map_, trajectory_fps=DATASET_FPS[args.dataset], time_range=actual_time_range)
