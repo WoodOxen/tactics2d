@@ -17,22 +17,14 @@ class RoadLine:
         type_ (str, optional): The type of the roadline. Defaults to "virtual".
         subtype (str, optional): The subtype of the line. Defaults to None.
         color (tuple, optional): The color of the lane marking. Defaults to None.
-        lane_change (Tuple[bool, bool], optional): Whether a vehicle can switch to a left lane
-            or a right lane. The first element in the tuple indicates the left. The second
-            element in the tuple indicates the right. Defaults to None.
-        width (float, optional): The width of the line (in m). The linestring then represents
-            the centerline of the object. Defaults to None.
-        height (float, optional): The height of line (in m). The linestring then represents the
-            lower outline/lowest edge of the object. Defaults to None.
-        temporary (bool, optional): Whether the roadline is a temporary lane mark or not.
-            Defaults to False.
+        lane_change (Tuple[bool, bool], optional): Whether a vehicle can switch to a left lane or a right lane. The first element in the tuple indicates the left. The second element in the tuple indicates the right. Defaults to None.
+        width (float, optional): The width of the line (in m). The linestring then represents the centerline of the object. Defaults to None.
+        height (float, optional): The height of line (in m). The linestring then represents the lower outline/lowest edge of the object. Defaults to None.
+        temporary (bool, optional): Whether the roadline is a temporary lane mark or not. Defaults to False.
         custom_tags (dict, optional): The custom tags of the raodline. Defaults to None.
-        head (Point): The head point of the roadline. This attribute is automatically calculated
-            when requested.
-        end (Point): The end point of the roadline. This attribute is automatically calculated
-            when requested.
-        shape (list): The shape of the roadline. This attribute is automatically calculated when
-            requested.
+        head (Point, read-only): The head point of the roadline. This attribute is automatically calculated when requested.
+        end (Point, read-only): The end point of the roadline. This attribute is automatically calculated when requested.
+        shape (list, read-only): The shape of the roadline. This attribute is automatically calculated when requested.
     """
 
     def __init__(
@@ -48,7 +40,7 @@ class RoadLine:
         temporary: bool = False,
         custom_tags: dict = None,
     ):
-        """Initialize the attributes in the class."""
+
         self.id_ = id_
         self.linestring = linestring
         self.type_ = type_

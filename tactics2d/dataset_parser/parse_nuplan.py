@@ -78,12 +78,12 @@ class NuPlanParser:
         transform_matrix = configs[location]["layers"]["Intensity"]["transform_matrix"]
         self.transform_matrix = np.array(
             [
-                1/transform_matrix[0][0],
+                1 / transform_matrix[0][0],
                 transform_matrix[1][0],
                 transform_matrix[0][1],
-                1/transform_matrix[1][1],
-                -transform_matrix[0][3]/transform_matrix[0][0],
-                -transform_matrix[1][3]/transform_matrix[1][1],
+                1 / transform_matrix[1][1],
+                -transform_matrix[0][3] / transform_matrix[0][0],
+                -transform_matrix[1][3] / transform_matrix[1][1],
             ]
         )
 
@@ -99,7 +99,7 @@ class NuPlanParser:
 
         Returns:
             dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
-            List[int]: The actual time range of the trajectory data. Because nuplan collects data at an unstable frequency, the parser will return a list of time stamps.
+            List[int]: The actual time range of the trajectory data. Because NuPlan collects data at an unstable frequency, the parser will return a list of time stamps.
         """
         participants = dict()
         time_stamps = set()

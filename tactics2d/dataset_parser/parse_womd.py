@@ -7,6 +7,7 @@
 # @Version: 1.0.0
 
 import os
+from typing import Tuple, List
 
 import tensorflow as tf
 from shapely.geometry import Point, LineString, Polygon
@@ -63,7 +64,7 @@ class WOMDParser:
 
         return id_list
 
-    def parse_trajectory(self, scenario_id=None, **kwargs) -> dict:
+    def parse_trajectory(self, scenario_id=None, **kwargs) -> Tuple[dict, List[int]]:
         """This function parses trajectories from a single WOMD file. Because the duration of the scenario is well articulated, the parser will not provide an option to select time range within a single scenario. The states were collected at 10Hz.
 
         Args:
@@ -74,10 +75,13 @@ class WOMDParser:
 
         Returns:
             dict: A dictionary of participants. If the scenario id is not found, return None.
+            List[int]: The actual time range of the trajectory data. Because WOMD collects data at an unstable frequency, the parser will return a list of time stamps.
 
         Raises:
             KeyError: Either dataset or file and folder should be given as keyword arguments.
         """
+        participants = dict()
+        time_stamps = set()
 
         if "dataset" in kwargs:
             dataset = kwargs["dataset"]
@@ -98,7 +102,6 @@ class WOMDParser:
                 scenario_id = scenario.scenario_id
 
             if scenario_id == scenario.scenario_id:
-                participants = dict()
                 timestamps = scenario.timestamps_seconds
                 for track in scenario.tracks:
                     trajectory = Trajectory(id_=track.id, fps=10, stable_freq=False)
@@ -110,13 +113,14 @@ class WOMDParser:
                         if not state_.valid:
                             continue
                         state = State(
-                            frame=timestamps[i],
+                            frame=int(timestamps[i] * 1000),
                             x=state_.center_x,
                             y=state_.center_y,
                             heading=state_.heading,
                             vx=state_.velocity_x,
                             vy=state_.velocity_y,
                         )
+                        time_stamps.add(state.frame)
 
                         trajectory.append_state(state)
 
@@ -135,7 +139,9 @@ class WOMDParser:
                     )
                     participants[track.id] = participant
 
-                return participants
+                actual_time_range = sorted(list(time_stamps))
+
+                return participants, actual_time_range
 
         return None
 
@@ -257,3 +263,5 @@ class WOMDParser:
                     self._parse_map_features(map_feature, map_)
                 for dynamic_map_state in scenario.dynamic_map_states:
                     self._parse_dynamic_map_features(dynamic_map_state, map_)
+
+        return map_

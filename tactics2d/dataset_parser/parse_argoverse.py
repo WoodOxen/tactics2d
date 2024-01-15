@@ -34,6 +34,7 @@ class ArgoverseParser:
         "riderless_bicycle": "bicycle",
         "pedestrian": "pedestrian",
         "background": "background",
+        "static": "static",
     }
 
     CLASS_MAPPING = {
@@ -44,6 +45,7 @@ class ArgoverseParser:
         "riderless_bicycle": Cyclist,
         "pedestrian": Pedestrian,
         "background": Other,
+        "static": Other,
     }
 
     DEFAULT_SIZE = {
@@ -54,6 +56,7 @@ class ArgoverseParser:
         "riderless_bicycle": (2.0, 0.7),
         "pedestrian": (0.5, 0.5),
         "background": (None, None),
+        "static": (None, None),
     }
 
     LANE_TYPE_MAPPING = {"VEHICLE": "road", "BIKE": "bicycle_lane"}
