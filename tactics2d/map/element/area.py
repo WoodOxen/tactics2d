@@ -8,7 +8,7 @@ from .defaults import LEGAL_SPEED_UNIT
 class Area:
     """This class implements the lenelet2-style map element *area*.
 
-    Detailed definition of lanelet2-style area:
+    Detailed definition of lanelet2-style area: 
         [LaneletPrimitives.md](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md)
 
     Attributes:
@@ -24,7 +24,7 @@ class Area:
             can pass the area. Defaults to None.
         speed_limit (float, optional): The speed limit in this area. Defaults to None.
         speed_limit_unit (str, optional): The unit of speed limit in this area. The valid units
-            are "km/h", "mi/h", and "m/s". Defaults to "km/h".
+            are `"km/h"`, `"mi/h"`, and `"m/s"`. Defaults to `"km/h"`.
         speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or
             not. Defaults to True.
         custom_tags (dict, optional): The custom tags of the area. Defaults to None.
