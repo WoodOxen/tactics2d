@@ -25,7 +25,7 @@ th{
 }
 
 td {
-	font-size: 18px;
+	font-size: 20px;
 	line-height: 1.2;
 }
 
@@ -85,7 +85,7 @@ h4 {
 
 /******************* p Doc ***************************/
 p.doc {
-	font-size: 20px;
+	font-size: 18px;
 	line-height: 1.2;
 	text-align: left;
 	font-weight: bold;
@@ -94,7 +94,7 @@ p.doc {
 
 /******************* Span Doc ***************************/
 small.doc {
-	font-size: 18px;
+	font-size: 16px;
 	line-height: 1.2;
 	text-align: left;
 	font-weight: bold;
@@ -103,7 +103,7 @@ small.doc {
 
 /******************* Strong ***************************/
 strong {
-	font-size: 20px;
+	font-size: 18px;
 	line-height: 1.2;
 	text-align: left;
 	font-weight: bold;
@@ -112,21 +112,22 @@ strong {
 
 /******************* Code ***************************/
 code {
+	font-size: 20px;
 	border-width: 1px;
 }
 
 code.highlight{
+	font-size: 20px;
 	border-top-style: solid;
 	border-top-width: 5px;
 	border-top-color: #587feb;
 }
 
 code.language-python {
+	font-size: 20px;
 	margin-top: 0px;
 	padding-left: 10px;
 	display: block;
-	font-size: 20px;
-	text-align: auto;
 	font-weight: bold;
 }
 
