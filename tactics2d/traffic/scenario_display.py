@@ -23,23 +23,13 @@ from tactics2d.sensor.defaults import COLOR_PALETTE, DEFAULT_COLOR
 
 class ScenarioDisplay:
     def __init__(self):
-        self.map_patches = dict()
         self.participant_patches = dict()
-
-    def reset(self):
-        for patch in self.map_patches.values():
-            patch.remove()
-
-        for patch in self.participant_patches.values():
-            patch.remove()
-
-    def export(self, fps, **kwargs):
-        pass
+        self.animation = None
 
     def _get_color(self, element):
         if element.color in COLOR_PALETTE:
             return COLOR_PALETTE[element.color]
-        
+
         if element.color is None:
             if hasattr(element, "subtype") and element.subtype in DEFAULT_COLOR:
                 return DEFAULT_COLOR[element.subtype]
@@ -57,7 +47,7 @@ class ScenarioDisplay:
                 return DEFAULT_COLOR["cyclist"]
             elif isinstance(element, Pedestrian):
                 return DEFAULT_COLOR["pedestrian"]
-            
+
         if len(element.color) == 3 or len(element.color) == 4:
             if 1 < np.max(element.color) <= 255:
                 return tuple([color / 255 for color in element.color])
@@ -69,7 +59,9 @@ class ScenarioDisplay:
         line_colors = []
 
         for area in map_.areas.values():
-            area = Polygon(area.geometry.exterior.coords, True, color=self._get_color(area), edgecolor=None)
+            area = Polygon(
+                area.geometry.exterior.coords, True, color=self._get_color(area), edgecolor=None
+            )
             patches.append(area)
 
         for lane in map_.lanes.values():
@@ -84,28 +76,32 @@ class ScenarioDisplay:
             line_colors.append(self._get_color(roadline))
 
         p = PatchCollection(patches, match_original=True)
-        l = LineCollection(lines, colors = line_colors, linewidths = line_widths)
+        l = LineCollection(lines, colors=line_colors, linewidths=line_widths)
 
         ax.add_collection(p)
         ax.add_collection(l)
 
     def update_participants(self, frame, participants, ax):
-
         for participant in participants.values():
             try:
                 participant.get_state(frame)
             except:
-                if participant.id_ in self.participant_patches:
+                if participant.id_ in self.participant_patches and participant.trajectory.last_frame < frame:
                     self.participant_patches[participant.id_].remove()
                     self.participant_patches.pop(participant.id_)
 
                 continue
 
             if isinstance(participant, Vehicle):
-                print(list(participant.get_pose(frame).coords))
+                # print(list(participant.get_pose(frame).coords))
                 if participant.id_ not in self.participant_patches:
                     self.participant_patches[participant.id_] = ax.add_patch(
-                        Polygon(participant.get_pose(frame).coords, True, color=self._get_color(participant), edgecolor=None)
+                        Polygon(
+                            participant.get_pose(frame).coords,
+                            True,
+                            color=self._get_color(participant),
+                            edgecolor=None,
+                        )
                     )
                 else:
                     self.participant_patches[participant.id_].set_xy(
@@ -114,44 +110,32 @@ class ScenarioDisplay:
 
         return list(self.participant_patches.values())
 
-    def display(
-        self,
-        participants,
-        map_,
-        trajectory_fps: int = 10,
-        time_range: Union[Tuple[int, int], List[int]] = (0, 10000),
-        axis_range=None,
-        export: bool = False,
-        **export_args
-    ):
-        interval_ms = int(1000 / trajectory_fps)
-        average_time = queue.Queue(maxsize=10)
-
+    def display(self, participants, map_, interval, frames, fig_size, **ax_kwargs):
         fig, ax = plt.subplots()
-        ax.set_aspect("equal")
+        fig.set_size_inches(fig_size)
+        # fig.tight_layout()
+        ax.set(**ax_kwargs)
+        # ax.set_axis_off()
 
         self.display_map(map_, ax)
         ax.plot()
 
-        print(time_range[0], time_range[1], interval_ms)
+        self.animation = FuncAnimation(
+            fig,
+            self.update_participants,
+            frames=frames,
+            fargs=(participants, ax),
+            interval=interval,
+        )
 
-        if len(time_range) == 2:
-            ani = FuncAnimation(
-                fig,
-                self.update_participants,
-                frames=np.arange(time_range[0], time_range[1], interval_ms),
-                fargs=(participants, ax),
-                interval=interval_ms,
-                repeat=False,
-            )
-        else:
-            ani = FuncAnimation(
-                fig,
-                self.update_participants,
-                frames=time_range,
-                fargs=(participants, ax),
-                interval=interval_ms,
-                repeat=False,
-            )
-        ax.autoscale()
-        plt.show()
+        return self.animation
+
+    def reset(self):
+        for patch in self.participant_patches.values():
+            patch.remove()
+
+        self.participant_patches.clear()
+        self.animation = None
+
+    def export(self, fps, **kwargs):
+        pass

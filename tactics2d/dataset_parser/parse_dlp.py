@@ -50,7 +50,7 @@ class DLPParser:
             type_=type_,
             length=instance["size"][0],
             width=instance["size"][1],
-            trajectory=Trajectory(id_=id_, fps=25.0),
+            trajectory=Trajectory(id_=id_, fps=25.0, stable_freq=False),
         )
 
         return participant

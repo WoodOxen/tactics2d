@@ -28,11 +28,11 @@ from tactics2d.dataset_parser import (
         ("rounD", 0, (-float("inf"), float("inf")), 348),
         ("exiD", 1, (-float("inf"), float("inf")), 871),
         ("uniD", 0, (-float("inf"), float("inf")), 362),
-        ("highD", 1, (100.0, 400.0), 386),
-        ("inD", 0, (100.0, 400.0), 134),
-        ("rounD", 0, (100.0, 400.0), 113),
-        ("exiD", 1, (100.0, 300.0), 312),
-        ("uniD", 0, (100.0, 300.0), 229),
+        ("highD", 1, (0, 10000), 20),
+        ("inD", 0, (0, 10000), 10),
+        ("rounD", 0, (0, 10000), 12),
+        ("exiD", 1, (0, 10000), 38),
+        ("uniD", 0, (0, 10000), 47),
     ],
 )
 def test_levelx_parser(dataset: str, file_id: int, stamp_range: tuple, expected: int):
@@ -41,7 +41,7 @@ def test_levelx_parser(dataset: str, file_id: int, stamp_range: tuple, expected:
     dataset_parser = LevelXParser(dataset)
 
     t1 = time.time()
-    participants = dataset_parser.parse_trajectory(file_id, file_path, stamp_range)
+    participants, _ = dataset_parser.parse_trajectory(file_id, file_path, stamp_range)
     t2 = time.time()
 
     assert len(participants) == expected
@@ -50,8 +50,7 @@ def test_levelx_parser(dataset: str, file_id: int, stamp_range: tuple, expected:
 
 @pytest.mark.dataset_parser
 @pytest.mark.parametrize(
-    "file_id, stamp_range, expected",
-    [(0, (-float("inf"), float("inf")), 97), (0, (100.0, 400.0), 12)],
+    "file_id, stamp_range, expected", [(0, (-float("inf"), float("inf")), 97), (0, (0, 10000), 5)]
 )
 def test_interaction_parser(file_id: int, stamp_range: tuple, expected: int):
     folder_path = (
@@ -60,7 +59,7 @@ def test_interaction_parser(file_id: int, stamp_range: tuple, expected: int):
     dataset_parser = InteractionParser()
 
     t1 = time.time()
-    participants = dataset_parser.parse_trajectory(file_id, folder_path, stamp_range)
+    participants, _ = dataset_parser.parse_trajectory(file_id, folder_path, stamp_range)
     t2 = time.time()
 
     assert len(participants) == expected
@@ -70,7 +69,7 @@ def test_interaction_parser(file_id: int, stamp_range: tuple, expected: int):
 @pytest.mark.dataset_parser
 @pytest.mark.parametrize(
     "file_id, stamp_range, expected",
-    [(12, (-float("inf"), float("inf")), 342), (12, (100.0, 400.0), 317)],
+    [(12, (-float("inf"), float("inf")), 342), (12, (0, 10000), 252)],
 )
 def test_dlp_parser(file_id: int, stamp_range: tuple, expected: int):
     zip_path = "./tactics2d/data/trajectory_sample/DLP.zip"
@@ -83,7 +82,7 @@ def test_dlp_parser(file_id: int, stamp_range: tuple, expected: int):
     dataset_parser = DLPParser()
 
     t1 = time.time()
-    participants = dataset_parser.parse_trajectory(file_id, file_path, stamp_range)
+    participants, _ = dataset_parser.parse_trajectory(file_id, file_path, stamp_range)
     t2 = time.time()
 
     assert (len(participants)) == expected
@@ -108,7 +107,7 @@ def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
     dataset_parser = NuPlanParser()
 
     t1 = time.time()
-    participants = dataset_parser.parse_trajectory(file_name, folder_path, stamp_range)
+    participants, _ = dataset_parser.parse_trajectory(file_name, folder_path, stamp_range)
     t2 = time.time()
 
     assert (len(participants)) == expected
@@ -124,8 +123,6 @@ def test_womd_parser():
     dataset_parser = WOMDParser()
 
     t1 = time.time()
-    participants = dataset_parser.parse_trajectory(
-        None, file_name=file_name, folder_path=folder_path
-    )
+    participants, _ = dataset_parser.parse_trajectory(None, file=file_name, folder=folder_path)
     t2 = time.time()
     logging.info(f"The time needed to parse a WOMD scenario: {t2 - t1}s")

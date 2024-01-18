@@ -55,3 +55,8 @@ DEFAULT_COLOR = {
     # default color for pedestrian class subtypes
     "pedestrian": COLOR_PALETTE["light-blue"],
 }
+
+DEFAULT_ORDERS = {
+    "lane": 1,
+    
+}

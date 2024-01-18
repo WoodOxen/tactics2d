@@ -163,7 +163,7 @@ class NuPlanParser:
         boundaries = gpd.read_file(map_file, layer="boundaries")
         for _, row in boundaries.iterrows():
             boundary_ids = [int(s) for s in row["boundary_segment_fids"].split(",") if s.isdigit()]
-            boundary_id = boundary_ids[0] - 1
+            boundary_id = boundary_ids[-1] + 1
             boundary = RoadLine(
                 id_=str(boundary_id),
                 linestring=affine_transform(LineString(row["geometry"]), self.transform_matrix),
