@@ -1,16 +1,18 @@
 /******************** Left side bar ***************************/
 nav.md-nav--primary {
-	font-family: Arial, Helvetica, sans-serif;
+	font-family: "Roboto", serif;
+	font-size: 18px;
 	text-align: left;
 	border-right-style: solid;
 	border-right-width: 1px;
 	border-right-color: #d6d6d6;
 }
 
+
 /******************* Right Side Bar ***************************/
 nav.md-nav--secondary {
-
-	font-family: Arial, Helvetica, sans-serif;
+	font-family: "Roboto", serif;
+	font-size: 16px;
 	text-align: left;
 	border-left-style: solid;
 	border-left-width: 1px;
@@ -18,36 +20,28 @@ nav.md-nav--secondary {
 }
 
 
-
-
 /******************** Table Item ***************************/
 th{
-	font-family: Arial, Helvetica, sans-serif;
 	font-size: 16px;
 	line-height: 1.2;
-	font-weight: bold;
 }
 
 td {
-	font-family: Arial, Helvetica, sans-serif;
-	font-size: 20px;
+	font-size: 16px;
 	line-height: 1.2;
-	font-weight: bold;
 }
+
 
 /******************* Table Description ***************************/
 div.doc-md-description {
-	font-family: Arial, Helvetica, sans-serif;
-	font-size: 18px;
-	text-align: left;
-	font-weight: normal;
+	font-size: 16px;
 }
+
 
 /******************* H1 Doc Heading ***************************/
 h1.doc-heading {
-	text-shadow: none;
-	font-family: Arial, Helvetica, sans-serif;
-	font-size: 50px;
+	font-family: "Roboto", serif;
+	font-size: 36px;
 	line-height: 1.2;
 	text-align: left;
 	font-weight: bold;
@@ -56,49 +50,56 @@ h1.doc-heading {
 
 /******************* H2 Doc Heading ***************************/
 h2.doc-heading {
+	font-family: "Roboto", serif;
 	margin-top: 3px;
-	font-family: Arial, Helvetica, sans-serif;
-	font-size: 40px;
+	font-size: 32px;
 	line-height: 1.2;
 	text-align: left;
 	font-weight: bold;
 }
+
 
 /******************* H3 Doc Heading ***************************/
 h3.doc-heading {
-	margin-top: 3px;
-	font-family: Arial, Helvetica, sans-serif;
-	font-size: 30px;
-	line-height: 1.2;
+	font-family: "Roboto Slab", sans-serif;
+	font-size: 28px;
+	line-height: 1.6;
 	text-align: left;
-	font-weight: bold;
 }
+
 
 /******************* H4 Doc Heading ***************************/
 h4 {
-	font-family: Arial, Helvetica, sans-serif;
 	font-size: 20px;
 	line-height: 1.2;
-	text-align: left;
-	font-weight: bold;
-
 }
 
+
+/******************* Callout ***************************/
+.admonition-title {
+	font-size: 16px;
+}
+
+.admonition-abstract {
+	font-size: 16px;
+}
+
+.admonition.info {
+	font-size: 16px;
+}
 
 /******************* p Doc ***************************/
 p.doc {
-
-	font-family: Arial, Helvetica, sans-serif;
 	font-size: 20px;
 	line-height: 1.2;
 	text-align: left;
 	font-weight: bold;
 }
 
+
 /******************* Span Doc ***************************/
 small.doc {
-	font-size: 24px;
-	font-family: "Times New Roman", Times, serif;
+	font-size: 18px;
 	line-height: 1.2;
 	text-align: left;
 	font-weight: bold;
@@ -107,38 +108,33 @@ small.doc {
 
 /******************* Strong ***************************/
 strong {
-
-	font-family: Arial, Helvetica, sans-serif;
 	font-size: 20px;
 	line-height: 1.2;
 	text-align: left;
 	font-weight: bold;
 }
 
+
 /******************* Code ***************************/
 code {
-	border-width: 0px;
-	font-family: 'Times New Roman', Times, serif;
+	border-width: 1px;
 }
-
 
 code.highlight{
 	border-top-style: solid;
 	border-top-width: 5px;
 	border-top-color: #587feb;
-	/* background-color: #f5f7fc; */
 }
-
 
 code.language-python {
 	margin-top: 0px;
 	padding-left: 10px;
 	display: block;
 	font-size: 20px;
-	font-family: Arial, Helvetica, sans-serif;
 	text-align: auto;
 	font-weight: bold;
 }
+
 
 /******************* Class Region ***************************/
 div.doc-class {
@@ -146,8 +142,7 @@ div.doc-class {
 	padding-right: 3px;
 	border-top-width: 5px;
 	border-top-style: solid;
-	border-top-color: rgb(0, 162, 255);
-
+	border-top-color: #0eb0c9;
 	border-right-width: 1px;
 	border-right-style : solid;
 	border-right-color: #d6d6d6;
@@ -161,22 +156,23 @@ div.md-typeset__table {
 	font-weight: bold;
 }
 
+div.doc-class {
+	font-size: 18px;
+}
+
 div.doc-function {
+	font-size: 18px;
 	align-self: flex-start;
 	border-right-width: 1px;
 	border-right-style : solid;
 	border-right-color: #d6d6d6;
 	padding-bottom: 0px;
-	margin-bottom: 30px;
-	/* border-bottom-width: 2px;
-	border-bottom-style: inset;
-	border-bottom-color: rgb(0, 0, 0); */
+	margin-bottom: 18px;
 }
 
 
 /******************* Function name and Parameters name ***************************/
 span.n {
-	font-family: Arial, Helvetica, sans-serif;
 	line-height: 1.2;
 	text-align: left;
 	font-weight: bold;
@@ -185,8 +181,6 @@ span.n {
 
 /******************* Function Default Parameter ***************************/
 span.kc {
-
-	font-family: Arial, Helvetica, sans-serif;
 	line-height: 1.2;
 	text-align: left;
 	font-weight: bold;
@@ -195,52 +189,42 @@ span.kc {
 
 /******************* Function Default String Input ***************************/
 span.s1 {
-	font-family: Arial, Helvetica, sans-serif;
 	line-height: 1.2;
 	text-align: left;
 	font-weight: bold;
 }
 
-
 /******************* Function Default Number Input ***************************/
 span.mf {
-	font-family: Arial, Helvetica, sans-serif;
 	font-size: 16px;
 	line-height: 1.2;
 }
 
-
 /******************* Init Function ***************************/
 span.fm {
-	font-family: Arial, Helvetica, sans-serif;
 	line-height: 1.2;
 }
 
 
 /******************* Details ***************************/
 summary {
-	font-family: Arial, Helvetica, sans-serif;
-	font-size: 16px;
+	font-size: 18px;
 	line-height: 1.2;
 	text-align: left;
 	font-weight: bold;
 }
+
 
 /******************* Hyperlink ***************************/
 a {
-	font-size: 16px;
+	font-size: 18px;
 	line-height: 1.2;
 	text-align: left;
 }
 
-
-
 em {
-
-	font-family: Arial, Helvetica, sans-serif;
-	font-size: 18px;
+	font-size: 16px;
 	line-height: 1.2;
 	text-align: center;
-	font-weight: bold;
 	font-style: italic;
 }
