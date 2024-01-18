@@ -1,6 +1,6 @@
 /******************** Left side bar ***************************/
 nav.md-nav--primary {
-	font-size: 18px;
+	font-size: 16px;
 	text-align: left;
 	border-right-style: solid;
 	border-right-width: 1px;
@@ -25,7 +25,7 @@ th{
 }
 
 td {
-	font-size: 16px;
+	font-size: 18px;
 	line-height: 1.2;
 }
 
@@ -38,7 +38,6 @@ div.doc-md-description {
 
 /******************* H1 Doc Heading ***************************/
 h1.doc-heading {
-	font-family: "Roboto Slab", sans-serif;
 	font-size: 36px;
 	line-height: 1.2;
 	text-align: left;
@@ -48,7 +47,6 @@ h1.doc-heading {
 
 /******************* H2 Doc Heading ***************************/
 h2.doc-heading {
-	font-family: "Roboto Slab", sans-serif;
 	margin-top: 3px;
 	font-size: 32px;
 	line-height: 1.2;
@@ -59,7 +57,6 @@ h2.doc-heading {
 
 /******************* H3 Doc Heading ***************************/
 h3.doc-heading {
-	font-family: "Roboto Slab", serif;
 	font-size: 28px;
 	line-height: 1.6;
 	text-align: left;
