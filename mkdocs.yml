@@ -16,15 +16,15 @@ nav:
     - Quick Start: "tutorial/quick_start.md"
     - Customization: "tutorial/custom"
   - Python API:
+      - tactics2d.dataset_parser: "api/dataset_parser.md"
+      - tactics2d.envs: "api/envs.md"
+      - tactics2d.map: "api/map.md"
+      - tactics2d.participant: "api/participant.md"
       - tactics2d.math: "api/math.md"
       - tactics2d.physics: "api/physics.md"
-      - tactics2d.participant: "api/participant.md"
-      - tactics2d.map: "api/map.md"
-      - tactics2d.trajectory: "api/trajectory.md"
-      - tactics2d.dataset_parser: "api/dataset_parser.md"
       - tactics2d.sensor: "api/sensor.md"
       - tactics2d.traffic: "api/traffic.md"
-      - tactics2d.envs: "api/envs.md"
+      - tactics2d.trajectory: "api/trajectory.md"
   - Reference: "reference.md"
   - Publications: "publication.md"
 
@@ -44,7 +44,7 @@ theme:
       bug: octicons/bug-16
       example: octicons/beaker-16
       quote: octicons/quote-16
-  palette:
+    palette:
     # Palette toggle for light mode
     - scheme: default
       toggle:
@@ -81,6 +81,7 @@ theme:
 plugins:
   - glightbox
   - mkdocstrings:
+      custom_templates: templates
       default_handler: python
       handlers:
         python:
@@ -91,6 +92,7 @@ plugins:
   - search
 
 markdown_extensions:
+  - abbr
   - admonition
   - pymdownx.details
   - pymdownx.superfences

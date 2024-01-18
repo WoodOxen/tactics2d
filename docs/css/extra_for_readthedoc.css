@@ -1,0 +1,236 @@
+/******************** Left side bar ***************************/
+nav.md-nav--primary {
+	font-family: Arial, Helvetica, sans-serif;
+	text-align: left;
+	border-right-style: solid;
+	border-right-width: 1px;
+	border-right-color: #d6d6d6;
+}
+
+/******************* Right Side Bar ***************************/
+nav.md-nav--secondary {
+
+	font-family: Arial, Helvetica, sans-serif;
+	text-align: left;
+	border-left-style: solid;
+	border-left-width: 1px;
+	border-left-color: #d6d6d6;
+}
+
+
+/******************** Table Item ***************************/
+th{
+	color: #000;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 16px;
+	line-height: 1.2;
+	text-align: center;
+	font-weight: bold;
+}
+
+td {
+	color: #00FFFF;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 20px;
+	line-height: 1.2;
+	text-align: center;
+	font-weight: bold;
+}
+
+/******************* Table Description ***************************/
+div.doc-md-description {
+	color: #000;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 16px;
+	overflow: auto;
+	font-weight: normal;
+}
+
+/******************* H1 Doc Heading ***************************/
+h1.doc-heading {
+	background-color: #FFFFFF;
+	text-shadow: none;
+	color: #000;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 50px;
+	line-height: 1.2;
+	text-align: left;
+	font-weight: bold;
+}
+
+h1.doc {
+	background-color: #FFFFFF;
+	text-shadow: #FFFFFF;
+	text-shadow: none;
+	color: #000;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 50px;
+	line-height: 1.2;
+	text-align: left;
+	font-weight: bold;
+}
+
+/******************* H2 Doc Heading ***************************/
+h2.doc-heading {
+	background-color : #FFFFFF;
+	color: #000;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 40px;
+	line-height: 1.2;
+	text-align: left;
+	font-weight: bold;
+}
+
+/******************* H3 Doc Heading ***************************/
+h3.doc-heading {
+	background : #FFFFFF;
+	color: #000;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 30px;
+	line-height: 1.2;
+	text-align: left;
+	font-weight: bold;
+}
+
+/******************* H4 Doc Heading ***************************/
+h4 {
+	color: #000;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 20px;
+	line-height: 1.2;
+	text-align: left;
+	font-weight: bold;
+
+}
+
+
+/******************* p Doc ***************************/
+p.doc {
+	color: #000;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 20px;
+	line-height: 1.2;
+	text-align: left;
+	font-weight: bold;
+}
+
+/******************* Span Doc ***************************/
+small.doc {
+	font-family: "Times New Roman", Times, serif;
+	line-height: 1.2;
+	text-align: left;
+	font-weight: bold;
+}
+
+
+/******************* Strong ***************************/
+strong {
+	color: #000;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 20px;
+	line-height: 1.2;
+	text-align: left;
+	font-weight: bold;
+}
+
+/******************* Code ***************************/
+code {
+	color: #000;
+	background-color: #ffffff;
+	border-width: 0px;
+	font-family: 'Times New Roman', Times, serif;
+}
+
+code.highlight{
+	border-top-style: solid;
+	border-top-width: 5px;
+	border-top-color: #587feb;
+	background-color: #f5f7fc;
+}
+
+
+code.language-python {
+	margin-top: 0px;
+	padding-left: 10px;
+	display: block;
+	font-size: 18px;
+	font-family: Arial, Helvetica, sans-serif;
+	text-align: auto;
+	font-weight: bold;
+}
+
+/******************* Init Function ***************************/
+span.fm {
+	color: #3d3c3c;
+	font-family: Arial, Helvetica, sans-serif;
+	line-height: 1.2;
+}
+
+/******************* Function name and Parameters name ***************************/
+span.n {
+	font-family: Arial, Helvetica, sans-serif;
+	line-height: 1.2;
+	text-align: left;
+	font-weight: bold;
+	color: #3d3c3c;
+}
+
+
+/******************* Function Default Parameter ***************************/
+span.kc {
+
+	font-family: Arial, Helvetica, sans-serif;
+	line-height: 1.2;
+	text-align: left;
+	font-weight: bold;
+	color: #868686;
+}
+
+
+/******************* Function Default String Input ***************************/
+span.s1 {
+	color: #655bf7;
+	font-family: Arial, Helvetica, sans-serif;
+	line-height: 1.2;
+	text-align: left;
+	font-weight: bold;
+}
+
+
+/******************* Function Default Number Input ***************************/
+span.mf {
+	color: #d6c316;
+	font-family: Arial, Helvetica, sans-serif;
+	line-height: 1.2;
+}
+
+
+/******************* Details ***************************/
+summary {
+	color: #000;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 16px;
+	line-height: 1.2;
+	text-align: left;
+	font-weight: bold;
+}
+
+/******************* Hyperlink ***************************/
+a {
+	color: #000;
+	font-size: 16px;
+	line-height: 1.2;
+	text-align: left;
+}
+
+
+
+em {
+	color: #a50707;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 20px;
+	line-height: 1.2;
+	text-align: center;
+	font-weight: bold;
+	font-style: italic;
+}

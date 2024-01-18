@@ -25,21 +25,25 @@ class Lane:
         left_side (LineString): The left side of the lane.
         right_side (LineString): The right side of the lane.
         line_ids (set, optional): The ids of the roadline components. Defaults to None.
-        type_ (str): The type of the lane. The default value is "lanelet".
+        type_ (str): The type of the lane. The default value is `"lanelet"`.
         subtype (str, optional): The subtype of the lane. Defaults to None.
         location (str, optional): The location of the lane (urban, nonurban, etc.). Defaults to None.
         inferred_participants (list, optional): The allowing type of traffic participants that can pass the lane. Defaults to None.
         speed_limit (float, optional): The speed limit in this lane. Defaults to None.
-        speed_limit_unit (str, optional): The unit of speed limit in this area. The valid units are "km/h", "mi/h", and "m/s". Defaults to "km/h".
-        speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or not. Defaults to True.
+        speed_limit_unit (str, optional): The unit of speed limit in this area. The valid units
+            are `"km/h"`, `"mi/h"`, and `"m/s"`. Defaults to `"km/h"`.
+        speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or
+            not. Defaults to True.
         custom_tags (dict, optional): The custom tags of the lane. Defaults to None.
         predecessors (set): The ids of the available lanes before entering the current lane.
         successors (set): The ids of the available lanes after exiting the current lane.
-        left_neighbors (set): The ids of the available lanes on the left side of the current lane.
-        right_neighbors (set): The ids of the available lanes on the right side of the current lane.
-        starts (list): The start points of the lane. This attribute is automatically calculated when requested.
-        ends (list): The end points of the lane. This attribute is automatically calculated when requested.
-        shape (list): The shape of the lane. This attribute is automatically calculated when requested.
+        left_neighbors (set): The ids of the available lanes on the left side of the current
+            lane.
+        right_neighbors (set): The ids of the available lanes on the right side of the current
+            lane.
+        start (list, read-only): The start points of the lane.
+        end (list, read-only): The end points of the lane.
+        shape (list, read-only): The shape of the lane.
     """
 
     speed_limit_units = ["km/h", "mi/h", "m/s"]

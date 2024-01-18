@@ -20,6 +20,8 @@ import pytest
 from tactics2d.map.parser import Lanelet2Parser
 from tactics2d.dataset_parser import LevelXParser
 from tactics2d.sensor import TopDownCamera, SingleLineLidar, RenderManager
+from tactics2d.dataset_parser import LevelXParser
+from tactics2d.sensor import TopDownCamera, SingleLineLidar, RenderManager
 
 
 @pytest.mark.render

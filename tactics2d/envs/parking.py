@@ -9,12 +9,15 @@ from gymnasium.error import InvalidAction
 
 from tactics2d.map.element import Map
 from tactics2d.map.generator import ParkingLotGenerator
+from tactics2d.map.generator import ParkingLotGenerator
 from tactics2d.participant.element import Vehicle
 from tactics2d.physics import SingleTrackKinematics
 from tactics2d.traffic import ScenarioManager
 from tactics2d.traffic.violation_detection import TrafficEvent
 from tactics2d.sensor import TopDownCamera, SingleLineLidar, RenderManager
 from tactics2d.trajectory.element import State
+
+from tactics2d.participant.element.defaults import VEHICLE_MODEL
 
 from tactics2d.participant.element.defaults import VEHICLE_MODEL
 
@@ -25,6 +28,12 @@ WIN_H = 500
 
 FPS = 60
 MAX_FPS = 200
+TIME_STEP = 0.01
+MAX_STEP = 20000
+MAX_SPEED = 2.0
+MAX_STEER = 0.75
+LIDAR_RANGE = 20.0
+LIDAR_LINE = 120
 TIME_STEP = 0.01
 MAX_STEP = 20000
 MAX_SPEED = 2.0
@@ -53,7 +62,16 @@ class ParkingScenarioManager(ScenarioManager):
         off_screen (bool): Whether to render the scene on the screen.
         max_step (int, optional): The maximum number of steps. Defaults to 20000.
         step_size (float): The time duration of each step. Defaults to 0.5.
+        max_step (int, optional): The maximum number of steps. Defaults to 20000.
+        step_size (float): The time duration of each step. Defaults to 0.5.
     """
+
+    max_steer = MAX_STEER
+    max_speed = MAX_SPEED
+    lidar_line = LIDAR_LINE
+    lidar_range = LIDAR_RANGE
+    window_size = (WIN_W, WIN_H)
+    state_size = (STATE_W, STATE_H)
 
     max_steer = MAX_STEER
     max_speed = MAX_SPEED
@@ -69,7 +87,12 @@ class ParkingScenarioManager(ScenarioManager):
         off_screen: bool,
         max_step: float = MAX_STEP,
         step_size: float = 0.5,
+        max_step: float = MAX_STEP,
+        step_size: float = 0.5,
     ):
+        super().__init__(render_fps, off_screen, max_step, step_size)
+
+        self.vehicle_configs = VEHICLE_MODEL["medium_car"]
         super().__init__(render_fps, off_screen, max_step, step_size)
 
         self.vehicle_configs = VEHICLE_MODEL["medium_car"]
@@ -82,7 +105,20 @@ class ParkingScenarioManager(ScenarioManager):
             wheel_base=self.vehicle_configs["wheel_base"],
             speed_range=(-self.max_speed, self.max_speed),
             steer_range=(-self.max_steer, self.max_steer),
+            length=self.vehicle_configs["length"],
+            width=self.vehicle_configs["width"],
+            wheel_base=self.vehicle_configs["wheel_base"],
+            speed_range=(-self.max_speed, self.max_speed),
+            steer_range=(-self.max_steer, self.max_steer),
             accel_range=(-1.0, 1.0),
+            physics_model=SingleTrackKinematics(
+                dist_front_hang=0.5 * self.vehicle_configs["length"]
+                - self.vehicle_configs["front_overhang"],
+                dist_rear_hang=0.5 * self.vehicle_configs["length"]
+                - self.vehicle_configs["rear_overhang"],
+                steer_range=(-self.max_steer, self.max_steer),
+                speed_range=(-self.max_speed, self.max_speed),
+            ),
             physics_model=SingleTrackKinematics(
                 dist_front_hang=0.5 * self.vehicle_configs["length"]
                 - self.vehicle_configs["front_overhang"],
@@ -100,6 +136,7 @@ class ParkingScenarioManager(ScenarioManager):
         )
 
         self.render_manager = RenderManager(
+            fps=self.render_fps, windows_size=self.window_size, off_screen=self.off_screen
             fps=self.render_fps, windows_size=self.window_size, off_screen=self.off_screen
         )
 
@@ -123,6 +160,7 @@ class ParkingScenarioManager(ScenarioManager):
 
     def update(self, action: np.ndarray) -> TrafficEvent:
         self.n_step += 1
+        self.agent.update(action, self.step_size)
         self.agent.update(action, self.step_size)
         self.render_manager.update(self.participants, [0], self.agent.current_state.frame)
 
@@ -166,6 +204,9 @@ class ParkingScenarioManager(ScenarioManager):
         (self.start_state, self.target_area, self.target_heading) = self.map_generator.generate(
             self.map_
         )
+        (self.start_state, self.target_area, self.target_heading) = self.map_generator.generate(
+            self.map_
+        )
 
         # reset agent
         self.agent.reset(self.start_state)
@@ -178,6 +219,7 @@ class ParkingScenarioManager(ScenarioManager):
             map_=self.map_,
             perception_range=(20, 20, 20, 20),
             window_size=self.state_size,
+            window_size=self.state_size,
             off_screen=self.off_screen,
         )
         self.render_manager.add_sensor(camera)
@@ -186,6 +228,9 @@ class ParkingScenarioManager(ScenarioManager):
         lidar = SingleLineLidar(
             id_=1,
             map_=self.map_,
+            perception_range=self.lidar_range,
+            freq_detect=self.lidar_line * 10,
+            window_size=self.state_size,
             perception_range=self.lidar_range,
             freq_detect=self.lidar_line * 10,
             window_size=self.state_size,
@@ -198,13 +243,14 @@ class ParkingScenarioManager(ScenarioManager):
         self.dist_norm_ratio = max(
             Point(self.start_state.location).distance(self.target_area.geometry.centroid),
             self.lidar_range,
+            self.lidar_range,
         )
 
 
 class ParkingEnv(gym.Env):
     """This class provides an environment to train ego vehicle to park in a parking lot without
     dynamic traffic participants, such as pedestrians and vehicles. The environment is randomly
-    generated by calling `tactics2d:map:generator:ParkingLotGenerator`. The agent is
+    generated by calling [`tactics2d:map:generator:ParkingLotGenerator`](../api_map/#tactics2d.map.generator.ParkingLotGenerator). The agent is
     required to park the vehicle in the target area. When the IoU between the agent and
     the target area is larger than 0.95, the agent is considered to be successfully parked.
 
@@ -226,6 +272,7 @@ class ParkingEnv(gym.Env):
     ## Status
 
     The status is a TrafficEvent. The possible values are (sorted by detection priority):
+
     - TrafficEvent.TIME_EXCEEDED: The simulation reaches the maximum time step.
     - TrafficEvent.COLLISION_STATIC: The agent collides with any obstacle.
     - TrafficEvent.OUTSIDE_MAP: The agent is outside the map boundary.
@@ -236,16 +283,17 @@ class ParkingEnv(gym.Env):
     ## Reward
 
     The reward is calculated as follows:
+
     - If the agent's status is TIME_EXCEEDED, the reward is -1.
     - If the agent's status is in [COLLISION_STATIC, OUTSIDE_MAP], the reward is -5.
     - If the agent's status is COMPLETED, the reward is 5.
     - Otherwise, the reward is calculated as the weighted sum of time penalty and IoU reward.
 
     Attributes:
-        bay_proportion(float, optional): The proportion of the parking bay in the randomly
+        bay_proportion (float, optional): The proportion of the parking bay in the randomly
             generated environment. Defaults to 0.5.
-        render_mode (str, optional): The rendering mode. Possible choices are "human" and
-            "rgb_array". Defaults to "human".
+        render_mode (str, optional): The rendering mode. Possible choices are `"human"` and
+            `"rgb_array"`. Defaults to `"human"`.
         render_fps (int, optional): The rendering FPS. Defaults to 60.
         max_step (int, optional): The maximum number of steps. Defaults to 20000.
         continuous (bool, optional): Whether to use continuous action space. Defaults to True.
