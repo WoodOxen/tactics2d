@@ -17,7 +17,7 @@ COLOR_PALETTE = {
     "light-purple": "#a55eea",
     "white": "#f1f2f6",
     "light-gray": "#a5b1c2",
-    "gray": "#778ca3",
+    "gray": "#b2bec3",
     "dark-gray": "#4b6584",
     "black": "#2f3542",
 }
@@ -39,15 +39,17 @@ DEFAULT_COLOR = {
     # default color for area class subtypes
     "area": COLOR_PALETTE["black"],
     "hole": COLOR_PALETTE["white"],
-    "parking": COLOR_PALETTE["dark-gray"],
+    "parking": COLOR_PALETTE["black"],
     "freespace": COLOR_PALETTE["black"],
     "vegetation": COLOR_PALETTE["green"],
     "keepout": COLOR_PALETTE["red"],
     "building": COLOR_PALETTE["gray"],
-    "traffic_island": COLOR_PALETTE["gray"],
+    "traffic_island": COLOR_PALETTE["dark-gray"],
     "obstacle": COLOR_PALETTE["gray"],
     # default color for roadline class subtypes
     "roadline": COLOR_PALETTE["white"],
+    "curbstone": COLOR_PALETTE["light-gray"],
+    "road_border": COLOR_PALETTE["light-gray"],
     # default color for vehicle class subtypes
     "vehicle": COLOR_PALETTE["light-turquoise"],
     # default color for cyclist class subtypes
@@ -56,7 +58,37 @@ DEFAULT_COLOR = {
     "pedestrian": COLOR_PALETTE["light-blue"],
 }
 
-DEFAULT_ORDERS = {
-    "lane": 1,
-    
+DEFAULT_ORDER = {
+    # default zorder for lane class subtypes
+    "lane": 3,
+    "road": 3,
+    "highway": 3,
+    "play_street": 3,
+    "emergency_lane": 3,
+    "bus_lane": 2,
+    "bicycle_lane": 2,
+    "exit": 3,
+    "walkway": 3,
+    "shared_walkway": 3,
+    "crosswalk": 2,
+    "stairs": 3,
+    # default zorder for area class subtypes
+    "area": 2,
+    "hole": 3,
+    "parking": 3,
+    "freespace": 3,
+    "vegetation": 3,
+    "keepout": 3,
+    "building": 4,
+    "traffic_island": 3,
+    "obstacle": 4,
+    # default zorder for roadline class subtypes
+    "roadline": 3.5,
+    "road_border": 3.5,
+    "curbstone": 4,
+    # default zorder for cyclist class subtypes
+    "vehicle": 5,
+    # default zorder for pedestrian class subtypes
+    "cyclist": 5,
+    "pedestrian": 5,
 }

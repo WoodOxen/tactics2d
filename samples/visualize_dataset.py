@@ -53,6 +53,7 @@ DATASET_FPS = {
     "dlp": 25,
     "interaction": 10,
     "nuplan": 20,
+    "womd": 10,
 }
 
 
@@ -113,9 +114,10 @@ def parse_data(args):
 
     elif args.dataset == "womd":
         dataset_parser = WOMDParser()
-        trajectories = dataset_parser.parse_trajectory(file=args.file, folder=args.folder)
+        trajectories, actual_time_range = dataset_parser.parse_trajectory(
+            file=args.file, folder=args.folder
+        )
 
-        # map_ = dataset_parser.parse_map(file=args.map_file, folder=args.folder)
         map_ = dataset_parser.parse_map(
             file="motion_data_one_scenario.tfrecord", folder=args.folder
         )
@@ -172,5 +174,7 @@ if __name__ == "__main__":
     if len(actual_range) == 2:
         actual_time_range = (actual_range[0], actual_range[0] + 10000)
     else:
-        actual_time_range = [t for t in actual_range if t <= actual_range[0]+10000]
-    scenario_display.display(participants, map_, trajectory_fps=DATASET_FPS[args.dataset], time_range=actual_time_range)
+        actual_time_range = [t for t in actual_range if t <= actual_range[0] + 10000]
+    scenario_display.display(
+        participants, map_, trajectory_fps=DATASET_FPS[args.dataset], time_range=actual_time_range
+    )

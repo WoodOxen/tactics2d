@@ -24,7 +24,7 @@ CLASS_MAPPING = {"cyclist": Cyclist, "pedestrian": Pedestrian}
 class InteractionParser:
     """This class implements a parser for INTERACTION dataset.
 
-    !!! info "Reference"
+    ??? info "Reference"
         Zhan, Wei, et al. "Interaction dataset: An international, adversarial and cooperative motion dataset in interactive driving scenarios with semantic maps." arXiv preprint arXiv:1910.03088 (2019).
     """
 

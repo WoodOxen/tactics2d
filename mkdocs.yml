@@ -25,7 +25,6 @@ nav:
       - tactics2d.sensor: "api/sensor.md"
       - tactics2d.traffic: "api/traffic.md"
       - tactics2d.trajectory: "api/trajectory.md"
-  - Reference: "reference.md"
   - Publications: "publication.md"
 
 theme: 

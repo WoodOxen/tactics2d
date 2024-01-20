@@ -17,7 +17,7 @@ class LaneRelationship(Enum):
 class Lane:
     """This class implements the lenelet2-style map element *Lane*.
 
-    Detailed definition of lanelet2-style lane:
+    ??? info "Detailed definition of lanelet2-style lane"
         [LaneletPrimitives](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md)
 
     Attributes:

@@ -4,52 +4,11 @@ import numpy as np
 from shapely.geometry import Point
 from shapely.affinity import affine_transform
 import pygame
-from pygame.colordict import THECOLORS
 
-from .sensor_base import SensorBase
-from tactics2d.map.element import Map
+from tactics2d.map.element import Area, Lane, RoadLine, Map
 from tactics2d.participant.element import Vehicle, Cyclist, Pedestrian
-
-
-LANE_COLOR = {
-    "default": THECOLORS["darkgray"],
-    "road": THECOLORS["darkgray"],
-    "highway": THECOLORS["dimgray"],
-    "play_street": THECOLORS["slategray"],
-    "emergency_lane": THECOLORS["red4"],
-    "bus_lane": THECOLORS["dodgerblue4"],
-    "bicycle_lane": THECOLORS["darkgreen"],
-    "exit": THECOLORS["palegreen4"],
-    "walkway": THECOLORS["azure3"],
-    "shared_walkway": THECOLORS["darkgray"],
-    "crosswalk": THECOLORS["silver"],
-    "stairs": THECOLORS["lightslategray"],
-}
-
-
-AREA_COLOR = {
-    "default": THECOLORS["slategray"],
-    "hole": THECOLORS["white"],
-    "parking": THECOLORS["darkgray"],
-    "freespace": THECOLORS["slategray"],
-    "vegetation": THECOLORS["forestgreen"],
-    "keepout": THECOLORS["red2"],
-    "building": THECOLORS["steelblue1"],
-    "traffic_island": THECOLORS["silver"],
-    "obstacle": THECOLORS["gray"],
-}
-
-
-ROADLINE_COLOR = {"default": THECOLORS["white"]}
-
-
-VEHICLE_COLOR = {"default": THECOLORS["turquoise1"]}
-
-
-CYCLIST_COLOR = {"default": THECOLORS["cyan1"]}
-
-
-PEDESTRIAN_COLOR = {"default": THECOLORS["lightpink1"]}
+from .sensor_base import SensorBase
+from .defaults import COLOR_PALETTE, DEFAULT_COLOR
 
 
 class TopDownCamera(SensorBase):
@@ -58,9 +17,7 @@ class TopDownCamera(SensorBase):
     Attributes:
         id_ (int): The unique identifier of the sensor.
         map_ (Map): The map that the sensor is attached to.
-        perception_range (Union[float, tuple]): The distance from the sensor to its maximum detection range in
-            (left, right, front, back). When this value is undefined, the camera is assumed to
-            detect the whole map. Defaults to None.
+        perception_range (Union[float, tuple]): The distance from the sensor to its maximum detection range in (left, right, front, back). When this value is undefined, the camera is assumed to detect the whole map. Defaults to None.
         window_size (Tuple[int, int]): The size of the rendering window. Defaults to (200, 200).
         off_screen (bool): Whether to render the sensor off screen. Defaults to True.
     """
@@ -115,23 +72,42 @@ class TopDownCamera(SensorBase):
     def _in_perception_range(self, geometry) -> bool:
         return geometry.distance(self.position) > self.max_perception_distance * 2
 
+    def _get_color(self, element):
+        if element.color in COLOR_PALETTE:
+            return pygame.Color(COLOR_PALETTE[element.color])
+
+        if element.color is None:
+            if hasattr(element, "subtype") and element.subtype in DEFAULT_COLOR:
+                return pygame.Color(DEFAULT_COLOR[element.subtype])
+            if hasattr(element, "type_") and element.type_ in DEFAULT_COLOR:
+                return pygame.Color(DEFAULT_COLOR[element.type_])
+            elif isinstance(element, Area):
+                return pygame.Color(DEFAULT_COLOR["area"])
+            elif isinstance(element, Lane):
+                return pygame.Color(DEFAULT_COLOR["lane"])
+            elif isinstance(element, RoadLine):
+                return pygame.Color(DEFAULT_COLOR["roadline"])
+            elif isinstance(element, Vehicle):
+                return pygame.Color(DEFAULT_COLOR["vehicle"])
+            elif isinstance(element, Cyclist):
+                return pygame.Color(DEFAULT_COLOR["cyclist"])
+            elif isinstance(element, Pedestrian):
+                return pygame.Color(DEFAULT_COLOR["pedestrian"])
+
     def _render_areas(self):
         for area in self.map_.areas.values():
             if self.position is not None:
                 if self._in_perception_range(area.geometry):
                     continue
 
-            color = (
-                AREA_COLOR[area.subtype] if area.subtype in AREA_COLOR else AREA_COLOR["default"]
-            )
-            color = color if area.color is None else area.color
+            color = self._get_color(area)
             polygon = affine_transform(area.geometry, self.transform_matrix)
             outer_points = list(polygon.exterior.coords)
             inner_list = list(polygon.interiors)
 
             pygame.draw.polygon(self.surface, color, outer_points)
             for inner_points in inner_list:
-                pygame.draw.polygon(self.surface, AREA_COLOR["hole"], inner_points)
+                pygame.draw.polygon(self.surface, pygame.Color(DEFAULT_COLOR["hole"]), inner_points)
 
     def _render_lanes(self):
         for lane in self.map_.lanes.values():
@@ -139,10 +115,7 @@ class TopDownCamera(SensorBase):
                 if self._in_perception_range(lane.geometry):
                     continue
 
-            color = (
-                LANE_COLOR[lane.subtype] if lane.subtype in LANE_COLOR else LANE_COLOR["default"]
-            )
-            color = color if lane.color is None else lane.color
+            color = self._get_color(lane)
             points = list(affine_transform(lane.geometry, self.transform_matrix).coords)
 
             pygame.draw.polygon(self.surface, color, points)
@@ -153,12 +126,7 @@ class TopDownCamera(SensorBase):
                 if self._in_perception_range(roadline.linestring):
                     continue
 
-            color = (
-                ROADLINE_COLOR[roadline.color]
-                if roadline.subtype in ROADLINE_COLOR
-                else ROADLINE_COLOR["default"]
-            )
-            color = color if roadline.color is None else roadline.color
+            color = self._get_color(roadline)
             points = list(affine_transform(roadline.linestring, self.transform_matrix).coords)
 
             if roadline.type_ == "line_thick":
@@ -169,7 +137,7 @@ class TopDownCamera(SensorBase):
             pygame.draw.aalines(self.surface, color, False, points, width)
 
     def _render_vehicle(self, vehicle: Vehicle, frame: int = None):
-        color = VEHICLE_COLOR["default"] if vehicle.color is None else vehicle.color
+        color = self._get_color(vehicle)
         points = np.array(affine_transform(vehicle.get_pose(frame), self.transform_matrix).coords)
         triangle = [
             (points[0] + points[1]) / 2,
@@ -181,13 +149,13 @@ class TopDownCamera(SensorBase):
         pygame.draw.polygon(self.surface, (0, 0, 0), triangle, width=1)
 
     def _render_cyclist(self, cyclist: Cyclist, frame: int = None):
-        color = CYCLIST_COLOR["default"] if cyclist.color is None else cyclist.color
+        color = self._get_color(cyclist)
         points = list(affine_transform(cyclist.get_pose(frame), self.transform_matrix).coords)
 
         pygame.draw.polygon(self.surface, color, points)
 
     def _render_pedestrian(self, pedestrian: Pedestrian, frame: int = None):
-        color = PEDESTRIAN_COLOR["default"] if pedestrian.color is None else pedestrian.color
+        color = self._get_color(pedestrian)
         point = affine_transform(
             Point(pedestrian.trajectory.get_state(frame).location), self.transform_matrix
         )
@@ -232,7 +200,7 @@ class TopDownCamera(SensorBase):
         self.heading = heading
         self._update_transform_matrix()
 
-        self.surface.fill(THECOLORS["white"])
+        self.surface.fill(pygame.Color(COLOR_PALETTE["white"]))
         self._render_areas()
         self._render_lanes()
         self._render_roadlines()

@@ -87,8 +87,6 @@ class ParkingScenarioManager(ScenarioManager):
         off_screen: bool,
         max_step: float = MAX_STEP,
         step_size: float = 0.5,
-        max_step: float = MAX_STEP,
-        step_size: float = 0.5,
     ):
         super().__init__(render_fps, off_screen, max_step, step_size)
 
@@ -136,7 +134,6 @@ class ParkingScenarioManager(ScenarioManager):
         )
 
         self.render_manager = RenderManager(
-            fps=self.render_fps, windows_size=self.window_size, off_screen=self.off_screen
             fps=self.render_fps, windows_size=self.window_size, off_screen=self.off_screen
         )
 

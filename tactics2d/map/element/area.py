@@ -8,7 +8,7 @@ from .defaults import LEGAL_SPEED_UNIT
 class Area:
     """This class implements the lenelet2-style map element *area*.
 
-    !!! info "Definition of a lanelet2-style area"
+    ??? info "Definition of a lanelet2-style area"
         [LaneletPrimitives.md](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md)
 
     Attributes:

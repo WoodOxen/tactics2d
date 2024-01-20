@@ -39,7 +39,7 @@ DISCRETE_ACTION = np.array(
 THRESHOLD_NON_DRIVABLE = 0.5
 
 
-class RacingScenarioManager(TrafficScenarioManager):
+class RacingScenarioManager(ScenarioManager):
     """_summary_
 
     Attributes:
