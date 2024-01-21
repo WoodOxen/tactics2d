@@ -17,14 +17,15 @@ class Other(ParticipantBase):
         super().__init__(id_, type_, **kwargs)
 
         if not hasattr(self, "shape"):
-            self.shape = LinearRing(
-                [
-                    [0.5 * self.length, -0.5 * self.width],
-                    [0.5 * self.length, 0.5 * self.width],
-                    [-0.5 * self.length, 0.5 * self.width],
-                    [-0.5 * self.length, -0.5 * self.width],
-                ]
-            )
+            if not self.length is None and not self.width is None:
+                self.shape = LinearRing(
+                    [
+                        [0.5 * self.length, -0.5 * self.width],
+                        [0.5 * self.length, 0.5 * self.width],
+                        [-0.5 * self.length, 0.5 * self.width],
+                        [-0.5 * self.length, -0.5 * self.width],
+                    ]
+                )
 
     def _verify_trajectory(self, trajectory: Trajectory) -> bool:
         return True

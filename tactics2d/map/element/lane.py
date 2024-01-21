@@ -17,7 +17,7 @@ class LaneRelationship(Enum):
 class Lane:
     """This class implements the lenelet2-style map element *Lane*.
 
-    Detailed definition of lanelet2-style lane:
+    ??? info "Detailed definition of lanelet2-style lane"
         [LaneletPrimitives](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md)
 
     Attributes:
@@ -27,10 +27,8 @@ class Lane:
         line_ids (set, optional): The ids of the roadline components. Defaults to None.
         type_ (str): The type of the lane. The default value is `"lanelet"`.
         subtype (str, optional): The subtype of the lane. Defaults to None.
-        location (str, optional): The location of the lane (urban, nonurban, etc.). Defaults to
-            None.
-        inferred_participants (list, optional): The allowing type of traffic participants that
-            can pass the lane. Defaults to None.
+        location (str, optional): The location of the lane (urban, nonurban, etc.). Defaults to None.
+        inferred_participants (list, optional): The allowing type of traffic participants that can pass the lane. Defaults to None.
         speed_limit (float, optional): The speed limit in this lane. Defaults to None.
         speed_limit_unit (str, optional): The unit of speed limit in this area. The valid units
             are `"km/h"`, `"mi/h"`, and `"m/s"`. Defaults to `"km/h"`.
@@ -43,15 +41,12 @@ class Lane:
             lane.
         right_neighbors (set): The ids of the available lanes on the right side of the current
             lane.
-        starts (list): The start points of the lane. This attribute is automatically calculated
-            when requested.
-        ends (list): The end points of the lane. This attribute is automatically calculated when
-            requested.
-        shape (list): The shape of the lane. This attribute is automatically calculated when
-            requested.
+        start (list, read-only): The start points of the lane.
+        end (list, read-only): The end points of the lane.
+        shape (list, read-only): The shape of the lane.
     """
 
-    speed_limit_units = ["km/h", "mi/h", "m/s", "mph"]
+    speed_limit_units = ["km/h", "mi/h", "m/s"]
 
     def __init__(
         self,
@@ -69,7 +64,7 @@ class Lane:
         speed_limit_mandatory: bool = True,
         custom_tags: dict = None,
     ):
-        """Initialize the attributes in the class."""
+
         self.id_ = id_
         self.left_side = left_side
         self.right_side = right_side
@@ -90,9 +85,12 @@ class Lane:
                 % (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
             )
 
-        self.geometry = LinearRing(
-            list(self.left_side.coords) + list(reversed(list(self.right_side.coords)))
-        )
+        if not self.left_side is None and not self.right_side is None:
+            self.geometry = LinearRing(
+                list(self.left_side.coords) + list(reversed(list(self.right_side.coords)))
+            )
+        else:
+            self.geometry = None
 
         self.predecessors = set()
         self.successors = set()

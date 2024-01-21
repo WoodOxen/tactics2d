@@ -40,10 +40,10 @@ If no errors occurs, you should have installed Tactics2D successfully.
 If you find Tactics2D useful, please cite this in your publication.
 
 ```bibtex
-@misc{li2023tactics2d,
-    author  =   {Yueyuan Li and Mingyang Jiang and Xingyuan Chen and Ming Yang},
-    title   =   {},
-    year    =   {2023},
-    url     =   {https://github.com/WoodOxen/tactics2d}
+@article{li2023tactics2d,
+  title={Tactics2D: A Multi-agent Reinforcement Learning Environment for Driving Decision-making},
+  author={Li, Yueyuan and Zhang, Songan and Jiang, Mingyang and Chen, Xingyuan and Yang, Ming},
+  journal={arXiv preprint arXiv:2311.11058},
+  year={2023}
 }
 ```

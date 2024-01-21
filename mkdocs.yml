@@ -11,20 +11,40 @@ docs_dir: docs
 nav:
   - Home: "index.md"
   - Release Notes: "release_notes.md"
-  
+  - Tutorial:
+    - Installation: "tutorial/installation.md"
+    - Quick Start: "tutorial/quick_start.md"
+    - Customization: "tutorial/custom.md"
+  - Dataset Overview: "dataset-overview.md"
   - Python API:
-      - tactics2d.envs: "api_envs.md"
-      - tactics2d.map: "api_map.md"
-      - tactics2d.math: "api_math.md"
-      - tactics2d.participant: "api_participant.md"
-      - tactics2d.physics: "api_physics.md"
-      - tactics2d.sensor: "api_sensor.md"
-      - tactics2d.traffic: "api_traffic.md"
-      - tactics2d.trajectory: "api_trajectory.md"
+      - tactics2d.dataset_parser: "api/dataset_parser.md"
+      - tactics2d.envs: "api/envs.md"
+      - tactics2d.map: "api/map.md"
+      - tactics2d.participant: "api/participant.md"
+      - tactics2d.math: "api/math.md"
+      - tactics2d.physics: "api/physics.md"
+      - tactics2d.sensor: "api/sensor.md"
+      - tactics2d.traffic: "api/traffic.md"
+      - tactics2d.trajectory: "api/trajectory.md"
+  - Publications: "publication.md"
 
 theme: 
   name: "material"
-  palette:
+  icon:
+    admonition:
+      note: octicons/tag-16
+      abstract: octicons/checklist-16
+      info: octicons/info-16
+      tip: octicons/squirrel-16
+      success: octicons/check-16
+      question: octicons/question-16
+      warning: octicons/alert-16
+      failure: octicons/x-circle-16
+      danger: octicons/zap-16
+      bug: octicons/bug-16
+      example: octicons/beaker-16
+      quote: octicons/quote-16
+    palette:
     # Palette toggle for light mode
     - scheme: default
       toggle:
@@ -49,7 +69,7 @@ theme:
         name: Switch to light mode
   font:
     text: "Roboto Slab"
-    code: "Source Code Pro"
+    code: "Ubuntu Mono"
   features:
     - content.action.view
     - content.code.copy
@@ -71,10 +91,10 @@ plugins:
   - search
 
 markdown_extensions:
+  - abbr
   - admonition
   - pymdownx.details
   - pymdownx.superfences
-  - abbr
 
 extra_javascript:
   - javascripts/katex.js 
@@ -84,4 +104,3 @@ extra_javascript:
 extra_css:
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/katex.min.css
   - css/extra_for_material.css
-

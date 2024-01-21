@@ -2,7 +2,7 @@ from shapely.geometry import Point
 
 
 class Node:
-    """This class implements the map element *node*.
+    """This class implements the lenelet2-style map element *node*.
 
     The add operation of the node is defined as the addition of the coordinates of the node.
     The subtract operation of the node is defined as the subtraction of the coordinates of the node.

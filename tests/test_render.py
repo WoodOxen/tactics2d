@@ -20,6 +20,8 @@ import pytest
 from tactics2d.map.parser import Lanelet2Parser
 from tactics2d.dataset_parser import LevelXParser
 from tactics2d.sensor import TopDownCamera, SingleLineLidar, RenderManager
+from tactics2d.dataset_parser import LevelXParser
+from tactics2d.sensor import TopDownCamera, SingleLineLidar, RenderManager
 
 
 @pytest.mark.render
@@ -38,7 +40,7 @@ def test_camera(follow_view: bool):
 
     frame = 40
     dataset_parser = LevelXParser("inD")
-    participants = dataset_parser.parse_trajectory(0, trajectory_path, (0.0, 200.0))
+    participants, _ = dataset_parser.parse_trajectory(0, trajectory_path, (0, 10000))
     participant_ids = [
         participant.id_ for participant in participants.values() if participant.is_active(frame)
     ]
@@ -80,7 +82,7 @@ def test_lidar(perception_range):
 
     frame = 40
     dataset_parser = LevelXParser("inD")
-    participants = dataset_parser.parse_trajectory(0, trajectory_path, (0.0, 200.0))
+    participants, _ = dataset_parser.parse_trajectory(0, trajectory_path, (0, 10000))
     participant_ids = [
         participant.id_ for participant in participants.values() if participant.is_active(frame)
     ]
@@ -122,7 +124,7 @@ def test_render_manager(layout_style, off_screen):
     map_ = map_parser.parse(map_root, configs["inD_4"])
 
     dataset_parser = LevelXParser("inD")
-    participants = dataset_parser.parse_trajectory(0, trajectory_path, (0.0, 200.0))
+    participants, _ = dataset_parser.parse_trajectory(0, trajectory_path, (0, 10000))
 
     render_manager = RenderManager(
         fps=100, windows_size=(600, 600), layout_style=layout_style, off_screen=off_screen

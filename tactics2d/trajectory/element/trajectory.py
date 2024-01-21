@@ -7,7 +7,7 @@ from .state import State
 
 
 class Trajectory(object):
-    """_summary_
+    """This class serves as the foundational implementation of a trajectory data structure.
 
     Attributes:
         id_ (int): The id of the trajectory.
@@ -21,6 +21,11 @@ class Trajectory(object):
         frames (list, optional): The list of frames of the trajectory. The value of frames
             must be monotonically increasing. The frames are integers and the default unit is
             millisecond (ms).
+        initial_state (State, read-only): The initial state of the trajectory.
+        last_state (State, read-only): The last state of the trajectory.
+        first_frame (int, read-only): The first frame of the trajectory. The unit is millisecond (ms).
+        last_frame (int, read-only): The last frame of the trajectory. The unit is millisecond (ms).
+        average_speed (float, read-only): The average speed of the trajectory. The unit is m/s.
     """
 
     def __init__(self, id_: int, fps: float = None, stable_freq: bool = True):

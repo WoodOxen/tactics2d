@@ -1,8 +1,13 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: parse_womd.py
+# @Description: This file implements a parser for Waymo Open Motion Dataset v1.2.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 import os
-
-import sys
-
-sys.path.append("../../")
+from typing import Tuple, List
 
 import tensorflow as tf
 from shapely.geometry import Point, LineString, Polygon
@@ -14,9 +19,12 @@ from tactics2d.dataset_parser.womd_proto import scenario_pb2
 
 
 class WOMDParser:
-    """This class implements a parser for Waymo Open Motion Dataset.
+    """This class implements a parser for Waymo Open Motion Dataset (WOMD).
 
-    Ettinger, Scott, et al. "Large scale interactive motion forecasting for autonomous driving: The waymo open motion dataset." Proceedings of the IEEE/CVF International Conference on Computer Vision. 2021.
+    ??? info "Reference"
+        Ettinger, Scott, et al. "Large scale interactive motion forecasting for autonomous driving: The waymo open motion dataset." Proceedings of the IEEE/CVF International Conference on Computer Vision. 2021.
+
+    Because loading the tfrecord file is time consuming, the trajectory and the map parsers provide two ways to load the file. The first way is to load the file directly from the given file path. The second way is to load the file from a tf.data.TFRecordDataset object. If the tf.data.TFRecordDataset object is given, the parser will ignore the file path.
     """
 
     TYPE_MAPPING = {0: "unknown", 1: "vehicle", 2: "pedestrian", 3: "cyclist", 4: "other"}
@@ -37,15 +45,15 @@ class WOMDParser:
 
     LANE_TYPE_MAPPING = {0: "road", 1: "highway", 2: "road", 3: "bicycle_lane"}
 
-    def get_scenario_ids(self, file_name: str, folder_path: str):
+    def get_scenario_ids(self, file: str, folder: str):
         """This function get the list of scenario ids from the given tfrecord file.
 
         Args:
-            file_name (str): The name of the tfrecord file.
-            folder_path (str): The path to the folder containing the tfrecord file.
+            file (str): The name of the tfrecord file.
+            folder (str): The path to the folder containing the tfrecord file.
         """
         id_list = []
-        file_path = os.path.join(folder_path, file_name)
+        file_path = os.path.join(folder, file)
         dataset = tf.data.TFRecordDataset(file_path, compression_type="")
 
         for data in dataset:
@@ -56,27 +64,33 @@ class WOMDParser:
 
         return id_list
 
-    def parse_trajectory(self, scenario_id=None, **kwargs):
-        """This function parses trajectories from a single tfrecord file with a given scenario id. Because the duration of the scenario is well articulated, the parser will not provide an option to parse a subset of time range of the scenario.
+    def parse_trajectory(self, scenario_id=None, **kwargs) -> Tuple[dict, List[int]]:
+        """This function parses trajectories from a single WOMD file. Because the duration of the scenario is well articulated, the parser will not provide an option to select time range within a single scenario. The states were collected at 10Hz.
 
         Args:
-            scenario_id (str, optional): The id of the scenario to parse. If the scenario id is not
-                given, the first scenario in the file will be parsed. Defaults to None.
-            dataset (tf.data.TFRecordDataset, optional): The dataset to parse.
-            file_name (str): The name of the tfrecord file.
-            folder_path (str): The path to the folder containing the tfrecord file.
+            scenario_id (str, optional): The id of the scenario to parse. If the scenario id is not given, the first scenario in the file will be parsed. Defaults to None.
+            dataset (tf.data.TFRecordDataset, optional): The dataset to parse. Defaults to None.
+            file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file. Defaults to None.
+            folder (str, optional): The path to the folder containing the trajectory file. Defaults to None.
 
         Returns:
             dict: A dictionary of participants. If the scenario id is not found, return None.
+            List[int]: The actual time range of the trajectory data. Because WOMD collects data at an unstable frequency, the parser will return a list of time stamps.
+
+        Raises:
+            KeyError: Either dataset or file and folder should be given as keyword arguments.
         """
+        participants = dict()
+        time_stamps = set()
+
         if "dataset" in kwargs:
             dataset = kwargs["dataset"]
-        elif "file_name" in kwargs and "folder_path" in kwargs:
-            file_path = os.path.join(kwargs["folder_path"], kwargs["file_name"])
+        elif "file" in kwargs and "folder" in kwargs:
+            file_path = os.path.join(kwargs["folder"], kwargs["file"])
             dataset = tf.data.TFRecordDataset(file_path, compression_type="")
         else:
             raise KeyError(
-                "Either dataset or file_name and folder_path should be given as keyword arguments."
+                "Either dataset or file and folder should be given as keyword arguments."
             )
 
         for data in dataset:
@@ -88,7 +102,6 @@ class WOMDParser:
                 scenario_id = scenario.scenario_id
 
             if scenario_id == scenario.scenario_id:
-                participants = dict()
                 timestamps = scenario.timestamps_seconds
                 for track in scenario.tracks:
                     trajectory = Trajectory(id_=track.id, fps=10, stable_freq=False)
@@ -100,13 +113,14 @@ class WOMDParser:
                         if not state_.valid:
                             continue
                         state = State(
-                            frame=timestamps[i],
+                            frame=int(timestamps[i] * 1000),
                             x=state_.center_x,
                             y=state_.center_y,
                             heading=state_.heading,
                             vx=state_.velocity_x,
                             vy=state_.velocity_y,
                         )
+                        time_stamps.add(state.frame)
 
                         trajectory.append_state(state)
 
@@ -125,7 +139,9 @@ class WOMDParser:
                     )
                     participants[track.id] = participant
 
-                return participants
+                actual_time_range = sorted(list(time_stamps))
+
+                return participants, actual_time_range
 
         return None
 
@@ -150,16 +166,16 @@ class WOMDParser:
 
         elif map_feature.HasField("road_line"):
             type_, subtype, color = self.ROADLINE_TYPE_MAPPING[map_feature.road_line.type]
-            roadline = RoadLine(
-                id_="%05d" % map_feature.id,
-                linestring=LineString(
-                    [[point.x, point.y] for point in map_feature.road_line.polyline]
-                ),
-                type_=type_,
-                subtype=subtype,
-                color=color,
-            )
-            map_.add_roadline(roadline)
+            points = [[point.x, point.y] for point in map_feature.road_line.polyline]
+            if len(points) > 2:
+                roadline = RoadLine(
+                    id_="%05d" % map_feature.id,
+                    linestring=LineString(points),
+                    type_=type_,
+                    subtype=subtype,
+                    color=color,
+                )
+                map_.add_roadline(roadline)
 
         elif map_feature.HasField("road_edge"):
             roadline = RoadLine(
@@ -189,7 +205,12 @@ class WOMDParser:
             map_.add_area(crosswalk)
 
         elif map_feature.HasField("speed_bump"):
-            map_.add_regulatory()
+            speed_bump = Area(
+                id_="%05d" % map_feature.id,
+                geometry=Polygon([[point.x, point.y] for point in map_feature.speed_bump.polygon]),
+                subtype="speed_bump",
+            )
+            map_.add_area(speed_bump)
 
         elif map_feature.HasField("driveway"):
             area = Area(
@@ -202,23 +223,30 @@ class WOMDParser:
     def _parse_dynamic_map_features(self, map_feature, map_: Map):
         return
 
-    def parse_map(self, scenario_id=None, **kwargs):
-        """_summary_
+    def parse_map(self, scenario_id=None, **kwargs) -> Map:
+        """This function parses the map from a single WOMD file.
 
         Args:
-            scenario_id (_type_, optional): _description_. Defaults to None.
+            scenario_id (str, optional): The id of the scenario to parse. If the scenario id is not given, the first scenario in the file will be parsed. Defaults to None.
+            dataset (tf.data.TFRecordDataset, optional): The dataset to parse. Defaults to None.
+            file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file (.tfrecord). Defaults to None.
+            folder (str, optional): The path to the folder containing the tfrecord file. Defaults to None.
+
+        Returns:
+            Map: A map object.
 
         Raises:
-            KeyError: _description_
+            KeyError: Either dataset or file and folder should be given as keyword arguments.
         """
+
         if "dataset" in kwargs:
             dataset = kwargs["dataset"]
-        elif "file_name" in kwargs and "folder_path" in kwargs:
-            file_path = os.path.join(kwargs["folder_path"], kwargs["file_name"])
+        elif "file" in kwargs and "folder" in kwargs:
+            file_path = os.path.join(kwargs["folder"], kwargs["file"])
             dataset = tf.data.TFRecordDataset(file_path, compression_type="")
         else:
             raise KeyError(
-                "Either dataset or file_name and folder_path should be given as keyword arguments."
+                "Either dataset or file and folder should be given as keyword arguments."
             )
 
         for data in dataset:
@@ -235,3 +263,5 @@ class WOMDParser:
                     self._parse_map_features(map_feature, map_)
                 for dynamic_map_state in scenario.dynamic_map_states:
                     self._parse_dynamic_map_features(dynamic_map_state, map_)
+
+        return map_

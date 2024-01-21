@@ -12,7 +12,7 @@ from tactics2d.participant.element import Vehicle
 from tactics2d.trajectory.element import State
 from tactics2d.sensor import TopDownCamera, RenderManager
 from tactics2d.map.generator import RacingTrackGenerator
-from tactics2d.traffic import TrafficScenarioManager
+from tactics2d.traffic import ScenarioManager
 from tactics2d.traffic.violation_detection import TrafficEvent
 
 
@@ -39,7 +39,7 @@ DISCRETE_ACTION = np.array(
 THRESHOLD_NON_DRIVABLE = 0.5
 
 
-class RacingScenarioManager(TrafficScenarioManager):
+class RacingScenarioManager(ScenarioManager):
     """_summary_
 
     Attributes:

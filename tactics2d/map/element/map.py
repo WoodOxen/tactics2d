@@ -1,3 +1,4 @@
+import enum
 import warnings
 
 import numpy as np
@@ -7,6 +8,15 @@ from .lane import Lane
 from .node import Node
 from .regulatory import Regulatory
 from .roadline import RoadLine
+
+
+class MapElement(enum.Enum):
+    NODE = enum.auto()
+    LANE = enum.auto()
+    AREA = enum.auto()
+    ROADLINE = enum.auto()
+    REGULATORY = enum.auto()
+    CUSTOM = enum.auto()
 
 
 class Map:
@@ -44,7 +54,7 @@ class Map:
         self.scenario_type = scenario_type
         self.country = country
 
-        self.ids = set()
+        self.ids = dict()
         self.nodes = dict()
         self.lanes = dict()
         self.areas = dict()
@@ -89,6 +99,7 @@ class Map:
             else:
                 raise KeyError(f"The id of Node {node.id_} is used by the other road element.")
         self.nodes[node.id_] = node
+        self.ids[node.id_] = MapElement.NODE
 
     def add_roadline(self, roadline: RoadLine):
         """Add a roadline to the map.
@@ -108,8 +119,9 @@ class Map:
                 raise KeyError(
                     f"The id of Roadline {roadline.id_} is used by the other road element."
                 )
-        self.ids.add(roadline.id_)
+
         self.roadlines[roadline.id_] = roadline
+        self.ids[roadline.id_] = MapElement.ROADLINE
 
     def add_lane(self, lane: Lane):
         """Add a lane to the map.
@@ -125,8 +137,9 @@ class Map:
                 warnings.warn(f"Lane {lane.id_} already exists! Replacing the lane with new data.")
             else:
                 raise KeyError(f"The id of Lane {lane.id_} is used by the other road element.")
-        self.ids.add(lane.id_)
+
         self.lanes[lane.id_] = lane
+        self.ids[lane.id_] = MapElement.LANE
 
     def add_area(self, area: Area):
         """Add an area to the map.
@@ -142,8 +155,9 @@ class Map:
                 warnings.warn(f"Area {area.id_} already exists! Replacing the area with new data.")
             else:
                 raise KeyError(f"The id of Area {area.id_} is used by the other road element.")
-        self.ids.add(area.id_)
+
         self.areas[area.id_] = area
+        self.ids[area.id_] = MapElement.AREA
 
     def add_regulatory(self, regulatory: Regulatory):
         """Add a regulatory to the map.
@@ -163,8 +177,27 @@ class Map:
                 raise KeyError(
                     f"The id of Regulatory {regulatory.id_} is used by the other road element."
                 )
-        self.ids.add(regulatory.id_)
+
         self.regulations[regulatory.id_] = regulatory
+        self.ids[regulatory.id_] = MapElement.REGULATORY
+
+    def get_by_id(self, id_: str):
+        if not id_ in self.ids:
+            warnings.warn(f"Cannot find element with id {id_}.")
+            return None
+
+        if self.ids[id_] == MapElement.NODE:
+            return self.nodes[id_]
+        elif self.ids[id_] == MapElement.LANE:
+            return self.lanes[id_]
+        elif self.ids[id_] == MapElement.AREA:
+            return self.areas[id_]
+        elif self.ids[id_] == MapElement.ROADLINE:
+            return self.roadlines[id_]
+        elif self.ids[id_] == MapElement.REGULATORY:
+            return self.regulations[id_]
+        elif self.ids[id_] == MapElement.CUSTOM:
+            return self.customs[id_]
 
     def reset(self):
         """Reset the map by clearing all the road elements."""

@@ -195,7 +195,6 @@ def _load_regulatory(xml_node: ET.Element) -> Regulatory:
             lane_list.append((member.attrib["ref"], member.attrib["role"]))
 
     regulatory_tags = _get_tags(xml_node)
-    print(regulatory_tags)
     return Regulatory(regulatory_id, relation_list, lane_list, **regulatory_tags)
 
 
