@@ -42,7 +42,9 @@ class GuessType:
         speed_min = np.min(history_speed)
         speed_mean = np.mean(history_speed)
         speed_std = np.std(history_speed)
-        heading_changing_std = np.std(history_heading[1:] - history_heading[:-1])
+        heading_changing_std = (
+            np.std(history_heading[1:] - history_heading[:-1]) if len(history_heading) > 1 else 0
+        )
 
         X = np.array([[speed_min, speed_max, speed_mean, speed_std, heading_changing_std]])
         y_predict = self.trajectory_clf.predict(X)

@@ -18,9 +18,6 @@ from tactics2d.participant.guess_type import GuessType
 from tactics2d.trajectory.element import State, Trajectory
 
 
-CLASS_MAPPING = {"cyclist": Cyclist, "pedestrian": Pedestrian}
-
-
 class InteractionParser:
     """This class implements a parser for INTERACTION dataset.
 
@@ -174,8 +171,14 @@ class InteractionParser:
 
         for trajectory_id, trajectory in trajectories.items():
             type_ = self.type_guesser.guess_by_trajectory(trajectory)
-            class_ = CLASS_MAPPING[type_]
-            participants[trajectory_id] = class_(trajectory_id, type_, trajectory=trajectory)
+            if type_ == "pedestrian":
+                participants[trajectory_id] = Pedestrian(
+                    trajectory_id, type_, trajectory=trajectory
+                )
+            elif type_ == "bicycle":
+                participants[trajectory_id] = Cyclist(
+                    trajectory_id, type_, trajectory=trajectory, length=2.0, width=0.7
+                )
 
         return participants, actual_stamp_range
 

@@ -40,7 +40,6 @@ class RoadLine:
         temporary: bool = False,
         custom_tags: dict = None,
     ):
-
         self.id_ = id_
         self.linestring = linestring
         self.type_ = type_
@@ -97,18 +96,18 @@ class RoadLine:
 
         elif self.subtype == "solid_dashed":
             if self.lane_change is None:
-                self.lane_change = (True, False)
-            elif self.lane_change != (True, False):
+                self.lane_change = (False, True)
+            elif self.lane_change != (False, True):
                 logging.warning(
-                    f"The lane change rule of a solid_dashed roadline is supposed to be (True, False). Line {self.id_} has lane change rule {self.lane_change}."
+                    f"The lane change rule of a solid_dashed roadline is supposed to be (False, True). Line {self.id_} has lane change rule {self.lane_change}."
                 )
 
         elif self.subtype == "dashed_solid":
             if self.lane_change is None:
-                self.lane_change = (False, True)
-            elif self.lane_change != (False, True):
+                self.lane_change = (True, False)
+            elif self.lane_change != (True, False):
                 logging.warning(
-                    f"The lane change rule of a dashed_solid roadline is supposed to be (False, True). Line {self.id_} has lane change rule {self.lane_change}."
+                    f"The lane change rule of a dashed_solid roadline is supposed to be (True, False). Line {self.id_} has lane change rule {self.lane_change}."
                 )
 
         elif self.type_ in ["curbstone", "road_border"] or self.subtype in [
