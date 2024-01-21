@@ -15,6 +15,7 @@ nav:
     - Installation: "tutorial/installation.md"
     - Quick Start: "tutorial/quick_start.md"
     - Customization: "tutorial/custom.md"
+  - Dataset Overview: "dataset-overview.md"
   - Python API:
       - tactics2d.dataset_parser: "api/dataset_parser.md"
       - tactics2d.envs: "api/envs.md"

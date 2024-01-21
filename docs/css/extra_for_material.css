@@ -1,6 +1,5 @@
 /******************** Left side bar ***************************/
 nav.md-nav--primary {
-	font-size: 16px;
 	text-align: left;
 	border-right-style: solid;
 	border-right-width: 1px;
@@ -10,7 +9,6 @@ nav.md-nav--primary {
 
 /******************* Right Side Bar ***************************/
 nav.md-nav--secondary {
-	font-size: 16px;
 	text-align: left;
 	border-left-style: solid;
 	border-left-width: 1px;
