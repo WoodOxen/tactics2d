@@ -11,11 +11,10 @@ docs_dir: docs
 nav:
   - Home: "index.md"
   - Release Notes: "release_notes.md"
-  - Tutorial:
-    - Installation: "tutorial/installation.md"
-    - Quick Start: "tutorial/quick_start.md"
-    - Customization: "tutorial/custom.md"
-  - Dataset Overview: "dataset-overview.md"
+  - Installation: "installation.md"
+  - Quick Start: "quick_start.md"
+  - Customization: "customization.md"
+  - Dataset Support: "dataset-support.md"
   - Python API:
       - tactics2d.dataset_parser: "api/dataset_parser.md"
       - tactics2d.envs: "api/envs.md"

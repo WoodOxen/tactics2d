@@ -21,9 +21,10 @@ from tactics2d.sensor.defaults import COLOR_PALETTE, DEFAULT_COLOR, DEFAULT_ORDE
 
 
 class ScenarioDisplay:
+    """This class implements a matplotlib-based scenario visualizer."""
+
     def __init__(self):
         self.participant_patches = dict()
-        animation = None
 
     def _get_color(self, element):
         if element.color in COLOR_PALETTE:
@@ -180,7 +181,6 @@ class ScenarioDisplay:
                 continue
 
             if isinstance(participant, Vehicle):
-                # print(list(participant.get_pose(frame).coords))
                 if participant.id_ not in self.participant_patches:
                     self.participant_patches[participant.id_] = ax.add_patch(
                         Polygon(
@@ -195,16 +195,48 @@ class ScenarioDisplay:
                     self.participant_patches[participant.id_].set_xy(
                         participant.get_pose(frame).coords
                     )
+            elif isinstance(participant, Cyclist):
+                if participant.id_ not in self.participant_patches:
+                    self.participant_patches[participant.id_] = ax.add_patch(
+                        Polygon(
+                            participant.get_pose(frame).coords,
+                            True,
+                            facecolor=self._get_color(participant),
+                            edgecolor=None,
+                            zorder=self._get_order(participant),
+                        )
+                    )
+                else:
+                    self.participant_patches[participant.id_].set_xy(
+                        participant.get_pose(frame).coords
+                    )
+            elif isinstance(participant, Pedestrian):
+                if participant.id_ not in self.participant_patches:
+                    self.participant_patches[participant.id_] = ax.add_patch(
+                        Circle(
+                            participant.get_state(frame).location,
+                            radius=0.5,
+                            facecolor=self._get_color(participant),
+                            edgecolor=None,
+                            zorder=self._get_order(participant),
+                        )
+                    )
+                else:
+                    self.participant_patches[participant.id_].set(
+                        center=participant.get_state(frame).location
+                    )
 
         return list(self.participant_patches.values())
 
     def display(self, participants, map_, interval, frames, fig_size, **ax_kwargs):
         fig, ax = plt.subplots()
         fig.set_size_inches(fig_size)
-        # fig.set_facecolor("#dddddd")
         fig.set_layout_engine("none")
         ax.set(**ax_kwargs)
         ax.set_axis_off()
+
+        if len(map_.lanes.keys()) == 0:
+            fig.set_facecolor(COLOR_PALETTE["black"])
 
         self.display_map(map_, ax)
         ax.plot()

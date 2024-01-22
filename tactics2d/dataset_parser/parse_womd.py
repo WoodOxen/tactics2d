@@ -9,8 +9,9 @@
 import os
 from typing import Tuple, List
 
-import tensorflow as tf
+import numpy as np
 from shapely.geometry import Point, LineString, Polygon
+import tensorflow as tf
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
 from tactics2d.trajectory.element import State, Trajectory
@@ -145,24 +146,62 @@ class WOMDParser:
 
         return None
 
+    def _join_lane_boundary(self, ids, map_):
+        points = []
+        for id_ in ids:
+            line = map_.roadlines[id_].shape
+            if len(points) == 0:
+                points = line
+            else:
+                if points[-1] == line[0]:
+                    points.extend(line[1:])
+                elif points[-1] == line[-1]:
+                    points.extend(line[::-1][1:])
+                elif np.linalg.norm(points[-1] - line[0]) < np.linalg.norm(points[-1] - line[-1]):
+                    points.extend(line[1:])
+                else:
+                    points.extend(line[::-1][1:])
+
+        return LineString(points)
+
     def _parse_map_features(self, map_feature, map_: Map):
         if map_feature.HasField("lane"):
-            # TODO: parse the polygon in lane to left and right side
-            # lane = Lane(
-            #     id_="%05d" % map_feature.id,
-            #     subtype=self.LANE_TYPE_MAPPING[map_feature.lane.type],
-            #     speed_limit=map_feature.lane.speed_limit_mph,
-            #     speed_limit_unit="mi/h",
-            # )
-            # for entry_lane in map_feature.lane.entry_lanes:
-            #     lane.add_related_lane("%05d" % entry_lane, LaneRelationship.PREDECESSOR)
-            # for exit_lane in map_feature.lane.exit_lanes:
-            #     lane.add_related_lane("%05d" % exit_lane, LaneRelationship.SUCCESSOR)
-            # for left_neighbor in map_feature.lane.left_neighbors:
-            #     lane.add_related_lane("%05d" % left_neighbor, LaneRelationship.LEFT_NEIGHBOR)
-            # for right_neighbor in map_feature.lane.right_neighbors:
-            #     lane.add_related_lane("%05d" % right_neighbor, LaneRelationship.RIGHT_NEIGHBOR)
-            pass
+            lane = map_feature.lane
+            left_side_ids = set()
+            right_side_ids = set()
+            line_ids = set()
+
+            for boundary in lane.left_boundaries:
+                id_ = "%05d" % boundary.boundary_feature_id
+                line_ids.add(id_)
+                left_side_ids.add(id_)
+
+            for boundary in map_feature.lane.right_boundaries:
+                id_ = "%05d" % boundary.boundary_feature_id
+                line_ids.add(id_)
+                right_side_ids.add(id_)
+
+            lane = Lane(
+                id_="%05d" % map_feature.id,
+                left_side=self._join_lane_boundary(left_side_ids, map_),
+                right_side=self._join_lane_boundary(right_side_ids, map_),
+                subtype=self.LANE_TYPE_MAPPING[lane.type],
+                speed_limit=lane.speed_limit_mph,
+                speed_limit_unit="mi/h",
+            )
+
+            if getattr(lane, "entry_lanes"):
+                for entry_lane in lane.entry_lanes:
+                    lane.add_related_lane("%05d" % entry_lane, LaneRelationship.PREDECESSOR)
+            if getattr(lane, "exit_lanes"):
+                for exit_lane in lane.exit_lanes:
+                    lane.add_related_lane("%05d" % exit_lane, LaneRelationship.SUCCESSOR)
+            if getattr(lane, "left_neighbors"):
+                for left_neighbor in lane.left_neighbors:
+                    lane.add_related_lane("%05d" % left_neighbor, LaneRelationship.LEFT_NEIGHBOR)
+            if getattr(lane, "right_neighbors"):
+                for right_neighbor in lane.right_neighbors:
+                    lane.add_related_lane("%05d" % right_neighbor, LaneRelationship.RIGHT_NEIGHBOR)
 
         elif map_feature.HasField("road_line"):
             type_, subtype, color = self.ROADLINE_TYPE_MAPPING[map_feature.road_line.type]
@@ -260,7 +299,11 @@ class WOMDParser:
             if scenario_id == scenario.scenario_id:
                 map_ = Map(name="nuplan_" + scenario.scenario_id)
                 for map_feature in scenario.map_features:
-                    self._parse_map_features(map_feature, map_)
+                    if map_feature.HasField("road_line") or map_feature.HasField("road_edge"):
+                        self._parse_map_features(map_feature, map_)
+                for map_feature in scenario.map_features:
+                    if not map_feature.HasField("road_line") and not map_feature.HasField("road_edge"):
+                        self._parse_dynamic_map_features(map_feature, map_)
                 for dynamic_map_state in scenario.dynamic_map_states:
                     self._parse_dynamic_map_features(dynamic_map_state, map_)
 
