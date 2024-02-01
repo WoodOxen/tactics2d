@@ -9,5 +9,5 @@ pygame>=2.5.2
 pyproj>=3.2.1
 pysqlite3==0.5.2
 scikit-learn>=1.0.0
-tensorflow==2.11.0
+tensorflow==2.15.0.post1
 shapely==2.0.2
