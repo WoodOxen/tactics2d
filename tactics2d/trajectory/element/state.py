@@ -4,25 +4,22 @@ import numpy as np
 
 
 class State:
-    """_summary_
+    """This class implements the state of a traffic participant. The state is defined under a 2D Cartesian coordinate system.
 
     Attributes:
-        frame (int): The time stamp of the state. The default unit is millisecond (ms).
-        x (float, optional): The x-axis coordinate of an object. The default unit is
-            meter (m). Defaults to 0.
-        y (float, optional): The y-axis coordinate of an object. The default unit is
-            meter (m). Defaults to 0.
-        heading (float, optional): The heading direction of an object. The heading information
-            is parsed in an 2D Cardinal coordinate system counterclockwise. The default unit
-            is radian. Defaults to 0.
-        vx (float, optional): The velocity in the x-axis. The default unit is
-            meter per second (m/s). Defaults to None.
-        vy (float, optional): The velocity in the y-axis. The default unit is
-            meter per second (m/s). Defaults to None.
-        ax (float, optional): The acceleration in the x-axis. The default unit is
-            meter per second squared (m/s^2). Defaults to None.
-        ay (float, optional): The acceleration in the y-axis. The default unit is
-            meter per second squared (m/s^2). Defaults to None.
+        frame (int): The time stamp. The default unit is millisecond.
+        x (float, optional): The x-axis coordinate. The default unit is meter. Defaults to 0.
+        y (float, optional): The y-axis coordinate. The default unit is meter. Defaults to 0.
+        heading (float, optional): The heading direction. The default unit is radian. Defaults to 0.
+        vx (float, optional): The velocity in the x-axis. The default unit is meter per second (m/s). Defaults to None.
+        vy (float, optional): The velocity in the y-axis. The default unit is meter per second (m/s). Defaults to None.
+        ax (float, optional): The acceleration in the x-axis. The default unit is meter per second squared (m/s$^2$). Defaults to None.
+        ay (float, optional): The acceleration in the y-axis. The default unit is meter per second squared (m/s$^2$). Defaults to None.
+        location (Tuple[float, float], read-only): The location. The default unit is meter. Defaults to (0, 0).
+        speed (float, read-only): The scalar speed value. The default unit is meter per second (m/s). If the initialized speed is not None, this property will return this original value. If vx and vy are not None but speed is None, then speed will be calculated based on vx and vy. Otherwise, the property will return None.
+        velocity (Tuple[float, float], read-only): The velocity vector. The default unit is meter per second (m/s). If vx and vy are available, the property will return (vx, vy). If vx and vy are not available but speed and heading are available, the property will return (speed * cos(heading), speed * sin(heading)). Otherwise, the property will return None.
+        accel (float, read-only): The scalar acceleration value. The default unit is meter per second squared (m/s$^2$). If the initialized acceleration is not None, this property will return this original value. If ax and ay are not None but accel is None, then accel will be calculated based on ax and ay. Otherwise, the property will return None.
+        acceleration (Tuple[float, float], read-only): The acceleration vector. The default unit is meter per second squared (m/s$^2$). If ax and ay are available, the property will return (ax, ay). Otherwise, the property will return None.
     """
 
     def __init__(
@@ -38,6 +35,20 @@ class State:
         ay: float = None,
         accel: float = None,
     ):
+        """Initialize the state of a traffic participant.
+
+        Args:
+            frame (int): The time stamp. The default unit is millisecond.
+            x (float, optional): The x-axis coordinate. The default unit is meter. Defaults to 0.
+            y (float, optional): The y-axis coordinate. The default unit is meter. Defaults to 0.
+            heading (float, optional): The heading direction. The default unit is radian. Defaults to 0.
+            vx (float, optional): The velocity in the x-axis. The default unit is meter per second (m/s). Defaults to None.
+            vy (float, optional): The velocity in the y-axis. The default unit is meter per second (m/s). Defaults to None.
+            speed (float, optional): The scalar speed value. The default unit is meter per second (m/s). Defaults to None.
+            ax (float, optional): The acceleration in the x-axis. The default unit is meter per second squared (m/s$^2$). Defaults to None.
+            ay (float, optional): The acceleration in the y-axis. The default unit is meter per second squared (m/s$^2$). Defaults to None.
+            accel (float, optional): The scalar acceleration value. The default unit is meter per second squared (m/s$^2$). Defaults to None.
+        """
         self.frame = frame
         self.x = x
         self.y = y
@@ -54,14 +65,6 @@ class State:
         return (self.x, self.y)
 
     @property
-    def velocity(self) -> Tuple[float, float]:
-        if not None in [self.vx, self.vy]:
-            return (self.vx, self.vy)
-        if None not in [self.speed, self.heading]:
-            return (self.speed * np.cos(self.heading), self.speed * np.sin(self.heading))
-        return None
-
-    @property
     def speed(self):
         if self._speed is not None:
             return self._speed
@@ -72,12 +75,25 @@ class State:
         return None
 
     @property
-    def accel(self):
-        if self._accel is not None:
-            return self._accel
-        if None not in [self.ax, self.ay]:
-            self._accel = np.linalg.norm([self.ax, self.ay])
-            return self._accel
+    def velocity(self) -> Tuple[float, float]:
+        if not None in [self.vx, self.vy]:
+            return (self.vx, self.vy)
+        if None not in [self.speed, self.heading]:
+            return (self.speed * np.cos(self.heading), self.speed * np.sin(self.heading))
+
+        return None
+
+    @property
+    def accel(self) -> float:
+        if not None in [self.ax, self.ay]:
+            return np.linalg.norm([self.ax, self.ay])
+
+        return None
+
+    @property
+    def acceleration(self) -> Tuple[float, float]:
+        if not None in [self.ax, self.ay]:
+            return (self.ax, self.ay)
 
         return None
 
