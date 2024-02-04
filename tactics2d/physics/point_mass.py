@@ -25,7 +25,7 @@ class PointMass(PhysicsModelBase):
         accel_range (Union[float, Tuple[float, float]]: The acceleration range. The valid input is a float or a tuple of two floats represents (min acceleration, max acceleration). The unit is meter per second squared (m/s$^2$). The default value is None, which means no constraint on the acceleration. When the accel_range is negative or the min acceleration is not less than the max acceleration, the accel_range is set to None.
         interval (int): The time interval between the current state and the new state. The unit is millisecond. Defaults to None.
         delta_t (int): The discrete time step for the simulation. The unit is millisecond. Defaults to `DELTA_T`(5 ms). The expected value is between `MIN_DELTA_T`(1 ms) and `interval`.
-        backend (str): The backend for the simulation. The default value is `newton`. The available choices are `newton` and `euler`.
+        backend (str): The backend for the simulation. The default value is `newton`. The available choices are `newton` and `euler`. The `newton` backend is recommended because it is faster. The `euler` backend is used for comparison and testing purposes at currently. We plan to improve the "euler" backend in the future (maybe in version 1.1.0)
     """
 
     backends = ["newton", "euler"]

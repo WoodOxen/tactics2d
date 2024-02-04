@@ -223,16 +223,26 @@ def test_point_mass(speed_range, accel_range, interval, delta_t):
     last_state_euler = initial_state
     line_newton = [[last_state_newton.x, last_state_newton.y]]
     line_euler = [[last_state_euler.x, last_state_euler.y]]
+    cnt = 0
+    t1 = time.time()
     for action, duration in pm_actions:
         for _ in np.arange(0, duration, interval):
             state_newton = model_newton.step(last_state_newton, action, interval)
-            state_euler = model_euler.step(last_state_euler, action, interval)
             line_newton.append([state_newton.x, state_newton.y])
-            line_euler.append([state_euler.x, state_euler.y])
             last_state_newton = state_newton
+            cnt += 1
+    t2 = time.time()
+
+    for action, duration in pm_actions:
+        for _ in np.arange(0, duration, interval):
+            state_euler = model_euler.step(last_state_euler, action, interval)
+            line_euler.append([state_euler.x, state_euler.y])
             last_state_euler = state_euler
+    t3 = time.time()
 
     assert hausdorff_distance(LineString(line_newton), LineString(line_euler)) < 0.01
+    logging.info("The average fps for Newton's method is {:.2f} Hz.".format(cnt / (t2 - t1)))
+    logging.info("The average fps for Euler's method is {:.2f} Hz.".format(cnt / (t3 - t2)))
 
 
 @pytest.mark.physics
