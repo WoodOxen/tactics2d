@@ -28,24 +28,15 @@ class ParticipantBase(ABC):
         By defaults the traffic participant has the properties id_, type_, length, width, and
         height.
 
-        If you need to customize more attributes, you can define them in the inherent
-        class in the dictionary ```attributes```. The key of the dictionary is the name of
-        the attribute, and the value of the dictionary is the type of the attribute. If the
-        type of the custom attribute is not determined, the corresponding dictionary value
-        should be ```None```. The type of the attributes will be checked in the construction.
-        If the type is not correct, the constructor will try to convert the value to the correct
-        type. If the conversion fails, the constructor will assign ```None``` to the attribute.
+        If you need to customize more attributes, you can define them in the inherent class in the dictionary `attributes`. The key of the dictionary is the name of the attribute, and the value of the dictionary is the type of the attribute. If the type of the custom attribute is not determined, the corresponding dictionary value should be `None`. The type of the attributes will be checked in the construction. If the type is not correct, the constructor will try to convert the value to the correct type. If the conversion fails, the constructor will assign `None` to the attribute.
 
-        All the attributes defined in the dictionaries ```default_attributes``` and ```attributes```
-        will be initialized. If their values are not specified in the constructor, they will be
-        initialized as ```None```.
+        All the attributes defined in the dictionaries `default_attributes` and `attributes` will be initialized. If their values are not specified in the constructor, they will be initialized as `None`.
 
-        If ```**kwargs``` contains any key that is not defined in the dictionaries ```default_attributes```
-        and ```attributes```, the constructor will assign the value of the key to the attribute with the
-        same name.
+        If `**kwargs` contains any key that is not defined in the dictionaries `default_attributes` and `attributes`, the constructor will assign the value of the key to the attribute with the same name.
         """
         self.id_ = id_
         self.type_ = type_
+        self.color = None
 
         attribute_dict = (
             self.default_attributes

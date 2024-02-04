@@ -1,4 +1,3 @@
-<<<<<<<< HEAD:tactics2d/traffic/scenario_manager.py
 from abc import ABC, abstractmethod
 
 from shapely.geometry import Polygon
@@ -109,5 +108,3 @@ class ScenarioManager(ABC):
                 break
 
         return self.status
-========
->>>>>>>> origin/master:tactics2d/traffic/traffic_scenario_manager.py

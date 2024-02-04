@@ -77,7 +77,7 @@ class ReedsSheppPath:
 class ReedsShepp:
     """Implementation of the Reeds-Shepp path interpolator.
 
-    The implementation is referred to the following paper:
+    ??? info "Reference"
         Reeds, James, and Lawrence Shepp. "Optimal paths for a car that goes both forwards
         and backwards." *Pacific journal of mathematics* 145.2 (1990): 367-393.
 
