@@ -1,3 +1,11 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: test_dataset_parser.py
+# @Description: This file implements the test cases for the dataset parser.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 import sys
 
 sys.path.append(".")

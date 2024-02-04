@@ -1,3 +1,11 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: single_track_kinematics.py
+# @Description: This file implements a kinematic single-track model for a vehicle.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 from typing import Tuple
 
 import numpy as np
@@ -7,23 +15,19 @@ from tactics2d.trajectory.element import State
 
 
 class SingleTrackKinematics(PhysicsModelBase):
-    """Implementation of the kinematic single-track (bicycle) Model.
+    """This class implements a kinematic single-track model for a vehicle. The kinematic single-track model is a simplified model to simulate the vehicle dynamics. It combines the front and rear wheels into a single wheel, and the vehicle is assumed to be a point mass. The assumptions in this implementation include:
 
-    The kinematic single-track model is a simplified model to simulate the vehicle dynamics.
-        It combines the front and rear wheels into a single wheel, and the vehicle is assumed
-        to be a point mass. The assumptions in this implementation include:
+    The kinematic single-track model is a simplified model to simulate the vehicle dynamics. It combines the front and rear wheels into a single wheel, and the vehicle is assumed to be a point mass. The assumptions in this implementation include:
 
     1. The mass of the vehicle is concentrated at the center of the vehicle.
     2. The vehicle is a rigid body.
     3. The vehicle is front-wheel-only.
-    3. The vehicle is operating in a 2D plane (x-y).
+    4. The vehicle is operating in a 2D plane (x-y).
 
-    This model will lose its accuracy when the time step is set too large or the vehicle is
-        made to travel at a high speed.
+    This model will lose its accuracy when the time step is set too large or the vehicle is made to travel at a high speed.
 
-    The implementation is referred to the following paper:
-        Kong, Jason, et al. "Kinematic and dynamic vehicle models for autonomous driving
-        control design." *2015 IEEE intelligent vehicles symposium* (IV). IEEE, 2015.
+    !!! info "Reference"
+        Kong, Jason, et al. "Kinematic and dynamic vehicle models for autonomous driving control design." *2015 IEEE intelligent vehicles symposium* (IV). IEEE, 2015.
 
     Attributes:
         dist_front_hang (float): The distance from the center of the mass to the front axles. The unit is meter.
@@ -34,8 +38,6 @@ class SingleTrackKinematics(PhysicsModelBase):
         accel_range (list): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
         delta_t (float): The discrete time step for the simulation. The unit is second. Defaults to MAX_DELTA_T.
     """
-
-    abbrev = "KST"
 
     def __init__(
         self,

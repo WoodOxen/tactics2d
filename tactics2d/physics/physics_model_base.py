@@ -1,3 +1,11 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: physics_model_base.py
+# @Description: This file defines an abstract class for a physics model of a traffic participant.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 from abc import ABC, abstractmethod
 
 from tactics2d.trajectory.element import State, Trajectory
@@ -16,7 +24,7 @@ class PhysicsModelBase(ABC):
 
     @abstractmethod
     def step(self, state: State, action: tuple, interval: int = None) -> State:
-        """This function updates the state of the traffic participant based on the physics model.
+        """This abstract function defines an interface to update the state of the traffic participant based on the physics model.
 
         Args:
             state (State): The current state of the traffic participant.
@@ -29,7 +37,7 @@ class PhysicsModelBase(ABC):
 
     @abstractmethod
     def verify_state(self, state: State, last_state: State, interval: int = None) -> bool:
-        """This function verifies the validity of the new state based on the physics model.
+        """This abstract function defines an interface to verify the validity of the new state based on the physics model.
 
         Args:
             state (State): The new state of the traffic participant.

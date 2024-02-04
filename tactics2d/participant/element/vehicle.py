@@ -149,10 +149,16 @@ class Vehicle(ParticipantBase):
         )
 
     def add_state(self, state: State):
-        if not self.physics_model is None and self.physics_model.verify_state(state, self.trajectory.current_state):
+        if self.physics_model is None:
             self.trajectory.append_state(state)
+        elif self.physics_model.verify_state(state, self.trajectory.current_state):
+            self.trajectory.append_state(state)
+
         else:
-            raise RuntimeError("Invalid state.")
+            raise RuntimeError(
+                "Invalid state checked by the physics model %s."
+                % (self.physics_model.__class__.__name__)
+            )
 
     def _verify_trajectory(self, trajectory: Trajectory):
         if self.physics_model is None:
@@ -170,7 +176,10 @@ class Vehicle(ParticipantBase):
         if self._verify_trajectory(trajectory):
             self.trajectory = trajectory
         else:
-            raise RuntimeError()
+            raise RuntimeError(
+                "There exists invalid states in the trajectory checked by the physics model %s."
+                % self.physics_model.__class__.__name__
+            )
 
     def get_pose(self, frame: int = None) -> LinearRing:
         state = self.trajectory.get_state(frame)

@@ -48,15 +48,17 @@ VEHICLE_MODEL = {
         "0_100_km/h": 12,
     },
     "sedan": {
+        # Prototype: Volkswagen Tiguan (https://en.wikipedia.org/wiki/Volkswagen_Tiguan)
         "length": 4.668,
         "width": 1.825,
         "height": 1.481,
-        "wheel_base": 2.700,
+        "wheel_base": 2.604,
         "front_overhang": 0,
         "rear_overhang": 0,
-        "max_speed": 0,
-        "max_accel": 0,
-        "max_decel": 0,
+        "max_speed": 41.7,
+        "max_accel": 1.98,
+        "max_decel": -7.5,
+        "0_100_km/h": 14,
     },
     "medium_car": {
         # Prototype: Volkswagen Golf (https://car.autohome.com.cn/config/series/871-10281.html#pvareaid=3454437)

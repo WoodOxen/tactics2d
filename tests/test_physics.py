@@ -1,3 +1,11 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: test_physics.py
+# @Description: This file implements the test cases for the physics models.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 import sys
 
 sys.path.append(".")
@@ -13,12 +21,14 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 import numpy as np
+from shapely import hausdorff_distance
 from shapely.geometry import LineString, LinearRing
 from shapely.affinity import affine_transform, rotate
 import pygame
 import pytest
 
 from tactics2d.trajectory.element import State
+from tactics2d.participant.element import Pedestrian, Vehicle
 from tactics2d.physics import PointMass, SingleTrackKinematics, SingleTrackDynamics
 
 
@@ -37,6 +47,16 @@ VEHICLE_PARAMS = {
 }
 
 # fmt: off
+pm_actions = [
+    ((0, 0), 100), # stop for 0.1 second
+    ((1, 0), 500), # accelerate for 0.5 second along x-axis, expected to reach 0.5 m/s
+    ((-1, 0), 500), # decelerate for 0.5 second along x-axis, expected to reach 0 m/s
+    ((1, 0), 500), # accelerate for 0.5 second along x-axis, expected to reach 0.5 m/s
+    ((0, 1), 500), # accelerate for 0.5 second along y-axis, expected to reach  0.707 m/s
+    ((0, -1), 500), # accelerate for 0.5 second along y-axis, expected to reach  0.5 m/s
+    ((1, 1), 500), ((2, 2), 500), ((-2, -2), 2000)
+]
+
 ACTION_LIST = [
     ((0, 0), 10), ((0, 2), 20), ((0, -2), 20), 
     ((0.1, 0), 10), ((0.1, 0.5), 20), ((0.1, -0.5), 20),
@@ -184,23 +204,35 @@ def execute_actions(vehicle_model):
 
 @pytest.mark.physics
 @pytest.mark.parametrize(
-    "steer_range, speed_range, accel_range, delta_t",
+    "speed_range, accel_range, interval, delta_t",
     [
-        (
-            VEHICLE_PARAMS["steer_range"],
-            (0, VEHICLE_PARAMS["speed_range"][1]),
-            VEHICLE_PARAMS["accel_range"],
-            0.005,
-        )
+        ([0, 5], [0, 2], 100, 5),
+        ([-5, 5], [-2, 2], 9, 5),
+        ([5, 5], [2, 2], 50, 3),
+        (5, 2, 100, 5),
+        (-5, -2, 100, 5),
+        (None, None, 100, 5),
     ],
 )
-@pytest.mark.skip(reason="Mute for now.")
-def test_point_mass(steer_range, speed_range, accel_range, delta_t):
-    vehicle_model = PointMass(
-        steer_range=steer_range, speed_range=speed_range, accel_range=accel_range, delta_t=delta_t
-    )
+def test_point_mass(speed_range, accel_range, interval, delta_t):
+    model_newton = PointMass(speed_range, accel_range, interval, delta_t, "newton")
+    model_euler = PointMass(speed_range, accel_range, interval, delta_t, "euler")
+    initial_state = State(frame=0, x=10, y=10, heading=0, speed=0)
 
-    execute_actions(vehicle_model)
+    last_state_newton = initial_state
+    last_state_euler = initial_state
+    line_newton = [[last_state_newton.x, last_state_newton.y]]
+    line_euler = [[last_state_euler.x, last_state_euler.y]]
+    for action, duration in pm_actions:
+        for _ in np.arange(0, duration, interval):
+            state_newton = model_newton.step(last_state_newton, action, interval)
+            state_euler = model_euler.step(last_state_euler, action, interval)
+            line_newton.append([state_newton.x, state_newton.y])
+            line_euler.append([state_euler.x, state_euler.y])
+            last_state_newton = state_newton
+            last_state_euler = state_euler
+
+    assert hausdorff_distance(LineString(line_newton), LineString(line_euler)) < 0.01
 
 
 @pytest.mark.physics
@@ -226,13 +258,3 @@ def test_single_track_kinematic(steer_range, speed_range, accel_range, delta_t):
     )
 
     execute_actions(vehicle_model)
-
-
-# if __name__ == "__main__":
-#     test_single_track_kinematic(
-#     # test_point_mass(
-#         steer_range=VEHICLE_PARAMS["steer_range"],
-#         speed_range=(0, VEHICLE_PARAMS["speed_range"][1]),
-#         accel_range=VEHICLE_PARAMS["accel_range"],
-#         delta_t=0.005,
-#     )
