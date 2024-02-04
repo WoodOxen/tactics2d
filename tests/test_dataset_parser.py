@@ -23,8 +23,8 @@ from tactics2d.dataset_parser import (
 
 @pytest.mark.dataset_parser
 @pytest.mark.parametrize(
-    "sub_folder",
-    "expected"[
+    "sub_folder, expected",
+    [
         ("train/0a0a2bb7-c4f4-44cd-958a-9ee15cb34aca", 40),
         ("test/0a0af725-fbc3-41de-b969-3be718f694e2", 19),
         ("val/00a0ec58-1fb9-4a2b-bfd7-f4e5da7a9eff", 73),
