@@ -7,7 +7,7 @@
 # @Version: 1.0.0
 
 import os
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 import numpy as np
 from shapely.geometry import Point, LineString, Polygon
@@ -46,16 +46,17 @@ class WOMDParser:
 
     LANE_TYPE_MAPPING = {0: "road", 1: "highway", 2: "road", 3: "bicycle_lane"}
 
-    def get_scenario_ids(self, file: str, folder: str):
+    def get_scenario_ids(self, dataset) -> List[str]:
         """This function get the list of scenario ids from the given tfrecord file.
 
         Args:
-            file (str): The name of the tfrecord file.
-            folder (str): The path to the folder containing the tfrecord file.
+            dataset (tf.data.TFRecordDataset): The dataset to parse.
+
+        Returns:
+            List[str]: A list of scenario ids looking like ["637f20cafde22ff8", ...].
         """
+
         id_list = []
-        file_path = os.path.join(folder, file)
-        dataset = tf.data.TFRecordDataset(file_path, compression_type="")
 
         for data in dataset:
             proto_string = data.numpy()
@@ -65,11 +66,13 @@ class WOMDParser:
 
         return id_list
 
-    def parse_trajectory(self, scenario_id=None, **kwargs) -> Tuple[dict, List[int]]:
-        """This function parses trajectories from a single WOMD file. Because the duration of the scenario is well articulated, the parser will not provide an option to select time range within a single scenario. The states were collected at 10Hz.
+    def parse_trajectory(
+        self, scenario_id: Union[str, int] = None, **kwargs
+    ) -> Tuple[dict, List[int]]:
+        """This function parses trajectories from a single WOMD file. Because the duration of the scenario has been well articulated, the parser will not provide an option to select time range within a single scenario. The states were collected at 10Hz.
 
         Args:
-            scenario_id (str, optional): The id of the scenario to parse. If the scenario id is not given, the first scenario in the file will be parsed. Defaults to None.
+            scenario_id (Union[str, int], optional): The id of the scenario to parse. If the scenario id is a string, the parser will search for the scenario id in the file. If the scenario id is an integer, the parser will parse `scenario_id`-th scenario in the file. If the scenario id is None or is not found, the first scenario in the file will be parsed. Defaults to None.
             dataset (tf.data.TFRecordDataset, optional): The dataset to parse. Defaults to None.
             file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file. Defaults to None.
             folder (str, optional): The path to the folder containing the trajectory file. Defaults to None.
@@ -94,57 +97,66 @@ class WOMDParser:
                 "Either dataset or file and folder should be given as keyword arguments."
             )
 
+        scenario_ids = self.get_scenario_ids(dataset)
+
+        data_id = 0
+        if isinstance(scenario_id, str):
+            if scenario_id in scenario_ids:
+                data_id = scenario_ids.index(scenario_id)
+        elif isinstance(scenario_id, int):
+            data_id = scenario_id % len(scenario_ids)
+
+        data = None
+        cnt = 0
         for data in dataset:
-            proto_string = data.numpy()
-            scenario = scenario_pb2.Scenario()
-            scenario.ParseFromString(proto_string)
+            if cnt == data_id:
+                break
+            cnt += 1
 
-            if scenario_id is None:
-                scenario_id = scenario.scenario_id
+        proto_string = data.numpy()
+        scenario = scenario_pb2.Scenario()
+        scenario.ParseFromString(proto_string)
 
-            if scenario_id == scenario.scenario_id:
-                timestamps = scenario.timestamps_seconds
-                for track in scenario.tracks:
-                    trajectory = Trajectory(id_=track.id, fps=10, stable_freq=False)
-                    width = 0
-                    length = 0
-                    height = 0
-                    cnt = 0
-                    for i, state_ in enumerate(track.states):
-                        if not state_.valid:
-                            continue
-                        state = State(
-                            frame=int(timestamps[i] * 1000),
-                            x=state_.center_x,
-                            y=state_.center_y,
-                            heading=state_.heading,
-                            vx=state_.velocity_x,
-                            vy=state_.velocity_y,
-                        )
-                        time_stamps.add(state.frame)
+        timestamps = scenario.timestamps_seconds
+        for track in scenario.tracks:
+            trajectory = Trajectory(id_=track.id, fps=10, stable_freq=False)
+            width = 0
+            length = 0
+            height = 0
+            cnt = 0
+            for i, state_ in enumerate(track.states):
+                if not state_.valid:
+                    continue
+                state = State(
+                    frame=int(timestamps[i] * 1000),
+                    x=state_.center_x,
+                    y=state_.center_y,
+                    heading=state_.heading,
+                    vx=state_.velocity_x,
+                    vy=state_.velocity_y,
+                )
+                time_stamps.add(state.frame)
 
-                        trajectory.append_state(state)
+                trajectory.append_state(state)
 
-                        width += state_.width
-                        length += state_.length
-                        height += state_.height
-                        cnt += 1
+                width += state_.width
+                length += state_.length
+                height += state_.height
+                cnt += 1
 
-                    participant = self.CLASS_MAPPING[track.object_type](
-                        id_=track.id,
-                        type_=self.TYPE_MAPPING[track.object_type],
-                        length=length / cnt,
-                        width=width / cnt,
-                        height=height / cnt,
-                        trajectory=trajectory,
-                    )
-                    participants[track.id] = participant
+            participant = self.CLASS_MAPPING[track.object_type](
+                id_=track.id,
+                type_=self.TYPE_MAPPING[track.object_type],
+                length=length / cnt,
+                width=width / cnt,
+                height=height / cnt,
+                trajectory=trajectory,
+            )
+            participants[track.id] = participant
 
-                actual_time_range = sorted(list(time_stamps))
+        actual_time_range = sorted(list(time_stamps))
 
-                return participants, actual_time_range
-
-        return None
+        return participants, actual_time_range
 
     def _join_lane_boundary(self, ids, map_):
         points = []

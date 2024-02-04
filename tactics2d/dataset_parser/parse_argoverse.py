@@ -29,7 +29,7 @@ class ArgoverseParser:
     TYPE_MAPPING = {
         "vehicle": "car",
         "bus": "bus",
-        "motorcycle": "motorcycle",
+        "motorcyclist": "motorcycle",
         "cyclist": "bicycle",
         "riderless_bicycle": "bicycle",
         "pedestrian": "pedestrian",
@@ -40,7 +40,7 @@ class ArgoverseParser:
     CLASS_MAPPING = {
         "vehicle": Vehicle,
         "bus": Vehicle,
-        "motorcycle": Cyclist,
+        "motorcyclist": Cyclist,
         "cyclist": Cyclist,
         "riderless_bicycle": Cyclist,
         "pedestrian": Pedestrian,
@@ -51,7 +51,7 @@ class ArgoverseParser:
     DEFAULT_SIZE = {
         "vehicle": (4.0, 2.0),
         "bus": (4.0, 2.0),
-        "motorcycle": (2.0, 0.7),
+        "motorcyclist": (2.0, 0.7),
         "cyclist": (2.0, 0.7),
         "riderless_bicycle": (2.0, 0.7),
         "pedestrian": (0.5, 0.5),
@@ -80,7 +80,7 @@ class ArgoverseParser:
     }
 
     def parse_trajectory(self, file: str, folder: str) -> Tuple[dict, Tuple[int, int]]:
-        """This function parses trajectories from a single Argoverse parquet file. Because the duration of the scenario is well articulated, the parser will not provide an option to select time range within a single scenario. The states were collected at 10Hz.
+        """This function parses trajectories from a single Argoverse parquet file. Because the duration of the scenario has been well articulated, the parser will not provide an option to select time range within a single scenario. The states were collected at 10Hz.
 
         Args:
             file (str): The name of the trajectory data file. The file is expected to be a parquet file.
