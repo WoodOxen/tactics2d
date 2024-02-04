@@ -22,7 +22,7 @@ from tactics2d.dataset_parser.womd_proto import scenario_pb2
 class WOMDParser:
     """This class implements a parser for Waymo Open Motion Dataset (WOMD).
 
-    ??? info "Reference"
+    !!! info "Reference"
         Ettinger, Scott, et al. "Large scale interactive motion forecasting for autonomous driving: The waymo open motion dataset." Proceedings of the IEEE/CVF International Conference on Computer Vision. 2021.
 
     Because loading the tfrecord file is time consuming, the trajectory and the map parsers provide two ways to load the file. The first way is to load the file directly from the given file path. The second way is to load the file from a tf.data.TFRecordDataset object. If the tf.data.TFRecordDataset object is given, the parser will ignore the file path.

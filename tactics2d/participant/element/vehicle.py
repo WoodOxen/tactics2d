@@ -1,4 +1,5 @@
 from typing import Tuple
+import logging
 
 import numpy as np
 from shapely.geometry import LinearRing, LineString
@@ -32,20 +33,31 @@ class Vehicle(ParticipantBase):
         color (tuple, optional): The color of the vehicle. Expressed by a tuple with 3 integers.
         kerb_weight: (float, optional): The weight of the vehicle. The default unit is
             kilogram (kg). Defaults to None.
-        steer_range (Tuple[float, float], optional): The range of the steering angle. The unit is radian. Defaults to None.
-        speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit is meter per second. Defaults to None.
-        accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
-        comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration that is comfortable for the driver.
+        driven_mode: (str, optional): The driven way of the vehicle. The available options are
+            "FWD", "RWD", "4WD", and "AWD". Defaults to "FWD".
+        steer_range (Tuple[float, float], optional): The range of the steering angle. The unit
+            is radian. Defaults to None.
+        speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit
+            is meter per second. Defaults to None.
+        accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The
+            unit is meter per second squared. Defaults to None.
+        comfort_accel_range (Tuple[float, float], optional): The range of the vehicle
+            acceleration that is comfortable for the driver.
         physics_model (): Defaults to None.
-        steer_range (Tuple[float, float], optional): The range of the steering angle. The unit is radian. Defaults to None.
-        speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit is meter per second. Defaults to None.
-        accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
-        comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration that is comfortable for the driver.
+        steer_range (Tuple[float, float], optional): The range of the steering angle.
+            The unit is radian. Defaults to None.
+        speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit
+            is meter per second. Defaults to None.
+        accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The
+            unit is meter per second squared. Defaults to None.
+        comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration
+            that is comfortable for the driver.
     """
 
     attributes = {
         "color": tuple,
         "kerb_weight": float,
+        "driven_mode": str,
         "front_overhang": float,
         "wheel_base": float,
         "rear_overhang": float,
@@ -57,19 +69,9 @@ class Vehicle(ParticipantBase):
         "physics_model": None,
     }
     default_vehicle_types = set(VEHICLE_MODEL.keys())
-    default_driven_types = {
-        "front_wheel_driven",
-        "rear_wheel_driven",
-        "four_wheel_driven",
-        "all_wheel_driven",
-    }
+    default_driven_modes = {"FWD", "RWD", "4WD", "AWD"}
 
-    def __init__(
-        self,
-        id_: int,
-        type_: str = "sedan",
-        **kwargs,
-    ):
+    def __init__(self, id_: int, type_: str = "sedan", **kwargs):
         super().__init__(id_, type_, **kwargs)
 
         attribute_dict = {**self.default_attributes, **self.attributes}
@@ -113,35 +115,49 @@ class Vehicle(ParticipantBase):
             else:
                 self.physics_model = PointMass(self.steer_range, self.speed_range, self.accel_range)
 
-        if self.driven_type not in self.default_driven_types:
-            self.driven_type = "rear_wheel_driven"
+        if self.driven_mode not in self.default_driven_modes:
+            self.driven_mode = "FWD"
 
-        if not None in [self.width, self.length]:
-            self.bbox = LinearRing(
-                [
-                    [self.length, 0.5 * self.width],
-                    [self.length, -0.5 * self.width],
-                    [0, -0.5 * self.width],
-                    [0, 0.5 * self.width],
-                ]
-            )
+        if self.driven_mode == "FWD" and self.front_overhang is not None:
+            self.center_shift = self.front_overhang - self.length
+        elif self.driven_mode == "RWD" and self.rear_overhang is not None:
+            self.center_shift = -self.rear_overhang
+        elif not None in (self.front_overhang, self.rear_overhang, self.length):
+            self.center_shift = 0.5 * (self.front_overhang - self.rear_overhang - self.length)
+        elif self.length is not None:
+            self.center_shift = -0.5 * self.length
+        else:
+            self.center_shift = None
+            logging.warning("Cannot locate the vehicle center.")
 
-            if self.driven_type == "front_wheel_driven" and self.front_overhang is not None:
-                self.center_shift = self.front_overhang - self.length
-            elif self.driven_type == "rear_wheel_driven" and self.rear_overhang is not None:
-                self.center_shift = -self.rear_overhang
-            elif not None in [self.wheel_base, self.rear_overhang]:
-                self.center_shift = -self.rear_overhang - 0.5 * self.wheel_base
-            else:
-                self.center_shift = -0.5 * self.length
+        self.bbox = LinearRing(
+            [
+                [0.5 * self.length, -0.5 * self.width],
+                [0.5 * self.length, 0.5 * self.width],
+                [-0.5 * self.length, 0.5 * self.width],
+                [-0.5 * self.length, -0.5 * self.width],
+            ]
+        )
+
+        self.bbox_new = LinearRing(
+            [
+                [self.length, -0.5 * self.width],
+                [self.length, 0.5 * self.width],
+                [0, 0.5 * self.width],
+                [0, -0.5 * self.width],
+            ]
+        )
 
     def add_state(self, state: State):
-        if self.physics_model.verify_state(state, self.trajectory.current_state):
+        if not self.physics_model is None and self.physics_model.verify_state(state, self.trajectory.current_state):
             self.trajectory.append_state(state)
         else:
             raise RuntimeError("Invalid state.")
 
     def _verify_trajectory(self, trajectory: Trajectory):
+        if self.physics_model is None:
+            return True
+
         for i in range(1, len(trajectory)):
             if not self.physics_model.verify_state(
                 trajectory.get_state(trajectory.frames[i]),
@@ -166,20 +182,43 @@ class Vehicle(ParticipantBase):
             state.location[0],
             state.location[1],
         ]
-        bbox = translate(self.bbox, self.center_shift)
+        return affine_transform(self.bbox, transform_matrix)
+
+    def get_pose_new(self, **kwargs) -> LinearRing:
+        if kwargs is None or "frame" in kwargs:
+            state = self.trajectory.get_state(kwargs["frame"])
+        elif "state" in kwargs and isinstance(kwargs["state"], State):
+            state = kwargs["state"]
+        elif "heading" in kwargs:
+            if "location" in kwargs:
+                state = State(0, kwargs["location"][0], kwargs["location"][1], kwargs["heading"])
+            elif "x" in kwargs and "y" in kwargs:
+                state = State(0, kwargs["x"], kwargs["y"], kwargs["heading"])
+        else:
+            raise NotImplementedError("Invalid arguments.")
+
+        transform_matrix = [
+            np.cos(state.heading),
+            -np.sin(state.heading),
+            np.sin(state.heading),
+            np.cos(state.heading),
+            state.location[0],
+            state.location[1],
+        ]
+        bbox = translate(self.bbox_new, self.center_shift)
         return affine_transform(bbox, transform_matrix)
 
     def get_trace(self, frame_range: tuple = None):
-        states = self.trajectory.get_states(frame_range)
+        states = self.get_states(frame_range)
         trace = None
         if len(states) == 0:
             pass
         elif len(states) == 1:
-            trace = self.get_pose(states[0].frame)
+            trace = self.get_pose_new(frame=states[0].frame)
         else:
             center_line = []
-            start_pose = np.array(list(self.get_pose(states[0].frame).coords))
-            end_pose = np.array(list(self.get_pose(states[-1].frame).coords))
+            start_pose = np.array(list(self.get_pose_new(frame=states[0].frame).coords))
+            end_pose = np.array(list(self.get_pose_new(frame=states[-1].frame).coords))
             start_point = tuple(np.mean(start_pose[2:4], axis=0))  # the midpoint of the rear
             end_point = tuple(np.mean(end_pose[0:2], axis=0))  # the midpoint of the front
             center_line.append(start_point)

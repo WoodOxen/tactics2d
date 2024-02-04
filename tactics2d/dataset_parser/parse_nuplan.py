@@ -25,7 +25,7 @@ from tactics2d.map.element import RoadLine, Lane, LaneRelationship, Area, Regula
 class NuPlanParser:
     """This class implements a parser for NuPlan dataset.
 
-    ??? info "Reference"
+    !!! info "Reference"
         Caesar, Holger, et al. "nuplan: A closed-loop ml-based planning benchmark for autonomous vehicles." arXiv preprint arXiv:2106.11810 (2021).
     """
 
