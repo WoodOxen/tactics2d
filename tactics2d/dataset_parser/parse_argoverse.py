@@ -141,7 +141,7 @@ class ArgoverseParser:
         with open(file_path, "r") as f:
             map_data = json.load(f)
 
-        map_ = Map()
+        map_ = Map(name="argoverse_" + file.split(".")[0])
 
         if "drivable_areas" in map_data:
             for road_element in map_data["drivable_areas"].values():

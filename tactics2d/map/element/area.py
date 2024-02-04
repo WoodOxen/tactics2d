@@ -43,7 +43,6 @@ class Area:
         speed_limit_mandatory: bool = True,
         custom_tags: dict = None,
     ):
-
         self.id_ = id_
         self.geometry = geometry
         self.line_ids = line_ids

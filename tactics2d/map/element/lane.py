@@ -64,7 +64,6 @@ class Lane:
         speed_limit_mandatory: bool = True,
         custom_tags: dict = None,
     ):
-
         self.id_ = id_
         self.left_side = left_side
         self.right_side = right_side

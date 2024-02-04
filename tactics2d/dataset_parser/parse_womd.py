@@ -297,7 +297,7 @@ class WOMDParser:
                 scenario_id = scenario.scenario_id
 
             if scenario_id == scenario.scenario_id:
-                map_ = Map(name="nuplan_" + scenario.scenario_id)
+                map_ = Map(name="womd_" + scenario.scenario_id)
                 for map_feature in scenario.map_features:
                     if map_feature.HasField("road_line") or map_feature.HasField("road_edge"):
                         self._parse_map_features(map_feature, map_)

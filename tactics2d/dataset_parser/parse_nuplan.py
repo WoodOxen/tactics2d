@@ -157,42 +157,40 @@ class NuPlanParser:
         A NuPlan map includes the following layers: 'baseline_paths', 'carpark_areas', 'generic_drivable_areas', 'dubins_nodes', 'lane_connectors', 'intersections', 'boundaries', 'crosswalks', 'lanes_polygons', 'lane_group_connectors', 'lane_groups_polygons', 'road_segments', 'stop_polygons', 'traffic_lights', 'walkways', 'gen_lane_connectors_scaled_width_polygons', 'meta'. In this parser, we only parse the following layers: 'boundaries', 'lanes_polygons', 'lane_connectors', 'carpark_areas', 'crosswalks', 'walkways', 'stop_polygons', 'traffic_lights'
         """
         map_file = os.path.join(folder, file)
-        map_ = Map()
-        max_id = -np.inf
+        map_ = Map(name="nuplan_" + file.split(".")[0])
 
         boundaries = gpd.read_file(map_file, layer="boundaries")
         for _, row in boundaries.iterrows():
             boundary_ids = [int(s) for s in row["boundary_segment_fids"].split(",") if s.isdigit()]
-            boundary_id = boundary_ids[-1] + 1
+            boundary_id = boundary_ids[0] - 1
             boundary = RoadLine(
                 id_=str(boundary_id),
                 linestring=affine_transform(LineString(row["geometry"]), self.transform_matrix),
             )
-            max_id = max(max_id, max(boundary_ids))
             map_.add_roadline(boundary)
 
-        lane_polygons = gpd.read_file(map_file, layer="lanes_polygons")
-        for _, row in lane_polygons.iterrows():
-            lane_polygon = Lane(
-                id_=str(row["lane_fid"]),
-                left_side=map_.get_by_id(str(row["left_boundary_fid"])).geometry,
-                right_side=map_.get_by_id(str(row["right_boundary_fid"])).geometry,
-                line_ids=set([str(row["left_boundary_fid"]), str(row["right_boundary_fid"])]),
-                subtype=None,
-                speed_limit=row["speed_limit_mps"],
-                speed_limit_unit="m/s",
-            )
-            lane_polygon.add_related_lane(str(row["from_edge_fid"]), LaneRelationship.PREDECESSOR)
-            lane_polygon.add_related_lane(str(row["to_edge_fid"]), LaneRelationship.SUCCESSOR)
-            max_id = max(max_id, row["lane_fid"])
-            map_.add_lane(lane_polygon)
+        id_cnt = max(np.array(list(map_.ids.keys()), np.int64)) + 1
+
+        # lane_polygons = gpd.read_file(map_file, layer="lanes_polygons")
+        # for _, row in lane_polygons.iterrows():
+        #     lane_polygon = Lane(
+        #         id_=str(row["lane_fid"]),
+        #         left_side=map_.get_by_id(str(row["left_boundary_fid"])).geometry,
+        #         right_side=map_.get_by_id(str(row["right_boundary_fid"])).geometry,
+        #         line_ids=set([str(row["left_boundary_fid"]), str(row["right_boundary_fid"])]),
+        #         subtype=None,
+        #         speed_limit=row["speed_limit_mps"],
+        #         speed_limit_unit="m/s",
+        #     )
+        #     lane_polygon.add_related_lane(str(row["from_edge_fid"]), LaneRelationship.PREDECESSOR)
+        #     lane_polygon.add_related_lane(str(row["to_edge_fid"]), LaneRelationship.SUCCESSOR)
+        #     map_.add_lane(lane_polygon)
 
         lane_connectors = gpd.read_file(map_file, layer="lane_connectors")
         for _, row in lane_connectors.iterrows():
             # TODO: parse the polygon in lane to left and right side
             pass
 
-        id_cnt = max_id + 1
         area_dict = {
             "crosswalks": "crosswalk",
             "carpark_areas": "parking",

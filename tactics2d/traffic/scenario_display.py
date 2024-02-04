@@ -235,7 +235,7 @@ class ScenarioDisplay:
         ax.set(**ax_kwargs)
         ax.set_axis_off()
 
-        if len(map_.lanes.keys()) == 0:
+        if "womd" in map_.name:
             fig.set_facecolor(COLOR_PALETTE["black"])
 
         self.display_map(map_, ax)
