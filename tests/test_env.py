@@ -60,8 +60,3 @@ def test_parking_env():
 @pytest.mark.skip(reason="Terminal only")
 def test_manual_control(env):
     pass
-
-
-if __name__ == "__main__":
-    # test_manual_control()
-    test_parking_env()

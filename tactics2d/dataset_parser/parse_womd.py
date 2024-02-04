@@ -302,7 +302,9 @@ class WOMDParser:
                     if map_feature.HasField("road_line") or map_feature.HasField("road_edge"):
                         self._parse_map_features(map_feature, map_)
                 for map_feature in scenario.map_features:
-                    if not map_feature.HasField("road_line") and not map_feature.HasField("road_edge"):
+                    if not map_feature.HasField("road_line") and not map_feature.HasField(
+                        "road_edge"
+                    ):
                         self._parse_dynamic_map_features(map_feature, map_)
                 for dynamic_map_state in scenario.dynamic_map_states:
                     self._parse_dynamic_map_features(dynamic_map_state, map_)

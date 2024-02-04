@@ -91,9 +91,6 @@ class ParkingScenarioManager(ScenarioManager):
         super().__init__(render_fps, off_screen, max_step, step_size)
 
         self.vehicle_configs = VEHICLE_MODEL["medium_car"]
-        super().__init__(render_fps, off_screen, max_step, step_size)
-
-        self.vehicle_configs = VEHICLE_MODEL["medium_car"]
 
         self.agent = Vehicle(
             id_=0,
@@ -103,20 +100,7 @@ class ParkingScenarioManager(ScenarioManager):
             wheel_base=self.vehicle_configs["wheel_base"],
             speed_range=(-self.max_speed, self.max_speed),
             steer_range=(-self.max_steer, self.max_steer),
-            length=self.vehicle_configs["length"],
-            width=self.vehicle_configs["width"],
-            wheel_base=self.vehicle_configs["wheel_base"],
-            speed_range=(-self.max_speed, self.max_speed),
-            steer_range=(-self.max_steer, self.max_steer),
             accel_range=(-1.0, 1.0),
-            physics_model=SingleTrackKinematics(
-                dist_front_hang=0.5 * self.vehicle_configs["length"]
-                - self.vehicle_configs["front_overhang"],
-                dist_rear_hang=0.5 * self.vehicle_configs["length"]
-                - self.vehicle_configs["rear_overhang"],
-                steer_range=(-self.max_steer, self.max_steer),
-                speed_range=(-self.max_speed, self.max_speed),
-            ),
             physics_model=SingleTrackKinematics(
                 dist_front_hang=0.5 * self.vehicle_configs["length"]
                 - self.vehicle_configs["front_overhang"],
@@ -216,7 +200,6 @@ class ParkingScenarioManager(ScenarioManager):
             map_=self.map_,
             perception_range=(20, 20, 20, 20),
             window_size=self.state_size,
-            window_size=self.state_size,
             off_screen=self.off_screen,
         )
         self.render_manager.add_sensor(camera)
@@ -225,9 +208,6 @@ class ParkingScenarioManager(ScenarioManager):
         lidar = SingleLineLidar(
             id_=1,
             map_=self.map_,
-            perception_range=self.lidar_range,
-            freq_detect=self.lidar_line * 10,
-            window_size=self.state_size,
             perception_range=self.lidar_range,
             freq_detect=self.lidar_line * 10,
             window_size=self.state_size,

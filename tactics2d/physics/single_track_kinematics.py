@@ -5,8 +5,6 @@ import numpy as np
 from .physics_model_base import PhysicsModelBase
 from tactics2d.trajectory.element import State
 
-MAX_DELTA_T = 0.005
-
 
 class SingleTrackKinematics(PhysicsModelBase):
     """Implementation of the kinematic single-track (bicycle) Model.
@@ -46,7 +44,7 @@ class SingleTrackKinematics(PhysicsModelBase):
         steer_range: Tuple[float, float] = None,
         speed_range: Tuple[float, float] = None,
         accel_range: Tuple[float, float] = None,
-        delta_t: float = MAX_DELTA_T,
+        delta_t: float = None,
     ):
         self.dist_front_hang = dist_front_hang
         self.dist_rear_hang = dist_rear_hang
@@ -54,7 +52,7 @@ class SingleTrackKinematics(PhysicsModelBase):
         self.speed_range = speed_range
         self.steer_range = steer_range
         self.accel_range = accel_range
-        self.delta_t = min(delta_t, MAX_DELTA_T)
+        self.delta_t = min(delta_t, self.MIN_DELTA_T) if delta_t is not None else self.DELTA_T
 
     def _step(self, x, y, heading, speed, accel, steer, dt):
         new_x = x + speed * np.cos(heading) * dt
