@@ -5,15 +5,16 @@ on:
 
 jobs:
   test-modules:
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04, Windows, macOS]
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-            submodules: recursive
+          submodules: recursive
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -60,5 +61,4 @@ jobs:
               python${{ matrix.python-version }} -m pip install --upgrade pip && \
               if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && \
               if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi && \
-              python${{ matrix.python-version }} -m pip install bezier && \
               python${{ matrix.python-version }} -m pytest tests"

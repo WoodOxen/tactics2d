@@ -1,9 +1,6 @@
-name: Publish to Test PyPI
+name: Publish to PyPI
 on:
-  push: 
-    branches: 
-      - master
-  workflow_dispatch:
+  workflow_dispatch
 
 jobs:
   build:
@@ -12,7 +9,15 @@ jobs:
         os: [ubuntu-20.04, ubuntu-22.04, Windows, macOS]
         python-version: ["3.8", "3.9", "3.10", "3.11"]
     runs-on: ${{ matrix.os }}
+    permissions: 
+      id-token: write
     steps:
+      - name: Exit if the tag is not a release
+        run: |
+          if [[ ! $GITHUB_REF == refs/tags/* ]]; then
+            echo "This is not a tag"
+            exit 78
+          fi
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -28,11 +33,7 @@ jobs:
       - name: Build Package
         run: |
           python setup.py sdist bdist_wheel
-      - name: Upload to Test PyPI
+      - name: Upload to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.TEST_PYPI_TOKEN }}
-          repository-url: https://test.pypi.org/legacy/
           verbose: true
-          
-      
