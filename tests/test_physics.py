@@ -54,7 +54,7 @@ pm_actions = [
     ((1, 0), 500), # accelerate for 0.5 second along x-axis, expected to reach 0.5 m/s
     ((0, 1), 500), # accelerate for 0.5 second along y-axis, expected to reach  0.707 m/s
     ((0, -1), 500), # accelerate for 0.5 second along y-axis, expected to reach  0.5 m/s
-    ((1, 1), 500), ((2, 2), 500), ((-2, -2), 2000)
+    ((1, 1), 500), ((2, 2), 500), ((-2, -2), 2000), ((-1, 2), 500), ((2, -1), 500)
 ]
 
 ACTION_LIST = [
@@ -241,8 +241,8 @@ def test_point_mass(speed_range, accel_range, interval, delta_t):
     t3 = time.time()
 
     assert hausdorff_distance(LineString(line_newton), LineString(line_euler)) < 0.01
-    logging.info("The average fps for Newton's method is {:.2f} Hz.".format(cnt / (t2 - t1)))
-    logging.info("The average fps for Euler's method is {:.2f} Hz.".format(cnt / (t3 - t2)))
+    logging.info("The average fps for Newton's method is {:.2f} Hz.".format(cnt / (t2 + 1e-6 - t1)))
+    logging.info("The average fps for Euler's method is {:.2f} Hz.".format(cnt / (t3 + 1e-6 - t2)))
 
 
 @pytest.mark.physics
