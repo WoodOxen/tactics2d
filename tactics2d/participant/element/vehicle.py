@@ -1,4 +1,12 @@
-from typing import Tuple
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: vehicle.py
+# @Description: This file defines a class for a four-wheeled vehicle.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
+from typing import Any, Tuple
 import logging
 
 import numpy as np
@@ -6,8 +14,8 @@ from shapely.geometry import LinearRing, LineString
 from shapely.affinity import translate, affine_transform
 
 from .participant_base import ParticipantBase
-from tactics2d.trajectory.element.trajectory import State, Trajectory
-from tactics2d.physics import PointMass, SingleTrackKinematics
+from tactics2d.participant.trajectory import State, Trajectory
+from tactics2d.physics import PhysicsModelBase, PointMass, SingleTrackKinematics
 
 from .defaults import VEHICLE_MODEL
 
@@ -24,54 +32,54 @@ class Vehicle(ParticipantBase):
     Attributes:
         id_ (int): The unique identifier of the vehicle.
         type_ (str): The type of the vehicle.
-        length (float, optional): The length of the vehicle. The default unit is meter (m).
-            Defaults to None.
-        width (float, optional): The width of the vehicle. The default unit is meter (m).
-            Defaults to None.
-        height (float, optional): The height of the vehicle. The default unit is meter (m).
-            Defaults to None.
+        length (float, optional): The length of the vehicle. The default unit is meter (m). Defaults to None.
+        width (float, optional): The width of the vehicle. The default unit is meter (m). Defaults to None.
+        height (float, optional): The height of the vehicle. The default unit is meter (m). Defaults to None.
         color (tuple, optional): The color of the vehicle. Expressed by a tuple with 3 integers.
-        kerb_weight: (float, optional): The weight of the vehicle. The default unit is
-            kilogram (kg). Defaults to None.
-        driven_mode: (str, optional): The driven way of the vehicle. The available options are
-            "FWD", "RWD", "4WD", and "AWD". Defaults to "FWD".
-        steer_range (Tuple[float, float], optional): The range of the steering angle. The unit
-            is radian. Defaults to None.
-        speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit
-            is meter per second. Defaults to None.
-        accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The
-            unit is meter per second squared. Defaults to None.
-        comfort_accel_range (Tuple[float, float], optional): The range of the vehicle
-            acceleration that is comfortable for the driver.
+        kerb_weight: (float, optional): The weight of the vehicle. The default unit is kilogram (kg). Defaults to None.
+        driven_mode: (str, optional): The driven way of the vehicle. The available options are "FWD", "RWD", "4WD", and "AWD". Defaults to "FWD".
+        steer_range (Tuple[float, float], optional): The range of the steering angle. The unit is radian. Defaults to None.
+        speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit is meter per second. Defaults to None.
+        accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
+        comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration that is comfortable for the driver.
         physics_model (): Defaults to None.
-        steer_range (Tuple[float, float], optional): The range of the steering angle.
-            The unit is radian. Defaults to None.
-        speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit
-            is meter per second. Defaults to None.
-        accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The
-            unit is meter per second squared. Defaults to None.
-        comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration
-            that is comfortable for the driver.
+        steer_range (Tuple[float, float], optional): The range of the steering angle. The unit is radian. Defaults to None.
+        speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit is meter per second. Defaults to None.
+        accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
+        comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration that is comfortable for the driver. Defaults to None.
     """
 
-    attributes = {
-        "color": tuple,
+    __annotations__ = {
+        "id_": int,
+        "type_": str,
+        "length": float,
+        "width": float,
+        "height": float,
+        "color": Any,
         "kerb_weight": float,
         "driven_mode": str,
         "front_overhang": float,
         "wheel_base": float,
         "rear_overhang": float,
-        "speed_range": tuple,
-        "steer_range": tuple,
-        "accel_range": tuple,
-        "comfort_accel_range": tuple,
-        "driven_type": str,
-        "physics_model": None,
+        "speed_range": Tuple[float, float],
+        "steer_range": Tuple[float, float],
+        "accel_range": Tuple[float, float],
+        "comfort_accel_range": Tuple[float, float],
+        "physics_model": PhysicsModelBase,
     }
     default_vehicle_types = set(VEHICLE_MODEL.keys())
     default_driven_modes = {"FWD", "RWD", "4WD", "AWD"}
 
     def __init__(self, id_: int, type_: str = "sedan", **kwargs):
+        """Initialize the vehicle.
+
+        Args:
+            id_ (int): The unique identifier.
+            type_ (str, optional): The type. Defaults to "sedan".
+
+        Keyword Args:
+
+        """
         super().__init__(id_, type_, **kwargs)
 
         attribute_dict = {**self.default_attributes, **self.attributes}

@@ -1,8 +1,7 @@
 from shapely.geometry import LineString
 
 from .participant_base import ParticipantBase
-from tactics2d.trajectory.element.state import State
-from tactics2d.trajectory.element.trajectory import Trajectory
+from tactics2d.participant.trajectory import State, Trajectory
 
 
 class Pedestrian(ParticipantBase):
@@ -57,9 +56,6 @@ class Pedestrian(ParticipantBase):
 
         Args:
             frame_range (_type_, optional): _description_. Defaults to None.
-
-        Returns:
-            _type_: _description_
         """
         trajectory = self.get_trajectory(frame_range)
         trajectory = LineString(trajectory)

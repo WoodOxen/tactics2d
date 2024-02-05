@@ -9,7 +9,7 @@ from shapely.affinity import affine_transform
 
 from tactics2d.math.random import truncate_gaussian
 from tactics2d.map.element import Area, Map
-from tactics2d.trajectory.element import State
+from tactics2d.participant.trajectory import State
 
 
 ORIGIN = Point(0.0, 0.0)

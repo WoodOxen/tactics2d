@@ -11,11 +11,11 @@ from typing import Tuple
 import numpy as np
 
 from .physics_model_base import PhysicsModelBase
-from tactics2d.trajectory.element import State
+from tactics2d.participant.trajectory import State
 
 
 class SingleTrackKinematics(PhysicsModelBase):
-    """This class implements a kinematic single-track model for a vehicle. The kinematic single-track model is a simplified model to simulate the vehicle dynamics. It combines the front and rear wheels into a single wheel, and the vehicle is assumed to be a point mass. The assumptions in this implementation include:
+    """This class implements a kinematic single-track model for a vehicle.
 
     The kinematic single-track model is a simplified model to simulate the vehicle dynamics. It combines the front and rear wheels into a single wheel, and the vehicle is assumed to be a point mass. The assumptions in this implementation include:
 
@@ -30,13 +30,7 @@ class SingleTrackKinematics(PhysicsModelBase):
         Kong, Jason, et al. "Kinematic and dynamic vehicle models for autonomous driving control design." *2015 IEEE intelligent vehicles symposium* (IV). IEEE, 2015.
 
     Attributes:
-        dist_front_hang (float): The distance from the center of the mass to the front axles. The unit is meter.
-        dist_rear_hang (float): The distance from the center of the mass to the rear axles. The unit is meter.
-        wheel_base (float): The distance between the front and rear axles, which should be the sum of dist_front_hang and dist_rear_hang. The unit is meter.
-        steer_range (list): The range of the steering angle. The unit is radian. Defaults to None.
-        speed_range (list): The range of the vehicle speed. The unit is meter per second. Defaults to None.
-        accel_range (list): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
-        delta_t (float): The discrete time step for the simulation. The unit is second. Defaults to MAX_DELTA_T.
+
     """
 
     def __init__(
@@ -54,7 +48,7 @@ class SingleTrackKinematics(PhysicsModelBase):
         self.speed_range = speed_range
         self.steer_range = steer_range
         self.accel_range = accel_range
-        self.delta_t = min(delta_t, self.MIN_DELTA_T) if delta_t is not None else self.DELTA_T
+        self.delta_t = min(delta_t, self._MIN_DELTA_T) if delta_t is not None else self._DELTA_T
 
     def _step(self, x, y, heading, speed, accel, steer, dt):
         new_x = x + speed * np.cos(heading) * dt

@@ -9,7 +9,7 @@ from gymnasium.error import InvalidAction
 
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
-from tactics2d.trajectory.element import State
+from tactics2d.participant.trajectory import State
 from tactics2d.sensor import TopDownCamera, RenderManager
 from tactics2d.map.generator import RacingTrackGenerator
 from tactics2d.traffic import ScenarioManager

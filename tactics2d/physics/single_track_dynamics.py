@@ -9,7 +9,7 @@
 import numpy as np
 
 from .physics_model_base import PhysicsModelBase
-from tactics2d.trajectory.element import State
+from tactics2d.participant.trajectory import State
 
 
 class SingleTrackDynamics(PhysicsModelBase):

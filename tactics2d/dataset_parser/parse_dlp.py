@@ -12,7 +12,7 @@ import json
 import numpy as np
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
-from tactics2d.trajectory.element import State, Trajectory
+from tactics2d.participant.trajectory import State, Trajectory
 
 
 class DLPParser:
@@ -63,7 +63,7 @@ class DLPParser:
         Args:
             file (Union[int, str]): The id or the name of the trajectory file. The file is expected to be a json file (.json). If the input is an integer, the parser will parse the trajectory data from the following files: `DJI_%04d_agents.json % file`, `DJI_%04d_frames.json % file`, `DJI_%04d_instances.json % file`, `DJI_%04d_obstacles.json % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
             folder (str): The path to the folder containing the trajectory data.
-            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data.
 
         Returns:
             dict: A dictionary of vehicles. The keys are the ids of the vehicles. The values are the vehicles.

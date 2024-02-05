@@ -17,7 +17,7 @@ import pandas as pd
 import numpy as np
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist
-from tactics2d.trajectory.element import State, Trajectory
+from tactics2d.participant.trajectory import State, Trajectory
 
 # from tactics2d.map.parser import Lanelet2Parser
 
@@ -82,7 +82,7 @@ class LevelXParser:
         """Initialize the parser.
 
         Args:
-            dataset (str, optional): The dataset you want to parse. The available choices are: highD, inD, rounD, exiD, uniD. Defaults to "".
+            dataset (str, optional): The dataset you want to parse. The available choices are: highD, inD, rounD, exiD, uniD.
         """
         if dataset not in self._REGISTERED_DATASET:
             raise KeyError(
@@ -160,7 +160,7 @@ class LevelXParser:
         Args:
             file (int): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: `%02d_tracks.csv % file` and `%02d_tracksMeta.csv % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
             folder (str): The path to the folder containing the trajectory data.
-            stamp_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+            stamp_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data.
 
         Returns:
             dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.

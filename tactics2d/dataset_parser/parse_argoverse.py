@@ -15,7 +15,7 @@ import numpy as np
 from shapely.geometry import LineString, Polygon
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
-from tactics2d.trajectory.element import State, Trajectory
+from tactics2d.participant.trajectory import State, Trajectory
 from tactics2d.map.element import Area, RoadLine, Lane, LaneRelationship, Map
 
 
@@ -102,9 +102,9 @@ class ArgoverseParser:
                 participants[state_info["track_id"]] = self._CLASS_MAPPING[object_type](
                     id_=state_info["track_id"],
                     type_=self._TYPE_MAPPING[object_type],
+                    trajectory=Trajectory(id_=state_info["track_id"], fps=10.0),
                     length=self._DEFAULT_SIZE[object_type][0],
                     width=self._DEFAULT_SIZE[object_type][1],
-                    trajectory=Trajectory(id_=state_info["track_id"], fps=10.0),
                 )
 
             time_stamp = int(state_info["timestep"] * 100)

@@ -8,7 +8,7 @@
 
 from abc import ABC, abstractmethod
 
-from tactics2d.trajectory.element import State, Trajectory
+from tactics2d.participant.trajectory import State, Trajectory
 
 
 class PhysicsModelBase(ABC):

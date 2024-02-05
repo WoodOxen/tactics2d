@@ -18,7 +18,7 @@ from shapely.geometry import Point, LineString, Polygon
 from shapely.affinity import affine_transform
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
-from tactics2d.trajectory.element import State, Trajectory
+from tactics2d.participant.trajectory import State, Trajectory
 from tactics2d.map.element import RoadLine, Lane, LaneRelationship, Area, Regulatory, Map
 
 
@@ -95,7 +95,7 @@ class NuPlanParser:
         Args:
             file (str): The name of the trajectory data file. The file is expected to be a sqlite3 database file (.db).
             folder (str): The path to the folder containing the trajectory file.
-            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data.
 
         Returns:
             dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
@@ -121,10 +121,10 @@ class NuPlanParser:
                 participants[row[0]] = self._CLASS_MAPPING[category_name](
                     id_=row[0],
                     type_=category_name,
+                    trajectory=Trajectory(id_=row[0], fps=20, stable_freq=False),
                     length=row[3],
                     width=row[2],
                     height=row[4],
-                    trajectory=Trajectory(id_=row[0], fps=20, stable_freq=False),
                 )
 
             cursor.execute("SELECT * FROM lidar_box;")

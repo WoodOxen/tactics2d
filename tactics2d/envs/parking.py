@@ -15,9 +15,7 @@ from tactics2d.physics import SingleTrackKinematics
 from tactics2d.traffic import ScenarioManager
 from tactics2d.traffic.violation_detection import TrafficEvent
 from tactics2d.sensor import TopDownCamera, SingleLineLidar, RenderManager
-from tactics2d.trajectory.element import State
-
-from tactics2d.participant.element.defaults import VEHICLE_MODEL
+from tactics2d.participant.trajectory import State
 
 from tactics2d.participant.element.defaults import VEHICLE_MODEL
 

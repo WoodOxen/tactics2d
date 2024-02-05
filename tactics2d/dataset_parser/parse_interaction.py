@@ -15,7 +15,7 @@ import numpy as np
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist
 from tactics2d.participant.guess_type import GuessType
-from tactics2d.trajectory.element import State, Trajectory
+from tactics2d.participant.trajectory import State, Trajectory
 
 
 class InteractionParser:
@@ -68,7 +68,7 @@ class InteractionParser:
 
         Args:
             file_path: The path to the vehicle trajectory file.
-            time_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+            time_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data.
 
         Returns:
             dict: A dictionary of vehicles. The keys are the ids of the vehicles. The values are the vehicles.
@@ -129,7 +129,7 @@ class InteractionParser:
         Args:
             participants (dict): A dictionary of participants.
             file_path (str): The path to the pedestrian trajectory file.
-            time_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+            time_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data.
 
         Returns:
             dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
@@ -190,7 +190,7 @@ class InteractionParser:
         Args:
             file (Union[int, str]): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: `vehicle_tracks_%03d.csv % file`, `pedestrian_tracks_%03d.csv % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
             folder (str): The path to the folder containing the trajectory data.
-            time_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+            time_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data.
 
         Returns:
             dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.

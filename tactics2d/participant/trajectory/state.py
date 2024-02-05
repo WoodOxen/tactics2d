@@ -1,10 +1,18 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: __init__.py
+# @Description: This file defines the state element of a trajectory.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 from typing import Tuple
 
 import numpy as np
 
 
 class State:
-    """This class implements the state of a traffic participant. The state is defined under a 2D Cartesian coordinate system.
+    """This class defines the state element of a trajectory in a 2D Cartesian coordinate system.
 
     Attributes:
         frame (int): The time stamp. The default unit is millisecond.

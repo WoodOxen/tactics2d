@@ -1,13 +1,21 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: other.py
+# @Description: This file defines a class for a traffic participant of an unknown type.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 import numpy as np
 from shapely.geometry import LinearRing
 from shapely.affinity import affine_transform
 
 from .participant_base import ParticipantBase
-from tactics2d.trajectory.element.trajectory import Trajectory
+from tactics2d.participant.trajectory.trajectory import Trajectory
 
 
 class Other(ParticipantBase):
-    """_summary_
+    """This class defines a dynamic traffic participant of an unknown type.
 
     Attributes:
 

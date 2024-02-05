@@ -27,7 +27,7 @@ from shapely.affinity import affine_transform, rotate
 import pygame
 import pytest
 
-from tactics2d.trajectory.element import State
+from tactics2d.participant.trajectory import State
 from tactics2d.participant.element import Pedestrian, Vehicle
 from tactics2d.physics import PointMass, SingleTrackKinematics, SingleTrackDynamics
 

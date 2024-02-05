@@ -14,7 +14,7 @@ from shapely.geometry import Point, LineString, Polygon
 import tensorflow as tf
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
-from tactics2d.trajectory.element import State, Trajectory
+from tactics2d.participant.trajectory import State, Trajectory
 from tactics2d.map.element import RoadLine, Lane, LaneRelationship, Area, Regulatory, Map
 from tactics2d.dataset_parser.womd_proto import scenario_pb2
 
@@ -72,12 +72,12 @@ class WOMDParser:
         """This function parses trajectories from a single WOMD file. Because the duration of the scenario has been well articulated, the parser will not provide an option to select time range within a single scenario. The states were collected at 10Hz.
 
         Args:
-            scenario_id (Union[str, int], optional): The id of the scenario to parse. If the scenario id is a string, the parser will search for the scenario id in the file. If the scenario id is an integer, the parser will parse `scenario_id`-th scenario in the file. If the scenario id is None or is not found, the first scenario in the file will be parsed. Defaults to None.
+            scenario_id (Union[str, int], optional): The id of the scenario to parse. If the scenario id is a string, the parser will search for the scenario id in the file. If the scenario id is an integer, the parser will parse `scenario_id`-th scenario in the file. If the scenario id is None or is not found, the first scenario in the file will be parsed.
 
         Keyword Args:
-            dataset (tf.data.TFRecordDataset, optional): The dataset to parse. Defaults to None.
-            file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file (.tfrecord). Defaults to None.
-            folder (str, optional): The path to the folder containing the tfrecord file. Defaults to None.
+            dataset (tf.data.TFRecordDataset, optional): The dataset to parse.
+            file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file (.tfrecord).
+            folder (str, optional): The path to the folder containing the tfrecord file.
 
         Returns:
             dict: A dictionary of participants. If the scenario id is not found, return None.
@@ -149,10 +149,10 @@ class WOMDParser:
             participant = self._CLASS_MAPPING[track.object_type](
                 id_=track.id,
                 type_=self._TYPE_MAPPING[track.object_type],
+                trajectory=trajectory,
                 length=length / cnt,
                 width=width / cnt,
                 height=height / cnt,
-                trajectory=trajectory,
             )
             participants[track.id] = participant
 
@@ -280,12 +280,12 @@ class WOMDParser:
         """This function parses the map from a single WOMD file.
 
         Args:
-            scenario_id (str, optional): The id of the scenario to parse. If the scenario id is not given, the first scenario in the file will be parsed. Defaults to None.
+            scenario_id (str, optional): The id of the scenario to parse. If the scenario id is not given, the first scenario in the file will be parsed.
 
         Keyword Args:
-            dataset (tf.data.TFRecordDataset, optional): The dataset to parse. Defaults to None.
-            file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file (.tfrecord). Defaults to None.
-            folder (str, optional): The path to the folder containing the tfrecord file. Defaults to None.
+            dataset (tf.data.TFRecordDataset, optional): The dataset to parse.
+            file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file (.tfrecord).
+            folder (str, optional): The path to the folder containing the tfrecord file.
 
         Returns:
             Map: A map object.

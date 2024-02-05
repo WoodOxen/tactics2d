@@ -1,134 +1,111 @@
-from abc import ABC, abstractmethod
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: participant_base.py
+# @Description: This file defines an abstract class for a traffic participant.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
 
-from tactics2d.trajectory.element.trajectory import State, Trajectory
+from abc import ABC, abstractmethod
+from typing import Any, Union
+import logging
+
+from tactics2d.participant.trajectory.trajectory import State, Trajectory
 
 
 class ParticipantBase(ABC):
-    """This class defines an interface for all the traffic participants provided in tactics2d.
+    """This class defines the essential interfaces required to describe a dynamic traffic participant.
 
-    Please feel free to inherit this class to define their own traffic participants.
+    Please feel free to inherent this class to implement your own traffic participant.
 
     Attributes:
         id_ (int): The unique identifier of the traffic participant.
         type_ (str): The type of the traffic participant. Defaults to None.
-        length (float): The length of the traffic participant. The default unit is meter (m).
-            Defaults to None.
-        width (float): The width of the traffic participant. The default unit is meter (m).
-            Defaults to None.
-        height (float): The height of the traffic participant. The default unit is meter (m).
-            Defaults to None.
+        length (float, optional): The length of the traffic participant. The default unit is meter (m). Defaults to None.
+        width (float, optional): The width of the traffic participant. The default unit is meter (m). Defaults to None.
+        height (float, optional): The height of the traffic participant. The default unit is meter (m). Defaults to None.
+        color (Any, optional): The color of the traffic participant. Defaults to None.
         trajectory (Trajectory): The trajectory of the traffic participant. Defaults to None.
+
     """
 
-    default_attributes = {"length": float, "width": float, "height": float}
+    __annotations__ = {
+        "id_": int,
+        "type_": str,
+        "length": float,
+        "width": float,
+        "height": float,
+        "color": Any,
+    }
 
-    def __init__(self, id_: int, type_: str, **kwargs):
-        """The basic constructor of the traffic participant.
+    def __init__(self, id_: int, type_: str, trajectory: Trajectory = None, **kwargs):
+        """Initialize the traffic participant.
 
-        By defaults the traffic participant has the properties id_, type_, length, width, and
-        height.
+        Args:
+            id_ (int): The unique identifier of the traffic participant.
+            type_ (str): The type of the traffic participant.
+            trajectory (Trajectory, optional): The trajectory of the traffic participant. Defaults to None.
 
-        If you need to customize more attributes, you can define them in the inherent class in the dictionary `attributes`. The key of the dictionary is the name of the attribute, and the value of the dictionary is the type of the attribute. If the type of the custom attribute is not determined, the corresponding dictionary value should be `None`. The type of the attributes will be checked in the construction. If the type is not correct, the constructor will try to convert the value to the correct type. If the conversion fails, the constructor will assign `None` to the attribute.
-
-        All the attributes defined in the dictionaries `default_attributes` and `attributes` will be initialized. If their values are not specified in the constructor, they will be initialized as `None`.
-
-        If `**kwargs` contains any key that is not defined in the dictionaries `default_attributes` and `attributes`, the constructor will assign the value of the key to the attribute with the same name.
+        Keyword Args:
+            length (float, optional): The length of the traffic participant. The default unit is meter (m). Defaults to None.
+            width (float, optional): The width of the traffic participant. The default unit is meter (m). Defaults to None.
+            height (float, optional): The height of the traffic participant. The default unit is meter (m). Defaults to None.
+            color (Any, optional): The color of the traffic participant. Defaults to None.
         """
-        self.id_ = id_
-        self.type_ = type_
-        self.color = None
+        setattr(self, "id_", id_)
+        setattr(self, "type_", type_)
 
-        attribute_dict = (
-            self.default_attributes
-            if not hasattr(self, "attributes")
-            else {**self.default_attributes, **self.attributes}
-        )
-
-        for key, value in attribute_dict.items():
-            if key in kwargs:
-                if value is None or isinstance(kwargs[key], value):
-                    setattr(self, key, kwargs[key])
-                else:
-                    try:
-                        setattr(self, key, value(kwargs[key]))
-                    except:
-                        setattr(self, key, None)
-            else:
-                setattr(self, key, None)
-
-        for key in kwargs.keys():
-            if key not in attribute_dict:
-                setattr(self, key, kwargs[key])
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
         self.trajectory = Trajectory(id_=self.id_)
-        if kwargs.get("trajectory", None) is not None:
+        if trajectory is not None:
             self.bind_trajectory(kwargs["trajectory"])
-
-    @property
-    def current_state(self) -> State:
-        return self.trajectory.get_state()
-
-    @property
-    def location(self):
-        return self.current_state.location
-
-    @property
-    def heading(self) -> float:
-        return self.current_state.heading
-
-    @property
-    def velocity(self):
-        return self.current_state.velocity
-
-    @property
-    def speed(self) -> float:
-        return self.current_state.speed
-
-    @property
-    def accel(self):
-        return self.current_state.accel
+    
+    def __setattr__(self, __name: str, __value: Any):
+        if __name in self.__annotations__:
+            if isinstance(__value, self.__annotations__[__name]):
+                super().__setattr__(__name, __value)
+            else:
+                try:
+                    super().__setattr__(__name, self.__annotations__[__name](__value))
+                except:
+                    super().__setattr__(__name, None)
+                    logging.warning(
+                        f"The value of attribute {__name} cannot be converted to the required type so it is set to None."
+                    )
 
     def is_active(self, frame: int) -> bool:
-        """Check if the participant has state information at the requested frame."""
+        """This function checks if the participant has state information at the requested frame.
+        
+        Args:
+            frame (int): The requested frame. The default unit is millisecond (ms).
+        
+        Returns:
+            bool: True if the participant has state information at the requested frame, False otherwise.
+        """
         if frame < self.trajectory.first_frame or frame > self.trajectory.last_frame:
             return False
         return True
 
     @abstractmethod
-    def _verify_trajectory(self, trajectory: Trajectory):
-        """Check if the trajectory is allowed by the participant's physical constraints.
+    def _verify_trajectory(self, trajectory: Trajectory) -> bool:
+        """This function verifies the trajectory of the traffic participant. It should be overridden to implement the verification logic.
 
+        Args:
+            trajectory (Trajectory): The trajectory of the traffic participant.
+        
         Returns:
             bool: True if the trajectory is valid, False otherwise.
         """
 
     @abstractmethod
     def bind_trajectory(self, trajectory: Trajectory):
-        """Bind a trajectory with the traffic participant."""
+        """This function binds a trajectory with the traffic participant. It should be overridden to implement the binding logic."""
 
     @abstractmethod
     def get_pose(self, frame: int = None):
-        """Get the traffic participant's pose at the requested frame.
-
-        If the frame is not specified, the function will return the current pose.
-        If the frame is requested but not found, the function will raise a TrajectoryKeyError.
-        """
-
-    def get_state(self, frame: int = None):
-        """Get the traffic participant's state at the requested frame.
-
-        Args:
-            frame (int, optional): The requested frame. If the frame is not specified, the
-                function will return the current state. If the frame is requested but not found,
-                the function will raise a KeyError.
-
-        Returns:
-            State: The traffic participant's state at the requested frame.
-
-        Raises:
-            KeyError: The requested frame is not found in the trajectory.
-        """
-        return self.trajectory.get_state(frame)
+        """Get the traffic participant's pose at the requested frame. If the frame is not specified, the function will return the current pose. If the frame is requested but not found, the function will raise a TrajectoryKeyError."""
 
     def get_states(self, frame_range=None) -> list:
         """Get the traffic participant's states within the requested frame range.

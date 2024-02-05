@@ -1,3 +1,11 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: trajectory.py
+# @Description: This file defines a class for a trajectory data structure.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 from typing import List
 import warnings
 
