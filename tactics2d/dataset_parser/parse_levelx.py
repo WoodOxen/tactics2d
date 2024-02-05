@@ -37,9 +37,9 @@ class LevelXParser:
         Bock, Julian, et al. "Highly accurate scenario and reference data for automated driving." ATZ worldwide 123.5 (2021): 50-55.
     """
 
-    REGISTERED_DATASET = ["highD", "inD", "rounD", "exiD", "uniD"]
+    _REGISTERED_DATASET = ["highD", "inD", "rounD", "exiD", "uniD"]
 
-    TYPE_MAPPING = {
+    _TYPE_MAPPING = {
         "car": "car",
         "Car": "car",
         "van": "van",
@@ -54,7 +54,7 @@ class LevelXParser:
         "pedestrian": "pedestrian",
     }
 
-    CLASS_MAPPING = {
+    _CLASS_MAPPING = {
         "car": Vehicle,
         "Car": Vehicle,
         "van": Vehicle,
@@ -69,7 +69,7 @@ class LevelXParser:
         "pedestrian": Pedestrian,
     }
 
-    HIGHD_BOUNDS = {
+    _HIGHD_BOUNDS = {
         1: [-0.00025899967, 0],
         2: [-0.00018397412, 0],
         3: [-0.00021942279, 0],
@@ -84,9 +84,9 @@ class LevelXParser:
         Args:
             dataset (str, optional): The dataset you want to parse. The available choices are: highD, inD, rounD, exiD, uniD. Defaults to "".
         """
-        if dataset not in self.REGISTERED_DATASET:
+        if dataset not in self._REGISTERED_DATASET:
             raise KeyError(
-                f"{dataset} is not an available LevelX-series dataset. The available datasets are {self.REGISTERED_DATASET}."
+                f"{dataset} is not an available LevelX-series dataset. The available datasets are {self._REGISTERED_DATASET}."
             )
 
         self.dataset = dataset
@@ -98,8 +98,8 @@ class LevelXParser:
 
     def _get_calibrate_params(self, df_meta: pd.DataFrame):
         location = int(df_meta.iloc[0]["locationId"])
-        _, lower_bound = self.highd_projector(0, self.HIGHD_BOUNDS[location][0])
-        _, upper_bound = self.highd_projector(0, self.HIGHD_BOUNDS[location][1])
+        _, lower_bound = self.highd_projector(0, self._HIGHD_BOUNDS[location][0])
+        _, upper_bound = self.highd_projector(0, self._HIGHD_BOUNDS[location][1])
         lower_lane_markings = [float(x) for x in df_meta.iloc[0]["lowerLaneMarkings"].split(";")]
         upper_lane_markings = [float(x) for x in df_meta.iloc[0]["upperLaneMarkings"].split(";")]
         local_lower = lower_lane_markings[-1]
@@ -194,8 +194,8 @@ class LevelXParser:
                 continue
 
             id_ = participant_info[self.id_key]
-            class_ = self.CLASS_MAPPING[participant_info["class"]]
-            type_ = self.TYPE_MAPPING[participant_info["class"]]
+            class_ = self._CLASS_MAPPING[participant_info["class"]]
+            type_ = self._TYPE_MAPPING[participant_info["class"]]
 
             participant = class_(
                 id_=id_,

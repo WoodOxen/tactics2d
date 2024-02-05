@@ -25,7 +25,7 @@ class InteractionParser:
         Zhan, Wei, et al. "Interaction dataset: An international, adversarial and cooperative motion dataset in interactive driving scenarios with semantic maps." arXiv preprint arXiv:1910.03088 (2019).
     """
 
-    type_guesser = GuessType()
+    _type_guesser = GuessType()
 
     def _get_file_id(self, file: Union[int, str]):
         if isinstance(file, str):
@@ -170,7 +170,7 @@ class InteractionParser:
             trajectories[pedestrian_ids[state_info["track_id"]]].append_state(state)
 
         for trajectory_id, trajectory in trajectories.items():
-            type_ = self.type_guesser.guess_by_trajectory(trajectory)
+            type_ = self._type_guesser.guess_by_trajectory(trajectory)
             if type_ == "pedestrian":
                 participants[trajectory_id] = Pedestrian(
                     trajectory_id, type_, trajectory=trajectory

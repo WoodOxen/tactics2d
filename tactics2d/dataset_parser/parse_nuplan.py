@@ -29,7 +29,7 @@ class NuPlanParser:
         Caesar, Holger, et al. "nuplan: A closed-loop ml-based planning benchmark for autonomous vehicles." arXiv preprint arXiv:2106.11810 (2021).
     """
 
-    CLASS_MAPPING = {
+    _CLASS_MAPPING = {
         "vehicle": Vehicle,
         "bicycle": Cyclist,
         "pedestrian": Pedestrian,
@@ -40,7 +40,7 @@ class NuPlanParser:
     }
 
     # millisecond-level time stamp at 2021-01-01 00:00:00
-    THE_DATETIME = datetime.datetime(2021, 1, 1, 0, 0, 0).timestamp() * 1000
+    _DATETIME = datetime.datetime(2021, 1, 1, 0, 0, 0).timestamp() * 1000
 
     def __init__(self):
         self.transform_matrix = np.zeros((6, 1))
@@ -118,7 +118,7 @@ class NuPlanParser:
                 category_token = row[1]
                 cursor.execute("SELECT * FROM category WHERE token=?;", (category_token,))
                 category_name = cursor.fetchone()[1]
-                participants[row[0]] = self.CLASS_MAPPING[category_name](
+                participants[row[0]] = self._CLASS_MAPPING[category_name](
                     id_=row[0],
                     type_=category_name,
                     length=row[3],
@@ -132,7 +132,7 @@ class NuPlanParser:
 
             for row in rows:
                 cursor.execute("SELECT * FROM lidar_pc WHERE token=?;", (row[1],))
-                time_stamp = int(cursor.fetchone()[7] / 1000 - self.THE_DATETIME)
+                time_stamp = int(cursor.fetchone()[7] / 1000 - self._DATETIME)
 
                 if time_stamp < stamp_range[0] or time_stamp > stamp_range[1]:
                     continue

@@ -73,9 +73,11 @@ class WOMDParser:
 
         Args:
             scenario_id (Union[str, int], optional): The id of the scenario to parse. If the scenario id is a string, the parser will search for the scenario id in the file. If the scenario id is an integer, the parser will parse `scenario_id`-th scenario in the file. If the scenario id is None or is not found, the first scenario in the file will be parsed. Defaults to None.
-            dataset (tf.data.TFRecordDataset, optional): The dataset to parse. Defaults to None.
-            file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file. Defaults to None.
-            folder (str, optional): The path to the folder containing the trajectory file. Defaults to None.
+            **kwargs (dict): The keyword arguments to specify the data source, either the `dataset` or [`file`, `folder`] should be given as keyword arguments.
+
+                - dataset (tf.data.TFRecordDataset, optional): The dataset to parse. Defaults to None.
+                - file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file (.tfrecord). Defaults to None.
+                - folder (str, optional): The path to the folder containing the tfrecord file. Defaults to None.
 
         Returns:
             dict: A dictionary of participants. If the scenario id is not found, return None.
@@ -279,9 +281,11 @@ class WOMDParser:
 
         Args:
             scenario_id (str, optional): The id of the scenario to parse. If the scenario id is not given, the first scenario in the file will be parsed. Defaults to None.
-            dataset (tf.data.TFRecordDataset, optional): The dataset to parse. Defaults to None.
-            file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file (.tfrecord). Defaults to None.
-            folder (str, optional): The path to the folder containing the tfrecord file. Defaults to None.
+            **kwargs (dict): The keyword arguments to specify the data source, either the `dataset` or [`file`, `folder`] should be given as keyword arguments.
+
+                - dataset (tf.data.TFRecordDataset, optional): The dataset to parse. Defaults to None.
+                - file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file (.tfrecord). Defaults to None.
+                - folder (str, optional): The path to the folder containing the tfrecord file. Defaults to None.
 
         Returns:
             Map: A map object.

@@ -26,7 +26,7 @@ class ArgoverseParser:
         Wilson, Benjamin, et al. "Argoverse 2: Next generation datasets for self-driving perception and forecasting." arXiv preprint arXiv:2301.00493 (2023).
     """
 
-    TYPE_MAPPING = {
+    _TYPE_MAPPING = {
         "vehicle": "car",
         "bus": "bus",
         "motorcyclist": "motorcycle",
@@ -37,7 +37,7 @@ class ArgoverseParser:
         "static": "static",
     }
 
-    CLASS_MAPPING = {
+    _CLASS_MAPPING = {
         "vehicle": Vehicle,
         "bus": Vehicle,
         "motorcyclist": Cyclist,
@@ -48,7 +48,7 @@ class ArgoverseParser:
         "static": Other,
     }
 
-    DEFAULT_SIZE = {
+    _DEFAULT_SIZE  = {
         "vehicle": (4.0, 2.0),
         "bus": (4.0, 2.0),
         "motorcyclist": (2.0, 0.7),
@@ -59,9 +59,9 @@ class ArgoverseParser:
         "static": (None, None),
     }
 
-    LANE_TYPE_MAPPING = {"VEHICLE": "road", "BIKE": "bicycle_lane"}
+    _LANE_TYPE_MAPPING = {"VEHICLE": "road", "BIKE": "bicycle_lane"}
 
-    ROADLINE_TYPE_MAPPING = {
+    _ROADLINE_TYPE_MAPPING = {
         "SOLID_WHITE": ["line_thin", "solid", "white"],
         "SOLID_YELLOW": ["line_thin", "solid", "yellow"],
         "SOLID_BLUE": ["line_thin", "solid", "blue"],
@@ -99,11 +99,11 @@ class ArgoverseParser:
         for _, state_info in df.iterrows():
             if state_info["track_id"] not in participants:
                 object_type = state_info["object_type"]
-                participants[state_info["track_id"]] = self.CLASS_MAPPING[object_type](
+                participants[state_info["track_id"]] = self._CLASS_MAPPING[object_type](
                     id_=state_info["track_id"],
-                    type_=self.TYPE_MAPPING[object_type],
-                    length=self.DEFAULT_SIZE[object_type][0],
-                    width=self.DEFAULT_SIZE[object_type][1],
+                    type_=self._TYPE_MAPPING[object_type],
+                    length=self._DEFAULT_SIZE [object_type][0],
+                    width=self._DEFAULT_SIZE [object_type][1],
                     trajectory=Trajectory(id_=state_info["track_id"], fps=10.0),
                 )
 
@@ -158,7 +158,7 @@ class ArgoverseParser:
         roadline_id_counter = 0
         if "lane_segments" in map_data:
             for road_element in map_data["lane_segments"].values():
-                left_type, left_subtype, left_color = self.ROADLINE_TYPE_MAPPING[
+                left_type, left_subtype, left_color = self._ROADLINE_TYPE_MAPPING[
                     road_element["left_lane_mark_type"]
                 ]
                 left_road_line = RoadLine(
@@ -173,7 +173,7 @@ class ArgoverseParser:
 
                 roadline_id_counter += 1
 
-                right_type, right_subtype, right_color = self.ROADLINE_TYPE_MAPPING[
+                right_type, right_subtype, right_color = self._ROADLINE_TYPE_MAPPING[
                     road_element["right_lane_mark_type"]
                 ]
                 right_road_line = RoadLine(
@@ -193,7 +193,7 @@ class ArgoverseParser:
                     left_side=left_road_line.geometry,
                     right_side=right_road_line.geometry,
                     line_ids=set([left_road_line.id_, right_road_line.id_]),
-                    subtype=self.LANE_TYPE_MAPPING[road_element["lane_type"]],
+                    subtype=self._LANE_TYPE_MAPPING[road_element["lane_type"]],
                     location="urban",
                     custom_tags={"is_intersection": road_element["is_intersection"]},
                 )

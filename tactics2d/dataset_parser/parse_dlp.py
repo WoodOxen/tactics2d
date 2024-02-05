@@ -22,7 +22,7 @@ class DLPParser:
         Shen, Xu, et al. "Parkpredict: Motion and intent prediction of vehicles in parking lots." 2020 IEEE Intelligent Vehicles Symposium (IV). IEEE, 2020.
     """
 
-    TYPE_MAPPING = {
+    _TYPE_MAPPING = {
         "Car": "car",
         "Medium Vehicle": "car",
         "Bus": "bus",
@@ -32,7 +32,7 @@ class DLPParser:
         "Undefined": "other",
     }
 
-    CLASS_MAPPING = {
+    _CLASS_MAPPING = {
         "Car": Vehicle,
         "Medium Vehicle": Vehicle,
         "Bus": Vehicle,
@@ -43,8 +43,8 @@ class DLPParser:
     }
 
     def _generate_participant(self, instance, id_):
-        type_ = self.TYPE_MAPPING[instance["type"]]
-        class_ = self.CLASS_MAPPING[instance["type"]]
+        type_ = self._TYPE_MAPPING[instance["type"]]
+        class_ = self._CLASS_MAPPING[instance["type"]]
         participant = class_(
             id_=id_,
             type_=type_,
