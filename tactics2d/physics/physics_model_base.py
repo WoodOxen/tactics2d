@@ -14,13 +14,11 @@ from tactics2d.trajectory.element import State, Trajectory
 class PhysicsModelBase(ABC):
     """This abstract class defines the essential interfaces required to specify a physics kinematics/dynamics model for a traffic participant.
 
-    Attributes:
-        DELTA_T (int): The default time step for simulation. The value is 1 ms.
-        MIN_DELTA_T (int): The minimum time step for the simulation. The value is 5 ms.
+    Please feel free to inherent this class to implement your own physics model.
     """
 
-    DELTA_T = 5
-    MIN_DELTA_T = 1
+    _DELTA_T: int = 5
+    _MIN_DELTA_T: int = 1
 
     @abstractmethod
     def step(self, state: State, action: tuple, interval: int = None) -> State:

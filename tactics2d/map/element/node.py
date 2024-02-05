@@ -19,7 +19,10 @@ class Node:
         self.id_ = id_
         self.x = x
         self.y = y
-        self.location = Point(x, y)
+
+    @property
+    def location(self):
+        return Point(self.x, self.y)
 
     def __add__(self, other):
         new_node = Node(id_=None, x=self.x + other.x, y=self.y + other.y)

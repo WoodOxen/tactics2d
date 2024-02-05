@@ -2,8 +2,6 @@ import warnings
 
 from shapely.geometry import Polygon
 
-from .defaults import LEGAL_SPEED_UNIT
-
 
 class Area:
     """This class implements the lenelet2-style map element *area*.
@@ -27,6 +25,8 @@ class Area:
             not. Defaults to True.
         custom_tags (dict, optional): The custom tags of the area. Defaults to None.
     """
+
+    _SPEED_UNIT = ["km/h", "mi/h", "m/s"]
 
     def __init__(
         self,
@@ -56,10 +56,10 @@ class Area:
         self.speed_limit_mandatory = speed_limit_mandatory
         self.custom_tags = custom_tags
 
-        if self.speed_limit_unit not in LEGAL_SPEED_UNIT:
+        if self.speed_limit_unit not in self._SPEED_UNIT:
             warnings.warn(
                 "Invalid speed limit unit %s. The legal units types are %s"
-                % (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
+                % (self.speed_limit_unit, ", ".join(self._SPEED_UNIT))
             )
 
     def shape(self, outer_only: bool = False):
