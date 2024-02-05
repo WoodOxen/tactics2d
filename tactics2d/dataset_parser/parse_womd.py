@@ -28,11 +28,11 @@ class WOMDParser:
     Because loading the tfrecord file is time consuming, the trajectory and the map parsers provide two ways to load the file. The first way is to load the file directly from the given file path. The second way is to load the file from a tf.data.TFRecordDataset object. If the tf.data.TFRecordDataset object is given, the parser will ignore the file path.
     """
 
-    TYPE_MAPPING = {0: "unknown", 1: "vehicle", 2: "pedestrian", 3: "cyclist", 4: "other"}
+    _TYPE_MAPPING = {0: "unknown", 1: "vehicle", 2: "pedestrian", 3: "cyclist", 4: "other"}
 
-    CLASS_MAPPING = {0: Other, 1: Vehicle, 2: Pedestrian, 3: Cyclist, 4: Other}
+    _CLASS_MAPPING = {0: Other, 1: Vehicle, 2: Pedestrian, 3: Cyclist, 4: Other}
 
-    ROADLINE_TYPE_MAPPING = {
+    _ROADLINE_TYPE_MAPPING = {
         0: ["virtual", None, None],
         1: ["line_thin", "dashed", "white"],
         2: ["line_thin", "solid", "white"],
@@ -44,7 +44,7 @@ class WOMDParser:
         8: [None, "dashed", "yellow"],
     }
 
-    LANE_TYPE_MAPPING = {0: "road", 1: "highway", 2: "road", 3: "bicycle_lane"}
+    _LANE_TYPE_MAPPING = {0: "road", 1: "highway", 2: "road", 3: "bicycle_lane"}
 
     def get_scenario_ids(self, dataset) -> List[str]:
         """This function get the list of scenario ids from the given tfrecord file.
@@ -73,11 +73,11 @@ class WOMDParser:
 
         Args:
             scenario_id (Union[str, int], optional): The id of the scenario to parse. If the scenario id is a string, the parser will search for the scenario id in the file. If the scenario id is an integer, the parser will parse `scenario_id`-th scenario in the file. If the scenario id is None or is not found, the first scenario in the file will be parsed. Defaults to None.
-            **kwargs (dict): The keyword arguments to specify the data source, either the `dataset` or [`file`, `folder`] should be given as keyword arguments.
 
-                - dataset (tf.data.TFRecordDataset, optional): The dataset to parse. Defaults to None.
-                - file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file (.tfrecord). Defaults to None.
-                - folder (str, optional): The path to the folder containing the tfrecord file. Defaults to None.
+        Keyword Args:
+            dataset (tf.data.TFRecordDataset, optional): The dataset to parse. Defaults to None.
+            file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file (.tfrecord). Defaults to None.
+            folder (str, optional): The path to the folder containing the tfrecord file. Defaults to None.
 
         Returns:
             dict: A dictionary of participants. If the scenario id is not found, return None.
@@ -146,9 +146,9 @@ class WOMDParser:
                 height += state_.height
                 cnt += 1
 
-            participant = self.CLASS_MAPPING[track.object_type](
+            participant = self._CLASS_MAPPING[track.object_type](
                 id_=track.id,
-                type_=self.TYPE_MAPPING[track.object_type],
+                type_=self._TYPE_MAPPING[track.object_type],
                 length=length / cnt,
                 width=width / cnt,
                 height=height / cnt,
@@ -199,7 +199,7 @@ class WOMDParser:
                 id_="%05d" % map_feature.id,
                 left_side=self._join_lane_boundary(left_side_ids, map_),
                 right_side=self._join_lane_boundary(right_side_ids, map_),
-                subtype=self.LANE_TYPE_MAPPING[lane.type],
+                subtype=self._LANE_TYPE_MAPPING[lane.type],
                 speed_limit=lane.speed_limit_mph,
                 speed_limit_unit="mi/h",
             )
@@ -218,7 +218,7 @@ class WOMDParser:
                     lane.add_related_lane("%05d" % right_neighbor, LaneRelationship.RIGHT_NEIGHBOR)
 
         elif map_feature.HasField("road_line"):
-            type_, subtype, color = self.ROADLINE_TYPE_MAPPING[map_feature.road_line.type]
+            type_, subtype, color = self._ROADLINE_TYPE_MAPPING[map_feature.road_line.type]
             points = [[point.x, point.y] for point in map_feature.road_line.polyline]
             if len(points) > 2:
                 roadline = RoadLine(
@@ -281,11 +281,11 @@ class WOMDParser:
 
         Args:
             scenario_id (str, optional): The id of the scenario to parse. If the scenario id is not given, the first scenario in the file will be parsed. Defaults to None.
-            **kwargs (dict): The keyword arguments to specify the data source, either the `dataset` or [`file`, `folder`] should be given as keyword arguments.
 
-                - dataset (tf.data.TFRecordDataset, optional): The dataset to parse. Defaults to None.
-                - file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file (.tfrecord). Defaults to None.
-                - folder (str, optional): The path to the folder containing the tfrecord file. Defaults to None.
+        Keyword Args:
+            dataset (tf.data.TFRecordDataset, optional): The dataset to parse. Defaults to None.
+            file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file (.tfrecord). Defaults to None.
+            folder (str, optional): The path to the folder containing the tfrecord file. Defaults to None.
 
         Returns:
             Map: A map object.

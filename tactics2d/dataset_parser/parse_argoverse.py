@@ -48,7 +48,7 @@ class ArgoverseParser:
         "static": Other,
     }
 
-    _DEFAULT_SIZE  = {
+    _DEFAULT_SIZE = {
         "vehicle": (4.0, 2.0),
         "bus": (4.0, 2.0),
         "motorcyclist": (2.0, 0.7),
@@ -102,8 +102,8 @@ class ArgoverseParser:
                 participants[state_info["track_id"]] = self._CLASS_MAPPING[object_type](
                     id_=state_info["track_id"],
                     type_=self._TYPE_MAPPING[object_type],
-                    length=self._DEFAULT_SIZE [object_type][0],
-                    width=self._DEFAULT_SIZE [object_type][1],
+                    length=self._DEFAULT_SIZE[object_type][0],
+                    width=self._DEFAULT_SIZE[object_type][1],
                     trajectory=Trajectory(id_=state_info["track_id"], fps=10.0),
                 )
 

@@ -1334,7 +1334,7 @@ Map = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_MAP,
-        __module__="map_pb2"
+        __module__="map_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Map)
     ),
 )
@@ -1345,7 +1345,7 @@ DynamicState = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_DYNAMICSTATE,
-        __module__="map_pb2"
+        __module__="map_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.DynamicState)
     ),
 )
@@ -1356,7 +1356,7 @@ TrafficSignalLaneState = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_TRAFFICSIGNALLANESTATE,
-        __module__="map_pb2"
+        __module__="map_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.TrafficSignalLaneState)
     ),
 )
@@ -1367,7 +1367,7 @@ MapFeature = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_MAPFEATURE,
-        __module__="map_pb2"
+        __module__="map_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.MapFeature)
     ),
 )
@@ -1378,7 +1378,7 @@ MapPoint = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_MAPPOINT,
-        __module__="map_pb2"
+        __module__="map_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.MapPoint)
     ),
 )
@@ -1389,7 +1389,7 @@ BoundarySegment = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_BOUNDARYSEGMENT,
-        __module__="map_pb2"
+        __module__="map_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.BoundarySegment)
     ),
 )
@@ -1400,7 +1400,7 @@ LaneNeighbor = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_LANENEIGHBOR,
-        __module__="map_pb2"
+        __module__="map_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.LaneNeighbor)
     ),
 )
@@ -1411,7 +1411,7 @@ LaneCenter = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_LANECENTER,
-        __module__="map_pb2"
+        __module__="map_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.LaneCenter)
     ),
 )
@@ -1422,7 +1422,7 @@ RoadEdge = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_ROADEDGE,
-        __module__="map_pb2"
+        __module__="map_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.RoadEdge)
     ),
 )
@@ -1433,7 +1433,7 @@ RoadLine = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_ROADLINE,
-        __module__="map_pb2"
+        __module__="map_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.RoadLine)
     ),
 )
@@ -1444,7 +1444,7 @@ StopSign = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_STOPSIGN,
-        __module__="map_pb2"
+        __module__="map_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.StopSign)
     ),
 )
@@ -1455,7 +1455,7 @@ Crosswalk = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_CROSSWALK,
-        __module__="map_pb2"
+        __module__="map_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Crosswalk)
     ),
 )
@@ -1466,7 +1466,7 @@ SpeedBump = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_SPEEDBUMP,
-        __module__="map_pb2"
+        __module__="map_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.SpeedBump)
     ),
 )
@@ -1477,7 +1477,7 @@ Driveway = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_DRIVEWAY,
-        __module__="map_pb2"
+        __module__="map_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Driveway)
     ),
 )

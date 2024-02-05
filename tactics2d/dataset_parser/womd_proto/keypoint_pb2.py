@@ -486,7 +486,7 @@ KeypointVisibility = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_KEYPOINTVISIBILITY,
-        __module__="keypoint_pb2"
+        __module__="keypoint_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.keypoints.KeypointVisibility)
     ),
 )
@@ -497,7 +497,7 @@ Keypoint2d = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_KEYPOINT2D,
-        __module__="keypoint_pb2"
+        __module__="keypoint_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.keypoints.Keypoint2d)
     ),
 )
@@ -508,7 +508,7 @@ Keypoint3d = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_KEYPOINT3D,
-        __module__="keypoint_pb2"
+        __module__="keypoint_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.keypoints.Keypoint3d)
     ),
 )
@@ -519,7 +519,7 @@ CameraKeypoint = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_CAMERAKEYPOINT,
-        __module__="keypoint_pb2"
+        __module__="keypoint_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.keypoints.CameraKeypoint)
     ),
 )
@@ -530,7 +530,7 @@ CameraKeypoints = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_CAMERAKEYPOINTS,
-        __module__="keypoint_pb2"
+        __module__="keypoint_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.keypoints.CameraKeypoints)
     ),
 )
@@ -541,7 +541,7 @@ LaserKeypoint = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_LASERKEYPOINT,
-        __module__="keypoint_pb2"
+        __module__="keypoint_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.keypoints.LaserKeypoint)
     ),
 )
@@ -552,7 +552,7 @@ LaserKeypoints = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_LASERKEYPOINTS,
-        __module__="keypoint_pb2"
+        __module__="keypoint_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.keypoints.LaserKeypoints)
     ),
 )

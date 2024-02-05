@@ -160,7 +160,7 @@ Vector2d = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_VECTOR2D,
-        __module__="vector_pb2"
+        __module__="vector_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Vector2d)
     ),
 )
@@ -171,7 +171,7 @@ Vector3d = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_VECTOR3D,
-        __module__="vector_pb2"
+        __module__="vector_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Vector3d)
     ),
 )

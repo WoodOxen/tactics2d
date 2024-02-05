@@ -360,9 +360,9 @@ _COMPRESSEDLASER.fields_by_name["name"].enum_type = dataset__pb2._LASERNAME_NAME
 _COMPRESSEDLASER.fields_by_name["ri_return1"].message_type = _COMPRESSEDRANGEIMAGE
 _COMPRESSEDLASER.fields_by_name["ri_return2"].message_type = _COMPRESSEDRANGEIMAGE
 _COMPRESSEDFRAMELASERDATA.fields_by_name["lasers"].message_type = _COMPRESSEDLASER
-_COMPRESSEDFRAMELASERDATA.fields_by_name[
-    "laser_calibrations"
-].message_type = dataset__pb2._LASERCALIBRATION
+_COMPRESSEDFRAMELASERDATA.fields_by_name["laser_calibrations"].message_type = (
+    dataset__pb2._LASERCALIBRATION
+)
 _COMPRESSEDFRAMELASERDATA.fields_by_name["pose"].message_type = dataset__pb2._TRANSFORM
 DESCRIPTOR.message_types_by_name["CompressedRangeImage"] = _COMPRESSEDRANGEIMAGE
 DESCRIPTOR.message_types_by_name["Metadata"] = _METADATA
@@ -375,7 +375,7 @@ CompressedRangeImage = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_COMPRESSEDRANGEIMAGE,
-        __module__="compressed_lidar_pb2"
+        __module__="compressed_lidar_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.CompressedRangeImage)
     ),
 )
@@ -386,7 +386,7 @@ Metadata = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_METADATA,
-        __module__="compressed_lidar_pb2"
+        __module__="compressed_lidar_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Metadata)
     ),
 )
@@ -397,7 +397,7 @@ DeltaEncodedData = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_DELTAENCODEDDATA,
-        __module__="compressed_lidar_pb2"
+        __module__="compressed_lidar_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.DeltaEncodedData)
     ),
 )
@@ -408,7 +408,7 @@ CompressedLaser = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_COMPRESSEDLASER,
-        __module__="compressed_lidar_pb2"
+        __module__="compressed_lidar_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.CompressedLaser)
     ),
 )
@@ -419,7 +419,7 @@ CompressedFrameLaserData = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_COMPRESSEDFRAMELASERDATA,
-        __module__="compressed_lidar_pb2"
+        __module__="compressed_lidar_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.CompressedFrameLaserData)
     ),
 )

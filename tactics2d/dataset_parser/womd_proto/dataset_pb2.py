@@ -1755,9 +1755,9 @@ _CAMERANAME_NAME.containing_type = _CAMERANAME
 _LASERNAME_NAME.containing_type = _LASERNAME
 _CAMERACALIBRATION.fields_by_name["name"].enum_type = _CAMERANAME_NAME
 _CAMERACALIBRATION.fields_by_name["extrinsic"].message_type = _TRANSFORM
-_CAMERACALIBRATION.fields_by_name[
-    "rolling_shutter_direction"
-].enum_type = _CAMERACALIBRATION_ROLLINGSHUTTERREADOUTDIRECTION
+_CAMERACALIBRATION.fields_by_name["rolling_shutter_direction"].enum_type = (
+    _CAMERACALIBRATION_ROLLINGSHUTTERREADOUTDIRECTION
+)
 _CAMERACALIBRATION_ROLLINGSHUTTERREADOUTDIRECTION.containing_type = _CAMERACALIBRATION
 _LASERCALIBRATION.fields_by_name["name"].enum_type = _LASERNAME_NAME
 _LASERCALIBRATION.fields_by_name["extrinsic"].message_type = _TRANSFORM
@@ -1771,9 +1771,9 @@ _CONTEXT.fields_by_name["laser_calibrations"].message_type = _LASERCALIBRATION
 _CONTEXT.fields_by_name["stats"].message_type = _CONTEXT_STATS
 _RANGEIMAGE.fields_by_name["range_image"].message_type = _MATRIXFLOAT
 _CAMERASEGMENTATIONLABEL_INSTANCEIDTOGLOBALIDMAPPING.containing_type = _CAMERASEGMENTATIONLABEL
-_CAMERASEGMENTATIONLABEL.fields_by_name[
-    "instance_id_to_global_id_mapping"
-].message_type = _CAMERASEGMENTATIONLABEL_INSTANCEIDTOGLOBALIDMAPPING
+_CAMERASEGMENTATIONLABEL.fields_by_name["instance_id_to_global_id_mapping"].message_type = (
+    _CAMERASEGMENTATIONLABEL_INSTANCEIDTOGLOBALIDMAPPING
+)
 _CAMERAIMAGE.fields_by_name["name"].enum_type = _CAMERANAME_NAME
 _CAMERAIMAGE.fields_by_name["pose"].message_type = _TRANSFORM
 _CAMERAIMAGE.fields_by_name["velocity"].message_type = _VELOCITY
@@ -1815,7 +1815,7 @@ MatrixShape = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_MATRIXSHAPE,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.MatrixShape)
     ),
 )
@@ -1826,7 +1826,7 @@ MatrixFloat = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_MATRIXFLOAT,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.MatrixFloat)
     ),
 )
@@ -1837,7 +1837,7 @@ MatrixInt32 = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_MATRIXINT32,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.MatrixInt32)
     ),
 )
@@ -1848,7 +1848,7 @@ CameraName = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_CAMERANAME,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.CameraName)
     ),
 )
@@ -1859,7 +1859,7 @@ LaserName = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_LASERNAME,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.LaserName)
     ),
 )
@@ -1870,7 +1870,7 @@ Transform = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_TRANSFORM,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Transform)
     ),
 )
@@ -1881,7 +1881,7 @@ Velocity = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_VELOCITY,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Velocity)
     ),
 )
@@ -1892,7 +1892,7 @@ CameraCalibration = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_CAMERACALIBRATION,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.CameraCalibration)
     ),
 )
@@ -1903,7 +1903,7 @@ LaserCalibration = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_LASERCALIBRATION,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.LaserCalibration)
     ),
 )
@@ -1922,17 +1922,17 @@ Context = _reflection.GeneratedProtocolMessageType(
                     (_message.Message,),
                     dict(
                         DESCRIPTOR=_CONTEXT_STATS_OBJECTCOUNT,
-                        __module__="dataset_pb2"
+                        __module__="dataset_pb2",
                         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Context.Stats.ObjectCount)
                     ),
                 ),
                 DESCRIPTOR=_CONTEXT_STATS,
-                __module__="dataset_pb2"
+                __module__="dataset_pb2",
                 # @@protoc_insertion_point(class_scope:waymo.open_dataset.Context.Stats)
             ),
         ),
         DESCRIPTOR=_CONTEXT,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Context)
     ),
 )
@@ -1945,7 +1945,7 @@ RangeImage = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_RANGEIMAGE,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.RangeImage)
     ),
 )
@@ -1960,12 +1960,12 @@ CameraSegmentationLabel = _reflection.GeneratedProtocolMessageType(
             (_message.Message,),
             dict(
                 DESCRIPTOR=_CAMERASEGMENTATIONLABEL_INSTANCEIDTOGLOBALIDMAPPING,
-                __module__="dataset_pb2"
+                __module__="dataset_pb2",
                 # @@protoc_insertion_point(class_scope:waymo.open_dataset.CameraSegmentationLabel.InstanceIDToGlobalIDMapping)
             ),
         ),
         DESCRIPTOR=_CAMERASEGMENTATIONLABEL,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.CameraSegmentationLabel)
     ),
 )
@@ -1977,7 +1977,7 @@ CameraImage = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_CAMERAIMAGE,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.CameraImage)
     ),
 )
@@ -1988,7 +1988,7 @@ CameraLabels = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_CAMERALABELS,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.CameraLabels)
     ),
 )
@@ -1999,7 +1999,7 @@ Laser = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_LASER,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Laser)
     ),
 )
@@ -2010,7 +2010,7 @@ Frame = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_FRAME,
-        __module__="dataset_pb2"
+        __module__="dataset_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Frame)
     ),
 )
