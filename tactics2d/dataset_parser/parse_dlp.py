@@ -63,11 +63,11 @@ class DLPParser:
         Args:
             file (Union[int, str]): The id or the name of the trajectory file. The file is expected to be a json file (.json). If the input is an integer, the parser will parse the trajectory data from the following files: `DJI_%04d_agents.json % file`, `DJI_%04d_frames.json % file`, `DJI_%04d_instances.json % file`, `DJI_%04d_obstacles.json % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
             folder (str): The path to the folder containing the trajectory data.
-            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data.
+            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the stamp range is not given, the parser will parse the whole trajectory data.
 
         Returns:
-            dict: A dictionary of vehicles. The keys are the ids of the vehicles. The values are the vehicles.
-            Tuple[int, int]: The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
+            participants (dict): A dictionary of vehicles. The keys are the ids of the vehicles. The values are the vehicles.
+            actual_stamp_range (Tuple[int, int]): The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond (ms).
         """
         if stamp_range is None:
             stamp_range = (-np.inf, np.inf)
@@ -119,7 +119,7 @@ class DLPParser:
                     )
                     id_cnt += 1
 
-                participants[obstacle["obstacle_token"]].trajectory.append_state(state)
+                participants[obstacle["obstacle_token"]].trajectory.add_state(state)
 
             for instance_token in frame["instances"]:
                 instance = df_instance[instance_token]
@@ -139,6 +139,6 @@ class DLPParser:
                     )
                     id_cnt += 1
 
-                participants[instance["agent_token"]].trajectory.append_state(state)
+                participants[instance["agent_token"]].trajectory.add_state(state)
 
         return participants, actual_stamp_range

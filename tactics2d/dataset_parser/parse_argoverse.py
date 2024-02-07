@@ -87,8 +87,8 @@ class ArgoverseParser:
             folder (str): The path to the folder containing the trajectory data.
 
         Returns:
-            dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
-            Tuple[int, int]: The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
+            participants (dict): A dictionary of participants. The keys are the ids of the participants. The values are the participants.
+            actual_stamp_range (Tuple[int, int]): The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond (ms).
         """
         participants = dict()
         actual_stamp_range = (np.inf, -np.inf)
@@ -122,7 +122,7 @@ class ArgoverseParser:
                 vy=state_info["velocity_y"],
             )
 
-            participants[state_info["track_id"]].trajectory.append_state(state)
+            participants[state_info["track_id"]].trajectory.add_state(state)
 
         return participants, actual_stamp_range
 
@@ -134,7 +134,7 @@ class ArgoverseParser:
             folder (str): The path to the folder containing the map data.
 
         Returns:
-            Map: A map object.
+            map_ (Map): A map object.
         """
         file_path = os.path.join(folder, file)
 

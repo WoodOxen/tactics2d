@@ -6,7 +6,7 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Any, Tuple
+from typing import Any, Tuple, Union
 import logging
 
 import numpy as np
@@ -15,9 +15,9 @@ from shapely.affinity import translate, affine_transform
 
 from .participant_base import ParticipantBase
 from tactics2d.participant.trajectory import State, Trajectory
-from tactics2d.physics import PhysicsModelBase, PointMass, SingleTrackKinematics
+from tactics2d.physics import SingleTrackKinematics
 
-from .defaults import VEHICLE_MODEL
+from .participant_template import VEHICLE_TEMPLATE
 
 
 class Vehicle(ParticipantBase):
@@ -31,114 +31,109 @@ class Vehicle(ParticipantBase):
 
     Attributes:
         id_ (int): The unique identifier of the vehicle.
-        type_ (str): The type of the vehicle.
-        length (float, optional): The length of the vehicle. The default unit is meter (m). Defaults to None.
-        width (float, optional): The width of the vehicle. The default unit is meter (m). Defaults to None.
-        height (float, optional): The height of the vehicle. The default unit is meter (m). Defaults to None.
-        color (tuple, optional): The color of the vehicle. Expressed by a tuple with 3 integers.
-        kerb_weight: (float, optional): The weight of the vehicle. The default unit is kilogram (kg). Defaults to None.
-        driven_mode: (str, optional): The driven way of the vehicle. The available options are "FWD", "RWD", "4WD", and "AWD". Defaults to "FWD".
-        steer_range (Tuple[float, float], optional): The range of the steering angle. The unit is radian. Defaults to None.
-        speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit is meter per second. Defaults to None.
-        accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
-        comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration that is comfortable for the driver.
-        physics_model (): Defaults to None.
-        steer_range (Tuple[float, float], optional): The range of the steering angle. The unit is radian. Defaults to None.
-        speed_range (Tuple[float, float], optional): The range of the vehicle speed. The unit is meter per second. Defaults to None.
-        accel_range (Tuple[float, float], optional): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to None.
-        comfort_accel_range (Tuple[float, float], optional): The range of the vehicle acceleration that is comfortable for the driver. Defaults to None.
+        type_ (str): The type of the vehicle. Defaults to "medium_car".
+        trajectory (Trajectory): The trajectory of the vehicle. Defaults to an empty trajectory.
+        color (tuple): The color of the vehicle. The color of the traffic participant. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to light-turquoise (43, 203, 186).
+        length (float): The length of the vehicle. The default unit is meter. Defaults to None.
+        width (float): The width of the vehicle. The default unit is meter. Defaults to None.
+        height (float): The height of the vehicle. The default unit is meter. Defaults to None.
+        kerb_weight: (float): The weight of the vehicle. The default unit is kilogram (kg). Defaults to None.
+        wheel_base (float): The wheel base of the vehicle. The default unit is meter. Defaults to None.
+        front_overhang (float): The front overhang of the vehicle. The default unit is meter. Defaults to None.
+        rear_overhang (float): The rear overhang of the vehicle. The default unit is meter. Defaults to None.
+        driven_mode: (str): The driven way of the vehicle. The available options are "FWD", "RWD", "4WD", and "AWD". Defaults to "FWD".
+        max_steer (float): The maximum approach angle of the vehicle. The unit is radian. Defaults to $\pi$/6.
+        max_speed (float): The maximum speed of the vehicle. The unit is meter per second. Defaults to 55.56 (= 200 km/h).
+        max_accel (float): The maximum acceleration of the vehicle. The unit is meter per second squared. Defaults to 3.0.
+        max_decel (float): The maximum deceleration of the vehicle. The unit is meter per second squared. Defaults to 10.
+        steer_range (Tuple[float, float]): The range of the vehicle steering angle. The unit is radian. Defaults to (-$\pi$/6, $\pi$/6).
+        speed_range (Tuple[float, float]): The range of the vehicle speed. The unit is meter per second (m/s). Defaults to (-16.667, 55.556) (= -60~200 km/h).
+        accel_range (Tuple[float, float]): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to (-10, 3).
+        verify (bool): Whether to verify the trajectory to bind or the state to add. Defaults to False.
+        physics_model (PhysicsModelBase): The physics model of the cyclist. Defaults to SingleTrackKinematics.
+        shape (float): The shape of the cyclist. It is represented as a bounding box with its original point located at the mass center. This attribute is **read-only**.
+        current_state (State): The current state of the traffic participant. This attribute is **read-only**.
     """
 
     __annotations__ = {
-        "id_": int,
         "type_": str,
         "length": float,
         "width": float,
         "height": float,
-        "color": Any,
         "kerb_weight": float,
-        "driven_mode": str,
-        "front_overhang": float,
         "wheel_base": float,
+        "front_overhang": float,
         "rear_overhang": float,
-        "speed_range": Tuple[float, float],
-        "steer_range": Tuple[float, float],
-        "accel_range": Tuple[float, float],
-        "comfort_accel_range": Tuple[float, float],
-        "physics_model": PhysicsModelBase,
+        "driven_mode": str,
+        "max_steer": float,
+        "max_speed": float,
+        "max_accel": float,
+        "max_decel": float,
+        "verify": bool,
     }
-    default_vehicle_types = set(VEHICLE_MODEL.keys())
-    default_driven_modes = {"FWD", "RWD", "4WD", "AWD"}
+    _default_color = (43, 203, 186)  # light-turquoise
+    _driven_modes = {"FWD", "RWD", "4WD", "AWD"}
 
-    def __init__(self, id_: int, type_: str = "sedan", **kwargs):
+    def __init__(
+        self, id_: int, type_: str = "medium_car", trajectory: Trajectory = None, **kwargs
+    ):
         """Initialize the vehicle.
 
         Args:
-            id_ (int): The unique identifier.
-            type_ (str, optional): The type. Defaults to "sedan".
+            id_ (int): The unique identifier of the vehicle.
+            type_ (str, optional): The type of the vehicle.
+            trajectory (Trajectory, optional): The trajectory of the vehicle.
 
         Keyword Args:
-
+            length (float, optional): The length of the vehicle. The default unit is meter. Defaults to None.
+            width (float, optional): The width of the vehicle. The default unit is meter. Defaults to None.
+            height (float, optional): The height of the vehicle. The default unit is meter. Defaults to None.
+            color (tuple, optional): The color of the vehicle. Defaults to None.
+            kerb_weight (float, optional): The kerb weight of the vehicle. The default unit is kilogram (kg). Defaults to None.
+            wheel_base (float, optional): The wheel base of the vehicle. The default unit is meter. Defaults to None.
+            front_overhang (float, optional): The front overhang of the vehicle. The default unit is meter. Defaults to None.
+            rear_overhang (float, optional): The rear overhang of the vehicle. The default unit is meter. Defaults to None.
+            max_steer (float, optional): The maximum steering angle of the vehicle. The unit is radian. Defaults to $\pi$ / 6.
+            max_speed (float, optional): The maximum speed of the vehicle. The unit is meter per second. Defaults to 55.556 (=200 km/h).
+            max_accel (float, optional): The maximum acceleration of the vehicle. The unit is meter per second squared. Defaults to 3.0.
+            max_decel (float, optional): The maximum deceleration of the vehicle. The unit is meter per second squared. Defaults to 10.
+            verify (bool): Whether to verify the trajectory to bind or the state to add.
+            physics_model (PhysicsModelBase): The physics model of the cyclist. Defaults to None. If the physics model is a custom model, it should be an instance of the [`PhysicsModelBase`](../api/physics.md/#PhysicsModelBase) class.
+            driven_mode (str, optional): The driven way of the vehicle. The available options are ["FWD", "RWD", "4WD", "AWD"]. Defaults to "FWD".
         """
-        super().__init__(id_, type_, **kwargs)
+        setattr(self, "id_", id_)
+        setattr(self, "type_", type_)
 
-        attribute_dict = {**self.default_attributes, **self.attributes}
-
-        if self.type_ in self.default_vehicle_types:
-            for attr in attribute_dict:
-                if getattr(self, attr) is None and attr in VEHICLE_MODEL[self.type_]:
-                    setattr(self, attr, VEHICLE_MODEL[self.type_][attr])
-
-            if self.speed_range is None:
-                self.speed_range = (0, VEHICLE_MODEL[self.type_]["max_speed"])
-
-            if self.accel_range is None:
-                self.accel_range = (
-                    VEHICLE_MODEL[self.type_]["max_decel"],
-                    VEHICLE_MODEL[self.type_]["max_accel"],
-                )
-
-        if self.steer_range is None:
-            self.steer_range = (-np.pi / 6, np.pi / 6)
-
-        if self.physics_model is None:
-            if None not in (self.width, self.front_overhang, self.rear_overhang):
-                dist_front_hang = 0.5 * self.length - self.front_overhang
-                dist_rear_hang = 0.5 * self.length - self.rear_overhang
-                self.physics_model = SingleTrackKinematics(
-                    dist_front_hang,
-                    dist_rear_hang,
-                    self.steer_range,
-                    self.speed_range,
-                    self.accel_range,
-                )
-            elif self.wheel_base is not None:
-                self.physics_model = SingleTrackKinematics(
-                    0.5 * self.wheel_base,
-                    0.5 * self.wheel_base,
-                    self.steer_range,
-                    self.speed_range,
-                    self.accel_range,
-                )
-            else:
-                self.physics_model = PointMass(self.steer_range, self.speed_range, self.accel_range)
-
-        if self.driven_mode not in self.default_driven_modes:
-            self.driven_mode = "FWD"
-
-        if self.driven_mode == "FWD" and self.front_overhang is not None:
-            self.center_shift = self.front_overhang - self.length
-        elif self.driven_mode == "RWD" and self.rear_overhang is not None:
-            self.center_shift = -self.rear_overhang
-        elif not None in (self.front_overhang, self.rear_overhang, self.length):
-            self.center_shift = 0.5 * (self.front_overhang - self.rear_overhang - self.length)
-        elif self.length is not None:
-            self.center_shift = -0.5 * self.length
+        if trajectory is not None:
+            self.bind_trajectory(trajectory)
         else:
-            self.center_shift = None
-            logging.warning("Cannot locate the vehicle center.")
+            self.trajectory = Trajectory(id_=self.id_)
 
-        self.bbox = LinearRing(
+        for key in self.__annotations__.keys():
+            if key in kwargs:
+                setattr(self, key, kwargs[key])
+            else:
+                setattr(self, key, None)
+
+        self.max_steer = np.pi / 6 if self.max_steer is None else self.max_steer
+        self.max_speed = 55.556 if self.max_speed is None else self.max_speed
+        self.max_accel = 3 if self.max_accel is None else self.max_accel
+        self.max_decel = 10 if self.max_decel is None else self.max_decel
+        self.verify = False if self.verify is None else self.verify
+
+        self.speed_range = (-16.667, self.max_speed)
+        self.steer_range = (-self.max_steer, self.max_steer)
+        self.accel_range = (-self.max_accel, self.max_accel)
+        self.driven_mode = "FWD" if self.driven_mode is None else self.driven_mode
+
+        if not self.verify:
+            self.physics_model = None
+        elif "physics_model" not in kwargs or kwargs["physics_model"] is None:
+            self.physics_model = SingleTrackKinematics()
+        else:
+            self.physics_model = kwargs["physics_model"]
+
+        self._bbox = LinearRing(
             [
                 [0.5 * self.length, -0.5 * self.width],
                 [0.5 * self.length, 0.5 * self.width],
@@ -146,19 +141,32 @@ class Vehicle(ParticipantBase):
                 [-0.5 * self.length, -0.5 * self.width],
             ]
         )
+    
+    @property
+    def shape(self) -> LinearRing:
+        return
+    
+    def load_from_template(self, type_name: str, overwrite: bool = False, template: dict = VEHICLE_TEMPLATE):
+        """Load the vehicle properties from the template.
 
-        self.bbox_new = LinearRing(
-            [
-                [self.length, -0.5 * self.width],
-                [self.length, 0.5 * self.width],
-                [0, 0.5 * self.width],
-                [0, -0.5 * self.width],
-            ]
-        )
+        Args:
+            type_name (str): The type of the vehicle.
+            overwrite (bool, optional): Whether to overwrite the existing properties. Defaults to False.
+            template (dict, optional): The template of the vehicle. Defaults to VEHICLE_TEMPLATE.
+        """
+        if type_name in template:
+            for key in template[type_name]:
+                if overwrite or getattr(self, key) is None:
+                    setattr(self, key, template[type_name][key])
+        else:
+            logging.warning(
+                "The type %s is not in the vehicle template. The default properties will be used."
+                % type_name
+            )
 
     def add_state(self, state: State):
-        if self.physics_model is None:
-            self.trajectory.append_state(state)
+        if not self.verify or self.physics_model is None:
+            self.trajectory.add_state(state)
         elif self.physics_model.verify_state(state, self.trajectory.current_state):
             self.trajectory.append_state(state)
 
@@ -168,26 +176,29 @@ class Vehicle(ParticipantBase):
                 % (self.physics_model.__class__.__name__)
             )
 
-    def _verify_trajectory(self, trajectory: Trajectory):
-        if self.physics_model is None:
-            return True
-
-        for i in range(1, len(trajectory)):
-            if not self.physics_model.verify_state(
-                trajectory.get_state(trajectory.frames[i]),
-                trajectory.get_state(trajectory.frames[i - 1]),
-            ):
-                return False
-        return True
-
     def bind_trajectory(self, trajectory: Trajectory):
-        if self._verify_trajectory(trajectory):
-            self.trajectory = trajectory
+        """This function binds a trajectory to the vehicle.
+
+        Args:
+            trajectory (Trajectory): The trajectory to bind.
+
+        Raises:
+            TypeError: If the input trajectory is not of type [`Trajectory`](#tactics2d.participant.trajectory.Trajectory).
+        """
+        if not isinstance(trajectory, Trajectory):
+            raise TypeError("The trajectory must be an instance of Trajectory.")
+
+        if self.verify:
+            if not self._verify_trajectory(trajectory):
+                self.trajectory = Trajectory(self.id_)
+                logging.warning(
+                    "The trajectory is invalid. The vehicle is not bound to the trajectory."
+                )
+            else:
+                self.trajectory = trajectory
         else:
-            raise RuntimeError(
-                "There exists invalid states in the trajectory checked by the physics model %s."
-                % self.physics_model.__class__.__name__
-            )
+            self.trajectory = trajectory
+            logging.info("The vehicle is bound to a trajectory without verification.")
 
     def get_pose(self, frame: int = None) -> LinearRing:
         state = self.trajectory.get_state(frame)
@@ -251,7 +262,12 @@ class Vehicle(ParticipantBase):
 
         return trace
 
-    def update(self, action: np.ndarray, step: float):
-        """Update the agent's state with the given action."""
+    def update(self, action: Tuple[float, float], step: float = None):
+        """This function updates the vehicle state based on commands
+
+        Args:
+            action (Tuple[float, float]): The action to be applied to the vehicle. The action is a two-element tuple [steer, accel]. The steer is the steering angle, and the accel is the acceleration. The unit of the steer is radian, and the unit of the accel is meter per second squared (m/s$^2$).
+            TODO: step (float): The length of the step for the simulation. The unit is second.
+        """
         current_state, _ = self.physics_model.step(self.current_state, action, step)
         self.add_state(current_state)

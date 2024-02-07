@@ -53,7 +53,7 @@ class WOMDParser:
             dataset (tf.data.TFRecordDataset): The dataset to parse.
 
         Returns:
-            List[str]: A list of scenario ids looking like ["637f20cafde22ff8", ...].
+            id_list (List[str]): A list of scenario ids looking like ["637f20cafde22ff8", ...].
         """
 
         id_list = []
@@ -80,8 +80,8 @@ class WOMDParser:
             folder (str, optional): The path to the folder containing the tfrecord file.
 
         Returns:
-            dict: A dictionary of participants. If the scenario id is not found, return None.
-            List[int]: The actual time range of the trajectory data. Because WOMD collects data at an unstable frequency, the parser will return a list of time stamps.
+            participants (dict): A dictionary of participants. If the scenario id is not found, return None.
+            stamps (List[int]): The actual time range of the trajectory data. Because WOMD collects data at an unstable frequency, the parser will return a list of time stamps.
 
         Raises:
             KeyError: Either dataset or file and folder should be given as keyword arguments.
@@ -139,7 +139,7 @@ class WOMDParser:
                 )
                 time_stamps.add(state.frame)
 
-                trajectory.append_state(state)
+                trajectory.add_state(state)
 
                 width += state_.width
                 length += state_.length
@@ -156,9 +156,9 @@ class WOMDParser:
             )
             participants[track.id] = participant
 
-        actual_time_range = sorted(list(time_stamps))
+        stamps = sorted(list(time_stamps))
 
-        return participants, actual_time_range
+        return participants, stamps
 
     def _join_lane_boundary(self, ids, map_):
         points = []
@@ -288,7 +288,7 @@ class WOMDParser:
             folder (str, optional): The path to the folder containing the tfrecord file.
 
         Returns:
-            Map: A map object.
+            map_ (Map): A map object.
 
         Raises:
             KeyError: Either dataset or file and folder should be given as keyword arguments.

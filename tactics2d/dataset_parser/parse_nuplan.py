@@ -53,7 +53,7 @@ class NuPlanParser:
             folder (str): The path to the folder containing the trajectory file.
 
         Returns:
-            str: The location of the trajectory data file.
+            location (str): The location of the trajectory data file.
         """
         file_path = os.path.join(folder, file)
 
@@ -98,8 +98,8 @@ class NuPlanParser:
             stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data.
 
         Returns:
-            dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
-            List[int]: The actual time range of the trajectory data. Because NuPlan collects data at an unstable frequency, the parser will return a list of time stamps.
+            participants (dict): A dictionary of participants. The keys are the ids of the participants. The values are the participants.
+            stamps (List[int]): The actual time range of the trajectory data. Because NuPlan collects data at an unstable frequency, the parser will return a list of time stamps.
         """
         participants = dict()
         time_stamps = set()
@@ -141,13 +141,13 @@ class NuPlanParser:
                 state = State(
                     frame=time_stamp, x=row[5], y=row[6], heading=row[14], vx=row[11], vy=row[12]
                 )
-                participants[row[2]].trajectory.append_state(state)
+                participants[row[2]].trajectory.add_state(state)
 
         cursor.close()
         connection.close()
-        actual_time_range = sorted(list(time_stamps))
+        stamps = sorted(list(time_stamps))
 
-        return participants, actual_time_range
+        return participants, stamps
 
     def parse_map(self, file: str, folder: str) -> Map:
         """This function parses a map from a single NuPlan map file. The map file is expected to be a geopackage file (.gpkg).

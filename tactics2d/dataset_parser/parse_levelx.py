@@ -128,7 +128,7 @@ class LevelXParser:
             folder (str): The path to the folder containing the trajectory data.
 
         Returns:
-            int: The id of the location.
+            location_id (int): The id of the location.
         """
         file_id = self._get_file_id(file)
         df_meta = pd.read_csv(os.path.join(folder, "%02d_recordingMeta.csv" % file_id))
@@ -143,14 +143,15 @@ class LevelXParser:
             folder (str): The path to the folder containing the trajectory data.
 
         Returns:
-            Tuple[int, int]: The time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
+            actual_stamp_range (Tuple[int, int]): The time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
         """
         file_id = self._get_file_id(file)
         df_track_meta = pd.read_csv(os.path.join(folder, "%02d_tracksMeta.csv" % file_id))
         start_frame = int(min(df_track_meta["initialFrame"]) * 40)
         end_frame = int(max(df_track_meta["finalFrame"]) * 40)
 
-        return start_frame, end_frame
+        actual_stamp_range = (start_frame, end_frame)
+        return actual_stamp_range
 
     def parse_trajectory(
         self, file: Union[int, str], folder: str, stamp_range: Tuple[int, int] = None
@@ -163,8 +164,8 @@ class LevelXParser:
             stamp_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data.
 
         Returns:
-            dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
-            Tuple[int, int]: The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
+            participants (dict): A dictionary of participants. The keys are the ids of the participants. The values are the participants.
+            actual_stamp_range (Tuple[int, int]): The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
         """
         if stamp_range is None:
             stamp_range = (-np.inf, np.inf)
@@ -268,7 +269,7 @@ class LevelXParser:
                     ay=state_info["yAcceleration"],
                 )
 
-                trajectories[trajectory_id].append_state(state)
+                trajectories[trajectory_id].add_state(state)
 
         for participant_id in participants.keys():
             participants[participant_id].bind_trajectory(trajectories[participant_id])

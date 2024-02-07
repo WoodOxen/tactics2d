@@ -17,7 +17,7 @@ import numpy as np
 
 from tactics2d.map.element import Lane, Area, RoadLine
 from tactics2d.participant.element import Vehicle, Cyclist, Pedestrian
-from tactics2d.sensor.defaults import COLOR_PALETTE, DEFAULT_COLOR, DEFAULT_ORDER
+from tactics2d.sensor.render_template import COLOR_PALETTE, DEFAULT_COLOR, DEFAULT_ORDER
 
 
 class ScenarioDisplay:

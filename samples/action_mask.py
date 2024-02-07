@@ -4,7 +4,7 @@ import torch.nn as nn
 from scipy.ndimage.filters import minimum_filter1d
 from shapely.geometry import LineString, Point
 
-from tactics2d.trajectory.element.state import State
+from tactics2d.participant.trajectory import State
 
 VALID_STEER = [-0.75, 0.75]
 MAX_SPEED = 2
