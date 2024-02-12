@@ -52,7 +52,9 @@ class Pedestrian(ParticipantBase):
     }
     _default_color = (69, 170, 242, 255)  # light-blue
 
-    def __init__(self, id_: Any, type_: str = "adult_male", trajectory: Trajectory = None, **kwargs):
+    def __init__(
+        self, id_: Any, type_: str = "adult_male", trajectory: Trajectory = None, **kwargs
+    ):
         """Initialize the pedestrian.
 
         Args:
@@ -91,7 +93,7 @@ class Pedestrian(ParticipantBase):
         return self._radius
 
     def load_from_template(
-        self, type_name: str, overwrite: bool = False, template: dict = PEDESTRIAN_TEMPLATE
+        self, type_name: str, overwrite: bool = True, template: dict = PEDESTRIAN_TEMPLATE
     ):
         """This function automatically complete the missing attributes of the instance based on the template.
 

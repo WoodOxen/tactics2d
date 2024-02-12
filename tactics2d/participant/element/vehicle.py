@@ -17,7 +17,7 @@ from .participant_base import ParticipantBase
 from tactics2d.participant.trajectory import State, Trajectory
 from tactics2d.physics import SingleTrackKinematics
 
-from .participant_template import VEHICLE_TEMPLATE
+from .participant_template import VEHICLE_TEMPLATE, EPA_MAPPING, NCAP_MAPPING, EURO_SEGMENT_MAPPING
 
 
 class Vehicle(ParticipantBase):
@@ -41,7 +41,7 @@ class Vehicle(ParticipantBase):
         max_accel (float): The maximum acceleration of the vehicle. The unit is meter per second squared. Defaults to 3.0.
         max_decel (float): The maximum deceleration of the vehicle. The unit is meter per second squared. Defaults to 10.
         steer_range (Tuple[float, float]): The range of the vehicle steering angle. The unit is radian. Defaults to (-$\pi$/6, $\pi$/6).
-        speed_range (Tuple[float, float]): The range of the vehicle speed. The unit is meter per second (m/s). Defaults to (-16.667, 55.556) (= -60~200 km/h).
+        speed_range (Tuple[float, float]): The range of the vehicle speed. The unit is meter per second (m/s). Defaults to (-16.67, 55.56) (= -60~200 km/h).
         accel_range (Tuple[float, float]): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to (-10, 3).
         verify (bool): Whether to verify the trajectory to bind or the state to add. Defaults to False.
         physics_model (PhysicsModelBase): The physics model of the cyclist. Defaults to SingleTrackKinematics.
@@ -88,7 +88,7 @@ class Vehicle(ParticipantBase):
             front_overhang (float, optional): The front overhang of the vehicle. The default unit is meter. Defaults to None.
             rear_overhang (float, optional): The rear overhang of the vehicle. The default unit is meter. Defaults to None.
             max_steer (float, optional): The maximum steering angle of the vehicle. The unit is radian. Defaults to $\pi$ / 6.
-            max_speed (float, optional): The maximum speed of the vehicle. The unit is meter per second. Defaults to 55.556 (=200 km/h).
+            max_speed (float, optional): The maximum speed of the vehicle. The unit is meter per second. Defaults to 55.56 (=200 km/h).
             max_accel (float, optional): The maximum acceleration of the vehicle. The unit is meter per second squared. Defaults to 3.0.
             max_decel (float, optional): The maximum deceleration of the vehicle. The unit is meter per second squared. Defaults to 10.0.
             verify (bool): Whether to verify the trajectory to bind or the state to add.
@@ -99,11 +99,11 @@ class Vehicle(ParticipantBase):
         super().__init__(id_, type_, trajectory, **kwargs)
 
         self.max_steer = np.pi / 6 if self.max_steer is None else self.max_steer
-        self.max_speed = 55.556 if self.max_speed is None else self.max_speed
+        self.max_speed = 55.56 if self.max_speed is None else self.max_speed
         self.max_accel = 3.0 if self.max_accel is None else self.max_accel
         self.max_decel = 10.0 if self.max_decel is None else self.max_decel
 
-        self.speed_range = (-16.667, self.max_speed)
+        self.speed_range = (-16.67, self.max_speed)
         self.steer_range = (-self.max_steer, self.max_steer)
         self.accel_range = (-self.max_accel, self.max_accel)
         self.driven_mode = "FWD" if self.driven_mode is None else self.driven_mode
@@ -131,7 +131,7 @@ class Vehicle(ParticipantBase):
         return self._bbox
 
     def load_from_template(
-        self, type_name: str, overwrite: bool = False, template: dict = VEHICLE_TEMPLATE
+        self, type_name: str, overwrite: bool = True, template: dict = VEHICLE_TEMPLATE
     ):
         """Load the vehicle properties from the template.
 
@@ -140,10 +140,21 @@ class Vehicle(ParticipantBase):
             overwrite (bool, optional): Whether to overwrite the existing properties. Defaults to False.
             template (dict, optional): The template of the vehicle. Defaults to VEHICLE_TEMPLATE.
         """
+        if type_name in EURO_SEGMENT_MAPPING:
+            type_name = EURO_SEGMENT_MAPPING[type_name]
+        elif type_name in EPA_MAPPING:
+            type_name = EPA_MAPPING[type_name]
+        elif type_name in NCAP_MAPPING:
+            type_name = NCAP_MAPPING[type_name]
+
         if type_name in template:
-            for key in template[type_name]:
-                if getattr(self, key, None) is None or overwrite:
-                    setattr(self, key, value)
+            for key, value in template[type_name].items():
+                if key == "0_100_km/h":
+                    if overwrite or self.max_accel is None:
+                        self.max_accel = 100 * 1000 / 3600 / template[type_name][key]
+                else:
+                    if overwrite or getattr(self, key) is None:
+                        setattr(self, key, value)
         else:
             logging.warning(
                 f"{type_name} is not in the vehicle template. The default values will be used."
@@ -194,7 +205,7 @@ class Vehicle(ParticipantBase):
 
         Args:
             frame (int, optional): The frame to get the vehicle's pose.
-        
+
         Returns:
             pose (LinearRing): The vehicle's bounding box which is rotated and moved based on the current state.
         """
@@ -238,7 +249,7 @@ class Vehicle(ParticipantBase):
 
         Args:
             frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The default unit is millisecond (ms).
-        
+
         Returns:
             The trace of the cyclist within the requested frame range.
         """
@@ -272,7 +283,7 @@ class Vehicle(ParticipantBase):
 
         Args:
             action (Tuple[float, float]): The action to be applied to the vehicle. The action is a two-element tuple [steer, accel]. The steer is the steering angle, and the accel is the acceleration. The unit of the steer is radian, and the unit of the accel is meter per second squared (m/s$^2$).
-            interval (int, optional): The time interval to execute the action. The default unit is millisecond (ms). 
+            interval (int, optional): The time interval to execute the action. The default unit is millisecond (ms).
         """
         current_state, _ = self.physics_model.step(self.current_state, action, interval)
         self.add_state(current_state)

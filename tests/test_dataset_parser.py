@@ -15,8 +15,6 @@ import os
 import time
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
-
 from zipfile import ZipFile
 
 import pytest
@@ -54,8 +52,8 @@ def test_argoverse_parser(sub_folder, expected):
     _ = dataset_parser.parse_map(map_file, folder)
     t3 = time.time()
     assert len(participants) == expected
-    logging.debug(f"The time needed to parse an Argoverse trajectory file: {t2 - t1}s")
-    logging.debug(f"The time needed to parse an Argoverse map file: {t3 - t2}s")
+    logging.info(f"The time needed to parse an Argoverse trajectory file: {t2 - t1}s")
+    logging.info(f"The time needed to parse an Argoverse map file: {t3 - t2}s")
 
 
 @pytest.mark.dataset_parser
@@ -84,7 +82,7 @@ def test_levelx_parser(dataset: str, file_id: int, stamp_range: tuple, expected:
     t2 = time.time()
 
     assert len(participants) == expected
-    logging.debug(f"The time needed to parse a {dataset} scenario: {t2 - t1}s")
+    logging.info(f"The time needed to parse a {dataset} scenario: {t2 - t1}s")
 
 
 @pytest.mark.dataset_parser
@@ -103,7 +101,7 @@ def test_interaction_parser(file_id: int, stamp_range: tuple, expected: int):
     t2 = time.time()
 
     assert len(participants) == expected
-    logging.debug(f"The time needed to parse an INTERACTION scenario: {t2 - t1}s")
+    logging.info(f"The time needed to parse an INTERACTION scenario: {t2 - t1}s")
 
 
 @pytest.mark.dataset_parser
@@ -130,7 +128,7 @@ def test_dlp_parser(file_id: int, stamp_range: tuple, expected: int):
     t2 = time.time()
 
     assert (len(participants)) == expected
-    logging.debug(f"The time needed to parse a DLP scenario: {t2 - t1}s")
+    logging.info(f"The time needed to parse a DLP scenario: {t2 - t1}s")
 
 
 @pytest.mark.dataset_parser
@@ -163,7 +161,7 @@ def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
     t2 = time.time()
 
     assert (len(participants)) == expected
-    logging.debug(f"The time needed to parse a NuPlan scenario: {t2 - t1}s")
+    logging.info(f"The time needed to parse a NuPlan scenario: {t2 - t1}s")
 
 
 @pytest.mark.dataset_parser
@@ -180,4 +178,4 @@ def test_womd_parser(scenario_id):
     )
     t2 = time.time()
     assert len(participants) == 83
-    logging.debug(f"The time needed to parse a WOMD scenario: {t2 - t1}s")
+    logging.info(f"The time needed to parse a WOMD scenario: {t2 - t1}s")

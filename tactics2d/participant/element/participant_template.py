@@ -10,40 +10,37 @@ from tabulate import tabulate
 
 
 EURO_SEGMENT_MAPPING = {
-    "mini_car": "A",
-    "small_car": "B",
-    "medium_car": "C",
-    "large_car": "D",
-    "executive_car": "E",
-    "luxury_car": "F",
-    "sports_coupe": "S",
-    "multi_purpose_car": "M",
-    "sports_utility_car": "J",
+    "A": "mini_car",
+    "B": "small_car",
+    "C": "medium_car",
+    "D": "large_car",
+    "E": "executive_car",
+    "F": "luxury_car",
+    "S": "sports_coupe",
+    "M": "multi_purpose_car",
+    "J": "sports_utility_car",
 }
 
 NCAP_MAPPING = {
-    "mini_car": "supermini",
-    "small_car": "supermini",
-    "medium_car": "small_family_car",
-    "large_car": "large_family_car",
-    "executive_car": "executive",
-    "multi_purpose_car": "large_mpv",
-    "sports_utility_car": "large_off_road",
+    "supermini": "small_car",
+    "small_family_car": "medium_car",
+    "large_family_car": "large_car",
+    "executive": "executive_car",
+    "large_mpv": "multi_purpose_car",
+    "large_off_road": "sports_utility_car",
 }
 
 
 EPA_MAPPING = {
-    "mini_car": "minicompact",
-    "small_car": "subcompact",
-    "medium_car": "compact",
-    "large_car": "midsize",
-    "executive_car": "large",
-    "luxury_car": "large",
+    "minicompact": "mini_car",
+    "subcompact": "small_car",
+    "compact": "medium_car",
+    "midsize": "large_car",
+    "large": "executive_car",
+    "two-seater": "sports_coupe",
     "multi_purpose_car": "minivan",
-    "sports_utility_car": "standard_suv",
+    "standard_suv": "sports_utility_car",
 }
-
-VEHICLE_NICKNAME = {}
 
 VEHICLE_TEMPLATE = {
     "mini_car": {
@@ -190,6 +187,12 @@ VEHICLE_TEMPLATE = {
         "width": 1.943,
         "height": 1.792,
         "wheel_base": 2.915,
+        "front_overhang": 0.959,
+        "rear_overhang": 0.954,
+        "kerb_weight": 2200,
+        "max_speed": 88.89,
+        "0_100_km/h": 3.8,
+        "max_decel": 10.29,
         "driven_mode": "4WD",
     },
 }
@@ -200,7 +203,7 @@ CYCLIST_TEMPLATE = {
         "width": 0.65,
         "height": 1.70,
         "max_steer": 1.05,
-        "max_speed": 22.778,
+        "max_speed": 22.78,
         "max_accel": 5.8,
         "max_decel": 7.8,
     },
@@ -208,8 +211,8 @@ CYCLIST_TEMPLATE = {
         "length": 2.00,
         "width": 0.70,
         "height": 1.70,
-        "max_steer": 0.349,
-        "max_speed": 13.889,
+        "max_steer": 0.35,
+        "max_speed": 13.89,
         "max_accel": 3.5,
         "max_decel": 7.0,
     },
@@ -217,8 +220,8 @@ CYCLIST_TEMPLATE = {
         "length": 2.40,
         "width": 0.80,
         "height": 1.70,
-        "max_steer": 0.436,
-        "max_speed": 75.0,
+        "max_steer": 0.44,
+        "max_speed": 75.00,
         "max_accel": 5.0,
         "max_decel": 10.0,
     },
@@ -234,9 +237,9 @@ PEDESTRIAN_TEMPLATE = {
         "max_accel": 1.5,
     },
     "adult_female": {
-        "length": 0.24,
-        "width": 0.40,
-        "height": 1.75,
+        "length": 0.22,
+        "width": 0.37,
+        "height": 1.65,
         "max_speed": 6.0,
         "max_accel": 1.5,
     },
@@ -257,14 +260,6 @@ PEDESTRIAN_TEMPLATE = {
 }
 
 VEHICLE_MODEL = {
-    "mini_car": {
-        # Prototype: Volkswagen Up 3-door (https://en.wikipedia.org/wiki/Volkswagen_Up)
-        "max_decel": -7.5
-    },
-    "small_car": {
-        # Prototype: Volkswagen Polo(AW/BZ) (https://en.wikipedia.org/wiki/Volkswagen_Polo)
-        "max_decel": -9.8
-    },
     "sedan": {
         # Prototype: Volkswagen Tiguan (https://en.wikipedia.org/wiki/Volkswagen_Tiguan)
         "length": 4.668,
@@ -277,22 +272,6 @@ VEHICLE_MODEL = {
         "max_accel": 1.98,
         "max_decel": -7.5,
         "0_100_km/h": 14,
-    },
-    "medium_car": {
-        # Prototype: Volkswagen Golf (https://car.autohome.com.cn/config/series/871-10281.html#pvareaid=3454437)
-        "max_decel": -10.7
-    },
-    "large_car": {
-        # Prototype: Volkswagen Passat (B8) (Magotan) (https://en.wikipedia.org/wiki/Volkswagen_Passat_(B8))
-        "max_decel": -11.27
-    },
-    "executive_car": {
-        # Prototype: Audi A6L (https://price.pcauto.com.cn/sg4313/config.html)
-        "max_decel": -14.7
-    },
-    "luxury_car": {
-        # Prototype: Audi A8L(https://car.autohome.com.cn/config/series/146.html)
-        "max_decel": -13.23
     },
     "sports_coupes": {
         # Prototype: Chevrolet Camaro(https://en.wikipedia.org/wiki/Chevrolet_Camaro)
@@ -319,10 +298,6 @@ VEHICLE_MODEL = {
         "max_accel": 3.8,
         "max_decel": -8,
         "0_100_km/h": 9.9,
-    },
-    "large_MPV": {
-        # Prototype: Volkswagen Sharan(https://en.wikipedia.org/wiki/Volkswagen_Sharan)
-        "max_decel": -8
     },
     "full_size_cargo_van": {
         # Prototype: Mercedes-Benz Sprinter(https://en.wikipedia.org/wiki/Mercedes-Benz_Sprinter#Third_generation_(2019%E2%80%93present,_VS30))
@@ -362,7 +337,7 @@ BUS_MODEL = {
 
 
 def list_vehicle_templates():
-    """This function lists the default vehicle templates in a table format."""
+    """This function prints the default vehicle templates in a table."""
     headers = [
         "Vehicle Type",
         "Length (m)",
@@ -376,10 +351,22 @@ def list_vehicle_templates():
         "0-100 km/h (s)",
         "Driven Mode",
     ]
+    keys = [
+        "length",
+        "width",
+        "height",
+        "wheel_base",
+        "front_overhang",
+        "rear_overhang",
+        "kerb_weight",
+        "max_speed",
+        "0_100_km/h",
+        "driven_mode",
+    ]
     table_data = []
     for key, value in VEHICLE_TEMPLATE.items():
         line = [key]
-        for key in headers[1:]:
+        for key in keys:
             line.append(value[key])
         table_data.append(line)
 
@@ -387,8 +374,44 @@ def list_vehicle_templates():
 
 
 def list_cyclist_templates():
-    print(tabulate(CYCLIST_TEMPLATE, headers="keys"))
+    """This function prints the default cyclist templates in a table."""
+    headers = [
+        "Cyclist Type",
+        "Length (m)",
+        "Width (m)",
+        "Height (m)",
+        "Max Speed (km/h)",
+        "Max Steer (rad)",
+        "Max Acceleration (m/s^2)",
+        "Max Deceleration (m/s&2)",
+    ]
+    keys = ["length", "width", "height", "max_steer", "max_speed", "max_accel", "max_decel"]
+    table_data = []
+    for key, value in CYCLIST_TEMPLATE.items():
+        line = [key]
+        for key in keys:
+            line.append(value[key])
+        table_data.append(line)
+
+    print(tabulate(table_data, headers=headers))
 
 
 def list_pedestrian_templates():
-    print(tabulate(PEDESTRIAN_TEMPLATE, headers="keys"))
+    """This function prints the default pedestrian templates in a table."""
+    headers = [
+        "Pedestrian Type",
+        "Length (m)",
+        "Width (m)",
+        "Height (m)",
+        "Max Speed (km/h)",
+        "Max Acceleration (m/s^2)",
+    ]
+    keys = ["length", "width", "height", "max_speed", "max_accel"]
+    table_data = []
+    for key, value in PEDESTRIAN_TEMPLATE.items():
+        line = [key]
+        for key in keys[1:]:
+            line.append(value[key])
+        table_data.append(line)
+
+    print(tabulate(table_data, headers=headers))

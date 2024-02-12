@@ -32,11 +32,11 @@ class Cyclist(ParticipantBase):
         width (float): The width of the cyclist. The default unit is meter. Defaults to None.
         height (float): The height of the cyclist. The default unit is meter. Defaults to None.
         max_steer (float): The maximum steering angle of the cyclist. The default unit is radian. Defaults to 1.05.
-        max_speed (float): The maximum speed of the cyclist. The default unit is meter per second. Defaults to 22.778.
+        max_speed (float): The maximum speed of the cyclist. The default unit is meter per second. Defaults to 22.78.
         max_accel (float): The maximum acceleration of the cyclist. The default unit is meter per second squared. Defaults to 5.8.
         max_decel (float): The maximum deceleration of the cyclist. The default unit is meter per second squared. Defaults to 7.8.
         steer_range (Tuple[float, float]): The steering angle range of the cyclist. The default unit is radian. Defaults to (-1.05, 1.05).
-        speed_range (Tuple[float, float]): The speed range of the cyclist. The default unit is meter per second. Defaults to (0, 22.778).
+        speed_range (Tuple[float, float]): The speed range of the cyclist. The default unit is meter per second. Defaults to (0, 22.78).
         accel_range (Tuple[float, float]): The acceleration range of the cyclist. The default unit is meter per second squared. Defaults to (-7.8, 5.8).
         verify (bool): Whether to verify the trajectory to bind or the state to add. Defaults to False.
         physics_model (PhysicsModelBase): The physics model of the cyclist. Defaults to SingleTrackKinematics.
@@ -105,7 +105,7 @@ class Cyclist(ParticipantBase):
         return self._bbox
 
     def load_from_template(
-        self, type_name: str, overwrite: bool = False, template: dict = CYCLIST_TEMPLATE
+        self, type_name: str, overwrite: bool = True, template: dict = CYCLIST_TEMPLATE
     ):
         """This function automatically complete the missing attributes of the instance based on the template.
 
