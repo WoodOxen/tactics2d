@@ -198,7 +198,7 @@ class Vehicle(ParticipantBase):
                 self.trajectory = trajectory
         else:
             self.trajectory = trajectory
-            logging.info(f"Vehicle {self.id_} is bound to a trajectory without verification.")
+            logging.debug(f"Vehicle {self.id_} is bound to a trajectory without verification.")
 
     def get_pose(self, frame: int = None) -> LinearRing:
         """This function gets the pose of the vehicle at the requested frame.
@@ -253,30 +253,31 @@ class Vehicle(ParticipantBase):
         Returns:
             The trace of the cyclist within the requested frame range.
         """
-        states = self.get_states(frame_range)
-        trace = None
-        if len(states) == 0:
-            pass
-        elif len(states) == 1:
-            trace = self.get_pose_new(frame=states[0].frame)
-        else:
-            center_line = []
-            start_pose = np.array(list(self.get_pose_new(frame=states[0].frame).coords))
-            end_pose = np.array(list(self.get_pose_new(frame=states[-1].frame).coords))
-            start_point = tuple(np.mean(start_pose[2:4], axis=0))  # the midpoint of the rear
-            end_point = tuple(np.mean(end_pose[0:2], axis=0))  # the midpoint of the front
-            center_line.append(start_point)
-            for state in states:
-                trajectory.append(state.location)
-            center_line.append(end_point)
-            trajectory = LineString(trajectory)
+        # states = self.get_states(frame_range)
+        # trace = None
+        # if len(states) == 0:
+        #     pass
+        # elif len(states) == 1:
+        #     trace = self.get_pose(frame=states[0].frame)
+        # else:
+        #     center_line = []
+        #     start_pose = np.array(list(self.get_pose(frame=states[0].frame).coords))
+        #     end_pose = np.array(list(self.get_pose(frame=states[-1].frame).coords))
+        #     start_point = tuple(np.mean(start_pose[2:4], axis=0))  # the midpoint of the rear
+        #     end_point = tuple(np.mean(end_pose[0:2], axis=0))  # the midpoint of the front
+        #     center_line.append(start_point)
+        #     for state in states:
+        #         trajectory.append(state.location)
+        #     center_line.append(end_point)
+        #     trajectory = LineString(trajectory)
 
-            left_bound = trajectory.offset_curve(self.width / 2)
-            right_bound = trajectory.offset_curve(-self.width / 2)
+        #     left_bound = trajectory.offset_curve(self.width / 2)
+        #     right_bound = trajectory.offset_curve(-self.width / 2)
 
-            trace = LinearRing(list(left_bound.coords) + list(reversed(list(right_bound.coords))))
+        #     trace = LinearRing(list(left_bound.coords) + list(reversed(list(right_bound.coords))))
 
-        return trace
+        # return trace
+        return None
 
     def update(self, action: Tuple[float, float], interval: int = None):
         """This function updates the vehicle's state based on the input action command.

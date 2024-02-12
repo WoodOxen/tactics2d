@@ -133,7 +133,7 @@ class Pedestrian(ParticipantBase):
                 self.trajectory = trajectory
         else:
             self.trajectory = trajectory
-            logging.info(f"Pedestrian {self.id_} is bound to a trajectory without verification.")
+            logging.debug(f"Pedestrian {self.id_} is bound to a trajectory without verification.")
 
     def get_pose(self, frame: int = None) -> Tuple[Tuple[float, float], float]:
         """This function gets the pose of the pedestrian at the requested frame.
@@ -158,5 +158,5 @@ class Pedestrian(ParticipantBase):
             The trace of the pedestrian within the requested frame range.
         """
         center_line = LineString(self.trajectory.get_trace(frame_range))
-        buffer = center_line.buffer(self.shape)
+        buffer = center_line.buffer(self.geometry)
         return LinearRing(buffer.exterior.coords)

@@ -177,5 +177,8 @@ def test_womd_parser(scenario_id):
         scenario_id, file=file_name, folder=folder_path
     )
     t2 = time.time()
+    _ = dataset_parser.parse_map(scenario_id, file=file_name, folder=folder_path)
+    t3 = time.time()
     assert len(participants) == 83
-    logging.info(f"The time needed to parse a WOMD scenario: {t2 - t1}s")
+    logging.info(f"The time needed to parse trajectories in a WOMD scenario: {t2 - t1}s")
+    logging.info(f"The time needed to parse the map for a WOMD scenario: {t3 - t2}s")

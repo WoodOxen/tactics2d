@@ -86,7 +86,7 @@ class ParticipantBase(ABC):
                 super().__setattr__(__name, __value)
             else:
                 try:
-                    if isinstance(__annotations__[__name], tuple):
+                    if isinstance(__value, tuple):
                         for __type in __annotations__[__name]:
                             if isinstance(__value, __type):
                                 super().__setattr__(__name, __type(__value))

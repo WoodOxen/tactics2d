@@ -8,6 +8,8 @@
 
 import sys
 
+from build.lib import trajectory
+
 sys.path.append(".")
 sys.path.append("..")
 
@@ -62,8 +64,13 @@ def test_participant_base():
         def get_trace(self):
             return
 
-    test_participant_base = TestParticipant(0)
-    assert test_participant_base.id_ == 0
+    class_instance = TestParticipant(0)
+    class_instance.add_state(State(0, 5, 6, 0.5))
+    class_instance.add_state(State(100, 6, 8, 0.8))
+    class_instance.get_pose()
+    logging.info(class_instance.geometry)
+    logging.info(class_instance.get_trace())
+    assert class_instance.id_ == 0
 
 
 @pytest.mark.participant
@@ -85,3 +92,15 @@ def test_load_template(class_, type_name: str, overwrite: bool, attributes: dict
     class_instance.load_from_template(type_name, overwrite)
     for key, value in attributes.items():
         assert getattr(class_instance, key) == value
+
+
+@pytest.mark.participant
+@pytest.mark.parametrize("class_", [Vehicle, Cyclist, Pedestrian, Other])
+def test_functions(class_):
+    # TODO: This test currently serves to increase the test coverage percentage. There is space for future improvements.
+    class_instance = class_(0, length=4, width=3, height=5)
+    class_instance.add_state(State(0, 5, 6, 0.5))
+    class_instance.add_state(State(100, 6, 8, 0.8))
+    class_instance.get_pose()
+    logging.info(class_instance.geometry)
+    logging.info(class_instance.get_trace())

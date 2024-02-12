@@ -304,6 +304,8 @@ class WOMDParser:
                 "Either dataset or file and folder should be given as keyword arguments."
             )
 
+        map_ = None
+
         for data in dataset:
             proto_string = data.numpy()
             scenario = scenario_pb2.Scenario()

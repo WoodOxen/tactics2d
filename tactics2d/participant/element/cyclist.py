@@ -145,7 +145,7 @@ class Cyclist(ParticipantBase):
                 self.trajectory = trajectory
         else:
             self.trajectory = trajectory
-            logging.info("Cyclist {self.id_} is bound to a trajectory without verification.")
+            logging.debug(f"Cyclist {self.id_} is bound to a trajectory without verification.")
 
     def get_pose(self, frame: int = None) -> LinearRing:
         """This function gets the pose of the cyclist at the requested frame.
