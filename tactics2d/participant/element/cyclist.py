@@ -6,7 +6,7 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Tuple
+from typing import Any, Tuple
 import logging
 
 import numpy as np
@@ -14,7 +14,7 @@ from shapely.geometry import LineString, LinearRing
 from shapely.affinity import affine_transform
 
 from .participant_base import ParticipantBase
-from tactics2d.participant.trajectory import State, Trajectory
+from tactics2d.participant.trajectory import Trajectory
 from tactics2d.physics import SingleTrackKinematics
 
 from .participant_template import CYCLIST_TEMPLATE
@@ -40,7 +40,7 @@ class Cyclist(ParticipantBase):
         accel_range (Tuple[float, float]): The acceleration range of the cyclist. The default unit is meter per second squared. Defaults to (-7.8, 5.8).
         verify (bool): Whether to verify the trajectory to bind or the state to add. Defaults to False.
         physics_model (PhysicsModelBase): The physics model of the cyclist. Defaults to SingleTrackKinematics.
-        shape (float): The shape of the cyclist. It is represented as a bounding box with its original point located at the center. This attribute is **read-only**.
+        geometry (float): The geometry shape of the cyclist. It is represented as a bounding box with its original point located at the center. This attribute is **read-only**.
         current_state (State): The current state of the cyclist. This attribute is **read-only**.
     """
 
@@ -55,9 +55,9 @@ class Cyclist(ParticipantBase):
         "max_decel": float,
         "verify": bool,
     }
-    _default_color = (253, 150, 68)  # light-orange
+    _default_color = (253, 150, 68, 255)  # light-orange
 
-    def __init__(self, id_, type_: str = "cyclist", trajectory: Trajectory = None, **kwargs):
+    def __init__(self, id_: Any, type_: str = "cyclist", trajectory: Trajectory = None, **kwargs):
         """Initialize a cyclist participant. `tactics2d` treat motorcyclists as cyclists by default.
 
         Args:
@@ -93,15 +93,15 @@ class Cyclist(ParticipantBase):
 
         self._bbox = LinearRing(
             [
-                (-self.length / 2, -self.width / 2),
-                (-self.length / 2, self.width / 2),
-                (self.length / 2, self.width / 2),
-                (self.length / 2, -self.width / 2),
+                [0.5 * self.length, -0.5 * self.width],
+                [0.5 * self.length, 0.5 * self.width],
+                [-0.5 * self.length, 0.5 * self.width],
+                [-0.5 * self.length, -0.5 * self.width],
             ]
         )
 
     @property
-    def shape(self) -> LinearRing:
+    def geometry(self) -> LinearRing:
         return self._bbox
 
     def load_from_template(
@@ -116,11 +116,11 @@ class Cyclist(ParticipantBase):
         """
         if type_name in template:
             for key, value in template[type_name].items():
-                if not hasattr(self, key) or overwrite:
+                if getattr(self, key, None) is None or overwrite:
                     setattr(self, key, value)
         else:
             logging.warning(
-                f"{type_name} is not in the template. Cannot auto-complete the empty attributes"
+                f"{type_name} is not in the cyclist template. Cannot auto-complete the empty attributes"
             )
 
     def bind_trajectory(self, trajectory: Trajectory):
@@ -139,13 +139,13 @@ class Cyclist(ParticipantBase):
             if not self._verify_trajectory(trajectory):
                 self.trajectory = Trajectory(self.id_)
                 logging.warning(
-                    "The trajectory is invalid. The cyclist is not bound to the trajectory."
+                    f"The trajectory is invalid. Cyclist {self.id_} is not bound to the trajectory."
                 )
             else:
                 self.trajectory = trajectory
         else:
             self.trajectory = trajectory
-            logging.info("The cyclist is bound to a trajectory without verification.")
+            logging.info("Cyclist {self.id_} is bound to a trajectory without verification.")
 
     def get_pose(self, frame: int = None) -> LinearRing:
         """This function gets the pose of the cyclist at the requested frame.

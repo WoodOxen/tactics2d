@@ -129,8 +129,8 @@ class DLPParser:
                     y=instance["coords"][1],
                     heading=instance["heading"],
                     speed=instance["speed"],
-                    ax=instance["acceleration"],
-                    ay=instance["acceleration"],
+                    ax=instance["acceleration"][0],
+                    ay=instance["acceleration"][1],
                 )
 
                 if instance["agent_token"] not in participants:

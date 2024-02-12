@@ -6,7 +6,7 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Tuple
+from typing import Any, Tuple
 import logging
 
 from shapely.geometry import LineString, LinearRing
@@ -37,7 +37,7 @@ class Pedestrian(ParticipantBase):
         accel_range (Tuple[float, float]): The acceleration range of the pedestrian. The default unit is meter per second squared. Defaults to (-1.5, 1.5).
         verify (bool): Whether to verify the trajectory to bind or the state to add. Defaults to False.
         physics_model (PhysicsModelBase): The physics model of the pedestrian. Defaults to PointMass.
-        shape (float): The shape of the pedestrian. It is represented as the radius of a circle. This attribute is **read-only**.
+        geometry (float): The geometry shape of the pedestrian. It is represented as the radius of a circle. This attribute is **read-only**.
         current_state (State): The current state of the pedestrian. This attribute is **read-only**.
     """
 
@@ -50,9 +50,9 @@ class Pedestrian(ParticipantBase):
         "max_accel": float,
         "verify": bool,
     }
-    _default_color = (69, 170, 242)  # light-blue
+    _default_color = (69, 170, 242, 255)  # light-blue
 
-    def __init__(self, id_, type_: str = "adult_male", trajectory: Trajectory = None, **kwargs):
+    def __init__(self, id_: Any, type_: str = "adult_male", trajectory: Trajectory = None, **kwargs):
         """Initialize the pedestrian.
 
         Args:
@@ -87,7 +87,7 @@ class Pedestrian(ParticipantBase):
         self._radius = self.width / 2
 
     @property
-    def shape(self):
+    def geometry(self):
         return self._radius
 
     def load_from_template(
@@ -125,13 +125,13 @@ class Pedestrian(ParticipantBase):
             if not self._verify_trajectory(trajectory):
                 self.trajectory = Trajectory(self.id_)
                 logging.warning(
-                    "The trajectory is invalid. The pedestrian is not bound to the trajectory."
+                    f"The trajectory is invalid. Pedestrian {self.id_} is not bound to the trajectory."
                 )
             else:
                 self.trajectory = trajectory
         else:
             self.trajectory = trajectory
-            logging.info("The pedestrian is bound to a trajectory without verification.")
+            logging.info(f"Pedestrian {self.id_} is bound to a trajectory without verification.")
 
     def get_pose(self, frame: int = None) -> Tuple[Tuple[float, float], float]:
         """This function gets the pose of the pedestrian at the requested frame.

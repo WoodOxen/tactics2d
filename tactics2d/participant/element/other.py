@@ -6,7 +6,7 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Union, Tuple
+from typing import Any, Tuple, Union
 
 import numpy as np
 from shapely.geometry import Point, LinearRing, LineString
@@ -30,11 +30,11 @@ class Other(ParticipantBase):
         width (float): The width of the traffic participant. The default unit is meter. Defaults to None.
         height (float): The height of the traffic participant. The default unit is meter. Defaults to None.
         physics_model (PhysicsModelBase): The physics model of the traffic participant. Defaults to None.
-        shape (LinearRing): The shape of the traffic participant. This attribute is **read-only**. If both length and width are available, the shape will be a rectangle. If only length or width is available, the shape will be a square. Otherwise, the shape will be None.
+        geometry (LinearRing): The geometry shape of the traffic participant. This attribute is **read-only**. If both length and width are available, the geometry shape will be a rectangle. If only length or width is available, the geometry shape will be a square. Otherwise, the geometry shape will be None.
         current_state (State): The current state of the traffic participant. This attribute is **read-only**.
     """
 
-    def __init__(self, id_, type_: str = "unknown", trajectory: Trajectory = None, **kwargs):
+    def __init__(self, id_: Any, type_: str = "unknown", trajectory: Trajectory = None, **kwargs):
         """Initialize the traffic participant of an *other* type.
 
         Args:
@@ -51,7 +51,7 @@ class Other(ParticipantBase):
         super().__init__(id_, type_, trajectory, **kwargs)
 
     @property
-    def shape(self):
+    def geometry(self):
         if not self.length is None and not self.width is None:
             return LinearRing(
                 [
@@ -111,10 +111,10 @@ class Other(ParticipantBase):
             frame (int, optional): The time stamp of the requested pose. The default unit is millisecond (ms).
 
         Returns:
-           pose (Union[Point, LinearRing]): The outfigure of the traffic participant at the requested frame. If the shape of the traffic participant is available, the pose will be a LinearRing that describe the outfigure of the traffic participant at the requested frame. Otherwise, the pose will be a Point that describe the location of the traffic participant at the requested frame.
+           pose (Union[Point, LinearRing]): The outfigure of the traffic participant at the requested frame. If the geometry shape of the traffic participant is available, the pose will be a LinearRing that describe the outfigure of the traffic participant at the requested frame. Otherwise, the pose will be a Point that describe the location of the traffic participant at the requested frame.
         """
-        shape = self.shape
-        if shape is None:
+        geometry = self.geometry
+        if geometry is None:
             return Point(self.trajectory.get_state(frame).location)
 
         transform_matrix = [
@@ -125,7 +125,7 @@ class Other(ParticipantBase):
             self.trajectory.get_state(frame).location[0],
             self.trajectory.get_state(frame).location[1],
         ]
-        return affine_transform(shape, transform_matrix)
+        return affine_transform(geometry, transform_matrix)
 
     def get_trace(self, frame_range: Tuple[int, int] = None) -> Union[LineString, LinearRing]:
         """This function gets the trace of the traffic participant within the requested frame range.
@@ -138,7 +138,7 @@ class Other(ParticipantBase):
 
                 - If the width of the traffic participant is available, the trace will be a LinearRing that describe the area that the traffic participant occupied during the requested frame range with width/2 as the trace's width.
                 - If the width is absent while the length is available, the trace will be a LinearRing that describe the area that the traffic participant occupied during the requested frame range with length/2 as the trace's width.
-                - If the shape of the traffic participant is unavailable, the trace will be a LineString that describe the center line of the traffic participant during the requested frame range.
+                - If the geometry shape of the traffic participant is unavailable, the trace will be a LineString that describe the center line of the traffic participant during the requested frame range.
         """
         trace = LineString(self.trajectory.get_trace(frame_range))
         if not self.width is None:

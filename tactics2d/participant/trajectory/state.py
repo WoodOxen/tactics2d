@@ -40,10 +40,10 @@ class State:
         "heading": float,
         "vx": float,
         "vy": float,
-        "speed": float,
+        "_speed": float,
         "ax": float,
         "ay": float,
-        "accel": float,
+        "_accel": float,
     }
 
     def __init__(
@@ -89,7 +89,9 @@ class State:
 
     def __setattr__(self, __name: str, __value: Any) -> None:
         if __name in self.__annotations__:
-            if isinstance(__value, self.__annotations__[__name]):
+            if __value is None:
+                super().__setattr__(__name, None)
+            elif isinstance(__value, self.__annotations__[__name]):
                 super().__setattr__(__name, __value)
             else:
                 try:
@@ -108,9 +110,9 @@ class State:
 
     @property
     def speed(self):
-        if self._speed is not None:
+        if not self._speed is None:
             return self._speed
-        if None not in [self.vx, self.vy]:
+        if not None in [self.vx, self.vy]:
             self._speed = np.linalg.norm([self.vx, self.vy])
             return self._speed
 
@@ -120,7 +122,7 @@ class State:
     def velocity(self) -> Tuple[float, float]:
         if not None in [self.vx, self.vy]:
             return (self.vx, self.vy)
-        if None not in [self.speed, self.heading]:
+        if not None in [self.speed, self.heading]:
             return (self.speed * np.cos(self.heading), self.speed * np.sin(self.heading))
 
         return None

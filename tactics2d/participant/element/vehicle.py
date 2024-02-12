@@ -6,7 +6,7 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Any, Tuple, Union
+from typing import Any, Tuple
 import logging
 
 import numpy as np
@@ -22,12 +22,6 @@ from .participant_template import VEHICLE_TEMPLATE
 
 class Vehicle(ParticipantBase):
     """This class defines a four-wheeled vehicle with its common properties.
-
-    The location of the vehicle refers to its center. The vehicle center is defined by its physical model. If the vehicle is front-wheel driven, which means its engine straddling the front axle, the vehicle center is the midpoint of the front axle. If the vehicle is rear-wheel driven, which means its engine straddling the rear axle, the vehicle center is the midpoint of the rear axle. If the vehicle is four-wheel driven, which means its engine straddling both the front and rear axles, the vehicle center is the midpoint of the wheel base. If the vehicle is all-wheel driven, which means its engine straddling all the axles, the vehicle center is the midpoint of the wheel base.
-
-    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/vehicle_driven.png" alt="Front-wheel driven, rear-wheel driven, four-wheel driven, and all-wheel driven vehicles"/>
-
-    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/vehicle_centers.png" alt="Vehicle center definition for different vehicle types."/>
 
     Attributes:
         id_ (int): The unique identifier of the vehicle.
@@ -71,11 +65,11 @@ class Vehicle(ParticipantBase):
         "max_decel": float,
         "verify": bool,
     }
-    _default_color = (43, 203, 186)  # light-turquoise
+    _default_color = (43, 203, 186, 255)  # light-turquoise
     _driven_modes = {"FWD", "RWD", "4WD", "AWD"}
 
     def __init__(
-        self, id_: int, type_: str = "medium_car", trajectory: Trajectory = None, **kwargs
+        self, id_: Any, type_: str = "medium_car", trajectory: Trajectory = None, **kwargs
     ):
         """Initialize the vehicle.
 
@@ -96,57 +90,49 @@ class Vehicle(ParticipantBase):
             max_steer (float, optional): The maximum steering angle of the vehicle. The unit is radian. Defaults to $\pi$ / 6.
             max_speed (float, optional): The maximum speed of the vehicle. The unit is meter per second. Defaults to 55.556 (=200 km/h).
             max_accel (float, optional): The maximum acceleration of the vehicle. The unit is meter per second squared. Defaults to 3.0.
-            max_decel (float, optional): The maximum deceleration of the vehicle. The unit is meter per second squared. Defaults to 10.
+            max_decel (float, optional): The maximum deceleration of the vehicle. The unit is meter per second squared. Defaults to 10.0.
             verify (bool): Whether to verify the trajectory to bind or the state to add.
             physics_model (PhysicsModelBase): The physics model of the cyclist. Defaults to None. If the physics model is a custom model, it should be an instance of the [`PhysicsModelBase`](../api/physics.md/#PhysicsModelBase) class.
             driven_mode (str, optional): The driven way of the vehicle. The available options are ["FWD", "RWD", "4WD", "AWD"]. Defaults to "FWD".
         """
-        setattr(self, "id_", id_)
-        setattr(self, "type_", type_)
 
-        if trajectory is not None:
-            self.bind_trajectory(trajectory)
-        else:
-            self.trajectory = Trajectory(id_=self.id_)
-
-        for key in self.__annotations__.keys():
-            if key in kwargs:
-                setattr(self, key, kwargs[key])
-            else:
-                setattr(self, key, None)
+        super().__init__(id_, type_, trajectory, **kwargs)
 
         self.max_steer = np.pi / 6 if self.max_steer is None else self.max_steer
         self.max_speed = 55.556 if self.max_speed is None else self.max_speed
-        self.max_accel = 3 if self.max_accel is None else self.max_accel
-        self.max_decel = 10 if self.max_decel is None else self.max_decel
-        self.verify = False if self.verify is None else self.verify
+        self.max_accel = 3.0 if self.max_accel is None else self.max_accel
+        self.max_decel = 10.0 if self.max_decel is None else self.max_decel
 
         self.speed_range = (-16.667, self.max_speed)
         self.steer_range = (-self.max_steer, self.max_steer)
         self.accel_range = (-self.max_accel, self.max_accel)
         self.driven_mode = "FWD" if self.driven_mode is None else self.driven_mode
 
-        if not self.verify:
-            self.physics_model = None
-        elif "physics_model" not in kwargs or kwargs["physics_model"] is None:
-            self.physics_model = SingleTrackKinematics()
-        else:
-            self.physics_model = kwargs["physics_model"]
+        if self.verify:
+            if "physics_model" not in kwargs or kwargs["physics_model"] is None:
+                self.physics_model = SingleTrackKinematics()
+            else:
+                self.physics_model = kwargs["physics_model"]
 
-        self._bbox = LinearRing(
-            [
-                [0.5 * self.length, -0.5 * self.width],
-                [0.5 * self.length, 0.5 * self.width],
-                [-0.5 * self.length, 0.5 * self.width],
-                [-0.5 * self.length, -0.5 * self.width],
-            ]
-        )
-    
+        if not None in [self.length, self.width]:
+            self._bbox = LinearRing(
+                [
+                    [0.5 * self.length, -0.5 * self.width],
+                    [0.5 * self.length, 0.5 * self.width],
+                    [-0.5 * self.length, 0.5 * self.width],
+                    [-0.5 * self.length, -0.5 * self.width],
+                ]
+            )
+        else:
+            self._bbox = None
+
     @property
-    def shape(self) -> LinearRing:
-        return
-    
-    def load_from_template(self, type_name: str, overwrite: bool = False, template: dict = VEHICLE_TEMPLATE):
+    def geometry(self) -> LinearRing:
+        return self._bbox
+
+    def load_from_template(
+        self, type_name: str, overwrite: bool = False, template: dict = VEHICLE_TEMPLATE
+    ):
         """Load the vehicle properties from the template.
 
         Args:
@@ -156,20 +142,23 @@ class Vehicle(ParticipantBase):
         """
         if type_name in template:
             for key in template[type_name]:
-                if overwrite or getattr(self, key) is None:
-                    setattr(self, key, template[type_name][key])
+                if getattr(self, key, None) is None or overwrite:
+                    setattr(self, key, value)
         else:
             logging.warning(
-                "The type %s is not in the vehicle template. The default properties will be used."
-                % type_name
+                f"{type_name} is not in the vehicle template. The default values will be used."
             )
 
     def add_state(self, state: State):
+        """This function adds a state to the vehicle.
+
+        Args:
+            state (State): The state to add.
+        """
         if not self.verify or self.physics_model is None:
             self.trajectory.add_state(state)
         elif self.physics_model.verify_state(state, self.trajectory.current_state):
             self.trajectory.append_state(state)
-
         else:
             raise RuntimeError(
                 "Invalid state checked by the physics model %s."
@@ -192,15 +181,23 @@ class Vehicle(ParticipantBase):
             if not self._verify_trajectory(trajectory):
                 self.trajectory = Trajectory(self.id_)
                 logging.warning(
-                    "The trajectory is invalid. The vehicle is not bound to the trajectory."
+                    f"The trajectory is invalid. Vehicle {self.id_} is not bound to the trajectory."
                 )
             else:
                 self.trajectory = trajectory
         else:
             self.trajectory = trajectory
-            logging.info("The vehicle is bound to a trajectory without verification.")
+            logging.info(f"Vehicle {self.id_} is bound to a trajectory without verification.")
 
     def get_pose(self, frame: int = None) -> LinearRing:
+        """This function gets the pose of the vehicle at the requested frame.
+
+        Args:
+            frame (int, optional): The frame to get the vehicle's pose.
+        
+        Returns:
+            pose (LinearRing): The vehicle's bounding box which is rotated and moved based on the current state.
+        """
         state = self.trajectory.get_state(frame)
         transform_matrix = [
             np.cos(state.heading),
@@ -210,7 +207,7 @@ class Vehicle(ParticipantBase):
             state.location[0],
             state.location[1],
         ]
-        return affine_transform(self.bbox, transform_matrix)
+        return affine_transform(self._bbox, transform_matrix)
 
     def get_pose_new(self, **kwargs) -> LinearRing:
         if kwargs is None or "frame" in kwargs:
@@ -236,7 +233,15 @@ class Vehicle(ParticipantBase):
         bbox = translate(self.bbox_new, self.center_shift)
         return affine_transform(bbox, transform_matrix)
 
-    def get_trace(self, frame_range: tuple = None):
+    def get_trace(self, frame_range: Tuple[int, int] = None) -> LinearRing:
+        """This function gets the trace of the vehicle within the requested frame range.
+
+        Args:
+            frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The default unit is millisecond (ms).
+        
+        Returns:
+            The trace of the cyclist within the requested frame range.
+        """
         states = self.get_states(frame_range)
         trace = None
         if len(states) == 0:
@@ -262,12 +267,12 @@ class Vehicle(ParticipantBase):
 
         return trace
 
-    def update(self, action: Tuple[float, float], step: float = None):
-        """This function updates the vehicle state based on commands
+    def update(self, action: Tuple[float, float], interval: int = None):
+        """This function updates the vehicle's state based on the input action command.
 
         Args:
             action (Tuple[float, float]): The action to be applied to the vehicle. The action is a two-element tuple [steer, accel]. The steer is the steering angle, and the accel is the acceleration. The unit of the steer is radian, and the unit of the accel is meter per second squared (m/s$^2$).
-            TODO: step (float): The length of the step for the simulation. The unit is second.
+            interval (int, optional): The time interval to execute the action. The default unit is millisecond (ms). 
         """
-        current_state, _ = self.physics_model.step(self.current_state, action, step)
+        current_state, _ = self.physics_model.step(self.current_state, action, interval)
         self.add_state(current_state)

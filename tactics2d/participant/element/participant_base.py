@@ -7,7 +7,7 @@
 # @Version: 1.0.0
 
 from abc import ABC, abstractmethod
-from typing import Tuple, List
+from typing import Tuple, List, Any
 import logging
 
 from tactics2d.participant.trajectory import State, Trajectory
@@ -31,7 +31,7 @@ class ParticipantBase(ABC):
         height (float): The height of the traffic participant. The default unit is meter. Defaults to None.
         verify (bool): Whether to verify the trajectory to bind or the state to add. Defaults to False.
         physics_model (PhysicsModelBase): The physics model of the traffic participant. Defaults to None.
-        shape (Any): The shape of the traffic participant. *It should be overridden to implement the shape logic.* This attribute is **read-only**.
+        geometry (Any): The geometry shape of the traffic participant. *It should be overridden to implement.* This attribute is **read-only**.
         current_state (State): The current state of the traffic participant. This attribute is **read-only**.
     """
 
@@ -42,9 +42,9 @@ class ParticipantBase(ABC):
         "height": float,
         "verify": bool,
     }
-    _default_color = (0, 0, 0)
+    _default_color = (0, 0, 0, 255)
 
-    def __init__(self, id_, type_: str, trajectory: Trajectory = None, **kwargs):
+    def __init__(self, id_: Any, type_: str, trajectory: Trajectory = None, **kwargs):
         """Initialize the traffic participant.
 
         Args:
@@ -62,24 +62,21 @@ class ParticipantBase(ABC):
         setattr(self, "id_", id_)
         setattr(self, "type_", type_)
 
-        if not trajectory is None:
-            self.bind_trajectory(trajectory)
-        else:
-            self.trajectory = Trajectory(id_=self.id_)
-
         if not "color" in kwargs or kwargs["color"] is None:
             self.color = self._default_color
         else:
             self.color = kwargs["color"]
 
         for key in self.__annotations__.keys():
-            if key in kwargs:
-                setattr(self, key, kwargs[key])
-            else:
-                setattr(self, key, None)
+            setattr(self, key, kwargs.get(key, None))
 
         self.verify = False if self.verify is None else self.verify
         self.physics_model = None
+
+        if not trajectory is None:
+            self.bind_trajectory(trajectory)
+        else:
+            self.trajectory = Trajectory(id_=self.id_)
 
     def __setattr__(self, __name: str, __value: Any):
         if __name in self.__annotations__:
@@ -130,8 +127,8 @@ class ParticipantBase(ABC):
 
     @property
     @abstractmethod
-    def shape(self):
-        """The shape of the traffic participant. *It should be overridden in implementation.*"""
+    def geometry(self):
+        """The geometry shape of the traffic participant. *It should be overridden in implementation.*"""
 
     @property
     def current_state(self) -> State:
@@ -196,9 +193,9 @@ class ParticipantBase(ABC):
         """
         if frame is None:
             return self.current_state
-        if frame not in self.history_states:
+        if frame not in self.trajectory.history_states:
             raise KeyError(f"Time stamp {frame} is not found in the trajectory {self.id_}.")
-        return self.history_states[frame]
+        return self.trajectory.history_states[frame]
 
     def get_states(self, frame_range: Tuple[int] = None, frames: List[int] = None) -> List[State]:
         """Get the traffic participant's states within the requested frame range.
