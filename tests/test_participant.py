@@ -8,8 +8,6 @@
 
 import sys
 
-from build.lib import trajectory
-
 sys.path.append(".")
 sys.path.append("..")
 
