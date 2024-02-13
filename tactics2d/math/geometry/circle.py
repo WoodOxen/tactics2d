@@ -20,6 +20,12 @@ class Circle:
     """
 
     class ConstructBy(Enum):
+        """The method to derive a circle.
+
+        Attributes:
+            ThreePoints (int): Derive a circle by three points.
+            TangentVector (int): Derive a circle by a tangent point, a heading and a radius.
+        """
         ThreePoints = 1
         TangentVector = 2
 
@@ -91,11 +97,11 @@ class Circle:
         return tangent_point + vec, radius
 
     @staticmethod
-    def get_circle(method: int, *args: tuple):
+    def get_circle(method: ConstructBy, *args: tuple):
         """This function gets a circle by different given conditions.
 
         Args:
-            method (int): The method to derive a circle. The available choices are 1 (Circle.ConstructBy.ThreePoints) and 2 (Circle.ConstructBy.TangentVector).
+            method (ConstructBy): The method to derive a circle. The available choices are Circle.ConstructBy.ThreePoints) and Circle.ConstructBy.TangentVector).
             *args (tuple): The arguments of the method.
 
         Returns:
@@ -105,9 +111,9 @@ class Circle:
         Raises:
             NotImplementedError: The input method id is not an available choice.
         """
-        if method == int(Circle.ConstructBy.ThreePoints):
+        if method == Circle.ConstructBy.ThreePoints:
             return Circle.get_circle_by_three_points(*args)
-        elif method == int(Circle.ConstructBy.TangentVector):
+        elif method == Circle.ConstructBy.TangentVector:
             return Circle.get_circle_by_tangent_vector(*args)
 
         raise NotImplementedError

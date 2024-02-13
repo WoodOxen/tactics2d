@@ -222,7 +222,7 @@ def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_
     else:
         try:
             cubic_spline = CubicSpline(boundary_type)
-        except NameError:
+        except ValueError:
             return
 
     if control_points is None:
