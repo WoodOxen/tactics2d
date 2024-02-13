@@ -18,7 +18,7 @@ from tactics2d.participant.trajectory import State, Trajectory
 class DLPParser:
     """This class implements a parser of the Dragon Lake Parking Dataset.
 
-    !!! info "Reference"
+    !!! quote "Reference"
         Shen, Xu, et al. "Parkpredict: Motion and intent prediction of vehicles in parking lots." 2020 IEEE Intelligent Vehicles Symposium (IV). IEEE, 2020.
     """
 

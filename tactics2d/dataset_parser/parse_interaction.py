@@ -21,7 +21,7 @@ from tactics2d.participant.trajectory import State, Trajectory
 class InteractionParser:
     """This class implements a parser for INTERACTION dataset.
 
-    !!! info "Reference"
+    !!! quote "Reference"
         Zhan, Wei, et al. "Interaction dataset: An international, adversarial and cooperative motion dataset in interactive driving scenarios with semantic maps." arXiv preprint arXiv:1910.03088 (2019).
     """
 

@@ -1,3 +1,11 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: cubic_spline.py
+# @Description: This file implements a cubic spline interpolator.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 from enum import Enum
 
 import numpy as np
@@ -7,7 +15,7 @@ class CubicSpline:
     """This class implement a cubic spline interpolator.
 
     Attributes:
-        boundary_type (int, optional): Boundary condition type. The cubic spline interpolator offers three distinct boundary condition options: natural (1), clamped (2), and not-a-knot (3). By default, the not-a-knot boundary condition is applied, serving as a wise choice when specific boundary condition information is unavailable.
+        boundary_type (int): Boundary condition type. The cubic spline interpolator offers three distinct boundary condition options: natural (1), clamped (2), and not-a-knot (3). By default, the not-a-knot boundary condition is applied, serving as a wise choice when specific boundary condition information is unavailable.
     """
 
     class BoundaryType(Enum):
@@ -15,12 +23,20 @@ class CubicSpline:
         Clamped = 2
         NotAKnot = 3
 
-    def __init__(self, boundary_type=BoundaryType.NotAKnot):
+    def __init__(self, boundary_type: int = 3):
+        """Initialize the cubic spline interpolator.
+
+        Args:
+            boundary_type (int, optional): Boundary condition type. Defaults to 3. The available options are natural (1), clamped (2), and not-a-knot (3).
+
+        Raises:
+            ValueError: The boundary type is not valid. Please choose from 1 (CubicSpline.BoundaryType.Natural), 2 (CubicSpline.BoundaryType.Clamped), and 3 (CubicSpline.BoundaryType.NotAKnot).
+        """
         self.boundary_type = boundary_type
 
         if self.boundary_type not in self.BoundaryType.__members__.values():
-            raise NameError(
-                "The boundary type is not valid. Please choose from CubicSpline.BoundaryType.Natural, CubicSpline.BoundaryType.Clamped, and CubicSpline.BoundaryType.NotAKnot."
+            raise ValueError(
+                "The boundary type is not valid. Please choose from 1 (CubicSpline.BoundaryType.Natural), 2 (CubicSpline.BoundaryType.Clamped), and 3 (CubicSpline.BoundaryType.NotAKnot)."
             )
 
     def _check_validity(self, control_points: np.ndarray):
@@ -35,7 +51,7 @@ class CubicSpline:
         if np.any((control_points[1:, 0] - control_points[:-1, 0]) < 0):
             raise ValueError("The x coordinates of the control points must be non-decreasing.")
 
-    def get_parameters(self, control_points: np.ndarray, xx: tuple = (0, 0)) -> np.ndarray:
+    def get_parameters(self, control_points: np.ndarray, xx: tuple = (0, 0)):
         """Get the parameters of the cubic functions
 
         Args:
@@ -95,7 +111,9 @@ class CubicSpline:
 
         return a, b, c, d
 
-    def get_curve(self, control_points: np.ndarray, xx: tuple = (0, 0), n_interpolation: int = 100):
+    def get_curve(
+        self, control_points: np.ndarray, xx: tuple = (0, 0), n_interpolation: int = 100
+    ) -> np.ndarray:
         """Get the interpolation points of a cubic spline curve.
 
         Args:
