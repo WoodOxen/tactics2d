@@ -155,7 +155,7 @@ VEHICLE_TEMPLATE = {
         "wheel_base": 2.720,
         "front_overhang": 0.830,
         "rear_overhang": 1.238,
-        "kerb_weight": 1739,
+        "kerb_weight": 1740,
         "max_speed": 63.89,
         "0_100_km/h": 5.3,
         "max_decel": 10.4,
@@ -251,11 +251,11 @@ PEDESTRIAN_TEMPLATE = {
         "max_accel": 1,
     },
     "children_ten_year_old": {
-        "length": 0.22,
+        "length": 0.20,
         "width": 0.35,
         "height": 1.42,
         "max_speed": 4.5,
-        "max_accel": 1.5,
+        "max_accel": 1.0,
     },
 }
 

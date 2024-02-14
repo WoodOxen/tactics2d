@@ -26,6 +26,7 @@ class Circle:
             ThreePoints (int): Derive a circle by three points.
             TangentVector (int): Derive a circle by a tangent point, a heading and a radius.
         """
+
         ThreePoints = 1
         TangentVector = 2
 

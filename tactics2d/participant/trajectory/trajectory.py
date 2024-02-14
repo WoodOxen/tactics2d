@@ -143,7 +143,7 @@ class Trajectory:
         """This function gets the trace of the trajectory within the requested frame range.
 
         Args:
-            frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The default unit is millisecond (ms).
+            frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The unit is millisecond (ms).
 
         Returns:
             trace (list): A list of locations. If the frame range is None, the trace of the whole trajectory will be returned. If the trajectory is empty, an empty list will be returned.

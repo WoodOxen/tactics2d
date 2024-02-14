@@ -18,7 +18,8 @@ from tactics2d.participant.trajectory import State
 class PointMass(PhysicsModelBase):
     """This class implements a point mass model for a traffic participant. The point mass model supposes that the mass of the object is concentrated at the center of the object. The state of the object is represented by its center position, velocity, and heading. The object is assumed to be operating in a 2D plane (x-y).
 
-    This model is recommended to be used for pedestrians. Because the point mass model ignores that vehicles have a minimum turning circle, if this model is used for bicycle and vehicles, the results will not be accurate.
+    !!! warning
+        This model is recommended to be used for pedestrians. Because the point mass model ignores that vehicles have a minimum turning circle, if this model is used for bicycle and vehicles, the results will not be accurate.
 
     Attributes:
         speed_range (Union[float, Tuple[float, float]]: The speed range. The valid input is a float or a tuple of two floats represents (min speed, max speed). The unit is meter per second (m/s). The default value is None, which means no constraint on the speed. When the speed_range is negative or the min speed is not less than the max speed, the speed_range is set to None.
@@ -154,7 +155,9 @@ class PointMass(PhysicsModelBase):
             y += vy * dt
             heading = np.arctan2(vy, vx)
 
-        next_state = State(frame=state.frame + interval, x=x, y=y, heading=heading, vx=vx, vy=vy)
+        next_state = State(
+            frame=state.frame + interval, x=x, y=y, heading=heading, vx=vx, vy=vy, ax=ax, ay=ay
+        )
 
         return next_state
 
@@ -163,14 +166,13 @@ class PointMass(PhysicsModelBase):
 
         Args:
             state (State): The current state of the traffic participant.
-            accel (Tuple[float, float]): The acceleration vector. The unit of the acceleration is meter per second squared (m/s$^2$).
+            accel (Tuple[float, float]): The acceleration vector ($a_x$, $a_y$). The unit of the acceleration is meter per second squared (m/s$^2$).
             interval (int): The time interval between the current state and the new state. The unit is millisecond. Defaults to None.
 
         Returns:
-            State: A new state of the traffic participant.
+            next_state (State): A new state of the traffic participant.
         """
-        if interval is None:
-            interval = self.interval
+        interval = interval if interval is not None else self.interval
 
         accel_value = np.linalg.norm(accel)
         accel_value = (

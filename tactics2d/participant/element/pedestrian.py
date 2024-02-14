@@ -11,10 +11,8 @@ import logging
 
 from shapely.geometry import LineString, LinearRing
 
-from tactics2d.participant.trajectory.trajectory import State
-
 from .participant_base import ParticipantBase
-from tactics2d.participant.trajectory import State, Trajectory
+from tactics2d.participant.trajectory import Trajectory
 from tactics2d.physics import PointMass
 
 from .participant_template import PEDESTRIAN_TEMPLATE
@@ -28,13 +26,13 @@ class Pedestrian(ParticipantBase):
         type_ (str): The type of the pedestrian. Defaults to "adult_male".
         trajectory (Trajectory): The trajectory of the pedestrian. Defaults to an empty trajectory.
         color (Any): The color of the pedestrian. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to light-blue (69, 170, 242).
-        length (float): The length of the pedestrian. The default unit is meter. Defaults to None.
-        width (float): The width of the pedestrian. The default unit is meter. Defaults to 0.4.
-        height (float): The height of the pedestrian. The default unit is meter. Defaults to None.
-        max_speed (float): The maximum speed of the pedestrian. The default unit is meter per second. Defaults to 7.0.
-        max_accel (float): The maximum acceleration of the pedestrian. The default unit is meter per second squared. Defaults to 1.5.
-        speed_range (Tuple[float, float]): The speed range of the pedestrian. The default unit is meter per second. Defaults to (-7.0, 7.0).
-        accel_range (Tuple[float, float]): The acceleration range of the pedestrian. The default unit is meter per second squared. Defaults to (-1.5, 1.5).
+        length (float): The length of the pedestrian. The unit is meter. Defaults to None.
+        width (float): The width of the pedestrian. The unit is meter. Defaults to 0.4.
+        height (float): The height of the pedestrian. The unit is meter. Defaults to None.
+        max_speed (float): The maximum speed of the pedestrian. The unit is meter per second. Defaults to 7.0.
+        max_accel (float): The maximum acceleration of the pedestrian. The unit is meter per second squared. Defaults to 1.5.
+        speed_range (Tuple[float, float]): The speed range of the pedestrian. The unit is meter per second. Defaults to (-7.0, 7.0).
+        accel_range (Tuple[float, float]): The acceleration range of the pedestrian. The unit is meter per second squared. Defaults to (-1.5, 1.5).
         verify (bool): Whether to verify the trajectory to bind or the state to add. Defaults to False.
         physics_model (PhysicsModelBase): The physics model of the pedestrian. Defaults to PointMass.
         geometry (float): The geometry shape of the pedestrian. It is represented as the radius of a circle. This attribute is **read-only**.
@@ -64,11 +62,11 @@ class Pedestrian(ParticipantBase):
 
         Keyword Args:
             color (Any): The color of the pedestrian. This attribute will be left to the sensor module to verify and convert to the appropriate type.
-            length (float): The length of the pedestrian. The default unit is meter.
-            width (float): The width of the pedestrian. The default unit is meter.
-            height (float): The height of the pedestrian. The default unit is meter.
-            max_speed (float): The maximum speed of the pedestrian. The default unit is meter per second.
-            max_accel (float): The maximum acceleration of the pedestrian. The default unit is meter per second squared.
+            length (float): The length of the pedestrian. The unit is meter.
+            width (float): The width of the pedestrian. The unit is meter.
+            height (float): The height of the pedestrian. The unit is meter.
+            max_speed (float): The maximum speed of the pedestrian. The unit is meter per second.
+            max_accel (float): The maximum acceleration of the pedestrian. The unit is meter per second squared.
             verify (bool): Whether to verify the trajectory to bind or the state to add.
             physics_model (PhysicsModelBase): The physics model of the pedestrian. Defaults to PointMass. If the physics model is a custom model, it should be an instance of the [`PhysicsModelBase`](../api/physics.md/#PhysicsModelBase) class.
         """
@@ -139,7 +137,7 @@ class Pedestrian(ParticipantBase):
         """This function gets the pose of the pedestrian at the requested frame.
 
         Args:
-            frame (int, optional): The requested frame. The default unit is millisecond (ms).
+            frame (int, optional): The requested frame. The unit is millisecond (ms).
 
         Returns:
             location (Tuple[float, float]): The location of the pedestrian.
@@ -152,7 +150,7 @@ class Pedestrian(ParticipantBase):
         """This function gets the trace of the pedestrian within the requested frame range.
 
         Args:
-            frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The default unit is millisecond (ms).
+            frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The unit is millisecond (ms).
 
         Returns:
             The trace of the pedestrian within the requested frame range.

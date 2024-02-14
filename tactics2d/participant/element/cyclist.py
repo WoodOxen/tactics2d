@@ -28,16 +28,16 @@ class Cyclist(ParticipantBase):
         type_ (str): The type of the cyclist. Defaults to "cyclist".
         trajectory (Trajectory): The trajectory of the cyclist. Defaults to an empty trajectory.
         color (Any): The color of the cyclist. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to light-orange (253, 150, 68).
-        length (float): The length of the cyclist. The default unit is meter. Defaults to None.
-        width (float): The width of the cyclist. The default unit is meter. Defaults to None.
-        height (float): The height of the cyclist. The default unit is meter. Defaults to None.
-        max_steer (float): The maximum steering angle of the cyclist. The default unit is radian. Defaults to 1.05.
-        max_speed (float): The maximum speed of the cyclist. The default unit is meter per second. Defaults to 22.78.
-        max_accel (float): The maximum acceleration of the cyclist. The default unit is meter per second squared. Defaults to 5.8.
-        max_decel (float): The maximum deceleration of the cyclist. The default unit is meter per second squared. Defaults to 7.8.
-        steer_range (Tuple[float, float]): The steering angle range of the cyclist. The default unit is radian. Defaults to (-1.05, 1.05).
-        speed_range (Tuple[float, float]): The speed range of the cyclist. The default unit is meter per second. Defaults to (0, 22.78).
-        accel_range (Tuple[float, float]): The acceleration range of the cyclist. The default unit is meter per second squared. Defaults to (-7.8, 5.8).
+        length (float): The length of the cyclist. The unit is meter. Defaults to None.
+        width (float): The width of the cyclist. The unit is meter. Defaults to None.
+        height (float): The height of the cyclist. The unit is meter. Defaults to None.
+        max_steer (float): The maximum steering angle of the cyclist. The unit is radian. Defaults to 1.05.
+        max_speed (float): The maximum speed of the cyclist. The unit is meter per second. Defaults to 22.78.
+        max_accel (float): The maximum acceleration of the cyclist. The unit is meter per second squared. Defaults to 5.8.
+        max_decel (float): The maximum deceleration of the cyclist. The unit is meter per second squared. Defaults to 7.8.
+        steer_range (Tuple[float, float]): The steering angle range of the cyclist. The unit is radian. Defaults to (-1.05, 1.05).
+        speed_range (Tuple[float, float]): The speed range of the cyclist. The unit is meter per second. Defaults to (0, 22.78).
+        accel_range (Tuple[float, float]): The acceleration range of the cyclist. The unit is meter per second squared. Defaults to (-7.8, 5.8).
         verify (bool): Whether to verify the trajectory to bind or the state to add. Defaults to False.
         physics_model (PhysicsModelBase): The physics model of the cyclist. Defaults to SingleTrackKinematics.
         geometry (float): The geometry shape of the cyclist. It is represented as a bounding box with its original point located at the center. This attribute is **read-only**.
@@ -67,12 +67,12 @@ class Cyclist(ParticipantBase):
 
         Keyword Args:
             color (Any): The color of the cyclist. This argument will be left to the sensor module to verify and convert to the appropriate type.
-            length (float): The length of the cyclist. The default unit is meter.
-            width (float): The width of the cyclist. The default unit is meter.
-            height (float): The height of the cyclist. The default unit is meter.
-            max_steer (float): The maximum steering angle of the cyclist. The default unit is radian.
-            max_speed (float): The maximum speed of the cyclist. The default unit is meter per second.
-            max_accel (float): The maximum acceleration of the cyclist. The default unit is meter per second squared.
+            length (float): The length of the cyclist. The unit is meter.
+            width (float): The width of the cyclist. The unit is meter.
+            height (float): The height of the cyclist. The unit is meter.
+            max_steer (float): The maximum steering angle of the cyclist. The unit is radian.
+            max_speed (float): The maximum speed of the cyclist. The unit is meter per second.
+            max_accel (float): The maximum acceleration of the cyclist. The unit is meter per second squared.
             verify (bool): Whether to verify the trajectory to bind or the state to add.
             physics_model (PhysicsModelBase): The physics model of the cyclist. Defaults to None. If the physics model is a custom model, it should be an instance of the [`PhysicsModelBase`](../api/physics.md/#PhysicsModelBase) class.
         """
@@ -173,7 +173,7 @@ class Cyclist(ParticipantBase):
         """This function gets the trace of the cyclist within the requested frame range.
 
         Args:
-            frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The default unit is millisecond (ms).
+            frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The unit is millisecond (ms).
 
         Returns:
             The trace of the cyclist within the requested frame range.

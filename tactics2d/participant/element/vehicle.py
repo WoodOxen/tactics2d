@@ -10,7 +10,7 @@ from typing import Any, Tuple
 import logging
 
 import numpy as np
-from shapely.geometry import LinearRing, LineString
+from shapely.geometry import LinearRing
 from shapely.affinity import translate, affine_transform
 
 from .participant_base import ParticipantBase
@@ -28,14 +28,14 @@ class Vehicle(ParticipantBase):
         type_ (str): The type of the vehicle. Defaults to "medium_car".
         trajectory (Trajectory): The trajectory of the vehicle. Defaults to an empty trajectory.
         color (tuple): The color of the vehicle. The color of the traffic participant. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to light-turquoise (43, 203, 186).
-        length (float): The length of the vehicle. The default unit is meter. Defaults to None.
-        width (float): The width of the vehicle. The default unit is meter. Defaults to None.
-        height (float): The height of the vehicle. The default unit is meter. Defaults to None.
-        kerb_weight: (float): The weight of the vehicle. The default unit is kilogram (kg). Defaults to None.
-        wheel_base (float): The wheel base of the vehicle. The default unit is meter. Defaults to None.
-        front_overhang (float): The front overhang of the vehicle. The default unit is meter. Defaults to None.
-        rear_overhang (float): The rear overhang of the vehicle. The default unit is meter. Defaults to None.
-        driven_mode: (str): The driven way of the vehicle. The available options are "FWD", "RWD", "4WD", and "AWD". Defaults to "FWD".
+        length (float): The length of the vehicle. The unit is meter. Defaults to None.
+        width (float): The width of the vehicle. The unit is meter. Defaults to None.
+        height (float): The height of the vehicle. The unit is meter. Defaults to None.
+        kerb_weight: (float): The weight of the vehicle. The unit is kilogram (kg). Defaults to None.
+        wheel_base (float): The wheel base of the vehicle. The unit is meter. Defaults to None.
+        front_overhang (float): The front overhang of the vehicle. The unit is meter. Defaults to None.
+        rear_overhang (float): The rear overhang of the vehicle. The unit is meter. Defaults to None.
+        driven_mode: (str): The driven way of the vehicle. The available options are "FWD" (Front-Wheel Driven), "RWD" (Rear-Wheel Driven), and "AWD" (All-Wheel Driven). Defaults to "FWD".
         max_steer (float): The maximum approach angle of the vehicle. The unit is radian. Defaults to $\pi$/6.
         max_speed (float): The maximum speed of the vehicle. The unit is meter per second. Defaults to 55.56 (= 200 km/h).
         max_accel (float): The maximum acceleration of the vehicle. The unit is meter per second squared. Defaults to 3.0.
@@ -66,7 +66,7 @@ class Vehicle(ParticipantBase):
         "verify": bool,
     }
     _default_color = (43, 203, 186, 255)  # light-turquoise
-    _driven_modes = {"FWD", "RWD", "4WD", "AWD"}
+    _driven_modes = {"FWD", "RWD", "AWD"}
 
     def __init__(
         self, id_: Any, type_: str = "medium_car", trajectory: Trajectory = None, **kwargs
@@ -79,21 +79,21 @@ class Vehicle(ParticipantBase):
             trajectory (Trajectory, optional): The trajectory of the vehicle.
 
         Keyword Args:
-            length (float, optional): The length of the vehicle. The default unit is meter. Defaults to None.
-            width (float, optional): The width of the vehicle. The default unit is meter. Defaults to None.
-            height (float, optional): The height of the vehicle. The default unit is meter. Defaults to None.
+            length (float, optional): The length of the vehicle. The unit is meter. Defaults to None.
+            width (float, optional): The width of the vehicle. The unit is meter. Defaults to None.
+            height (float, optional): The height of the vehicle. The unit is meter. Defaults to None.
             color (tuple, optional): The color of the vehicle. Defaults to None.
-            kerb_weight (float, optional): The kerb weight of the vehicle. The default unit is kilogram (kg). Defaults to None.
-            wheel_base (float, optional): The wheel base of the vehicle. The default unit is meter. Defaults to None.
-            front_overhang (float, optional): The front overhang of the vehicle. The default unit is meter. Defaults to None.
-            rear_overhang (float, optional): The rear overhang of the vehicle. The default unit is meter. Defaults to None.
+            kerb_weight (float, optional): The kerb weight of the vehicle. The unit is kilogram (kg). Defaults to None.
+            wheel_base (float, optional): The wheel base of the vehicle. The unit is meter. Defaults to None.
+            front_overhang (float, optional): The front overhang of the vehicle. The unit is meter. Defaults to None.
+            rear_overhang (float, optional): The rear overhang of the vehicle. The unit is meter. Defaults to None.
             max_steer (float, optional): The maximum steering angle of the vehicle. The unit is radian. Defaults to $\pi$ / 6.
             max_speed (float, optional): The maximum speed of the vehicle. The unit is meter per second. Defaults to 55.56 (=200 km/h).
             max_accel (float, optional): The maximum acceleration of the vehicle. The unit is meter per second squared. Defaults to 3.0.
             max_decel (float, optional): The maximum deceleration of the vehicle. The unit is meter per second squared. Defaults to 10.0.
             verify (bool): Whether to verify the trajectory to bind or the state to add.
             physics_model (PhysicsModelBase): The physics model of the cyclist. Defaults to None. If the physics model is a custom model, it should be an instance of the [`PhysicsModelBase`](../api/physics.md/#PhysicsModelBase) class.
-            driven_mode (str, optional): The driven way of the vehicle. The available options are ["FWD", "RWD", "4WD", "AWD"]. Defaults to "FWD".
+            driven_mode (str, optional): The driven way of the vehicle. The available options are ["FWD", "RWD", "AWD"]. Defaults to "FWD".
         """
 
         super().__init__(id_, type_, trajectory, **kwargs)
@@ -106,13 +106,18 @@ class Vehicle(ParticipantBase):
         self.speed_range = (-16.67, self.max_speed)
         self.steer_range = (-self.max_steer, self.max_steer)
         self.accel_range = (-self.max_accel, self.max_accel)
-        self.driven_mode = "FWD" if self.driven_mode is None else self.driven_mode
+
+        if self.driven_mode not in self._driven_modes:
+            self.driven_mode = "FWD"
+            logging.warning("Invalid driven mode. The default mode FWD will be used.")
+        elif self.driven_mode is None:
+            self.driven_mode = "FWD"
 
         if self.verify:
-            if "physics_model" not in kwargs or kwargs["physics_model"] is None:
-                self.physics_model = SingleTrackKinematics()
-            else:
+            if "physics_model" in kwargs and not kwargs["physics_model"] is None:
                 self.physics_model = kwargs["physics_model"]
+            else:
+                self._auto_construct_physics_model()
 
         if not None in [self.length, self.width]:
             self._bbox = LinearRing(
@@ -129,6 +134,37 @@ class Vehicle(ParticipantBase):
     @property
     def geometry(self) -> LinearRing:
         return self._bbox
+
+    def _auto_construct_physics_model(self):
+        # Auto-construct the physics model for front-wheel-drive (FWD) vehicles.
+        if self.driven_mode == "FWD":
+            if not None in [self.front_overhang, self.rear_overhang]:
+                self.physics_model = SingleTrackKinematics(
+                    dist_front_hang=self.length / 2 - self.front_overhang,
+                    dist_rear_hang=self.length / 2 - self.rear_overhang,
+                    steer_range=self.steer_range,
+                    speed_range=self.speed_range,
+                    accel_range=self.accel_range,
+                )
+            elif not self.length is None:
+                self.physics_model = SingleTrackKinematics(
+                    dist_front_hang=self.length / 2,
+                    dist_rear_hang=self.length / 2,
+                    steer_range=self.steer_range,
+                    speed_range=self.speed_range,
+                    accel_range=self.accel_range,
+                )
+            else:
+                self.verify = False
+                logging.info(
+                    "Cannot construct a physics model for the vehicle. The state verification is turned off."
+                )
+        # Auto-construct the physics model for rear-wheel-drive (RWD) vehicles.
+        elif self.driven_mode == "RWD":
+            pass
+        # Auto-construct the physics model for all-wheel-drive (AWD) vehicles.
+        else:
+            pass
 
     def load_from_template(
         self, type_name: str, overwrite: bool = True, template: dict = VEHICLE_TEMPLATE
@@ -248,7 +284,7 @@ class Vehicle(ParticipantBase):
         """This function gets the trace of the vehicle within the requested frame range.
 
         Args:
-            frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The default unit is millisecond (ms).
+            frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The unit is millisecond (ms).
 
         Returns:
             The trace of the cyclist within the requested frame range.
@@ -284,7 +320,7 @@ class Vehicle(ParticipantBase):
 
         Args:
             action (Tuple[float, float]): The action to be applied to the vehicle. The action is a two-element tuple [steer, accel]. The steer is the steering angle, and the accel is the acceleration. The unit of the steer is radian, and the unit of the accel is meter per second squared (m/s$^2$).
-            interval (int, optional): The time interval to execute the action. The default unit is millisecond (ms).
+            interval (int, optional): The time interval to execute the action. The unit is millisecond (ms).
         """
         current_state, _ = self.physics_model.step(self.current_state, action, interval)
         self.add_state(current_state)

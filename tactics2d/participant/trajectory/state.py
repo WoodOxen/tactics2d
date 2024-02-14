@@ -18,19 +18,19 @@ class State:
         Given that the attributes of this class are commonly utilized across various applications, their types will be verified upon assignment. Whenever feasible, they will be converted to the appropriate type.
 
     Attributes:
-        frame (int): The time stamp. The default unit is millisecond (ms).
-        x (float): The x-axis coordinate. The default unit is meter.
-        y (float): The y-axis coordinate. The default unit is meter.
-        heading (float): The heading direction. The default unit is radian.
-        vx (float): The velocity in the x-axis. The default unit is meter per second (m/s).
-        vy (float): The velocity in the y-axis. The default unit is meter per second (m/s).
-        speed (float): The scalar speed value. The default unit is meter per second (m/s). This attribute can be set while initialization or by `set_speed`. If it is not set while vx and vy are available, speed will be obtained by sqrt(vx$^2$+vy$^2$). Otherwise, the speed will be None.
-        ax (float): The acceleration in the x-axis. The default unit is meter per second squared (m/s$^2$).
-        ay (float): The acceleration in the y-axis. The default unit is meter per second squared (m/s$^2$).
-        accel (float): The scalar acceleration value. The default unit is meter per second squared (m/s$^2$). This attribute can be set while initialization or by `set_accel`. If it is not set while ax and ay are available, accel will be obtained by sqrt(ax$^2$+ay$^2$). Otherwise, the accel will be None.
-        location (Tuple[float, float]): The location. The default unit is meter. This attribute is **read-only**.
-        velocity (Tuple[float, float]): The velocity vector (vx, vy). The default unit is meter per second (m/s). If vx and vy are not available but speed and heading are available, the velocity will be obtained by (speed * cos(heading), speed * sin(heading)). Otherwise, the velocity will be None. This attribute is **read-only**.
-        acceleration (Tuple[float, float]): The acceleration vector (ax, ay). The default unit is meter per second squared (m/s$^2$). If ax and ay are not available, the acceleration will be None. This attribute is **read-only**.
+        frame (int): The time stamp. The unit is millisecond (ms).
+        x (float): The x-axis coordinate. The unit is meter.
+        y (float): The y-axis coordinate. The unit is meter.
+        heading (float): The heading direction. The unit is radian.
+        vx (float): The velocity in the x-axis. The unit is meter per second (m/s).
+        vy (float): The velocity in the y-axis. The unit is meter per second (m/s).
+        speed (float): The scalar speed value. The unit is meter per second (m/s). This attribute can be set while initialization or by `set_speed`. If it is not set while vx and vy are available, speed will be obtained by sqrt(vx$^2$+vy$^2$). Otherwise, the speed will be None.
+        ax (float): The acceleration in the x-axis. The unit is meter per second squared (m/s$^2$).
+        ay (float): The acceleration in the y-axis. The unit is meter per second squared (m/s$^2$).
+        accel (float): The scalar acceleration value. The unit is meter per second squared (m/s$^2$). This attribute can be set while initialization or by `set_accel`. If it is not set while ax and ay are available, accel will be obtained by sqrt(ax$^2$+ay$^2$). Otherwise, the accel will be None.
+        location (Tuple[float, float]): The location. The unit is meter. This attribute is **read-only**.
+        velocity (Tuple[float, float]): The velocity vector (vx, vy). The unit is meter per second (m/s). If vx and vy are not available but speed and heading are available, the velocity will be obtained by (speed * cos(heading), speed * sin(heading)). Otherwise, the velocity will be None. This attribute is **read-only**.
+        acceleration (Tuple[float, float]): The acceleration vector (ax, ay). The unit is meter per second squared (m/s$^2$). If ax and ay are not available, the acceleration will be None. This attribute is **read-only**.
     """
 
     __annotations__ = {
@@ -62,16 +62,16 @@ class State:
         """Initialize the state of a traffic participant.
 
         Args:
-            frame (int): The time stamp. The default unit is millisecond (ms).
-            x (float, optional): The x-axis coordinate. The default unit is meter.
-            y (float, optional): The y-axis coordinate. The default unit is meter.
-            heading (float, optional): The heading direction. The default unit is radian.
-            vx (float, optional): The velocity in the x-axis. The default unit is meter per second (m/s).
-            vy (float, optional): The velocity in the y-axis. The default unit is meter per second (m/s).
-            speed (float, optional): The scalar speed value. The default unit is meter per second (m/s).
-            ax (float, optional): The acceleration in the x-axis. The default unit is meter per second squared (m/s$^2$).
-            ay (float, optional): The acceleration in the y-axis. The default unit is meter per second squared (m/s$^2$).
-            accel (float, optional): The scalar acceleration value. The default unit is meter per second squared (m/s$^2$).
+            frame (int): The time stamp. The unit is millisecond (ms).
+            x (float, optional): The x-axis coordinate. The unit is meter.
+            y (float, optional): The y-axis coordinate. The unit is meter.
+            heading (float, optional): The heading direction. The unit is radian.
+            vx (float, optional): The velocity in the x-axis. The unit is meter per second (m/s).
+            vy (float, optional): The velocity in the y-axis. The unit is meter per second (m/s).
+            speed (float, optional): The scalar speed value. The unit is meter per second (m/s).
+            ax (float, optional): The acceleration in the x-axis. The unit is meter per second squared (m/s$^2$).
+            ay (float, optional): The acceleration in the y-axis. The unit is meter per second squared (m/s$^2$).
+            accel (float, optional): The scalar acceleration value. The unit is meter per second squared (m/s$^2$).
 
         Raises:
             ValueError: If the type of the input value cannot be converted to the expected type, the function will raise a ValueError.

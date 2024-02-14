@@ -26,9 +26,9 @@ class Other(ParticipantBase):
         type_ (str): The type of the traffic participant. Defaults to "unknown".
         trajectory (Trajectory): The trajectory of the traffic participant. Defaults to an empty trajectory.
         color (Any): The color of the traffic participant. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to black (0, 0, 0).
-        length (float): The length of the traffic participant. The default unit is meter. Defaults to None.
-        width (float): The width of the traffic participant. The default unit is meter. Defaults to None.
-        height (float): The height of the traffic participant. The default unit is meter. Defaults to None.
+        length (float): The length of the traffic participant. The unit is meter. Defaults to None.
+        width (float): The width of the traffic participant. The unit is meter. Defaults to None.
+        height (float): The height of the traffic participant. The unit is meter. Defaults to None.
         physics_model (PhysicsModelBase): The physics model of the traffic participant. Defaults to None.
         geometry (LinearRing): The geometry shape of the traffic participant. This attribute is **read-only**. If both length and width are available, the geometry shape will be a rectangle. If only length or width is available, the geometry shape will be a square. Otherwise, the geometry shape will be None.
         current_state (State): The current state of the traffic participant. This attribute is **read-only**.
@@ -44,9 +44,9 @@ class Other(ParticipantBase):
 
         Keyword Args:
             color (Any, optional): The color of the traffic participant. This argument will be left to the sensor module to verify and convert to the appropriate type.
-            length (float, optional): The length of the traffic participant. The default unit is meter.
-            width (float, optional): The width of the traffic participant. The default unit is meter.
-            height (float, optional): The height of the traffic participant. The default unit is meter.
+            length (float, optional): The length of the traffic participant. The unit is meter.
+            width (float, optional): The width of the traffic participant. The unit is meter.
+            height (float, optional): The height of the traffic participant. The unit is meter.
         """
         super().__init__(id_, type_, trajectory, **kwargs)
 
@@ -108,7 +108,7 @@ class Other(ParticipantBase):
         """This function gets the outfigure of the traffic participant at the requested frame.
 
         Args:
-            frame (int, optional): The time stamp of the requested pose. The default unit is millisecond (ms).
+            frame (int, optional): The time stamp of the requested pose. The unit is millisecond (ms).
 
         Returns:
            pose (Union[Point, LinearRing]): The outfigure of the traffic participant at the requested frame. If the geometry shape of the traffic participant is available, the pose will be a LinearRing that describe the outfigure of the traffic participant at the requested frame. Otherwise, the pose will be a Point that describe the location of the traffic participant at the requested frame.
@@ -131,7 +131,7 @@ class Other(ParticipantBase):
         """This function gets the trace of the traffic participant within the requested frame range.
 
         Args:
-            frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The default unit is millisecond (ms). If the frame range is None, the trace of the whole trajectory will be returned.
+            frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The unit is millisecond (ms). If the frame range is None, the trace of the whole trajectory will be returned.
 
         Returns:
             trace (Union[LineString, LinearRing]): The trace of the traffic participant.

@@ -26,9 +26,9 @@ class ParticipantBase(ABC):
         type_ (str): The type of the traffic participant.
         trajectory (Trajectory): The trajectory of the traffic participant.
         color (Any): The color of the traffic participant. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to black (0, 0, 0).
-        length (float): The length of the traffic participant. The default unit is meter. Defaults to None.
-        width (float): The width of the traffic participant. The default unit is meter. Defaults to None.
-        height (float): The height of the traffic participant. The default unit is meter. Defaults to None.
+        length (float): The length of the traffic participant. The unit is meter. Defaults to None.
+        width (float): The width of the traffic participant. The unit is meter. Defaults to None.
+        height (float): The height of the traffic participant. The unit is meter. Defaults to None.
         verify (bool): Whether to verify the trajectory to bind or the state to add. Defaults to False.
         physics_model (PhysicsModelBase): The physics model of the traffic participant. Defaults to None.
         geometry (Any): The geometry shape of the traffic participant. *It should be overridden to implement.* This attribute is **read-only**.
@@ -54,9 +54,9 @@ class ParticipantBase(ABC):
 
         Keyword Args:
             color (Any): The color of the traffic participant. This argument will be left to the sensor module to verify and convert to the appropriate type.
-            length (float): The length of the traffic participant. The default unit is meter.
-            width (float): The width of the traffic participant. The default unit is meter.
-            height (float): The height of the traffic participant. The default unit is meter.
+            length (float): The length of the traffic participant. The unit is meter.
+            width (float): The width of the traffic participant. The unit is meter.
+            height (float): The height of the traffic participant. The unit is meter.
             verify (bool): Whether to verify the trajectory to bind or the state to add. Defaults to False.
         """
         setattr(self, "id_", id_)
@@ -147,7 +147,7 @@ class ParticipantBase(ABC):
         """This function gets the pose of the traffic participant at the requested frame. *It should be overridden in implementation.*
 
         Args:
-            frame (int, optional): The requested frame. The default unit is millisecond (ms).
+            frame (int, optional): The requested frame. The unit is millisecond (ms).
         """
 
     @abstractmethod
@@ -155,14 +155,14 @@ class ParticipantBase(ABC):
         """This function gets the trace of the traffic participant within the requested frame range. *It should be overridden in implementation.*
 
         Args:
-            frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The default unit is millisecond (ms).
+            frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The unit is millisecond (ms).
         """
 
     def is_active(self, frame: int) -> bool:
         """This function checks if the participant has state information at the requested frame.
 
         Args:
-            frame (int): The requested frame. The default unit is millisecond (ms).
+            frame (int): The requested frame. The unit is millisecond (ms).
 
         Returns:
             bool: True if the participant has state information at the requested frame, False otherwise.
@@ -183,7 +183,7 @@ class ParticipantBase(ABC):
         """This function returns the state of the participant at the requested frame.
 
         Args:
-            frame (int, optional): The requested frame. The default unit is millisecond (ms). If the frame is not specified, the function will return the current state.
+            frame (int, optional): The requested frame. The unit is millisecond (ms). If the frame is not specified, the function will return the current state.
 
         Returns:
             State: The state of the participant at the requested frame.
@@ -201,8 +201,8 @@ class ParticipantBase(ABC):
         """Get the traffic participant's states within the requested frame range.
 
         Args:
-            frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The default unit is millisecond (ms).
-            frames (List[int], optional): The requested frames. The default unit is millisecond (ms). If the frames are not in the ascending order, they will be sorted before the states are returned.
+            frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The unit is millisecond (ms).
+            frames (List[int], optional): The requested frames. The unit is millisecond (ms). If the frames are not in the ascending order, they will be sorted before the states are returned.
 
         Returns:
             List[State]: A list of the traffic participant's states. If the frame_range is specified, the function will return the states within the requested range. If the frames is specified, the function will return the states at the requested frames. If neither is specified, the function will return all states.

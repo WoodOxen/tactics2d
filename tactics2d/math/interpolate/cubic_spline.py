@@ -26,6 +26,7 @@ class CubicSpline:
             Clamped (int): Clamped boundary condition. The first derivative of the curve at the first and the last control points is set to the given values.
             NotAKnot (int): Not-a-knot boundary condition. The first and the second cubic functions are connected at the second and the third control points, and the last and the second-to-last cubic functions are connected at the last and the second-to-last control points.
         """
+
         Natural = 1
         Clamped = 2
         NotAKnot = 3

@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: single_track_kinematics.py
-# @Description: This file implements a kinematic single-track model for a vehicle.
+# @Description: This file implements a kinematic single-track model for a traffic participant.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Tuple
+from typing import Tuple, Union
 
 import numpy as np
 
@@ -15,107 +15,180 @@ from tactics2d.participant.trajectory import State
 
 
 class SingleTrackKinematics(PhysicsModelBase):
-    """This class implements a kinematic single-track model for a vehicle.
+    """This class implements a kinematic single-track model for a traffic participant.
 
-    The kinematic single-track model is a simplified model to simulate the vehicle dynamics. It combines the front and rear wheels into a single wheel, and the vehicle is assumed to be a point mass. The assumptions in this implementation include:
+    The kinematic single-track model is a simplified model to simulate the traffic participant's physics. The assumptions in this implementation include:
 
-    1. The mass of the vehicle is concentrated at the center of the vehicle.
-    2. The vehicle is a rigid body.
-    3. The vehicle is front-wheel-only.
-    4. The vehicle is operating in a 2D plane (x-y).
+    1. The traffic participant is operating in a 2D plane (x-y).
+    2. The left and right wheels always have the same steering angle and speed, so they can be regarded as a single wheel.
+    3. The traffic participant is a rigid body, so its geometry does not change during the simulation.
+    4. The traffic participant is front-wheel-driven (FWD).
 
-    This model will lose its accuracy when the time step is set too large or the vehicle is made to travel at a high speed.
+    This implementation version is based on the following paper. It regard the geometry center as the center of the traffic participant, and use it as the reference point to update the state.
 
-    !!! info "Reference"
+    !!! quote "Reference"
         Kong, Jason, et al. "Kinematic and dynamic vehicle models for autonomous driving control design." *2015 IEEE intelligent vehicles symposium* (IV). IEEE, 2015.
 
-    Attributes:
+    !!! warning
+        This model will lose its accuracy when the time step is set too large or the traffic participant is made to travel at a high speed.
 
+    Attributes:
+        dist_front_hang (float): The distance from the geometry center to the front axle center. The unit is meter.
+        dist_rear_hang (float): The distance from the geometry center to the rear axle center. The unit is meter.
+        steer_range (Union[float, Tuple[float, float]], optional): The steering angle range. The valid input is a float or a tuple of two floats represents (min steering angle, max steering angle). The unit is radian. When the steer_range is a non-negative float, the steering angle is constrained to be within the range [-steer_range, steer_range]. When the steer_range is a tuple, the steering angle is constrained to be within the range [min steering angle, max steering angle]. When the steer_range is negative or the min steering angle is not less than the max steering angle, the steer_range is set to None.
+        speed_range (Union[float, Tuple[float, float]], optional): The speed range. The valid input is a float or a tuple of two floats represents (min speed, max speed). The unit is meter per second (m/s). When the speed_range is a non-negative float, the speed is constrained to be within the range [-speed_range, speed_range]. When the speed_range is a tuple, the speed is constrained to be within the range [min speed, max speed]. When the speed_range is negative or the min speed is not less than the max speed, the speed_range is set to None.
+        accel_range (Union[float, Tuple[float, float]], optional): The acceleration range. The valid input is a float or a tuple of two floats represents (min acceleration, max acceleration). The unit is meter per second squared (m/s$^2$). When the accel_range is a non-negative float, the acceleration is constrained to be within the range [-accel_range, accel_range]. When the accel_range is a tuple, the acceleration is constrained to be within the range [min acceleration, max acceleration]. When the accel_range is negative or the min acceleration is not less than the max acceleration, the accel_range is set to None.
+        interval (int, optional): The time interval between the current state and the new state. The unit is millisecond. Defaults to None.
+        delta_t (int, optional): The time step for the simulation. The unit is millisecond. Defaults to `_DELTA_T`(5 ms). The expected value is between `_MIN_DELTA_T`(1 ms) and `interval`. It is recommended to keep delta_t smaller than 5 ms.
     """
 
     def __init__(
         self,
         dist_front_hang: float,
         dist_rear_hang: float,
-        steer_range: Tuple[float, float] = None,
-        speed_range: Tuple[float, float] = None,
-        accel_range: Tuple[float, float] = None,
-        delta_t: float = None,
+        steer_range: Union[float, Tuple[float, float]] = None,
+        speed_range: Union[float, Tuple[float, float]] = None,
+        accel_range: Union[float, Tuple[float, float]] = None,
+        interval: int = None,
+        delta_t: int = None,
     ):
         self.dist_front_hang = dist_front_hang
         self.dist_rear_hang = dist_rear_hang
         self.wheel_base = dist_front_hang + dist_rear_hang
-        self.speed_range = speed_range
-        self.steer_range = steer_range
-        self.accel_range = accel_range
-        self.delta_t = min(delta_t, self._MIN_DELTA_T) if delta_t is not None else self._DELTA_T
 
-    def _step(self, x, y, heading, speed, accel, steer, dt):
-        new_x = x + speed * np.cos(heading) * dt
-        new_y = y + speed * np.sin(heading) * dt
+        if isinstance(steer_range, float):
+            self.steer_range = None if steer_range < 0 else [-steer_range, steer_range]
+        elif hasattr(steer_range, "__len__") and len(steer_range) == 2:
+            if steer_range[0] >= steer_range[1]:
+                self.steer_range = None
+            else:
+                self.steer_range = self.steer_range
+        else:
+            self.speed_range = None
 
-        new_heading = heading + speed / self.wheel_base * np.tan(steer) * dt
+        if isinstance(speed_range, float):
+            self.speed_range = None if speed_range < 0 else [-speed_range, speed_range]
+        elif hasattr(speed_range, "__len__") and len(speed_range) == 2:
+            if speed_range[0] >= speed_range[1]:
+                self.speed_range = None
+            else:
+                self.speed_range = self.speed_range
+        else:
+            self.speed_range = None
 
-        new_speed = speed + accel * self.delta_t
-        new_speed = np.clip(new_speed, *self.speed_range)
+        if isinstance(accel_range, float):
+            self.accel_range = None if accel_range < 0 else [-accel_range, accel_range]
+        elif hasattr(accel_range, "__len__") and len(accel_range) == 2:
+            if accel_range[0] >= accel_range[1]:
+                self.accel_range = None
+            else:
+                self.accel_range = accel_range
+        else:
+            self.speed_range = None
 
-        return new_x, new_y, new_heading, new_speed
+        self.interval = interval
 
-    def step(self, state: State, action: Tuple[float, float], step: float) -> Tuple[State, tuple]:
-        """Update the state of a vehicle with the Kinematic Single-Track Model.
+        if delta_t is None:
+            self.delta_t = self._DELTA_T
+        else:
+            self.delta_t = max(delta_t, self._MIN_DELTA_T)
+            if self.interval is not None:
+                self.delta_t = min(self.delta_t, self.interval)
+
+    def _step(self, state: State, accel: float, steer: float, interval: int) -> State:
+        beta = np.arctan(self.dist_rear_hang / self.wheel_base * np.tan(steer))
+        dts = [float(self.delta_t) / 1000] * (interval // self.delta_t)
+        dts.append(float(interval % self.delta_t) / 1000)
+
+        x, y = state.location
+        heading = state.heading
+        speed = state.speed
+
+        for dt in dts:
+            x += speed * np.cos(heading + beta) * dt
+            y += speed * np.sin(heading + beta) * dt
+            heading += speed / self.wheel_base * np.sin(beta) * dt
+            speed += accel * dt
+
+        speed = np.clip(speed, *self.speed_range) if not self.speed_range is None else speed
+
+        state = State(
+            frame=state.frame + interval,
+            x=x,
+            y=y,
+            heading=np.mod(heading, 2 * np.pi),
+            vx=speed * np.cos(heading),
+            vy=speed * np.sin(heading),
+            speed=speed,
+            accel=accel,
+        )
+
+        return state
+
+    def step(self, state: State, accel: float, steer: float, interval: int = None) -> State:
+        """This function updates the state of the traffic participant with the Kinematic Single-Track Model.
 
         Args:
-            state (State): The current state of the vehicle.
-            action (list): The action to be applied to the vehicle. The action is a two-element
-                tuple [steer, accel]. The steer is the steering angle, and the accel is the
-                acceleration. The unit of the steer is radian, and the unit of the accel is
-                meter per second squared.
+            state (State): The current state of the traffic participant.
+            accel (float): The acceleration of the traffic participant. The unit is meter per second squared (m/s$^2$).
+            steer (float): The steering angle of the traffic participant. The unit is radian.
             step (float): The length of the step for the simulation. The unit is second.
 
         Returns:
-            State: The new state of the vehicle.
-            tuple: The action that was executed.
+            next_state (State): The new state of the traffic participant.
         """
-        steer, accel = action
-        x, y, heading, speed = state.x, state.y, state.heading, state.speed
-        # here we use rear axle center to update
-        rear_center_x, rear_center_y = x - self.dist_rear_hang * np.cos(
-            heading
-        ), y - self.dist_rear_hang * np.sin(heading)
-        speed, accel = accel, 0  # TODO
+        accel = np.clip(accel, *self.accel_range) if not self.accel_range is None else accel
+        steer = np.clip(steer, *self.steer_range) if not self.steer_range is None else steer
+        interval = interval if interval is not None else self.interval
 
-        if self.steer_range is not None:
-            steer = np.clip(steer, *self.steer_range)
+        next_state = self._step(state, accel, steer, interval)
 
-        if self.accel_range is not None:
-            accel = np.clip(accel, *self.accel_range)
+        return next_state
 
-        # The angle of the current velocity of the center of mass with respect to the longitudinal axis of the car.
-        dt = self.delta_t
-        while dt <= step:
-            rear_center_x, rear_center_y, heading, speed = self._step(
-                rear_center_x, rear_center_y, heading, speed, accel, steer, self.delta_t
-            )
-            dt += self.delta_t
+    def verify_state(self, state: State, last_state: State, interval: int = None) -> bool:
+        """This function provides a very rough check for the state transition.
 
-        if dt > step:
-            rear_center_x, rear_center_y, heading, speed = self._step(
-                rear_center_x,
-                rear_center_y,
-                heading,
-                speed,
-                accel,
-                steer,
-                step - (dt - self.delta_t),
-            )
-        # recover the geometry center from rear axle center
-        x = rear_center_x + self.dist_rear_hang * np.cos(heading)
-        y = rear_center_y + self.dist_rear_hang * np.sin(heading)
-        new_state = State(
-            state.frame + int(step * 1000), x=x, y=y, heading=heading, speed=speed, accel=accel
+        Args:
+            state (State): _description_
+            last_state (State): _description_
+            interval (int, optional): _description_. Defaults to None.
+
+        Returns:
+            bool: _description_
+        """
+        interval = interval if interval is None else state.frame - last_state.frame
+        dt = float(interval) / 1000
+        last_speed = last_state.speed
+
+        if None in [self.steer_range, self.speed_range, self.accel_range]:
+            return True
+
+        steer_range = np.array(self.steer_range)
+        beta_range = np.arctan(self.dist_rear_hang / self.wheel_base * steer_range)
+
+        # check that heading is in the range. heading_range may be larger than 2 * np.pi
+        heading_range = np.mod(
+            last_state.heading + last_speed / self.wheel_base * np.sin(beta_range) * dt, 2 * np.pi
         )
+        if (
+            heading_range[0] < heading_range[1]
+            and not heading_range[0] <= state.heading <= heading_range[1]
+        ):
+            return False
+        if heading_range[0] > heading_range[1] and not (
+            heading_range[0] <= state.heading or state.heading <= heading_range[1]
+        ):
+            return False
 
-        return new_state, (steer, accel)
+        # check that speed is in the range
+        speed_range = np.clip(last_speed + np.array(self.accel_range) * dt, *self.speed_range)
+        if not speed_range[0] <= state.speed <= speed_range[1]:
+            return False
 
-    def verify_state(self, curr_state: State, prev_state: State) -> bool:
+        # check that x, y are in the range
+        x_range = last_state.x + last_speed * np.cos(last_state.heading + beta_range[1]) * dt
+        y_range = last_state.y + last_speed * np.sin(last_state.heading + beta_range[1]) * dt
+        if not x_range[0] < state.x < x_range[1] or not y_range[0] < state.y < y_range[1]:
+            return False
+
         return True
