@@ -23,6 +23,18 @@ from .participant_template import VEHICLE_TEMPLATE, EPA_MAPPING, NCAP_MAPPING, E
 class Vehicle(ParticipantBase):
     """This class defines a four-wheeled vehicle with its common properties.
 
+    The definition of different driven modes of the vehicles can be found here:
+
+    - [Front-Wheel Drive (FWD)](https://en.wikipedia.org/wiki/Front-wheel_drive)
+    - [Rear-Wheel Drive (RWD)](https://en.wikipedia.org/wiki/Rear-wheel_drive)
+    - [Four-Wheel Drive (4WD)](https://en.wikipedia.org/wiki/Four-wheel_drive)
+    - [All-Wheel Drive (AWD)](https://en.wikipedia.org/wiki/All-wheel_drive)
+
+    The default physics model provided for the vehicles is a kinematics bicycle model with the vehicle's geometry center as the origin. This model is recommended only for the vehicles with front-wheel drive (FWD). For other driven modes, the users should better custom their own physics model.
+
+    !!! info "TODO"
+        More physics models will be added in the future based on issues and requirements. You are welcome to suggest implementation of other physics models [here](https://github.com/WoodOxen/tactics2d/issues).
+
     Attributes:
         id_ (int): The unique identifier of the vehicle.
         type_ (str): The type of the vehicle. Defaults to "medium_car".
@@ -35,7 +47,7 @@ class Vehicle(ParticipantBase):
         wheel_base (float): The wheel base of the vehicle. The unit is meter. Defaults to None.
         front_overhang (float): The front overhang of the vehicle. The unit is meter. Defaults to None.
         rear_overhang (float): The rear overhang of the vehicle. The unit is meter. Defaults to None.
-        driven_mode: (str): The driven way of the vehicle. The available options are "FWD" (Front-Wheel Driven), "RWD" (Rear-Wheel Driven), and "AWD" (All-Wheel Driven). Defaults to "FWD".
+        driven_mode: (str): The driven way of the vehicle. The available options are ["FWD", "RWD", "4WD", "AWD"]. Defaults to "FWD".
         max_steer (float): The maximum approach angle of the vehicle. The unit is radian. Defaults to $\pi$/6.
         max_speed (float): The maximum speed of the vehicle. The unit is meter per second. Defaults to 55.56 (= 200 km/h).
         max_accel (float): The maximum acceleration of the vehicle. The unit is meter per second squared. Defaults to 3.0.
@@ -66,7 +78,7 @@ class Vehicle(ParticipantBase):
         "verify": bool,
     }
     _default_color = (43, 203, 186, 255)  # light-turquoise
-    _driven_modes = {"FWD", "RWD", "AWD"}
+    _driven_modes = {"FWD", "RWD", "4WD", "AWD"}
 
     def __init__(
         self, id_: Any, type_: str = "medium_car", trajectory: Trajectory = None, **kwargs
@@ -93,7 +105,7 @@ class Vehicle(ParticipantBase):
             max_decel (float, optional): The maximum deceleration of the vehicle. The unit is meter per second squared. Defaults to 10.0.
             verify (bool): Whether to verify the trajectory to bind or the state to add.
             physics_model (PhysicsModelBase): The physics model of the cyclist. Defaults to None. If the physics model is a custom model, it should be an instance of the [`PhysicsModelBase`](../api/physics.md/#PhysicsModelBase) class.
-            driven_mode (str, optional): The driven way of the vehicle. The available options are ["FWD", "RWD", "AWD"]. Defaults to "FWD".
+            driven_mode (str, optional): The driven way of the vehicle. The available options are ["FWD", "RWD", "4WD", "AWD"]. Defaults to "FWD".
         """
 
         super().__init__(id_, type_, trajectory, **kwargs)
@@ -140,16 +152,16 @@ class Vehicle(ParticipantBase):
         if self.driven_mode == "FWD":
             if not None in [self.front_overhang, self.rear_overhang]:
                 self.physics_model = SingleTrackKinematics(
-                    dist_front_hang=self.length / 2 - self.front_overhang,
-                    dist_rear_hang=self.length / 2 - self.rear_overhang,
+                    lf=self.length / 2 - self.front_overhang,
+                    lr=self.length / 2 - self.rear_overhang,
                     steer_range=self.steer_range,
                     speed_range=self.speed_range,
                     accel_range=self.accel_range,
                 )
             elif not self.length is None:
                 self.physics_model = SingleTrackKinematics(
-                    dist_front_hang=self.length / 2,
-                    dist_rear_hang=self.length / 2,
+                    lf=self.length / 2,
+                    lr=self.length / 2,
                     steer_range=self.steer_range,
                     speed_range=self.speed_range,
                     accel_range=self.accel_range,

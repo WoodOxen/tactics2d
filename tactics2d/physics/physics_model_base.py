@@ -30,7 +30,7 @@ class PhysicsModelBase(ABC):
             interval (int): The time interval between the current state and the new state. The unit is millisecond.
 
         Returns:
-            State: A new state of the traffic participant.
+            A new state of the traffic participant.
         """
 
     @abstractmethod
@@ -43,7 +43,7 @@ class PhysicsModelBase(ABC):
             interval (int): The time interval between the last state and the new state. The unit is millisecond.
 
         Returns:
-            bool: True if the new state is valid, False otherwise.
+            True if the new state is valid, False otherwise.
         """
 
     def verify_states(self, trajectory: Trajectory) -> bool:
@@ -53,7 +53,7 @@ class PhysicsModelBase(ABC):
             trajectory (Trajectory): The trajectory of the traffic participant.
 
         Returns:
-            bool: True if the trajectory is valid, False otherwise.
+            True if the trajectory is valid, False otherwise.
         """
         if trajectory.stable_freq is True:
             interval = 1000 / trajectory.fps

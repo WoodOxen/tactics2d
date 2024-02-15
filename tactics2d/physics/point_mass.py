@@ -22,8 +22,8 @@ class PointMass(PhysicsModelBase):
         This model is recommended to be used for pedestrians. Because the point mass model ignores that vehicles have a minimum turning circle, if this model is used for bicycle and vehicles, the results will not be accurate.
 
     Attributes:
-        speed_range (Union[float, Tuple[float, float]]: The speed range. The valid input is a float or a tuple of two floats represents (min speed, max speed). The unit is meter per second (m/s). The default value is None, which means no constraint on the speed. When the speed_range is negative or the min speed is not less than the max speed, the speed_range is set to None.
-        accel_range (Union[float, Tuple[float, float]]: The acceleration range. The valid input is a float or a tuple of two floats represents (min acceleration, max acceleration). The unit is meter per second squared (m/s$^2$). The default value is None, which means no constraint on the acceleration. When the accel_range is negative or the min acceleration is not less than the max acceleration, the accel_range is set to None.
+        speed_range (Union[float, Tuple[float, float]]: The range of speed. The valid input is a float or a tuple of two floats represents (min speed, max speed). The unit is meter per second (m/s). The default value is None, which means no constraint on the speed. When the speed_range is negative or the min speed is not less than the max speed, the speed_range is set to None.
+        accel_range (Union[float, Tuple[float, float]]: The range of acceleration. The valid input is a float or a tuple of two floats represents (min acceleration, max acceleration). The unit is meter per second squared (m/s$^2$). The default value is None, which means no constraint on the acceleration. When the accel_range is negative or the min acceleration is not less than the max acceleration, the accel_range is set to None.
         interval (int): The time interval between the current state and the new state. The unit is millisecond. Defaults to None.
         delta_t (int): The discrete time step for the simulation. The unit is millisecond. Defaults to `_DELTA_T`(5 ms). The expected value is between `_MIN_DELTA_T`(1 ms) and `interval`. It is recommended to keep delta_t smaller than 5 ms.
         backend (str): The backend for the simulation. The default value is `newton`. The available choices are `newton` and `euler`. The `newton` backend is recommended because it is faster. The `euler` backend is used for comparison and testing purposes at currently. We plan to improve the `euler` backend in the future (maybe in version 1.1.0)
@@ -39,6 +39,15 @@ class PointMass(PhysicsModelBase):
         delta_t: int = None,
         backend: str = "newton",
     ):
+        """Initialize the point mass model.
+
+        Args:
+            speed_range (Union[float, Tuple[float, float]], optional): The range of speed. The valid input is a positive float or a tuple of two floats represents (min speed, max speed). The unit is meter per second (m/s).
+            accel_range (Union[float, Tuple[float, float]], optional): The range of acceleration. The valid input is a positive float or a tuple of two floats represents (min acceleration, max acceleration). The unit is meter per second squared (m/s$^2$).
+            interval (int, optional): The time interval between the current state and the new state. The unit is millisecond.
+            delta_t (int, optional): The discrete time step for the simulation. The unit is millisecond.
+            backend (str, optional): The backend for the simulation. The available choices are `newton` and `euler`.
+        """
         if isinstance(speed_range, float):
             self.speed_range = None if speed_range < 0 else [0, speed_range]
         elif hasattr(speed_range, "__len__") and len(speed_range) == 2:
@@ -167,7 +176,7 @@ class PointMass(PhysicsModelBase):
         Args:
             state (State): The current state of the traffic participant.
             accel (Tuple[float, float]): The acceleration vector ($a_x$, $a_y$). The unit of the acceleration is meter per second squared (m/s$^2$).
-            interval (int): The time interval between the current state and the new state. The unit is millisecond. Defaults to None.
+            interval (int): The time interval between the current state and the new state. The unit is millisecond.
 
         Returns:
             next_state (State): A new state of the traffic participant.
@@ -195,7 +204,7 @@ class PointMass(PhysicsModelBase):
             interval (int): The time interval between the last state and the new state. The unit is millisecond.
 
         Returns:
-            bool: True if the new state is valid, False otherwise.
+            True if the new state is valid, False otherwise.
         """
         interval = interval if not interval is None else state.frame - last_state.frame
         dt = interval / 1000  # convert to second
