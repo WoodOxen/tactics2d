@@ -22,9 +22,42 @@ class SingleTrackDynamics(PhysicsModelBase):
     !!! quote "Reference"
         The dynamic single-track model is based on Chapter 7 of the following reference:
         [CommonRoad: Vehicle Models (2020a)](https://gitlab.lrz.de/tum-cps/commonroad-vehicle-models/-/blob/master/vehicleModels_commonRoad.pdf)
-    """
 
-    g = 9.81  # gravitational acceleration, m/s^2
+    Attributes:
+        lf (float): The distance from the geometry center to the front axle center. The unit is meter.
+        lr (float): The distance from the geometry center to the rear axle center. The unit is meter.
+        steer_range (Union[float, Tuple[float, float]], optional): The steering angle range. The valid input is a float or a tuple of two floats represents (min steering angle, max steering angle). The unit is radian.
+
+            - When the steer_range is a non-negative float, the steering angle is constrained to be within the range [-steer_range, steer_range].
+            - When the steer_range is a tuple, the steering angle is constrained to be within the range [min steering angle, max steering angle].
+            - When the steer_range is negative or the min steering angle is not less than the max steering angle, the steer_range is set to None.
+
+        mass (float): The mass of the vehicle. The unit is kilogram.
+        mass_height (float): The height of the center of mass from the ground. The unit is meter.
+        mu (float): The friction coefficient. It is a dimensionless quantity. Defaults to 0.7.
+        iz (float): The moment of inertia of the vehicle. The unit is kilogram per meter squared (kg/m$^2$). Defaults to 1500.
+        cf (float): The cornering stiffness of the front wheel. The unit is 1/rad. Defaults to 20.89.
+        cr (float): The cornering stiffness of the rear wheel. The unit is 1/rad. Defaults to 20.89.
+        steer_range (Union[float, Tuple[float, float]], optional): The steering angle range. The valid input is a float or a tuple of two floats represents (min steering angle, max steering angle). The unit is radian.
+
+            - When the steer_range is a non-negative float, the steering angle is constrained to be within the range [-steer_range, steer_range].
+            - When the steer_range is a tuple, the steering angle is constrained to be within the range [min steering angle, max steering angle].
+            - When the steer_range is negative or the min steering angle is not less than the max steering angle, the steer_range is set to None.
+
+        speed_range (Union[float, Tuple[float, float]], optional): The speed range. The valid input is a float or a tuple of two floats represents (min speed, max speed). The unit is meter per second (m/s).
+            - When the speed_range is a non-negative float, the speed is constrained to be within the range [-speed_range, speed_range].
+            - When the speed_range is a tuple, the speed is constrained to be within the range [min speed, max speed].
+            - When the speed_range is negative or the min speed is not less than the max speed, the speed_range is set to None.
+
+        accel_range (Union[float, Tuple[float, float]], optional): The acceleration range. The valid input is a float or a tuple of two floats represents (min acceleration, max acceleration). The unit is meter per second squared (m/s$^2$).
+
+            - When the accel_range is a non-negative float, the acceleration is constrained to be within the range [-accel_range, accel_range].
+            - When the accel_range is a tuple, the acceleration is constrained to be within the range [min acceleration, max acceleration].
+            - When the accel_range is negative or the min acceleration is not less than the max acceleration, the accel_range is set to None.
+
+        interval (int, optional): The time interval between the current state and the new state. The unit is millisecond. Defaults to None.
+        delta_t (int, optional): The time step for the simulation. The unit is millisecond. Defaults to `_DELTA_T`(5 ms). The expected value is between `_MIN_DELTA_T`(1 ms) and `interval`. It is recommended to keep delta_t smaller than 5 ms.
+    """
 
     def __init__(
         self,
@@ -53,16 +86,21 @@ class SingleTrackDynamics(PhysicsModelBase):
             iz (float): The moment of inertia of the vehicle. The unit is kilogram per meter squared (kg/m$^2$).
             cf (float): The cornering stiffness of the front wheel. The unit is 1/rad.
             cr (float): The cornering stiffness of the rear wheel. The unit is 1/rad.
+            steer_range (Union[float, Tuple[float, float]], optional): The range of steering angle. The valid input is a positive float or a tuple of two floats represents (min steering angle, max steering angle). The unit is radian.
+            speed_range (Union[float, Tuple[float, float]], optional): The range of speed. The valid input is a positive float or a tuple of two floats represents (min speed, max speed). The unit is meter per second (m/s).
+            accel_range (Union[float, Tuple[float, float]], optional): The range of acceleration. The valid input is a positive float or a tuple of two floats represents (min acceleration, max acceleration). The unit is meter per second squared (m/s$^2$).
+            interval (int, optional): The time interval between the current state and the new state. The unit is millisecond.
+            delta_t (int, optional): The discrete time step for the simulation. The unit is millisecond.
         """
         self.lf = lf
         self.lr = lr
+        self.whl_base = lf + lr
+        self.mass = mass
+        self.mass_height = mass_height
         self.mu = mu
         self.iz = iz
         self.cf = cf
         self.cr = cr
-        self.whl_base = lf + lr
-        self.mass = mass
-        self.mass_height = mass_height
 
         if isinstance(steer_range, float):
             self.steer_range = None if steer_range < 0 else [-steer_range, steer_range]
@@ -107,46 +145,48 @@ class SingleTrackDynamics(PhysicsModelBase):
         dts = [float(self.delta_t) / 1000] * (interval // self.delta_t)
         dts.append(float(interval % self.delta_t) / 1000)
 
-        factor_f = (self.g * self.lr - accel * self.mass_height) / self.wheel_base
-        factor_r = (self.g * self.lf + accel * self.mass_height) / self.wheel_base
+        factor_f = (self._G * self.lr - accel * self.mass_height) / self.wheel_base
+        factor_r = (self._G * self.lf + accel * self.mass_height) / self.wheel_base
 
         x, y = state.location
         phi = state.heading
         v = state.speed
-        dphi = v / self.wheel_base * np.tan(delta)
+        d_phi = v / self.wheel_base * np.tan(delta)
         beta = np.arctan(self.lr / self.lf * np.tan(delta))  # slip angle
 
         for dt in dts:
             dx = v * np.cos(phi + beta)
             dy = v * np.sin(phi + beta)
             dv = accel
-            dbeta = (
+            d_beta = (
                 self.mu
                 / v
                 * (
                     self.cf * factor_f * delta
                     - (self.cr * factor_r + self.cf * factor_f) * beta
-                    + (self.cr * factor_r * self.lr - self.cf * factor_f * self.lf) * dphi / v
+                    + (self.cr * factor_r * self.lr - self.cf * factor_f * self.lf) * d_phi / v
                 )
-                - dphi
+                - d_phi
             )
-            ddphi = (
+            dd_phi = (
                 self.mu
                 * self.mass
                 / self.iz
                 * (
                     self.lf * self.cf * factor_f * delta
                     + (self.lr * self.cr * factor_r - self.lf * self.cf * factor_f) * beta
-                    - (self.lr**2 * self.cr * factor_r + self.lf**2 * self.cf * factor_f) * dphi / v
+                    - (self.lr**2 * self.cr * factor_r + self.lf**2 * self.cf * factor_f)
+                    * d_phi
+                    / v
                 )
             )
 
             x += dx * dt
             y += dy * dt
             v += dv * dt
-            phi += dphi * dt
-            beta += dbeta * dt
-            dphi += ddphi * dt
+            phi += d_phi * dt
+            beta += d_beta * dt
+            d_phi += dd_phi * dt
 
             v = np.clip(v, *self.speed_range) if not self.speed_range is None else v
 
@@ -162,7 +202,7 @@ class SingleTrackDynamics(PhysicsModelBase):
         return state
 
     def step(self, state: State, accel: float, delta: float, interval: int = None) -> State:
-        """This function updates the state of the vehicle based on the single-track dynamics model.
+        """This function updates the state of the vehicle based on the dynamics single-track model.
 
         Args:
             state (State): The current state of the traffic participant.

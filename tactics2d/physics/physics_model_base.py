@@ -15,10 +15,16 @@ class PhysicsModelBase(ABC):
     """This abstract class defines the essential interfaces required to specify a physics kinematics/dynamics model for a traffic participant.
 
     Please feel free to inherent this class to implement your own physics model.
+
+    Attributes:
+        _DELTA_T (int): The default time interval between the current state and the new state, 5 milliseconds (ms).
+        _MIN_DELTA_T (int): The minimum time interval between the current state and the new state, 1 millisecond (ms).
+        _G (float): The gravitational acceleration, 9.81 m/s^2.
     """
 
     _DELTA_T: int = 5
     _MIN_DELTA_T: int = 1
+    _G = 9.81  # gravitational acceleration, m/s^2
 
     @abstractmethod
     def step(self, state: State, action: tuple, interval: int = None) -> State:
