@@ -72,7 +72,7 @@ class SingleTrackDynamics(PhysicsModelBase):
         steer_range: Union[float, Tuple[float, float]] = None,
         speed_range: Union[float, Tuple[float, float]] = None,
         accel_range: Union[float, Tuple[float, float]] = None,
-        interval: int = None,
+        interval: int = 100,
         delta_t: int = None,
     ):
         """Initializes the single-track dynamics model.
@@ -94,7 +94,7 @@ class SingleTrackDynamics(PhysicsModelBase):
         """
         self.lf = lf
         self.lr = lr
-        self.whl_base = lf + lr
+        self.wheel_base = lf + lr
         self.mass = mass
         self.mass_height = mass_height
         self.mu = mu
@@ -108,9 +108,9 @@ class SingleTrackDynamics(PhysicsModelBase):
             if steer_range[0] >= steer_range[1]:
                 self.steer_range = None
             else:
-                self.steer_range = self.steer_range
+                self.steer_range = steer_range
         else:
-            self.speed_range = None
+            self.steer_range = None
 
         if isinstance(speed_range, float):
             self.speed_range = None if speed_range < 0 else [-speed_range, speed_range]
@@ -118,7 +118,7 @@ class SingleTrackDynamics(PhysicsModelBase):
             if speed_range[0] >= speed_range[1]:
                 self.speed_range = None
             else:
-                self.speed_range = self.speed_range
+                self.speed_range = speed_range
         else:
             self.speed_range = None
 
@@ -130,7 +130,7 @@ class SingleTrackDynamics(PhysicsModelBase):
             else:
                 self.accel_range = accel_range
         else:
-            self.speed_range = None
+            self.accel_range = None
 
         self.interval = interval
 
@@ -158,35 +158,56 @@ class SingleTrackDynamics(PhysicsModelBase):
             dx = v * np.cos(phi + beta)
             dy = v * np.sin(phi + beta)
             dv = accel
-            d_beta = (
-                self.mu
-                / v
-                * (
-                    self.cf * factor_f * delta
-                    - (self.cr * factor_r + self.cf * factor_f) * beta
-                    + (self.cr * factor_r * self.lr - self.cf * factor_f * self.lf) * d_phi / v
+
+            if np.abs(v) >= 0.1:
+                dd_phi = (
+                    self.mu
+                    * self.mass
+                    / self.iz
+                    * (
+                        self.lf * self.cf * factor_f * delta
+                        + (self.lr * self.cr * factor_r - self.lf * self.cf * factor_f) * beta
+                        - (self.lf**2 * self.cf * factor_f + self.lr**2 * self.cr * factor_r)
+                        * d_phi
+                        / (v)
+                    )
                 )
-                - d_phi
-            )
-            dd_phi = (
-                self.mu
-                * self.mass
-                / self.iz
-                * (
-                    self.lf * self.cf * factor_f * delta
-                    + (self.lr * self.cr * factor_r - self.lf * self.cf * factor_f) * beta
-                    - (self.lr**2 * self.cr * factor_r + self.lf**2 * self.cf * factor_f)
-                    * d_phi
+                d_beta = (
+                    self.mu
                     / v
+                    * (
+                        self.cf * factor_f * delta
+                        - (self.cr * factor_r + self.cf * factor_f) * beta
+                        + (self.cr * factor_r * self.lr - self.cf * factor_f * self.lf) * d_phi / v
+                    )
+                    - d_phi
                 )
-            )
+                d_phi += dd_phi * dt
+            else:
+                d_beta = (
+                    1
+                    / (1 + np.tan(delta) * self.lr / self.wheel_base) ** 2
+                    * self.lr
+                    / self.wheel_base
+                    / np.cos(delta) ** 2
+                    * delta
+                )
+                dd_phi = (
+                    1
+                    / self.wheel_base
+                    * (
+                        accel * np.cos(beta) * np.tan(delta)
+                        - v * np.sin(beta) * np.tan(delta) * d_beta
+                        + v * np.cos(beta) / np.cos(delta) ** 2 * delta
+                    )
+                )
+                d_phi += v * np.cos(beta) / self.wheel_base * np.tan(delta) * dt
 
             x += dx * dt
             y += dy * dt
             v += dv * dt
             phi += d_phi * dt
             beta += d_beta * dt
-            d_phi += dd_phi * dt
 
             v = np.clip(v, *self.speed_range) if not self.speed_range is None else v
 
@@ -212,6 +233,8 @@ class SingleTrackDynamics(PhysicsModelBase):
 
         Returns:
             next_state (State): The new state of the traffic participant.
+            accel (float): The acceleration that is applied to the traffic participant.
+            delta (float): The steering angle that is applied to the traffic participant.
         """
         accel = np.clip(accel, *self.accel_range) if not self.accel_range is None else accel
         delta = np.clip(delta, *self.steer_range) if not self.steer_range is None else delta
@@ -219,7 +242,7 @@ class SingleTrackDynamics(PhysicsModelBase):
 
         next_state = self._step(state, accel, delta, interval)
 
-        return next_state
+        return next_state, accel, delta
 
     def verify_state(self, state: State, last_state: State, interval: int = None) -> bool:
-        return
+        return True

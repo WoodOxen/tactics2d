@@ -7,6 +7,7 @@
 # @Version: 1.0.0
 
 from typing import Tuple, Union
+import logging
 
 import numpy as np
 
@@ -65,7 +66,7 @@ class SingleTrackKinematics(PhysicsModelBase):
         steer_range: Union[float, Tuple[float, float]] = None,
         speed_range: Union[float, Tuple[float, float]] = None,
         accel_range: Union[float, Tuple[float, float]] = None,
-        interval: int = None,
+        interval: int = 100,
         delta_t: int = None,
     ):
         """Initialize the kinematic single-track model.
@@ -89,9 +90,9 @@ class SingleTrackKinematics(PhysicsModelBase):
             if steer_range[0] >= steer_range[1]:
                 self.steer_range = None
             else:
-                self.steer_range = self.steer_range
+                self.steer_range = steer_range
         else:
-            self.speed_range = None
+            self.steer_range = None
 
         if isinstance(speed_range, float):
             self.speed_range = None if speed_range < 0 else [-speed_range, speed_range]
@@ -99,7 +100,7 @@ class SingleTrackKinematics(PhysicsModelBase):
             if speed_range[0] >= speed_range[1]:
                 self.speed_range = None
             else:
-                self.speed_range = self.speed_range
+                self.speed_range = speed_range
         else:
             self.speed_range = None
 
@@ -111,7 +112,7 @@ class SingleTrackKinematics(PhysicsModelBase):
             else:
                 self.accel_range = accel_range
         else:
-            self.speed_range = None
+            self.accel_range = None
 
         self.interval = interval
 
@@ -166,6 +167,8 @@ class SingleTrackKinematics(PhysicsModelBase):
 
         Returns:
             next_state (State): The new state of the traffic participant.
+            accel (float): The acceleration that is applied to the traffic participant.
+            delta (float): The steering angle that is applied to the traffic participant.
         """
         accel = np.clip(accel, *self.accel_range) if not self.accel_range is None else accel
         delta = np.clip(delta, *self.steer_range) if not self.steer_range is None else delta
@@ -173,7 +176,7 @@ class SingleTrackKinematics(PhysicsModelBase):
 
         next_state = self._step(state, accel, delta, interval)
 
-        return next_state
+        return next_state, accel, delta
 
     def verify_state(self, state: State, last_state: State, interval: int = None) -> bool:
         """This function provides a very rough check for the state transition.
@@ -216,8 +219,9 @@ class SingleTrackKinematics(PhysicsModelBase):
             return False
 
         # check that x, y are in the range
-        x_range = last_state.x + last_speed * np.cos(last_state.heading + beta_range[1]) * dt
-        y_range = last_state.y + last_speed * np.sin(last_state.heading + beta_range[1]) * dt
+        x_range = last_state.x + speed_range * np.cos(last_state.heading + beta_range) * dt
+        y_range = last_state.y + speed_range * np.sin(last_state.heading + beta_range) * dt
+
         if not x_range[0] < state.x < x_range[1] or not y_range[0] < state.y < y_range[1]:
             return False
 
