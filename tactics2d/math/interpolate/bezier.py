@@ -1,10 +1,30 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: bezier.py
+# @Description: This file implements a Bezier curve interpolator.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 import numpy as np
 
 
 class Bezier:
-    """This class implement a Bezier curve interpolator."""
+    """This class implement a Bezier curve interpolator.
+
+    Attributes:
+        order (int): The order of the Bezier curve. The order of a Bezier curve is equal to the number of control points minus one.
+    """
 
     def __init__(self, order: int):
+        """Initialize the Bezier curve interpolator.
+
+        Args:
+            order (int): The order of the Bezier curve.
+
+        Raises:
+            ValueError: The order of a Bezier curve must be greater than or equal to one.
+        """
         self.order = order
         if self.order < 1:
             raise ValueError("The order of a Bezier curve must be greater than or equal to one.")
@@ -32,7 +52,7 @@ class Bezier:
             new_points = points[:-1] * (1 - t) + points[1:] * t
             return self.de_casteljau(new_points, t, order - 1)
 
-    def get_curve(self, control_points: np.ndarray, n_interpolation: int):
+    def get_curve(self, control_points: np.ndarray, n_interpolation: int) -> np.ndarray:
         """
         Args:
             control_points (np.ndarray): The control points of the curve. The shape is (order + 1, 2).

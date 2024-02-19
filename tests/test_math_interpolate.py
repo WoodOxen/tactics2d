@@ -99,7 +99,7 @@ def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
     if t2 - t1 > t3 - t2:
         logging.warning(
             "The implemented Bezier interpolator is %.2f times slower than the Python library bezier. The efficiency needs further improvement."
-            % ((t2 - t1) / (t3 - t2) * 100)
+            % ((t2 - t1) / (t3 + 1e-6 - t2) * 100)
         )
 
 
@@ -192,7 +192,7 @@ def test_b_spline(degree: int, control_points: np.ndarray, knots: np.ndarray, n_
     if t2 - t1 > t3 - t2:
         logging.warning(
             "The implemented B-Spline interpolator is %.2f times slower than Scipy's implementation. The efficiency needs further improvement."
-            % ((t2 - t1) / (t3 - t2) * 100)
+            % ((t2 - t1) / (t3 + 1e-6 - t2) * 100)
         )
 
 
@@ -222,7 +222,7 @@ def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_
     else:
         try:
             cubic_spline = CubicSpline(boundary_type)
-        except NameError:
+        except ValueError:
             return
 
     if control_points is None:
@@ -265,7 +265,7 @@ def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_
     if t2 - t1 > t4 - t3:
         logging.warning(
             "The implemented Cubic Spline interpolator is %.2f times slower than Scipy's implementation. The efficiency needs further improvement."
-            % ((t2 - t1) / (t4 - t3) * 100)
+            % ((t2 - t1) / (t4 + 1e-6 - t3) * 100)
         )
 
 

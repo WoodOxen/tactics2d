@@ -751,7 +751,7 @@ Label = _reflection.GeneratedProtocolMessageType(
             (_message.Message,),
             dict(
                 DESCRIPTOR=_LABEL_BOX,
-                __module__="label_pb2"
+                __module__="label_pb2",
                 # @@protoc_insertion_point(class_scope:waymo.open_dataset.Label.Box)
             ),
         ),
@@ -760,7 +760,7 @@ Label = _reflection.GeneratedProtocolMessageType(
             (_message.Message,),
             dict(
                 DESCRIPTOR=_LABEL_METADATA,
-                __module__="label_pb2"
+                __module__="label_pb2",
                 # @@protoc_insertion_point(class_scope:waymo.open_dataset.Label.Metadata)
             ),
         ),
@@ -769,12 +769,12 @@ Label = _reflection.GeneratedProtocolMessageType(
             (_message.Message,),
             dict(
                 DESCRIPTOR=_LABEL_ASSOCIATION,
-                __module__="label_pb2"
+                __module__="label_pb2",
                 # @@protoc_insertion_point(class_scope:waymo.open_dataset.Label.Association)
             ),
         ),
         DESCRIPTOR=_LABEL,
-        __module__="label_pb2"
+        __module__="label_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Label)
     ),
 )
@@ -788,7 +788,7 @@ Polygon2dProto = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_POLYGON2DPROTO,
-        __module__="label_pb2"
+        __module__="label_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Polygon2dProto)
     ),
 )

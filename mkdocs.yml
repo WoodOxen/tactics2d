@@ -11,21 +11,19 @@ docs_dir: docs
 nav:
   - Home: "index.md"
   - Release Notes: "release_notes.md"
-  - Tutorial:
-    - Installation: "tutorial/installation.md"
-    - Quick Start: "tutorial/quick_start.md"
-    - Customization: "tutorial/custom.md"
-  - Dataset Overview: "dataset-overview.md"
+  - Installation: "installation.md"
+  - Quick Start: "quick_start.md"
+  - Customization: "customization.md"
+  - Dataset Support: "dataset-support.md"
   - Python API:
       - tactics2d.dataset_parser: "api/dataset_parser.md"
       - tactics2d.envs: "api/envs.md"
       - tactics2d.map: "api/map.md"
-      - tactics2d.participant: "api/participant.md"
       - tactics2d.math: "api/math.md"
+      - tactics2d.participant: "api/participant.md"
       - tactics2d.physics: "api/physics.md"
       - tactics2d.sensor: "api/sensor.md"
       - tactics2d.traffic: "api/traffic.md"
-      - tactics2d.trajectory: "api/trajectory.md"
   - Publications: "publication.md"
 
 theme: 

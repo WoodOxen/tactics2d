@@ -634,9 +634,9 @@ _SCENARIO.fields_by_name["tracks"].message_type = _TRACK
 _SCENARIO.fields_by_name["dynamic_map_states"].message_type = _DYNAMICMAPSTATE
 _SCENARIO.fields_by_name["map_features"].message_type = map__pb2._MAPFEATURE
 _SCENARIO.fields_by_name["tracks_to_predict"].message_type = _REQUIREDPREDICTION
-_SCENARIO.fields_by_name[
-    "compressed_frame_laser_data"
-].message_type = compressed__lidar__pb2._COMPRESSEDFRAMELASERDATA
+_SCENARIO.fields_by_name["compressed_frame_laser_data"].message_type = (
+    compressed__lidar__pb2._COMPRESSEDFRAMELASERDATA
+)
 DESCRIPTOR.message_types_by_name["ObjectState"] = _OBJECTSTATE
 DESCRIPTOR.message_types_by_name["Track"] = _TRACK
 DESCRIPTOR.message_types_by_name["DynamicMapState"] = _DYNAMICMAPSTATE
@@ -648,7 +648,7 @@ ObjectState = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_OBJECTSTATE,
-        __module__="scenario_pb2"
+        __module__="scenario_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.ObjectState)
     ),
 )
@@ -659,7 +659,7 @@ Track = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_TRACK,
-        __module__="scenario_pb2"
+        __module__="scenario_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Track)
     ),
 )
@@ -670,7 +670,7 @@ DynamicMapState = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_DYNAMICMAPSTATE,
-        __module__="scenario_pb2"
+        __module__="scenario_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.DynamicMapState)
     ),
 )
@@ -681,7 +681,7 @@ RequiredPrediction = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_REQUIREDPREDICTION,
-        __module__="scenario_pb2"
+        __module__="scenario_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.RequiredPrediction)
     ),
 )
@@ -692,7 +692,7 @@ Scenario = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_SCENARIO,
-        __module__="scenario_pb2"
+        __module__="scenario_pb2",
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Scenario)
     ),
 )

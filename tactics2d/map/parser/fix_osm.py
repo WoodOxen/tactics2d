@@ -1,3 +1,11 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: fix_osm.py
+# @Description:
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 import xml.etree.ElementTree as ET
 
 
@@ -62,7 +70,3 @@ def re_id_elements(file, destination_file=None):
     xml_string = ET.tostring(xml_root, encoding="unicode")
     with open(destination_file, "w") as f:
         f.write(xml_string)
-
-
-if __name__ == "__main__":
-    re_id_elements("../../data/map/inD/inD_2.osm")

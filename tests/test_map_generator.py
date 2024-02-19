@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 
 from tactics2d.map.element import Map, Area
 from tactics2d.map.generator import RacingTrackGenerator, ParkingLotGenerator
-from tactics2d.trajectory.element import State
+from tactics2d.participant.trajectory import State
 
 
 @pytest.mark.map_generator

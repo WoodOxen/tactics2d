@@ -1,10 +1,35 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: reeds_shepp.py
+# @Description: This file implements a Reeds-Shepp path interpolator.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 import numpy as np
 
 from tactics2d.math.geometry import Circle
 
 
 class ReedsSheppPath:
-    def __init__(self, segments, matrix, actions, curve_type, radius):
+    """This class implements a Reeds-Shepp path.
+
+    Attributes:
+        segments
+    """
+
+    def __init__(
+        self, segments: tuple, matrix: np.array, actions: str, curve_type: str, radius: float
+    ):
+        """Initialize the Reeds-Shepp path.
+
+        Args:
+            segments (tuple): The segment lengths of the Reeds-Shepp path.
+            matrix (np.array): The transformation matrix to decide the shape of the segments.
+            actions (str): The actions of the Reeds-Shepp path. The string is composed of "S", "L", and "R".
+            curve_type (str): The type of the Reeds-Shepp path. The string is composed of "C", "S", and "C".
+            radius (float): The minimal turning radius.
+        """
         self.actions = actions
         self.curve_type = curve_type
 
@@ -23,6 +48,21 @@ class ReedsSheppPath:
     def get_curve_line(
         self, start_point: np.ndarray, start_heading: float, radius: float, step_size: float = 0.01
     ):
+        """This function returns the curve and yaw of the Reeds-Shepp path.
+
+        Args:
+            start_point (np.ndarray): The start point of the curve. The shape is (2,).
+            start_heading (float): The start heading of the curve.
+            radius (float): The radius of the vehicle.
+            step_size (float, optional): The step size of the curve. Defaults to 0.01.
+
+        Returns:
+            arc_curve (np.ndarray): The curve of the Reeds-Shepp path. The shape is (n, 2).
+            yaw (np.ndarray): The yaw of the Reeds-Shepp path. The shape is (n,).
+            end_point (np.ndarray): The end point of the curve. The shape is (2,).
+            end_heading (float): The end heading of the curve.
+        """
+
         def get_arc(point, heading, radius, radian, forward, action):
             circle_center, _ = Circle.get_circle(
                 Circle.ConstructBy.TangentVector, point, heading, radius, action
@@ -75,9 +115,9 @@ class ReedsSheppPath:
 
 
 class ReedsShepp:
-    """Implementation of the Reeds-Shepp path interpolator.
+    """This class implements a Reeds-Shepp curve interpolator.
 
-    The implementation is referred to the following paper:
+    !!! quote "Reference"
         Reeds, James, and Lawrence Shepp. "Optimal paths for a car that goes both forwards
         and backwards." *Pacific journal of mathematics* 145.2 (1990): 367-393.
 
@@ -90,16 +130,14 @@ class ReedsShepp:
         if self.radius <= 0:
             raise ValueError("The minimum turning radius must be positive.")
 
-    @staticmethod
-    def _R(x, y):
-        """Convert cartesian coordinates to polar coordinates."""
+    def _R(self, x, y):
+        # Convert cartesian coordinates to polar coordinates.
         r = np.sqrt(x**2 + y**2)
         theta = np.arctan2(y, x)
         return r, theta
 
-    @staticmethod
-    def _M(theta):
-        """Regulate a given angle to the range of [-pi, pi]."""
+    def _M(self, theta):
+        # Regulate a given angle to the range of [-pi, pi].
         phi = np.mod(theta, 2 * np.pi)
 
         if phi > np.pi:
@@ -110,7 +148,7 @@ class ReedsShepp:
         return phi
 
     def _tau_omega(self, u, v, xi, eta, phi):
-        """This function follows Equation 8.5 and 8.6 in the paper."""
+        # This function follows Equation 8.5 and 8.6 in the paper.
         delta = self._M(u - v)
         A = np.sin(u) - np.sin(delta)
         B = np.cos(u) - np.cos(delta) - 1
@@ -143,7 +181,7 @@ class ReedsShepp:
 
     def _CSC(self, x, y, phi):
         def LpSpLp(x, y, phi):
-            """This function follows Equation 8.1 in the paper. It implements the L+S+L+ path, which can be converted to L-S-L-, R+S+R+, and R-S-R- by proper transformation."""
+            # This function follows Equation 8.1 in the paper. It implements the L+S+L+ path, which can be converted to L-S-L-, R+S+R+, and R-S-R- by proper transformation.
             u, t = self._R(x - np.sin(phi), y - 1 + np.cos(phi))
 
             if t < 0:
@@ -156,7 +194,7 @@ class ReedsShepp:
             return (t, u, v)
 
         def LpSpRp(x, y, phi):
-            """This function follows Equation 8.2 in the paper. It implements the L+S+R+ path, which can be converted to L-S-R-, R+S+L+, and R-S-L+ by proper transformation."""
+            # This function follows Equation 8.2 in the paper. It implements the L+S+R+ path, which can be converted to L-S-R-, R+S+L+, and R-S-L+ by proper transformation.
             u1, t1 = self._R(x + np.sin(phi), y - 1 - np.cos(phi))
 
             if u1**2 < 4:
@@ -195,10 +233,8 @@ class ReedsShepp:
 
     def _CCC(self, x, y, phi):
         def LRL(signs, x, y, phi):
-            """This function is related to Equation 8.3 and Equation 8.4. It implements the L+R-L+ path, which can be converted to L-R+L-, R+L-R+, and R-L+R-, L+R-L-, L-R+L+, R+L-R-, R-L+R+, L-R-L+, L+R+L-, R-L-R+, and R+L+R- by proper transformation.
-
-            There are typos in the original paper. The implementation has corrected the equations.
-            """
+            # This function is related to Equation 8.3 and Equation 8.4. It implements the L+R-L+ path, which can be converted to L-R+L-, R+L-R+, and R-L+R-, L+R-L-, L-R+L+, R+L-R-, R-L+R+, L-R-L+, L+R+L-, R-L-R+, and R+L+R- by proper transformation.
+            # There are typos in the original paper. The implementation has corrected the equations.
             xi = x - np.sin(phi)
             eta = y - 1 + np.cos(phi)
             u1, theta = self._R(xi, eta)
@@ -252,7 +288,7 @@ class ReedsShepp:
 
     def _CCCC(self, x, y, phi):
         def LpRpLnRn(x, y, phi):
-            """This function follows Equation 8.7. It implements the L+R+L-R- path, which can be converted to L-R-L+R+, R+L+R-L-, and R-L-R+L+ by proper transformation."""
+            # This function follows Equation 8.7. It implements the L+R+L-R- path, which can be converted to L-R-L+R+, R+L+R-L-, and R-L-R+L+ by proper transformation.
             xi = x + np.sin(phi)
             eta = y - 1 - np.cos(phi)
             rho = (2 + np.sqrt(xi**2 + eta**2)) / 4
@@ -269,7 +305,7 @@ class ReedsShepp:
             return (t, u, v)
 
         def LpRnLnRp(x, y, phi):
-            """This function follows Equation 8.8. It implements the L+R-L-R+ path, which can be converted to L-R+L+R-, R+L-R-L+, and R-L+R-L+ by proper transformation."""
+            # This function follows Equation 8.8. It implements the L+R-L-R+ path, which can be converted to L-R+L+R-, R+L-R-L+, and R-L+R-L+ by proper transformation.
             xi = x + np.sin(phi)
             eta = y - 1 - np.cos(phi)
             rho = (20 - xi**2 - eta**2) / 16
@@ -314,7 +350,7 @@ class ReedsShepp:
 
     def _CCSC(self, x, y, phi):
         def LpRnSnLn(x, y, phi):
-            """This function follows Equation 8.9. It implements the L+R-S-L- path, which can be converted to L-R+S+L+, R+L-S-R-, R-L+S+R+, L-S-R-L+, L+S+R+L-, R-S-L-R+, and R+S+L+R- by proper transformation."""
+            # This function follows Equation 8.9. It implements the L+R-S-L- path, which can be converted to L-R+S+L+, R+L-S-R-, R-L+S+R+, L-S-R-L+, L+S+R+L-, R-S-L-R+, and R+S+L+R- by proper transformation.
             xi = x - np.sin(phi)
             eta = y - 1 + np.cos(phi)
             rho, theta = self._R(xi, eta)
@@ -333,7 +369,7 @@ class ReedsShepp:
             return (t, u, v)
 
         def LpRnSnRn(x, y, phi):
-            """This function follows Equation 8.10. It implements the L+R-S-R- path, which can be converted to L-R+S+R+, R+L-S-L-, R-L+S+L+, R-S-R-L+, R+S+R+L-, L-S-L-R+, and L+S+L+R- by proper transformation."""
+            # This function follows Equation 8.10. It implements the L+R-S-R- path, which can be converted to L-R+S+R+, R+L-S-L-, R-L+S+L+, R-S-R-L+, R+S+R+L-, L-S-L-R+, and L+S+L+R- by proper transformation.
             xi = x + np.sin(phi)
             eta = y - 1 - np.cos(phi)
             rho, theta = self._R(-eta, xi)
@@ -389,7 +425,7 @@ class ReedsShepp:
 
     def _CCSCC(self, x, y, phi):
         def LpRnSnLnRp(x, y, phi):
-            """This function follows Equation 8.11. It implements the L+R-S-L-R+ path, which can be converted to L-R+S+L+R-, R+L-S-R-L+, and R-L+S+R+L- by proper transformation."""
+            # This function follows Equation 8.11. It implements the L+R-S-L-R+ path, which can be converted to L-R+S+L+R-, R+L-S-R-L+, and R-L+S+R+L- by proper transformation.
             xi = x + np.sin(phi)
             eta = y - 1 - np.cos(phi)
             rho, theta = self._R(xi, eta)
@@ -445,6 +481,9 @@ class ReedsShepp:
             start_heading (float): The start heading of the curve.
             end_point (np.ndarray): The end point of the curve. The shape is (2,).
             end_heading (float): The end heading of the curve.
+
+        Returns:
+            paths (list): A list of Reeds-Shepp paths.
         """
         dx = (end_point[0] - start_point[0]) / self.radius
         dy = (end_point[1] - start_point[1]) / self.radius
@@ -468,7 +507,7 @@ class ReedsShepp:
         start_heading: float,
         end_point: np.ndarray,
         end_heading: float,
-    ):
+    ) -> ReedsSheppPath:
         """Get the shortest Reeds-Shepp path connecting two points.
 
         Args:
@@ -476,6 +515,9 @@ class ReedsShepp:
             start_heading (float): The start heading of the curve.
             end_point (np.ndarray): The end point of the curve. The shape is (2,).
             end_heading (float): The end heading of the curve.
+
+        Returns:
+            shortest_path (ReedsSheppPath): The shortest Reeds-Shepp path connecting two points.
         """
         candidate_paths = self.get_all_path(start_point, start_heading, end_point, end_heading)
 

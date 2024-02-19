@@ -17,7 +17,7 @@ import pandas as pd
 import numpy as np
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist
-from tactics2d.trajectory.element import State, Trajectory
+from tactics2d.participant.trajectory import State, Trajectory
 
 # from tactics2d.map.parser import Lanelet2Parser
 
@@ -25,7 +25,7 @@ from tactics2d.trajectory.element import State, Trajectory
 class LevelXParser:
     """This class implements a parser for the series of datasets collected by the Institute for Automotive Engineering (ika) of RWTH Aachen University. Because the commercial version of the datasets are held by LevelXData, we call this series of datasets LevelX-series datasets. The datasets include: highD, inD, rounD, exiD, uniD.
 
-    ??? info "Reference"
+    !!! quote "Reference"
         Krajewski, Robert, et al. "The highd dataset: A drone dataset of naturalistic vehicle trajectories on german highways for validation of highly automated driving systems." 2018 21st international conference on intelligent transportation systems (ITSC). IEEE, 2018.
 
         Bock, Julian, et al. "The ind dataset: A drone dataset of naturalistic road user trajectories at german intersections." 2020 IEEE Intelligent Vehicles Symposium (IV). IEEE, 2020.
@@ -37,9 +37,9 @@ class LevelXParser:
         Bock, Julian, et al. "Highly accurate scenario and reference data for automated driving." ATZ worldwide 123.5 (2021): 50-55.
     """
 
-    REGISTERED_DATASET = ["highD", "inD", "rounD", "exiD", "uniD"]
+    _REGISTERED_DATASET = ["highD", "inD", "rounD", "exiD", "uniD"]
 
-    TYPE_MAPPING = {
+    _TYPE_MAPPING = {
         "car": "car",
         "Car": "car",
         "van": "van",
@@ -54,7 +54,7 @@ class LevelXParser:
         "pedestrian": "pedestrian",
     }
 
-    CLASS_MAPPING = {
+    _CLASS_MAPPING = {
         "car": Vehicle,
         "Car": Vehicle,
         "van": Vehicle,
@@ -69,7 +69,7 @@ class LevelXParser:
         "pedestrian": Pedestrian,
     }
 
-    HIGHD_BOUNDS = {
+    _HIGHD_BOUNDS = {
         1: [-0.00025899967, 0],
         2: [-0.00018397412, 0],
         3: [-0.00021942279, 0],
@@ -82,11 +82,11 @@ class LevelXParser:
         """Initialize the parser.
 
         Args:
-            dataset (str, optional): The dataset you want to parse. The available choices are: highD, inD, rounD, exiD, uniD. Defaults to "".
+            dataset (str, optional): The dataset you want to parse. The available choices are: highD, inD, rounD, exiD, uniD.
         """
-        if dataset not in self.REGISTERED_DATASET:
+        if dataset not in self._REGISTERED_DATASET:
             raise KeyError(
-                f"{dataset} is not an available LevelX-series dataset. The available datasets are {self.REGISTERED_DATASET}."
+                f"{dataset} is not an available LevelX-series dataset. The available datasets are {self._REGISTERED_DATASET}."
             )
 
         self.dataset = dataset
@@ -98,8 +98,8 @@ class LevelXParser:
 
     def _get_calibrate_params(self, df_meta: pd.DataFrame):
         location = int(df_meta.iloc[0]["locationId"])
-        _, lower_bound = self.highd_projector(0, self.HIGHD_BOUNDS[location][0])
-        _, upper_bound = self.highd_projector(0, self.HIGHD_BOUNDS[location][1])
+        _, lower_bound = self.highd_projector(0, self._HIGHD_BOUNDS[location][0])
+        _, upper_bound = self.highd_projector(0, self._HIGHD_BOUNDS[location][1])
         lower_lane_markings = [float(x) for x in df_meta.iloc[0]["lowerLaneMarkings"].split(";")]
         upper_lane_markings = [float(x) for x in df_meta.iloc[0]["upperLaneMarkings"].split(";")]
         local_lower = lower_lane_markings[-1]
@@ -128,7 +128,7 @@ class LevelXParser:
             folder (str): The path to the folder containing the trajectory data.
 
         Returns:
-            int: The id of the location.
+            location_id (int): The id of the location.
         """
         file_id = self._get_file_id(file)
         df_meta = pd.read_csv(os.path.join(folder, "%02d_recordingMeta.csv" % file_id))
@@ -143,14 +143,15 @@ class LevelXParser:
             folder (str): The path to the folder containing the trajectory data.
 
         Returns:
-            Tuple[int, int]: The time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
+            actual_stamp_range (Tuple[int, int]): The time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
         """
         file_id = self._get_file_id(file)
         df_track_meta = pd.read_csv(os.path.join(folder, "%02d_tracksMeta.csv" % file_id))
         start_frame = int(min(df_track_meta["initialFrame"]) * 40)
         end_frame = int(max(df_track_meta["finalFrame"]) * 40)
 
-        return start_frame, end_frame
+        actual_stamp_range = (start_frame, end_frame)
+        return actual_stamp_range
 
     def parse_trajectory(
         self, file: Union[int, str], folder: str, stamp_range: Tuple[int, int] = None
@@ -160,11 +161,11 @@ class LevelXParser:
         Args:
             file (int): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: `%02d_tracks.csv % file` and `%02d_tracksMeta.csv % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
             folder (str): The path to the folder containing the trajectory data.
-            stamp_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+            stamp_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data.
 
         Returns:
-            dict: A dictionary of participants. The keys are the ids of the participants. The values are the participants.
-            Tuple[int, int]: The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
+            participants (dict): A dictionary of participants. The keys are the ids of the participants. The values are the participants.
+            actual_stamp_range (Tuple[int, int]): The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
         """
         if stamp_range is None:
             stamp_range = (-np.inf, np.inf)
@@ -194,8 +195,8 @@ class LevelXParser:
                 continue
 
             id_ = participant_info[self.id_key]
-            class_ = self.CLASS_MAPPING[participant_info["class"]]
-            type_ = self.TYPE_MAPPING[participant_info["class"]]
+            class_ = self._CLASS_MAPPING[participant_info["class"]]
+            type_ = self._TYPE_MAPPING[participant_info["class"]]
 
             participant = class_(
                 id_=id_,
@@ -268,7 +269,7 @@ class LevelXParser:
                     ay=state_info["yAcceleration"],
                 )
 
-                trajectories[trajectory_id].append_state(state)
+                trajectories[trajectory_id].add_state(state)
 
         for participant_id in participants.keys():
             participants[participant_id].bind_trajectory(trajectories[participant_id])

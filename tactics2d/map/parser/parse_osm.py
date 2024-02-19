@@ -5,7 +5,24 @@ from pyproj import Proj
 from shapely.geometry import Point, LineString, Polygon
 
 from tactics2d.map.element import Node, Lane, Area, RoadLine, Regulatory, Map
-from tactics2d.map.element import LANE_CHANGE_MAPPING
+
+LANE_CHANGE_MAPPING = {
+    "line_thin": {
+        "solid": (False, False),
+        "solid_solid": (False, False),
+        "dashed": (True, True),
+        "dashed_solid": (True, False),  # left->right: yes
+        "solid_dashed": (False, True),  # right->left: yes
+    },
+    "line_thick": {
+        "solid": (False, False),
+        "solid_solid": (False, False),
+        "dashed": (True, True),
+        "dashed_solid": (True, False),  # left->right: yes
+        "solid_dashed": (False, True),  # right->left: yes
+    },
+    "curbstone": {"high": (False, False), "low": (False, False)},
+}
 
 
 def _load_node(xml_node: ET.Element, projector: Proj, origin: Point) -> Node:

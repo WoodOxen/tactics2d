@@ -11,14 +11,12 @@ from tactics2d.sensor import SensorBase
 class RenderManager:
     """This class manages the rendering of the scenario.
 
-    By RenderManager, the sensors are registered and can be bound to the participants.
-        The rendering is done by the pygame library.
+    By RenderManager, the sensors are registered and can be bound to the participants. The rendering is done by the pygame library.
 
     Attributes:
         fps (int): The frame rate of the rendering. Defaults to 60.
         windows_size (Tuple[int, int]): The size of the rendering window. Defaults to (800, 800).
-        layout_style (str): The style of the layout of the rendering window. The available
-            choices are ["hierarchical", "block"]. Defaults to "hierarchical".
+        layout_style (str): The style of the layout of the rendering window. The available choices are ["hierarchical", "block"]. Defaults to "hierarchical".
         off_screen (bool): Whether to render the scenario off screen. Defaults to False.
     """
 

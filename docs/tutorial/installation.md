@@ -1,3 +1,0 @@
-# Installation
-
-## System Requirements

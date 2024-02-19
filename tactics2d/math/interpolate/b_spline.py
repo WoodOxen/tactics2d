@@ -1,3 +1,11 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: b_spline.py
+# @Description: This file implements a B-spline curve interpolator.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 import numpy as np
 
 
@@ -5,10 +13,18 @@ class BSpline:
     """This class implements a B-spline curve interpolator.
 
     Attributes:
-        degree (int): The degree of the B-spline curve. Usually denoted as p in the literature. The degree of a B-spline curve is equal to the degree of the highest degree basis function. The order of a B-spline curve is equal to p + 1.
+        degree (int): The degree of the B-spline curve. Usually denoted as $p$ in the literature. The degree of a B-spline curve is equal to the degree of the highest degree basis function. The order of a B-spline curve is equal to $p + 1$.
     """
 
     def __init__(self, degree: int):
+        """Initialize the B-spline curve interpolator.
+
+        Args:
+            degree (int): The degree of the B-spline curve. Usually denoted as p in the literature.
+
+        Raises:
+            ValueError: The degree of a B-spline curve must be non-negative.
+        """
         self.degree = degree
         if degree < 0:
             raise ValueError("The degree of a B-spline curve must be non-negative.")
@@ -29,11 +45,11 @@ class BSpline:
             raise ValueError("The knot vectors must be non-decreasing.")
 
     def cox_deBoor(self, knot_vectors, degree: int, u: float) -> float:
-        """Get the value of the basis function N<sub>i</sub>,p(u) at u.
+        """Get the value of the basis function N<sub>i</sub>, p(u) at u.
 
         Args:
-            knot_vectors (np.ndarray): The subset of knot vectors {u<sub>i</sub>, u<sub>i+1</sub>, ..., u<sub>i+p+1</sub>}. The shape is (p + 2, ).
-            degree (int): The degree of the basis function. Usually denoted as p in the literature.
+            knot_vectors (np.ndarray): The subset of knot vectors $\{u_i, u_{i+1}, \dots, u_{i+p+1}\}. The shape is $(p + 2, )$.
+            degree (int): The degree of the basis function. Usually denoted as $p$ in the literature.
             u (float): The value at which the basis function is evaluated.
         """
         if degree == 0:
@@ -65,14 +81,12 @@ class BSpline:
         """Get the interpolation points of a b-spline curve.
 
         Args:
-            control_points (np.ndarray): control_points (np.ndarray): The control points of the
-                curve. Usually denoted as P<sub>0</sub>, P<sub>1</sub>, ..., P<sub>n</sub> in literature. The shape is (n + 1, 2).
-            knot_vectors (np.ndarray): The knots of the curve. Usually denoted as
-                u<sub>0</sub>, u<sub>1</sub>, ..., u<sub>t</sub> in literature. The shape is (t + 1, ).
+            control_points (np.ndarray): The control points of the curve. Usually denoted as $P_0, P_1, \dots, P_n$ in literature. The shape is $(n + 1, 2)$.
+            knot_vectors (np.ndarray): The knots of the curve. Usually denoted as $u_0, u_1, \dots, u_t$ in literature. The shape is $(t + 1, )$.
             n_interpolation (int): The number of interpolation points.
 
         Returns:
-            np.ndarray: The interpolation points of the curve. The shape is (n_interpolation, 2).
+            curve_points (np.ndarray): The interpolation points of the curve. The shape is (n_interpolation, 2).
         """
         n = len(control_points) - 1
         knot_vectors = (

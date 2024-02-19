@@ -1,7 +1,15 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: guess_type.py
+# @Description: This file implements a guesser that predicts the class of traffic participant.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 import numpy as np
 import joblib
 
-from tactics2d.trajectory.element.trajectory import Trajectory
+from tactics2d.participant.trajectory.trajectory import Trajectory
 
 
 class GuessType:
@@ -13,7 +21,7 @@ class GuessType:
     def __init__(self):
         self.trajectory_clf = joblib.load("./tactics2d/participant/trajectory_classifier.m")
 
-    def guess_by_size(size_info: tuple, hint_type: str):
+    def guess_by_size(self, size_info: tuple, hint_type: str):
         """Guess the type of the participant by the size information with SVM model.
 
         This method is usually used to distinguish different type of vehicles.

@@ -1,3 +1,11 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: cubic_spline.py
+# @Description: This file implements a cubic spline interpolator.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 from enum import Enum
 
 import numpy as np
@@ -7,20 +15,36 @@ class CubicSpline:
     """This class implement a cubic spline interpolator.
 
     Attributes:
-        boundary_type (int, optional): Boundary condition type. The cubic spline interpolator offers three distinct boundary condition options: natural (1), clamped (2), and not-a-knot (3). By default, the not-a-knot boundary condition is applied, serving as a wise choice when specific boundary condition information is unavailable.
+        boundary_type (int): Boundary condition type. The cubic spline interpolator offers three distinct boundary condition options: Natural (1), Clamped (2), and NotAKnot (3). By default, the not-a-knot boundary condition is applied, serving as a wise choice when specific boundary condition information is unavailable.
     """
 
     class BoundaryType(Enum):
+        """The boundary condition type of the cubic spline interpolator.
+
+        Attributes:
+            Natural (int): Natural boundary condition. The second derivative of the curve at the first and the last control points is set to 0.
+            Clamped (int): Clamped boundary condition. The first derivative of the curve at the first and the last control points is set to the given values.
+            NotAKnot (int): Not-a-knot boundary condition. The first and the second cubic functions are connected at the second and the third control points, and the last and the second-to-last cubic functions are connected at the last and the second-to-last control points.
+        """
+
         Natural = 1
         Clamped = 2
         NotAKnot = 3
 
-    def __init__(self, boundary_type=BoundaryType.NotAKnot):
+    def __init__(self, boundary_type: BoundaryType = BoundaryType.NotAKnot):
+        """Initialize the cubic spline interpolator.
+
+        Args:
+            boundary_type (BoundaryType, optional): Boundary condition type. Defaults to BoundaryType.NotAKnot. The available options are CubicSpline.BoundaryType.Natural, CubicSpline.BoundaryType.Clamped, and CubicSpline.BoundaryType.NotAKnot.
+
+        Raises:
+            ValueError: The boundary type is not valid. Please choose from CubicSpline.BoundaryType.Natural, CubicSpline.BoundaryType.Clamped, and CubicSpline.BoundaryType.NotAKnot.
+        """
         self.boundary_type = boundary_type
 
         if self.boundary_type not in self.BoundaryType.__members__.values():
-            raise NameError(
-                "The boundary type is not valid. Please choose from CubicSpline.BoundaryType.Natural, CubicSpline.BoundaryType.Clamped, and CubicSpline.BoundaryType.NotAKnot."
+            raise ValueError(
+                "The boundary type is not valid. Please choose from 1 (CubicSpline.BoundaryType.Natural), 2 (CubicSpline.BoundaryType.Clamped), and 3 (CubicSpline.BoundaryType.NotAKnot)."
             )
 
     def _check_validity(self, control_points: np.ndarray):
@@ -35,7 +59,7 @@ class CubicSpline:
         if np.any((control_points[1:, 0] - control_points[:-1, 0]) < 0):
             raise ValueError("The x coordinates of the control points must be non-decreasing.")
 
-    def get_parameters(self, control_points: np.ndarray, xx: tuple = (0, 0)) -> np.ndarray:
+    def get_parameters(self, control_points: np.ndarray, xx: tuple = (0, 0)):
         """Get the parameters of the cubic functions
 
         Args:
@@ -95,7 +119,9 @@ class CubicSpline:
 
         return a, b, c, d
 
-    def get_curve(self, control_points: np.ndarray, xx: tuple = (0, 0), n_interpolation: int = 100):
+    def get_curve(
+        self, control_points: np.ndarray, xx: tuple = (0, 0), n_interpolation: int = 100
+    ) -> np.ndarray:
         """Get the interpolation points of a cubic spline curve.
 
         Args:

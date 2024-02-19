@@ -1,3 +1,11 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: circle.py
+# @Description: This file implements some frequently operations on circle.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 from typing import Tuple, Union
 from enum import Enum
 
@@ -5,7 +13,20 @@ import numpy as np
 
 
 class Circle:
+    """This class implement some frequently operations on circle.
+
+    !!! note "TODO"
+        To improve the performance, we will rewrite the methods in C++ in the future.
+    """
+
     class ConstructBy(Enum):
+        """The method to derive a circle.
+
+        Attributes:
+            ThreePoints (int): Derive a circle by three points.
+            TangentVector (int): Derive a circle by a tangent point, a heading and a radius.
+        """
+
         ThreePoints = 1
         TangentVector = 2
 
@@ -13,12 +34,16 @@ class Circle:
     def get_circle_by_three_points(
         pt1: Union[list, np.ndarray], pt2: Union[list, np.ndarray], pt3: Union[list, np.ndarray]
     ) -> Tuple[np.ndarray, float]:
-        """Derive a circle by three points.
+        """This function gets a circle by three points.
 
         Args:
             pt1 (Union[list, np.ndarray]): The first point. The shape is (2,).
             pt2 (Union[list, np.ndarray]): The second point. The shape is (2,).
             pt3 (Union[list, np.ndarray]): The third point. The shape is (2,).
+
+        Returns:
+            center (np.ndarray): The center of the circle. The shape is (2,).
+            radius (float): The radius of the circle.
         """
         ## Verify input
         assert len(pt1) == 2
@@ -54,13 +79,17 @@ class Circle:
     def get_circle_by_tangent_vector(
         tangent_point: Union[list, np.ndarray], heading: float, radius: float, side: str
     ) -> Tuple[np.ndarray, float]:
-        """Derive a circle by a tangent point, a heading and a radius. The circle is tangent to the tangent point.
+        """This function gets a circle by a tangent point, a heading and a radius.
 
         Args:
             tangent_point (np.ndarray): The tangent point on the circle. The shape is (2,).
             heading (float): The heading of the tangent point. The unit is radian.
             radius (float): The radius of the circle.
-            direction (int): The location of circle center relative to the tangent point. "L" represents left. "R" represents right.
+            side (int): The location of circle center relative to the tangent point. "L" represents left. "R" represents right.
+
+        Returns:
+            center (np.ndarray): The center of the circle. The shape is (2,).
+            radius (float): The radius of the circle.
         """
         if side == "R":
             vec = np.array([np.cos(heading - np.pi / 2), np.sin(heading - np.pi / 2)]) * radius
@@ -69,8 +98,20 @@ class Circle:
         return tangent_point + vec, radius
 
     @staticmethod
-    def get_circle(method: ConstructBy, *args):
-        """Derive a circle by different given conditions."""
+    def get_circle(method: ConstructBy, *args: tuple):
+        """This function gets a circle by different given conditions.
+
+        Args:
+            method (ConstructBy): The method to derive a circle. The available choices are Circle.ConstructBy.ThreePoints) and Circle.ConstructBy.TangentVector).
+            *args (tuple): The arguments of the method.
+
+        Returns:
+            center (np.ndarray): The center of the circle. The shape is (2,).
+            radius (float): The radius of the circle.
+
+        Raises:
+            NotImplementedError: The input method id is not an available choice.
+        """
         if method == Circle.ConstructBy.ThreePoints:
             return Circle.get_circle_by_three_points(*args)
         elif method == Circle.ConstructBy.TangentVector:
@@ -87,7 +128,7 @@ class Circle:
         clockwise: bool = True,
         step_size: float = 0.1,
     ) -> np.ndarray:
-        """Derive an arc by the center, radius, start angle and end angle.
+        """This function gets the points on an arc curve line.
 
         Args:
             center_point (np.ndarray): The center of the arc. The shape is (2,).
@@ -98,7 +139,7 @@ class Circle:
             step_size (float): The step size of the arc. The unit is radian.
 
         Returns:
-            np.ndarray: The points on the arc. The shape is (int(radius * delta / step_size), 2).
+            arc_points(np.ndarray): The points on the arc. The shape is (int(radius * delta / step_size), 2).
         """
         if clockwise:
             angles = np.array(

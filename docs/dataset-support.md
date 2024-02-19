@@ -1,4 +1,4 @@
-# Dataset Overview
+# Dataset Support
 
 This page visualizes sample traffic scenarios of every dataset that `Tactics2D` supports. If you want to propose new datasets to be supported by `Tactics2D`, please raise an [issue](https://github.com/WoodOxen/tactics2d/issues).
 
@@ -104,11 +104,13 @@ An insight of ExiD can be found in [SCP-CN-001/trajectory_dataset_support](https
 
     ![exiD_loc_6](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/exiD_loc_6.gif)
 
-## Argoverse
+## Argoverse 2
 
 Argoverse 2, curated by Argo AI, is sourced from six prominent U.S. cities, namely Austin, Detroit, Miami, Pittsburgh, Palo Alto, and Washington, D.C. The motion forecasting dataset "encompasses 250,000 scenarios featuring trajectory data" spanning across 10 distinct object types. "Each scenario, lasting 11 seconds, incorporates the 2D, birds-eye-view centroid, and heading information of each tracked object, sampled at 10 Hz." In its entirety, the dataset spans 763 hours and covers a distance of 2110 km.
 
 An insight of Argoverse 2 can be found in [SCP-CN-001/trajectory_dataset_support](https://github.com/SCP-CN-001/trajectory_dataset_support/blob/main/trajectory_data_analysis/Argoverse.ipynb). For those interested in accessing the complete dataset, please follow this [link](https://www.argoverse.org/av2.html).
+
+![Argoverse_sample](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/argoverse_sample.gif)
 
 ## Dragon Lake Parking (DLP)
 
@@ -184,4 +186,6 @@ Waymo Open Motion Dataset is collected by Waymo from six locations: San Francisc
 
 An insight of WOMD can be found in [SCP-CN-001/trajectory_dataset_support](https://github.com/SCP-CN-001/trajectory_dataset_support/blob/main/trajectory_data_analysis/WOMD.ipynb). For those interested in the complete dataset, please follow this [link](https://waymo.com/open/download/).
 
-[TODO]: Complete the map parser.
+[TODO]: In the current map description of WOMD, the lane components are removed. We plan to add a function to detect and construct lanes from the map automatically.
+
+![WOMD_sample](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/womd_sample.gif)

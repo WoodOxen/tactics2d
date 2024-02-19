@@ -12,17 +12,17 @@ import json
 import numpy as np
 
 from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
-from tactics2d.trajectory.element import State, Trajectory
+from tactics2d.participant.trajectory import State, Trajectory
 
 
 class DLPParser:
     """This class implements a parser of the Dragon Lake Parking Dataset.
 
-    ??? info "Reference"
+    !!! quote "Reference"
         Shen, Xu, et al. "Parkpredict: Motion and intent prediction of vehicles in parking lots." 2020 IEEE Intelligent Vehicles Symposium (IV). IEEE, 2020.
     """
 
-    TYPE_MAPPING = {
+    _TYPE_MAPPING = {
         "Car": "car",
         "Medium Vehicle": "car",
         "Bus": "bus",
@@ -32,7 +32,7 @@ class DLPParser:
         "Undefined": "other",
     }
 
-    CLASS_MAPPING = {
+    _CLASS_MAPPING = {
         "Car": Vehicle,
         "Medium Vehicle": Vehicle,
         "Bus": Vehicle,
@@ -43,8 +43,8 @@ class DLPParser:
     }
 
     def _generate_participant(self, instance, id_):
-        type_ = self.TYPE_MAPPING[instance["type"]]
-        class_ = self.CLASS_MAPPING[instance["type"]]
+        type_ = self._TYPE_MAPPING[instance["type"]]
+        class_ = self._CLASS_MAPPING[instance["type"]]
         participant = class_(
             id_=id_,
             type_=type_,
@@ -63,11 +63,11 @@ class DLPParser:
         Args:
             file (Union[int, str]): The id or the name of the trajectory file. The file is expected to be a json file (.json). If the input is an integer, the parser will parse the trajectory data from the following files: `DJI_%04d_agents.json % file`, `DJI_%04d_frames.json % file`, `DJI_%04d_instances.json % file`, `DJI_%04d_obstacles.json % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
             folder (str): The path to the folder containing the trajectory data.
-            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the stamp range is not given, the parser will parse the whole trajectory data.
 
         Returns:
-            dict: A dictionary of vehicles. The keys are the ids of the vehicles. The values are the vehicles.
-            Tuple[int, int]: The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
+            participants (dict): A dictionary of vehicles. The keys are the ids of the vehicles. The values are the vehicles.
+            actual_stamp_range (Tuple[int, int]): The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond (ms).
         """
         if stamp_range is None:
             stamp_range = (-np.inf, np.inf)
@@ -119,7 +119,7 @@ class DLPParser:
                     )
                     id_cnt += 1
 
-                participants[obstacle["obstacle_token"]].trajectory.append_state(state)
+                participants[obstacle["obstacle_token"]].trajectory.add_state(state)
 
             for instance_token in frame["instances"]:
                 instance = df_instance[instance_token]
@@ -129,8 +129,8 @@ class DLPParser:
                     y=instance["coords"][1],
                     heading=instance["heading"],
                     speed=instance["speed"],
-                    ax=instance["acceleration"],
-                    ay=instance["acceleration"],
+                    ax=instance["acceleration"][0],
+                    ay=instance["acceleration"][1],
                 )
 
                 if instance["agent_token"] not in participants:
@@ -139,6 +139,6 @@ class DLPParser:
                     )
                     id_cnt += 1
 
-                participants[instance["agent_token"]].trajectory.append_state(state)
+                participants[instance["agent_token"]].trajectory.add_state(state)
 
         return participants, actual_stamp_range

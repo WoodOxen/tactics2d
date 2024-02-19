@@ -1,3 +1,5 @@
+bezier>=2021.2.12
 Pillow>=9.5.0
+pytest>= 7.4.4
 pytest-cov>=4.1.0
 scipy>=1.7.3

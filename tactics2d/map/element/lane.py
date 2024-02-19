@@ -4,8 +4,6 @@ import logging
 
 from shapely.geometry import LineString, LinearRing
 
-from .defaults import LEGAL_SPEED_UNIT
-
 
 class LaneRelationship(Enum):
     PREDECESSOR = 1
@@ -46,7 +44,7 @@ class Lane:
         shape (list, read-only): The shape of the lane.
     """
 
-    speed_limit_units = ["km/h", "mi/h", "m/s"]
+    _SPEED_UNIT = ["km/h", "mi/h", "m/s"]
 
     def __init__(
         self,
@@ -64,7 +62,6 @@ class Lane:
         speed_limit_mandatory: bool = True,
         custom_tags: dict = None,
     ):
-
         self.id_ = id_
         self.left_side = left_side
         self.right_side = right_side
@@ -79,10 +76,10 @@ class Lane:
         self.speed_limit_mandatory = speed_limit_mandatory
         self.custom_tags = custom_tags
 
-        if self.speed_limit_unit not in LEGAL_SPEED_UNIT:
+        if self.speed_limit_unit not in self._SPEED_UNIT:
             logging.warning(
                 "Invalid speed limit unit %s. The legal units types are %s"
-                % (self.speed_limit_unit, ", ".join(LEGAL_SPEED_UNIT))
+                % (self.speed_limit_unit, ", ".join(self._SPEED_UNIT))
             )
 
         if not self.left_side is None and not self.right_side is None:

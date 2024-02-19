@@ -8,7 +8,8 @@ import pygame
 from tactics2d.map.element import Area, Lane, RoadLine, Map
 from tactics2d.participant.element import Vehicle, Cyclist, Pedestrian
 from .sensor_base import SensorBase
-from .defaults import COLOR_PALETTE, DEFAULT_COLOR
+
+from .render_template import COLOR_PALETTE, DEFAULT_COLOR
 
 
 class TopDownCamera(SensorBase):
@@ -87,12 +88,8 @@ class TopDownCamera(SensorBase):
                 return pygame.Color(DEFAULT_COLOR["lane"])
             elif isinstance(element, RoadLine):
                 return pygame.Color(DEFAULT_COLOR["roadline"])
-            elif isinstance(element, Vehicle):
-                return pygame.Color(DEFAULT_COLOR["vehicle"])
-            elif isinstance(element, Cyclist):
-                return pygame.Color(DEFAULT_COLOR["cyclist"])
-            elif isinstance(element, Pedestrian):
-                return pygame.Color(DEFAULT_COLOR["pedestrian"])
+
+        return element.color
 
     def _render_areas(self):
         for area in self.map_.areas.values():

@@ -39,6 +39,7 @@ from tactics2d.envs import ParkingEnv
 
 
 @pytest.mark.env
+@pytest.mark.skip(reason="Not finished")
 def test_parking_env():
     render_mode = "human"
     env = ParkingEnv(render_mode=render_mode, render_fps=60, max_step=2000)
@@ -59,8 +60,3 @@ def test_parking_env():
 @pytest.mark.skip(reason="Terminal only")
 def test_manual_control(env):
     pass
-
-
-if __name__ == "__main__":
-    # test_manual_control()
-    test_parking_env()

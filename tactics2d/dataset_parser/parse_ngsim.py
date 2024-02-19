@@ -8,7 +8,9 @@
 
 
 class NGSimParser:
-    """ """
+    """
+    TODO: The support of NGSIM dataset is planned to be added before version 1.1.0.
+    """
 
     def parse_trajectory(self):
         return
