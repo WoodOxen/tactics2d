@@ -108,7 +108,7 @@ class Visualizer:
         return point_list
 
     def _draw_vehicle(self, state: State, action: tuple):
-        accel, steer = action
+        _, steer = action
 
         # draw vehicle bounding box
         transform_matrix = [

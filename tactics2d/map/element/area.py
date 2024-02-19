@@ -1,3 +1,12 @@
+##! python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: area.py
+# @Description: This file defines a class for a map area.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
+
 import warnings
 
 from shapely.geometry import Polygon
@@ -6,24 +15,22 @@ from shapely.geometry import Polygon
 class Area:
     """This class implements the lenelet2-style map element *area*.
 
-    ??? info "Definition of a lanelet2-style area"
+    !!! info "Definition of a lanelet2-style area"
         [LaneletPrimitives.md](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md)
 
     Attributes:
         id_ (str): The unique identifier of the area.
         geometry (Polygon): The shape of the area expressed in geometry format.
-        line_ids (dict, optional): The ids of the lines that circle this area. Defaults to None.
+        line_ids (dict): The ids of the lines that circle this area. Defaults to None.
         type_ (str): The type of the area. The default value is "multipolygon".
-        subtype (str, optional): The subtype of the area. Defaults to None.
-        color (tuple, optional): The color of the area. Defaults to None.
-        location (str, optional): The location of the area (urban, nonurban, etc.). Defaults to None.
-        inferred_participants (list, optional): The allowing type of traffic participants that can pass the area. Defaults to None.
-        speed_limit (float, optional): The speed limit in this area. Defaults to None.
-        speed_limit_unit (str, optional): The unit of speed limit in this area. The valid units
-            are `"km/h"`, `"mi/h"`, and `"m/s"`. Defaults to `"km/h"`.
-        speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or
-            not. Defaults to True.
-        custom_tags (dict, optional): The custom tags of the area. Defaults to None.
+        subtype (str): The subtype of the area. Defaults to None.
+        color (tuple): The color of the area. Defaults to None.
+        location (str): The location of the area (urban, nonurban, etc.). Defaults to None.
+        inferred_participants (list): The allowing type of traffic participants that can pass the area. Defaults to None.
+        speed_limit (float): The speed limit in this area. Defaults to None.
+        speed_limit_unit (str): The unit of speed limit in this area. The valid units are `"km/h"`, `"mi/h"`, and `"m/s"`. Defaults to `"km/h"`.
+        speed_limit_mandatory (bool): Whether the speed limit is mandatory or not. Defaults to True.
+        custom_tags (dict): The custom tags of the area. Defaults to None.
     """
 
     _SPEED_UNIT = ["km/h", "mi/h", "m/s"]

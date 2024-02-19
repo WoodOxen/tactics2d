@@ -90,9 +90,7 @@ class Pedestrian(ParticipantBase):
     def geometry(self):
         return self._radius
 
-    def load_from_template(
-        self, type_name: str, overwrite: bool = True, template: dict = PEDESTRIAN_TEMPLATE
-    ):
+    def load_from_template(self, type_name: str, overwrite: bool = True, template: dict = None):
         """This function automatically complete the missing attributes of the instance based on the template.
 
         Args:
@@ -100,6 +98,9 @@ class Pedestrian(ParticipantBase):
             overwrite (bool, optional): Whether to overwrite attributes that are not None with the template's value.
             template (dict, optional): The template to load from. The available template names are ["adult_male", "adult_female", "children_six_year_old", "children_ten_year_old"]. You can check the details by calling [`tactics2d.participant.element.list_pedestrian_templates()`](#tactics2d.participant.element.list_pedestrian_templates).
         """
+        if template is None:
+            template = PEDESTRIAN_TEMPLATE
+
         if type_name in template:
             for key, value in template[type_name].items():
                 if overwrite or getattr(self, key) is None:

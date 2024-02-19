@@ -47,9 +47,7 @@ class RsPlanner:
             lidar_base.append(distance)
         return np.array(lidar_base)
 
-    def move_vehicle_center(
-        self,
-    ):
+    def move_vehicle_center(self):
         vehicle_coords = np.array(self.VehicleBox.coords[:4])
         vehicle_coords[:, 0] = vehicle_coords[:, 0] + self.center_shift
         self.VehicleBox = LinearRing(vehicle_coords)

@@ -178,9 +178,7 @@ class Vehicle(ParticipantBase):
         else:
             pass
 
-    def load_from_template(
-        self, type_name: str, overwrite: bool = True, template: dict = VEHICLE_TEMPLATE
-    ):
+    def load_from_template(self, type_name: str, overwrite: bool = True, template: dict = None):
         """Load the vehicle properties from the template.
 
         Args:
@@ -188,6 +186,9 @@ class Vehicle(ParticipantBase):
             overwrite (bool, optional): Whether to overwrite the existing properties. Defaults to False.
             template (dict, optional): The template of the vehicle. Defaults to VEHICLE_TEMPLATE.
         """
+        if template is None:
+            template = VEHICLE_TEMPLATE
+
         if type_name in EURO_SEGMENT_MAPPING:
             type_name = EURO_SEGMENT_MAPPING[type_name]
         elif type_name in EPA_MAPPING:
