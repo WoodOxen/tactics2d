@@ -46,8 +46,8 @@ def test_printers():
 @pytest.mark.participant
 def test_load_trajectory():
     trajectory = Trajectory(0)
-    trajectory.add_state(State(0, 5, 6, 0.5))
-    trajectory.add_state(State(100, 6, 8, 0.8))
+    trajectory.add_state(State(0, 5, 6, 0.5, 0.5, 0.5))
+    trajectory.add_state(State(100, 6, 8, 0.8, 0.8, 0.8))
     logging.info(trajectory.frames)
     logging.info(trajectory.history_states)
     logging.info(trajectory.initial_state)
