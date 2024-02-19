@@ -19,6 +19,8 @@ class SingleTrackDynamics(PhysicsModelBase):
 
     The dynamic single-track model is a simplified model to simulate the vehicle dynamics. It combines the front and rear wheels into a single wheel, and the vehicle is assumed to be a point mass.
 
+    ![Demo of the implementation (interval=100 ms, $\Delta t$=5 ms)](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/tactics2d-single_track_dynamics.gif)
+
     !!! quote "Reference"
         The dynamic single-track model is based on Chapter 7 of the following reference:
         [CommonRoad: Vehicle Models (2020a)](https://gitlab.lrz.de/tum-cps/commonroad-vehicle-models/-/blob/master/vehicleModels_commonRoad.pdf)

@@ -55,7 +55,7 @@ class SingleTrackDrift(PhysicsModelBase):
     """This class implements a dynamic single-track model for a vehicle.
 
     !!! warning
-        This class was designed "as a simplification of the multi-body" model. Theoretically, it is applicable to the All-Wheel-Drive (AWD) vehicle. However, the tire model is so complicated that it is not implemented in `tactics2d` v1.0.0. The current implementation is based on the MATLAB code provided by the CommonRoad project. Neither is it fully understood nor tested. Please use it with caution.
+        This class was designed "as a simplification of the multi-body" model. Theoretically, it is applicable to the All-Wheel-Drive (AWD) vehicle. However, the tire model is so complicated that it is not fully tested in `tactics2d` v1.0.0. The current implementation is based on the MATLAB code provided by the CommonRoad project. Please use it with caution.
 
     !!! quote "Reference"
         The dynamic single-track model is based on Chapter 8 of the following reference:
