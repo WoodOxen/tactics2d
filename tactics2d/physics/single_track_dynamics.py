@@ -35,7 +35,7 @@ class SingleTrackDynamics(PhysicsModelBase):
         mass (float): The mass of the vehicle. The unit is kilogram.
         mass_height (float): The height of the center of mass from the ground. The unit is meter.
         mu (float): The friction coefficient. It is a dimensionless quantity. Defaults to 0.7.
-        iz (float): The moment of inertia of the vehicle. The unit is kilogram per meter squared (kg/m$^2$). Defaults to 1500.
+        I_z (float): The moment of inertia of the vehicle. The unit is kilogram per meter squared (kg/m$^2$). Defaults to 1500.
         cf (float): The cornering stiffness of the front wheel. The unit is 1/rad. Defaults to 20.89.
         cr (float): The cornering stiffness of the rear wheel. The unit is 1/rad. Defaults to 20.89.
         steer_range (Union[float, Tuple[float, float]], optional): The steering angle range. The valid input is a float or a tuple of two floats represents (min steering angle, max steering angle). The unit is radian.
@@ -66,7 +66,7 @@ class SingleTrackDynamics(PhysicsModelBase):
         mass: float,
         mass_height: float,
         mu: float = 0.7,
-        iz: float = 1500,
+        I_z: float = 1500,
         cf: float = 20.89,
         cr: float = 20.89,
         steer_range: Union[float, Tuple[float, float]] = None,
@@ -83,7 +83,7 @@ class SingleTrackDynamics(PhysicsModelBase):
             mass (float): The mass of the vehicle. The unit is kilogram. You can use the curb weight of the vehicle as an approximation.
             mass_height (float): The height of the center of mass from the ground. The unit is meter. You can use half of the vehicle height as an approximation.
             mu (float): The friction coefficient. It is a dimensionless quantity.
-            iz (float): The moment of inertia of the vehicle. The unit is kilogram per meter squared (kg/m$^2$).
+            I_z (float): The moment of inertia of the vehicle. The unit is kilogram per meter squared (kg/m$^2$).
             cf (float): The cornering stiffness of the front wheel. The unit is 1/rad.
             cr (float): The cornering stiffness of the rear wheel. The unit is 1/rad.
             steer_range (Union[float, Tuple[float, float]], optional): The range of steering angle. The valid input is a positive float or a tuple of two floats represents (min steering angle, max steering angle). The unit is radian.
@@ -98,7 +98,7 @@ class SingleTrackDynamics(PhysicsModelBase):
         self.mass = mass
         self.mass_height = mass_height
         self.mu = mu
-        self.iz = iz
+        self.I_z = I_z
         self.cf = cf
         self.cr = cr
 
@@ -163,7 +163,7 @@ class SingleTrackDynamics(PhysicsModelBase):
                 dd_phi = (
                     self.mu
                     * self.mass
-                    / self.iz
+                    / self.I_z
                     * (
                         self.lf * self.cf * factor_f * delta
                         + (self.lr * self.cr * factor_r - self.lf * self.cf * factor_f) * beta
@@ -185,9 +185,8 @@ class SingleTrackDynamics(PhysicsModelBase):
                 d_phi += dd_phi * dt
             else:
                 d_beta = (
-                    1
+                    self.lr
                     / (1 + np.tan(delta) * self.lr / self.wheel_base) ** 2
-                    * self.lr
                     / self.wheel_base
                     / np.cos(delta) ** 2
                     * delta
@@ -245,4 +244,53 @@ class SingleTrackDynamics(PhysicsModelBase):
         return next_state, accel, delta
 
     def verify_state(self, state: State, last_state: State, interval: int = None) -> bool:
+        """This function provides a very rough check for the state transition.
+
+        !!! info
+        Uses the same rough check as the single track kinematics model.
+
+        Args:
+            state (State): The current state of the traffic participant.
+            last_state (State): The last state of the traffic participant.
+            interval (int, optional): The time interval between the last state and the new state. The unit is millisecond.
+
+        Returns:
+            True if the new state is valid, False otherwise.
+        """
+        interval = interval if interval is None else state.frame - last_state.frame
+        dt = float(interval) / 1000
+        last_speed = last_state.speed
+
+        if None in [self.steer_range, self.speed_range, self.accel_range]:
+            return True
+
+        steer_range = np.array(self.steer_range)
+        beta_range = np.arctan(self.lr / self.wheel_base * steer_range)
+
+        # check that heading is in the range. heading_range may be larger than 2 * np.pi
+        heading_range = np.mod(
+            last_state.heading + last_speed / self.wheel_base * np.sin(beta_range) * dt, 2 * np.pi
+        )
+        if (
+            heading_range[0] < heading_range[1]
+            and not heading_range[0] <= state.heading <= heading_range[1]
+        ):
+            return False
+        if heading_range[0] > heading_range[1] and not (
+            heading_range[0] <= state.heading or state.heading <= heading_range[1]
+        ):
+            return False
+
+        # check that speed is in the range
+        speed_range = np.clip(last_speed + np.array(self.accel_range) * dt, *self.speed_range)
+        if not speed_range[0] <= state.speed <= speed_range[1]:
+            return False
+
+        # check that x, y are in the range
+        x_range = last_state.x + speed_range * np.cos(last_state.heading + beta_range) * dt
+        y_range = last_state.y + speed_range * np.sin(last_state.heading + beta_range) * dt
+
+        if not x_range[0] < state.x < x_range[1] or not y_range[0] < state.y < y_range[1]:
+            return False
+
         return True

@@ -22,14 +22,19 @@ logging.basicConfig(level=logging.INFO)
 
 import numpy as np
 from shapely import hausdorff_distance
-from shapely.geometry import LineString, LinearRing
+from shapely.geometry import LineString
 from shapely.affinity import affine_transform, rotate
 import pygame
 import pytest
 
 from tactics2d.participant.trajectory import State
 from tactics2d.participant.element import Vehicle
-from tactics2d.physics import PointMass, SingleTrackKinematics, SingleTrackDynamics
+from tactics2d.physics import (
+    PointMass,
+    SingleTrackKinematics,
+    SingleTrackDynamics,
+    SingleTrackDrift,
+)
 
 
 # fmt: off
@@ -196,15 +201,7 @@ def test_point_mass(speed_range, accel_range, interval, delta_t):
 
 
 @pytest.mark.physics
-@pytest.mark.parametrize(
-    "interval, delta_t",
-    [
-        (100, 5),
-        (9, 5),
-        (50, 3),
-        (100, 5),
-    ],
-)
+@pytest.mark.parametrize("interval, delta_t", [(9, 5), (50, 3), (100, 5)])
 def test_single_track_kinematic(interval, delta_t):
     vehicle = Vehicle(0)
     vehicle.load_from_template("medium_car")
@@ -245,7 +242,9 @@ def test_single_track_kinematic(interval, delta_t):
                 action[1] + np.random.uniform(0.8, 1.0),
                 interval,
             )
-            assert (physics_model_constrained.verify_state(state, state_constrained, interval) is False)
+            assert (
+                physics_model_constrained.verify_state(state, state_constrained, interval) is False
+            )
 
             state_constrained, real_accel, real_steer = physics_model_constrained.step(
                 state_constrained, action[0], action[1], interval
@@ -267,15 +266,7 @@ def test_single_track_kinematic(interval, delta_t):
 
 
 @pytest.mark.physics
-@pytest.mark.parametrize(
-    "interval, delta_t",
-    [
-        (100, 5),
-        (9, 5),
-        (50, 3),
-        (100, 5),
-    ],
-)
+@pytest.mark.parametrize("interval, delta_t", [(9, 5), (50, 3), (100, 5)])
 def test_single_track_dynamics(interval, delta_t):
     vehicle = Vehicle(0)
     vehicle.load_from_template("medium_car")
@@ -291,12 +282,12 @@ def test_single_track_dynamics(interval, delta_t):
         delta_t=delta_t,
     )
 
-    # physics_model = SingleTrackDynamics(
-    #     lf=vehicle.length / 2 - vehicle.front_overhang,
-    #     lr=vehicle.length / 2 - vehicle.rear_overhang,
-    #     mass=vehicle.kerb_weight,
-    #     mass_height=vehicle.height / 2,
-    # )
+    physics_model = SingleTrackDynamics(
+        lf=vehicle.length / 2 - vehicle.front_overhang,
+        lr=vehicle.length / 2 - vehicle.rear_overhang,
+        mass=vehicle.kerb_weight,
+        mass_height=vehicle.height / 2,
+    )
 
     state_constrained = State(frame=0, x=10, y=10, heading=0, speed=0)
     trajectory = [(state_constrained.x, state_constrained.y)]
@@ -307,13 +298,15 @@ def test_single_track_dynamics(interval, delta_t):
 
     for action, duration in VEHICLE_ACTION_LIST:
         for _ in np.arange(0, duration, interval):
-            # state, _, _ = physics_model.step(
-            #     state_constrained,
-            #     action[0] + np.random.uniform(3, 5),
-            #     action[1] + np.random.uniform(0.8, 1.0),
-            #     interval,
-            # )
-            # assert (physics_model_constrained.verify_state(state, state_constrained, interval) is False)
+            state, _, _ = physics_model.step(
+                state_constrained,
+                action[0] + np.random.uniform(4.5, 6),
+                action[1] + np.random.uniform(0.8, 1.0),
+                interval,
+            )
+            assert (
+                physics_model_constrained.verify_state(state, state_constrained, interval) is False
+            )
 
             state_constrained, real_accel, real_steer = physics_model_constrained.step(
                 state_constrained, action[0], action[1], interval
@@ -332,18 +325,57 @@ def test_single_track_dynamics(interval, delta_t):
             )
         )
 
+
 @pytest.mark.physics
-@pytest.mark.parametrize(
-    "interval, delta_t",
-    [
-        (100, 5),
-        (9, 5),
-        (50, 3),
-        (100, 5),
-        (100, 5),
-        (100, 5),
-    ],
-)
+@pytest.mark.parametrize("interval, delta_t", [(9, 5), (50, 3), (100, 5)])
+def test_single_track_drift(interval, delta_t):
+    vehicle = Vehicle(0)
+    vehicle.load_from_template("medium_car")
+    physics_model_constrained = SingleTrackDrift(
+        lf=vehicle.length / 2 - vehicle.front_overhang,
+        lr=vehicle.length / 2 - vehicle.rear_overhang,
+        mass=vehicle.kerb_weight,
+        mass_height=vehicle.height / 2,
+        steer_range=vehicle.steer_range,
+        speed_range=vehicle.speed_range,
+        accel_range=vehicle.accel_range,
+        interval=interval,
+        delta_t=delta_t,
+    )
+
+    state_constrained = State(frame=0, x=10, y=10, heading=0, speed=0)
+    omega_wf = 0
+    omega_wr = 0
+    trajectory = [(state_constrained.x, state_constrained.y)]
+    if RENDER:
+        # visualizer = Visualizer(vehicle, int(1000/interval))
+        visualizer = Visualizer(vehicle)
+        t1 = time.time()
+
+    for action, duration in VEHICLE_ACTION_LIST:
+        for _ in np.arange(0, duration, interval):
+            state_constrained, omega_wf, omega_wr, real_accel, real_steer = (
+                physics_model_constrained.step(
+                    state_constrained, omega_wf, omega_wr, action[0], action[1], interval
+                )
+            )
+            trajectory.append((state_constrained.x, state_constrained.y))
+            if RENDER:
+                visualizer.update(state_constrained, action, (real_accel, real_steer), trajectory)
+
+    if RENDER:
+        t2 = time.time()
+        n_frame = int(np.sum([n_frame for _, n_frame in VEHICLE_ACTION_LIST]) / interval)
+        visualizer.quit()
+        logging.info(
+            "The average fps for single track dynamics model is {:.2f} Hz.".format(
+                n_frame / (t2 + -t1)
+            )
+        )
+
+
+@pytest.mark.physics
+@pytest.mark.parametrize("interval, delta_t", [(9, 5), (50, 3), (100, 5)])
 def test_deviation(interval, delta_t):
     vehicle = Vehicle(0)
     vehicle.load_from_template("medium_car")
@@ -367,11 +399,26 @@ def test_deviation(interval, delta_t):
         interval=interval,
         delta_t=delta_t,
     )
+    drift_model = SingleTrackDrift(
+        lf=vehicle.length / 2 - vehicle.front_overhang,
+        lr=vehicle.length / 2 - vehicle.rear_overhang,
+        mass=vehicle.kerb_weight,
+        mass_height=vehicle.height / 2,
+        steer_range=vehicle.steer_range,
+        speed_range=vehicle.speed_range,
+        accel_range=vehicle.accel_range,
+        interval=interval,
+        delta_t=delta_t,
+    )
 
     state_kinematics = State(frame=0, x=10, y=10, heading=0, speed=0)
     state_dynamics = State(frame=0, x=10, y=10, heading=0, speed=0)
+    state_drift = State(frame=0, x=10, y=10, heading=0, speed=0)
+    omega_wf = 0
+    omega_wr = 0
     trajectory_kinematics = [(state_kinematics.x, state_kinematics.y)]
     trajectory_dynamics = [(state_dynamics.x, state_dynamics.y)]
+    trajectory_drift = [(state_drift.x, state_drift.y)]
 
     for action, duration in VEHICLE_ACTION_LIST:
         for _ in np.arange(0, duration, interval):
@@ -385,16 +432,28 @@ def test_deviation(interval, delta_t):
             )
             trajectory_dynamics.append((state_dynamics.x, state_dynamics.y))
 
-    deviation = hausdorff_distance(LineString(trajectory_kinematics), LineString(trajectory_dynamics))
-    
-    logging.info(f"The deviation between kinematics and dynamics model is {deviation:.2f}")
+            state_drift, omega_wf, omega_wr, _, _ = drift_model.step(
+                state_drift, omega_wf, omega_wr, action[0], action[1], interval
+            )
+            trajectory_drift.append((state_drift.x, state_drift.y))
+
+    deviation1 = hausdorff_distance(
+        LineString(trajectory_kinematics), LineString(trajectory_dynamics)
+    )
+    deviation2 = hausdorff_distance(LineString(trajectory_kinematics), LineString(trajectory_drift))
+    deviation3 = hausdorff_distance(LineString(trajectory_dynamics), LineString(trajectory_drift))
+
+    logging.info(f"The deviation between kinematics and dynamics model is {deviation1:.2f}")
+    logging.info(f"The deviation between kinematics and drift model is {deviation2:.2f}")
+    logging.info(f"The deviation between dynamics and drift model is {deviation3:.2f}")
 
     if RENDER:
         pygame.init()
         screen = pygame.display.set_mode((1200, 1200))
         screen.fill((255, 255, 255))
-        pygame.draw.lines(screen, (100, 0, 100), False, np.array(trajectory_kinematics) * 20, 1)
-        pygame.draw.lines(screen, (100, 100, 0), False, np.array(trajectory_dynamics) * 20, 1)
+        pygame.draw.lines(screen, (100, 0, 0), False, np.array(trajectory_kinematics) * 20, 1)
+        pygame.draw.lines(screen, (0, 100, 0), False, np.array(trajectory_dynamics) * 20, 1)
+        pygame.draw.lines(screen, (0, 0, 100), False, np.array(trajectory_drift) * 20, 1)
         pygame.display.update()
-        pygame.time.wait(2000)
+        pygame.time.wait(3000)
         pygame.quit()

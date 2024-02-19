@@ -211,14 +211,15 @@ class Vehicle(ParticipantBase):
         self.speed_range = (-16.67, self.max_speed)
         self.accel_range = (-self.max_decel, self.max_accel)
 
-        self._bbox = LinearRing(
-            [
-                [0.5 * self.length, -0.5 * self.width],
-                [0.5 * self.length, 0.5 * self.width],
-                [-0.5 * self.length, 0.5 * self.width],
-                [-0.5 * self.length, -0.5 * self.width],
-            ]
-        )
+        if not None in [self.length, self.width]:
+            self._bbox = LinearRing(
+                [
+                    [0.5 * self.length, -0.5 * self.width],
+                    [0.5 * self.length, 0.5 * self.width],
+                    [-0.5 * self.length, 0.5 * self.width],
+                    [-0.5 * self.length, -0.5 * self.width],
+                ]
+            )
 
     def add_state(self, state: State):
         """This function adds a state to the vehicle.

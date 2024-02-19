@@ -14,6 +14,43 @@ from .physics_model_base import PhysicsModelBase
 from tactics2d.participant.trajectory import State
 
 
+class Tire:
+    # longitudinal parameters
+    p_cx1 = 1.6411  # shape factor for longitudinal force
+    p_dx1 = 1.1739  # longitudinal friction coefficient mu_x at F_z0
+    p_dx3 = 0.0  # variation of friction coefficient mu_x with camber
+    p_ex1 = 0.4640  # longitudinal curvature at F_z0
+    p_kx1 = 22.303  # longitudinal slip stiffness at F_z0
+    p_hx1 = 1.2297e-3  # horizontal shift at F_z0
+    p_vx1 = -8.8098e-6  # vertical shift at F_z0
+    r_bx1 = 13.276  # slope factor for combined slip F_x reduction
+    r_bx2 = -13.778  # variation of slope F_x reduction with kappa
+    r_ex1 = 1.2568  # shape factor for combined slip F_x reduction
+    r_cx1 = 0.6522  # curvature factor for combined F_x
+    r_hx1 = 5.0722e-3  # shift factor for combined slip F_x reduction
+    # lateral parameters
+    p_cy1 = 1.3507  # shape factor for lateral force
+    p_dy1 = 1.0489  # lateral friction coefficient mu_y
+    p_dy3 = -2.8821  # variation of friction coefficient mu_y with squared camber
+    p_ey1 = -7.4722e-3  # lateral curvature at F_z0
+    p_ky1 = -21.920  # maximum value of stiffness
+    p_hy1 = 2.6747e-3  # horizontal shift at F_z0
+    p_hy3 = 3.1415e-2  # variation of shift with camber
+    p_vy1 = 3.7318e-2  # vertical shift at F_z0
+    p_vy3 = -0.3293  # variation of vertical shift with camber
+    r_by1 = 7.1433  # slope factor for combined slip F_y reduction
+    r_by2 = 9.1917  # variation of slope F_y reduction with alpha
+    r_by3 = -2.7856e-2  # shift term for alpha in slope F_y reduction
+    r_cy1 = 1.0719  # shape factor for combined F_y reduction
+    r_ey1 = -0.2757  # curvature factor for combined F_y
+    r_hy1 = 5.7448e-6  # shift factor for combined slip F_y reduction
+    r_vy1 = -2.7825e-2  # kappa-induced side force at F_z0
+    r_vy3 = -0.2756  # variation of S_vy_kappa/mu_y F_z with camber
+    r_vy4 = 12.120  # variation of S_vy_kappa/mu_y F_z with alpha
+    r_vy5 = 1.9  # variation of S_vy_kappa/mu_y F_z with kappa
+    r_vy6 = -10.704  # variation of S_vy_kappa/mu_y F_z with arctan(kappa)
+
+
 class SingleTrackDrift(PhysicsModelBase):
     """This class implements a dynamic single-track model for a vehicle.
 
@@ -31,10 +68,12 @@ class SingleTrackDrift(PhysicsModelBase):
         lr (float): The distance from the center of mass to the rear axle. The unit is meter (m).
         mass (float): The mass of the vehicle. The unit is kilogram (kg).
         mass_height (float): The height of the center of mass. The unit is meter (m).
-        T_sb (float): The split parameter between the front and rear axles for the braking torque.
-        T_se (float): The split parameter between the front and rear axles for the engine torque.
-        tire (_type_): The tire model. The tire model is not implemented in `tactics2d` v1.0.0.
-        iz (float): The moment of inertia of the vehicle. The unit is kilogram meter squared (kg m^2).
+        radius (float): The effective radius of the wheel. The unit is meter (m). Defaults to 0.344.
+        T_sb (float): The split parameter between the front and rear axles for the braking torque. Defaults to 0.76.
+        T_se (float): The split parameter between the front and rear axles for the engine torque. Defaults to 1.
+        tire (Any): The tire model. Default to the in-built tire model.
+        I_z (float): The moment of inertia of the vehicle. The unit is kilogram meter squared (kg m^2). Defaults to 1500.
+        I_yw (float): The moment of inertia of the wheel. The unit is kilogram meter squared (kg m^2). Defaults to 1.7.
         steer_range (Union[float, Tuple[float, float]], optional): The steering angle range. The valid input is a float or a tuple of two floats represents (min steering angle, max steering angle). The unit is radian.
 
             - When the steer_range is a non-negative float, the steering angle is constrained to be within the range [-steer_range, steer_range].
@@ -61,14 +100,16 @@ class SingleTrackDrift(PhysicsModelBase):
         lr: float,
         mass: float,
         mass_height: float,
-        T_sb: float,
-        T_se: float,
-        tire,
-        iz: float,
+        radius: float = 0.344,
+        T_sb: float = 0.76,
+        T_se: float = 1,
+        tire=Tire(),
+        I_z: float = 1500,
+        I_yw: float = 1.7,
         steer_range: Union[float, Tuple[float, float]] = None,
         speed_range: Union[float, Tuple[float, float]] = None,
         accel_range: Union[float, Tuple[float, float]] = None,
-        interval: int = None,
+        interval: int = 100,
         delta_t: int = None,
     ):
         """Initializes the single-track drift model.
@@ -78,10 +119,12 @@ class SingleTrackDrift(PhysicsModelBase):
             lr (float): The distance from the center of mass to the rear axle center. The unit is meter.
             mass (float): The mass of the vehicle. The unit is kilogram. You can use the curb weight of the vehicle as an approximation.
             mass_height (float): The height of the center of mass from the ground. The unit is meter. You can use half of the vehicle height as an approximation.
+            radius (float, optional): The effective radius of the wheel. The unit is meter.
             T_sb (float): The split parameter between the front and rear axles for the braking torque.
             T_se (float): The split parameter between the front and rear axles for the engine torque.
-            tire (_type_): _description_
-            iz (float): _description_
+            tire (Any): The tire model. The current implementation refers to the parameters in [CommonRoad: Vehicle Models (2020a)](https://gitlab.lrz.de/tum-cps/commonroad-vehicle-models/-/blob/master/vehicleModels_commonRoad.pdf). If you want to use a different tire model, you need to implement the tire model by yourself.
+            I_z (float): The moment of inertia of the vehicle. The unit is kilogram meter squared (kg m^2).
+            I_yw (float): The moment of inertia of the wheel. The unit is kilogram meter squared (kg m^2).
             steer_range (Union[float, Tuple[float, float]], optional): The range of steering angle. The valid input is a positive float or a tuple of two floats represents (min steering angle, max steering angle). The unit is radian.
             speed_range (Union[float, Tuple[float, float]], optional): The range of speed. The valid input is a positive float or a tuple of two floats represents (min speed, max speed). The unit is meter per second (m/s).
             accel_range (Union[float, Tuple[float, float]], optional): The range of acceleration. The valid input is a positive float or a tuple of two floats represents (min acceleration, max acceleration). The unit is meter per second squared (m/s$^2$).
@@ -93,10 +136,12 @@ class SingleTrackDrift(PhysicsModelBase):
         self.wheel_base = lf + lr
         self.mass = mass
         self.mass_height = mass_height
+        self.radius = radius
         self.tire = tire
         self.T_sb = T_sb
         self.T_se = T_se
-        self.iz = iz
+        self.I_z = I_z
+        self.I_yw = I_yw
 
         if isinstance(steer_range, float):
             self.steer_range = None if steer_range < 0 else [-steer_range, steer_range]
@@ -104,9 +149,9 @@ class SingleTrackDrift(PhysicsModelBase):
             if steer_range[0] >= steer_range[1]:
                 self.steer_range = None
             else:
-                self.steer_range = self.steer_range
+                self.steer_range = steer_range
         else:
-            self.speed_range = None
+            self.steer_range = None
 
         if isinstance(speed_range, float):
             self.speed_range = None if speed_range < 0 else [-speed_range, speed_range]
@@ -114,7 +159,7 @@ class SingleTrackDrift(PhysicsModelBase):
             if speed_range[0] >= speed_range[1]:
                 self.speed_range = None
             else:
-                self.speed_range = self.speed_range
+                self.speed_range = speed_range
         else:
             self.speed_range = None
 
@@ -126,7 +171,7 @@ class SingleTrackDrift(PhysicsModelBase):
             else:
                 self.accel_range = accel_range
         else:
-            self.speed_range = None
+            self.accel_range = None
 
         self.interval = interval
 
@@ -186,7 +231,7 @@ class SingleTrackDrift(PhysicsModelBase):
         S_hx_alpha = self.tire.r_hx1
         alpha_s = alpha + S_hx_alpha
 
-        B_x_alpha = self.tire.r_bx1 * np.cos(np.arctan(self.tire.bx2 * kappa))
+        B_x_alpha = self.tire.r_bx1 * np.cos(np.arctan(self.tire.r_bx2 * kappa))
         C_x_alpha = self.tire.r_cx1
         E_x_alpha = self.tire.r_ex1
         D_x_alpha = F0_x / np.cos(
@@ -264,8 +309,8 @@ class SingleTrackDrift(PhysicsModelBase):
         u_wr = v * np.cos(beta)
 
         # computer longitudinal tire slip
-        s_f = 1 - self.tire.R_w * omega_wf / u_wf
-        s_r = 1 - self.tire.R_w * omega_wr / u_wr
+        s_f = 1 - self.radius * omega_wf / u_wf
+        s_r = 1 - self.radius * omega_wr / u_wr
 
         # compute tire forces using Pacejka's magic formula
         # pure slip longitudinal tire forces
@@ -308,9 +353,9 @@ class SingleTrackDrift(PhysicsModelBase):
 
         if accel > 0:
             T_B = 0
-            T_E = self.mass * self.tire.R_w * accel
+            T_E = self.mass * self.radius * accel
         else:
-            T_B = self.mass * self.tire.R_w * accel
+            T_B = self.mass * self.radius * accel
             T_E = 0
 
         for dt in dts:
@@ -318,42 +363,78 @@ class SingleTrackDrift(PhysicsModelBase):
 
             dx = v * np.cos(phi + beta)
             dy = v * np.sin(phi + beta)
-            dv = (
-                1
-                / self.mass
-                * (
-                    -F_sf * np.sin(delta - beta)
-                    + F_sr * np.sin(beta)
-                    + F_lr * np.cos(beta)
-                    + F_lf * np.cos(delta - beta)
+
+            if np.abs(v) >= 0.1:
+                dv = (
+                    1
+                    / self.mass
+                    * (
+                        -F_sf * np.sin(delta - beta)
+                        + F_sr * np.sin(beta)
+                        + F_lr * np.cos(beta)
+                        + F_lf * np.cos(delta - beta)
+                    )
                 )
-            )
-            d_beta = -d_phi + 1 / (self.mass * v) * (
-                F_sf * np.cos(delta - beta)
-                + F_sr * np.cos(beta)
-                - F_lr * np.sin(beta)
-                + F_lf * np.sin(delta - beta)
-            )
-            dd_phi = (
-                1
-                / self.iz
-                * (F_sf * np.cos(delta) * self.lf - F_sr * self.lr + F_lf * np.sin(delta) * self.lf)
-            )
-            d_omega_wf = (
-                1 / self.tire.I_yw * (-self.tire.R_w * F_lf + self.T_sb * T_B + self.T_se * T_E)
-            )
-            d_omega_wr = (
-                1
-                / self.tire.I_yw
-                * (-self.tire.R_w * F_lr + (1 - self.T_sb) * T_B + (1 - self.T_se) * T_E)
-            )
+                d_beta = -d_phi + 1 / (self.mass * v) * (
+                    F_sf * np.cos(delta - beta)
+                    + F_sr * np.cos(beta)
+                    - F_lr * np.sin(beta)
+                    + F_lf * np.sin(delta - beta)
+                )
+                dd_phi = (
+                    1
+                    / self.I_z
+                    * (
+                        F_sf * np.cos(delta) * self.lf
+                        - F_sr * self.lr
+                        + F_lf * np.sin(delta) * self.lf
+                    )
+                )
+                d_phi += dd_phi * dt
+                d_omega_wf = (
+                    1 / self.I_yw * (-self.radius * F_lf + self.T_sb * T_B + self.T_se * T_E)
+                )
+                d_omega_wr = (
+                    1
+                    / self.I_yw
+                    * (-self.radius * F_lr + (1 - self.T_sb) * T_B + (1 - self.T_se) * T_E)
+                )
+            else:
+                dv = accel
+                d_beta = (
+                    self.lr
+                    / (1 + np.tan(delta) * self.lr / self.wheel_base) ** 2
+                    / self.wheel_base
+                    / np.cos(delta) ** 2
+                    * delta
+                )
+                dd_phi = (
+                    1
+                    / self.wheel_base
+                    * (
+                        accel * np.cos(beta) * np.tan(delta)
+                        - v * np.sin(beta) * np.tan(delta) * d_beta
+                        + v * np.cos(beta) / np.cos(delta) ** 2 * delta
+                    )
+                )
+                d_phi += v * np.cos(beta) / self.wheel_base * np.tan(delta) * dt
+                d_omega_wf = (
+                    1
+                    / (np.cos(delta) * self.radius)
+                    * (
+                        accel * np.cos(beta)
+                        - v * np.sin(beta) * d_beta
+                        + v * np.cos(beta) * np.tan(delta) * delta
+                    )
+                )
+                d_omega_wr = 1 / self.radius * (accel * np.cos(beta) - v * np.sin(beta) * d_beta)
 
             x += dx * dt
             y += dy * dt
             v += dv * dt
             phi += d_phi * dt
             beta += d_beta * dt
-            d_phi += dd_phi * dt
+
             omega_wf += d_omega_wf * dt
             omega_wr += d_omega_wr * dt
 
@@ -393,6 +474,8 @@ class SingleTrackDrift(PhysicsModelBase):
             next_state (State): The new state of the traffic participant.
             next_omega_wf (float): The new angular velocity of the front wheel. The unit is radian per second (rad/s).
             next_omega_wr (float): The new angular velocity of the rear wheel. The unit is radian per second (rad/s).
+            accel (float): The acceleration that is applied to the traffic participant.
+            delta (float): The steering angle that is applied to the traffic participant.
         """
         accel = np.clip(accel, *self.accel_range) if not self.accel_range is None else accel
         delta = np.clip(delta, *self.steer_range) if not self.steer_range is None else delta
@@ -402,4 +485,56 @@ class SingleTrackDrift(PhysicsModelBase):
             state, omega_wf, omega_wr, accel, delta, interval
         )
 
-        return next_state, next_omega_wf, next_omega_wr
+        return next_state, next_omega_wf, next_omega_wr, accel, delta
+
+    def verify_state(self, state: State, last_state: State, interval: int = None) -> bool:
+        """This function provides a very rough check for the state transition.
+
+        !!! info
+        Uses the same rough check as the single track kinematics model.
+
+        Args:
+            state (State): The current state of the traffic participant.
+            last_state (State): The last state of the traffic participant.
+            interval (int, optional): The time interval between the last state and the new state. The unit is millisecond.
+
+        Returns:
+            True if the new state is valid, False otherwise.
+        """
+        interval = interval if interval is None else state.frame - last_state.frame
+        dt = float(interval) / 1000
+        last_speed = last_state.speed
+
+        if None in [self.steer_range, self.speed_range, self.accel_range]:
+            return True
+
+        steer_range = np.array(self.steer_range)
+        beta_range = np.arctan(self.lr / self.wheel_base * steer_range)
+
+        # check that heading is in the range. heading_range may be larger than 2 * np.pi
+        heading_range = np.mod(
+            last_state.heading + last_speed / self.wheel_base * np.sin(beta_range) * dt, 2 * np.pi
+        )
+        if (
+            heading_range[0] < heading_range[1]
+            and not heading_range[0] <= state.heading <= heading_range[1]
+        ):
+            return False
+        if heading_range[0] > heading_range[1] and not (
+            heading_range[0] <= state.heading or state.heading <= heading_range[1]
+        ):
+            return False
+
+        # check that speed is in the range
+        speed_range = np.clip(last_speed + np.array(self.accel_range) * dt, *self.speed_range)
+        if not speed_range[0] <= state.speed <= speed_range[1]:
+            return False
+
+        # check that x, y are in the range
+        x_range = last_state.x + speed_range * np.cos(last_state.heading + beta_range) * dt
+        y_range = last_state.y + speed_range * np.sin(last_state.heading + beta_range) * dt
+
+        if not x_range[0] < state.x < x_range[1] or not y_range[0] < state.y < y_range[1]:
+            return False
+
+        return True
