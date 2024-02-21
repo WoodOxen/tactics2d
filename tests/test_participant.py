@@ -44,6 +44,23 @@ def test_printers():
 
 
 @pytest.mark.participant
+def test_load_trajectory():
+    trajectory = Trajectory(0)
+    trajectory.add_state(State(0, 5, 6, 0.5, 0.5, 0.5))
+    trajectory.add_state(State(100, 6, 8, 0.8, 0.8, 0.8))
+    logging.info(trajectory.frames)
+    logging.info(trajectory.history_states)
+    logging.info(trajectory.initial_state)
+    logging.info(trajectory.last_state)
+    logging.info(trajectory.first_frame)
+    logging.info(trajectory.last_frame)
+    logging.info(trajectory.average_speed)
+    logging.info(trajectory.get_state(0))
+    logging.info(trajectory.get_trace())
+    trajectory.reset()
+
+
+@pytest.mark.participant
 def test_participant_base():
     class TestParticipant(ParticipantBase):
         def __init__(self, id_, type_="test", **kwargs):

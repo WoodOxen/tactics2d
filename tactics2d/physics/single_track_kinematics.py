@@ -27,6 +27,8 @@ class SingleTrackKinematics(PhysicsModelBase):
     This implementation version is based on the following paper. It regard the geometry center as the reference point.
 
     ![Kinematic Single Track Model](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/kinematic_bicycle_model.png)
+    
+    ![Demo of the implementation (interval=100 ms, $\Delta t$=5 ms)](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/tactics2d-single_track_kinematics.gif)
 
     !!! quote "Reference"
         Kong, Jason, et al. "Kinematic and dynamic vehicle models for autonomous driving control design." *2015 IEEE intelligent vehicles symposium* (IV). IEEE, 2015.
@@ -65,7 +67,7 @@ class SingleTrackKinematics(PhysicsModelBase):
         steer_range: Union[float, Tuple[float, float]] = None,
         speed_range: Union[float, Tuple[float, float]] = None,
         accel_range: Union[float, Tuple[float, float]] = None,
-        interval: int = None,
+        interval: int = 100,
         delta_t: int = None,
     ):
         """Initialize the kinematic single-track model.
@@ -89,9 +91,9 @@ class SingleTrackKinematics(PhysicsModelBase):
             if steer_range[0] >= steer_range[1]:
                 self.steer_range = None
             else:
-                self.steer_range = self.steer_range
+                self.steer_range = steer_range
         else:
-            self.speed_range = None
+            self.steer_range = None
 
         if isinstance(speed_range, float):
             self.speed_range = None if speed_range < 0 else [-speed_range, speed_range]
@@ -99,7 +101,7 @@ class SingleTrackKinematics(PhysicsModelBase):
             if speed_range[0] >= speed_range[1]:
                 self.speed_range = None
             else:
-                self.speed_range = self.speed_range
+                self.speed_range = speed_range
         else:
             self.speed_range = None
 
@@ -111,7 +113,7 @@ class SingleTrackKinematics(PhysicsModelBase):
             else:
                 self.accel_range = accel_range
         else:
-            self.speed_range = None
+            self.accel_range = None
 
         self.interval = interval
 
@@ -157,7 +159,6 @@ class SingleTrackKinematics(PhysicsModelBase):
 
     def step(self, state: State, accel: float, delta: float, interval: int = None) -> State:
         """This function updates the state of the traffic participant with the Kinematic Single-Track Model.
-
         Args:
             state (State): The current state of the traffic participant.
             accel (float): The acceleration of the traffic participant. The unit is meter per second squared (m/s$^2$).
@@ -166,6 +167,8 @@ class SingleTrackKinematics(PhysicsModelBase):
 
         Returns:
             next_state (State): The new state of the traffic participant.
+            accel (float): The acceleration that is applied to the traffic participant.
+            delta (float): The steering angle that is applied to the traffic participant.
         """
         accel = np.clip(accel, *self.accel_range) if not self.accel_range is None else accel
         delta = np.clip(delta, *self.steer_range) if not self.steer_range is None else delta
@@ -173,7 +176,7 @@ class SingleTrackKinematics(PhysicsModelBase):
 
         next_state = self._step(state, accel, delta, interval)
 
-        return next_state
+        return next_state, accel, delta
 
     def verify_state(self, state: State, last_state: State, interval: int = None) -> bool:
         """This function provides a very rough check for the state transition.
@@ -216,8 +219,9 @@ class SingleTrackKinematics(PhysicsModelBase):
             return False
 
         # check that x, y are in the range
-        x_range = last_state.x + last_speed * np.cos(last_state.heading + beta_range[1]) * dt
-        y_range = last_state.y + last_speed * np.sin(last_state.heading + beta_range[1]) * dt
+        x_range = last_state.x + speed_range * np.cos(last_state.heading + beta_range) * dt
+        y_range = last_state.y + speed_range * np.sin(last_state.heading + beta_range) * dt
+
         if not x_range[0] < state.x < x_range[1] or not y_range[0] < state.y < y_range[1]:
             return False
 

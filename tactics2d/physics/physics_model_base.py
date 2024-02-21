@@ -15,10 +15,16 @@ class PhysicsModelBase(ABC):
     """This abstract class defines the essential interfaces required to specify a physics kinematics/dynamics model for a traffic participant.
 
     Please feel free to inherent this class to implement your own physics model.
+
+    Attributes:
+        _DELTA_T (int): The default time interval between the current state and the new state, 5 milliseconds (ms).
+        _MIN_DELTA_T (int): The minimum time interval between the current state and the new state, 1 millisecond (ms).
+        _G (float): The gravitational acceleration, 9.81 m/s^2.
     """
 
     _DELTA_T: int = 5
     _MIN_DELTA_T: int = 1
+    _G = 9.81  # gravitational acceleration, m/s^2
 
     @abstractmethod
     def step(self, state: State, action: tuple, interval: int = None) -> State:
@@ -46,15 +52,6 @@ class PhysicsModelBase(ABC):
             True if the new state is valid, False otherwise.
         """
 
-    def verify_states(self, trajectory: Trajectory) -> bool:
-        """This function verifies a sequence of states over time based on the physics model. The default implementation calls verify_state() for each state in the sequence. However, this function is expected to be overridden to implement more efficient verification.
-
-        Args:
-            trajectory (Trajectory): The trajectory of the traffic participant.
-
-        Returns:
-            True if the trajectory is valid, False otherwise.
-        """
         if trajectory.stable_freq is True:
             interval = 1000 / trajectory.fps
 

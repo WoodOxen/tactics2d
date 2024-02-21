@@ -110,7 +110,7 @@ class Vehicle(ParticipantBase):
 
         super().__init__(id_, type_, trajectory, **kwargs)
 
-        self.max_steer = np.pi / 6 if self.max_steer is None else self.max_steer
+        self.max_steer = np.round(np.pi / 6, 3) if self.max_steer is None else self.max_steer
         self.max_speed = 55.56 if self.max_speed is None else self.max_speed
         self.max_accel = 3.0 if self.max_accel is None else self.max_accel
         self.max_decel = 10.0 if self.max_decel is None else self.max_decel
@@ -119,11 +119,11 @@ class Vehicle(ParticipantBase):
         self.steer_range = (-self.max_steer, self.max_steer)
         self.accel_range = (-self.max_accel, self.max_accel)
 
-        if self.driven_mode not in self._driven_modes:
+        if self.driven_mode is None:
+            self.driven_mode = "FWD"
+        elif self.driven_mode not in self._driven_modes:
             self.driven_mode = "FWD"
             logging.warning("Invalid driven mode. The default mode FWD will be used.")
-        elif self.driven_mode is None:
-            self.driven_mode = "FWD"
 
         if self.verify:
             if "physics_model" in kwargs and not kwargs["physics_model"] is None:
@@ -178,9 +178,8 @@ class Vehicle(ParticipantBase):
         else:
             pass
 
-    def load_from_template(
-        self, type_name: str, overwrite: bool = True, template: dict = VEHICLE_TEMPLATE
-    ):
+
+    def load_from_template(self, type_name: str, overwrite: bool = True, template: dict = None):
         """Load the vehicle properties from the template.
 
         Args:
@@ -188,6 +187,9 @@ class Vehicle(ParticipantBase):
             overwrite (bool, optional): Whether to overwrite the existing properties. Defaults to False.
             template (dict, optional): The template of the vehicle. Defaults to VEHICLE_TEMPLATE.
         """
+        if template is None:
+            template = VEHICLE_TEMPLATE
+
         if type_name in EURO_SEGMENT_MAPPING:
             type_name = EURO_SEGMENT_MAPPING[type_name]
         elif type_name in EPA_MAPPING:
@@ -199,13 +201,26 @@ class Vehicle(ParticipantBase):
             for key, value in template[type_name].items():
                 if key == "0_100_km/h":
                     if overwrite or self.max_accel is None:
-                        self.max_accel = 100 * 1000 / 3600 / template[type_name][key]
+                        self.max_accel = np.round(100 * 1000 / 3600 / template[type_name][key], 3)
                 else:
                     if overwrite or getattr(self, key) is None:
                         setattr(self, key, value)
         else:
             logging.warning(
                 f"{type_name} is not in the vehicle template. The default values will be used."
+            )
+
+        self.speed_range = (-16.67, self.max_speed)
+        self.accel_range = (-self.max_decel, self.max_accel)
+
+        if not None in [self.length, self.width]:
+            self._bbox = LinearRing(
+                [
+                    [0.5 * self.length, -0.5 * self.width],
+                    [0.5 * self.length, 0.5 * self.width],
+                    [-0.5 * self.length, 0.5 * self.width],
+                    [-0.5 * self.length, -0.5 * self.width],
+                ]
             )
 
     def add_state(self, state: State):
@@ -326,13 +341,3 @@ class Vehicle(ParticipantBase):
 
         # return trace
         return None
-
-    def update(self, action: Tuple[float, float], interval: int = None):
-        """This function updates the vehicle's state based on the input action command.
-
-        Args:
-            action (Tuple[float, float]): The action to be applied to the vehicle. The action is a two-element tuple [steer, accel]. The steer is the steering angle, and the accel is the acceleration. The unit of the steer is radian, and the unit of the accel is meter per second squared (m/s$^2$).
-            interval (int, optional): The time interval to execute the action. The unit is millisecond (ms).
-        """
-        current_state, _ = self.physics_model.step(self.current_state, action, interval)
-        self.add_state(current_state)

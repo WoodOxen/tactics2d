@@ -35,7 +35,7 @@ class PointMass(PhysicsModelBase):
         self,
         speed_range: Union[float, Tuple[float, float]] = None,
         accel_range: Union[float, Tuple[float, float]] = None,
-        interval: int = None,
+        interval: int = 100,
         delta_t: int = None,
         backend: str = "newton",
     ):
