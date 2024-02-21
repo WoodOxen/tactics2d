@@ -178,6 +178,7 @@ class Vehicle(ParticipantBase):
         else:
             pass
 
+
     def load_from_template(self, type_name: str, overwrite: bool = True, template: dict = None):
         """Load the vehicle properties from the template.
 

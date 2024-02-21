@@ -27,7 +27,7 @@ class SingleTrackKinematics(PhysicsModelBase):
     This implementation version is based on the following paper. It regard the geometry center as the reference point.
 
     ![Kinematic Single Track Model](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/kinematic_bicycle_model.png)
-
+    
     ![Demo of the implementation (interval=100 ms, $\Delta t$=5 ms)](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/tactics2d-single_track_kinematics.gif)
 
     !!! quote "Reference"
@@ -159,7 +159,6 @@ class SingleTrackKinematics(PhysicsModelBase):
 
     def step(self, state: State, accel: float, delta: float, interval: int = None) -> State:
         """This function updates the state of the traffic participant with the Kinematic Single-Track Model.
-
         Args:
             state (State): The current state of the traffic participant.
             accel (float): The acceleration of the traffic participant. The unit is meter per second squared (m/s$^2$).

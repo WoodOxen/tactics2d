@@ -52,15 +52,6 @@ class PhysicsModelBase(ABC):
             True if the new state is valid, False otherwise.
         """
 
-    def verify_states(self, trajectory: Trajectory) -> bool:
-        """This function verifies a sequence of states over time based on the physics model. The default implementation calls verify_state() for each state in the sequence. However, this function is expected to be overridden to implement more efficient verification.
-
-        Args:
-            trajectory (Trajectory): The trajectory of the traffic participant.
-
-        Returns:
-            True if the trajectory is valid, False otherwise.
-        """
         if trajectory.stable_freq is True:
             interval = 1000 / trajectory.fps
 

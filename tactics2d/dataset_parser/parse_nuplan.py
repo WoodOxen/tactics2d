@@ -12,6 +12,7 @@ import json
 from typing import Tuple, List
 
 import geopandas as gpd
+import pyogrio
 import sqlite3
 import numpy as np
 from shapely.geometry import Point, LineString, Polygon
@@ -157,15 +158,23 @@ class NuPlanParser:
         A NuPlan map includes the following layers: 'baseline_paths', 'carpark_areas', 'generic_drivable_areas', 'dubins_nodes', 'lane_connectors', 'intersections', 'boundaries', 'crosswalks', 'lanes_polygons', 'lane_group_connectors', 'lane_groups_polygons', 'road_segments', 'stop_polygons', 'traffic_lights', 'walkways', 'gen_lane_connectors_scaled_width_polygons', 'meta'. In this parser, we only parse the following layers: 'boundaries', 'lanes_polygons', 'lane_connectors', 'carpark_areas', 'crosswalks', 'walkways', 'stop_polygons', 'traffic_lights'
         """
         map_file = os.path.join(folder, file)
+        map_meta = gpd.read_file(map_file, layer="meta", engine="pyogrio")
+        projection_system = map_meta[map_meta["key"] == "projectedCoordSystem"]["value"].iloc[0]
+        
+        def load_utm_coords(layer_name):
+            gdf_in_pixel_coords = pyogrio.read_dataframe(map_file, layer=layer_name)
+            gdf_in_utm_coords = gdf_in_pixel_coords.to_crs(projection_system)
+            return gdf_in_utm_coords
+
         map_ = Map(name="nuplan_" + file.split(".")[0])
 
-        boundaries = gpd.read_file(map_file, layer="boundaries")
+        boundaries = load_utm_coords("boundaries")
         for _, row in boundaries.iterrows():
             boundary_ids = [int(s) for s in row["boundary_segment_fids"].split(",") if s.isdigit()]
             boundary_id = boundary_ids[0] - 1
             boundary = RoadLine(
                 id_=str(boundary_id),
-                linestring=affine_transform(LineString(row["geometry"]), self.transform_matrix),
+                linestring=LineString(row["geometry"]),
             )
             map_.add_roadline(boundary)
 
@@ -186,7 +195,7 @@ class NuPlanParser:
         #     lane_polygon.add_related_lane(str(row["to_edge_fid"]), LaneRelationship.SUCCESSOR)
         #     map_.add_lane(lane_polygon)
 
-        lane_connectors = gpd.read_file(map_file, layer="lane_connectors")
+        lane_connectors = load_utm_coords("lane_connectors")
         for _, row in lane_connectors.iterrows():
             # TODO: parse the polygon in lane to left and right side
             pass
@@ -199,25 +208,23 @@ class NuPlanParser:
         }
 
         for key, value in area_dict.items():
-            df_areas = gpd.read_file(map_file, layer=key)
+            df_areas = load_utm_coords(key)
             for _, row in df_areas.iterrows():
                 area = Area(
                     id_=str(id_cnt),
-                    geometry=affine_transform(Polygon(row["geometry"]), self.transform_matrix),
+                    geometry=Polygon(row["geometry"]),
                     subtype=value,
                     custom_tags={"heading": row["heading"]} if key == "carpark_areas" else None,
                 )
                 id_cnt += 1
                 map_.add_area(area)
 
-        traffic_lights = gpd.read_file(map_file, layer="traffic_lights")
+        traffic_lights = load_utm_coords("traffic_lights")
         for _, row in traffic_lights.iterrows():
             traffic_light = Regulatory(
                 id_=str(id_cnt),
                 subtype="traffic_light",
-                position=affine_transform(
-                    Point(row["geometry"].x, row["geometry"].y), self.transform_matrix
-                ),
+                position=Point(row["geometry"].x, row["geometry"].y),
                 custom_tags={"heading": row["ori_mean_yaw"]},
             )
             id_cnt += 1

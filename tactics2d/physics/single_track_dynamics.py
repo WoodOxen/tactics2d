@@ -296,3 +296,4 @@ class SingleTrackDynamics(PhysicsModelBase):
             return False
 
         return True
+
