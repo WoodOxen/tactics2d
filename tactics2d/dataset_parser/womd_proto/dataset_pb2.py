@@ -5,10 +5,10 @@ import sys
 
 _b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode("latin1"))
 from google.protobuf import descriptor as _descriptor
+from google.protobuf import descriptor_pb2
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
-from google.protobuf import descriptor_pb2
 
 # @@protoc_insertion_point(imports)
 
@@ -18,7 +18,6 @@ _sym_db = _symbol_database.Default()
 import tactics2d.dataset_parser.womd_proto.label_pb2 as label__pb2
 import tactics2d.dataset_parser.womd_proto.map_pb2 as map__pb2
 import tactics2d.dataset_parser.womd_proto.vector_pb2 as vector__pb2
-
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="dataset.proto",
@@ -1755,9 +1754,9 @@ _CAMERANAME_NAME.containing_type = _CAMERANAME
 _LASERNAME_NAME.containing_type = _LASERNAME
 _CAMERACALIBRATION.fields_by_name["name"].enum_type = _CAMERANAME_NAME
 _CAMERACALIBRATION.fields_by_name["extrinsic"].message_type = _TRANSFORM
-_CAMERACALIBRATION.fields_by_name["rolling_shutter_direction"].enum_type = (
-    _CAMERACALIBRATION_ROLLINGSHUTTERREADOUTDIRECTION
-)
+_CAMERACALIBRATION.fields_by_name[
+    "rolling_shutter_direction"
+].enum_type = _CAMERACALIBRATION_ROLLINGSHUTTERREADOUTDIRECTION
 _CAMERACALIBRATION_ROLLINGSHUTTERREADOUTDIRECTION.containing_type = _CAMERACALIBRATION
 _LASERCALIBRATION.fields_by_name["name"].enum_type = _LASERNAME_NAME
 _LASERCALIBRATION.fields_by_name["extrinsic"].message_type = _TRANSFORM
@@ -1771,9 +1770,9 @@ _CONTEXT.fields_by_name["laser_calibrations"].message_type = _LASERCALIBRATION
 _CONTEXT.fields_by_name["stats"].message_type = _CONTEXT_STATS
 _RANGEIMAGE.fields_by_name["range_image"].message_type = _MATRIXFLOAT
 _CAMERASEGMENTATIONLABEL_INSTANCEIDTOGLOBALIDMAPPING.containing_type = _CAMERASEGMENTATIONLABEL
-_CAMERASEGMENTATIONLABEL.fields_by_name["instance_id_to_global_id_mapping"].message_type = (
-    _CAMERASEGMENTATIONLABEL_INSTANCEIDTOGLOBALIDMAPPING
-)
+_CAMERASEGMENTATIONLABEL.fields_by_name[
+    "instance_id_to_global_id_mapping"
+].message_type = _CAMERASEGMENTATIONLABEL_INSTANCEIDTOGLOBALIDMAPPING
 _CAMERAIMAGE.fields_by_name["name"].enum_type = _CAMERANAME_NAME
 _CAMERAIMAGE.fields_by_name["pose"].message_type = _TRANSFORM
 _CAMERAIMAGE.fields_by_name["velocity"].message_type = _VELOCITY

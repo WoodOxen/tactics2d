@@ -1,7 +1,7 @@
 name: Publish to Test PyPI
 on:
-  push: 
-    branches: 
+  push:
+    branches:
       - master
   workflow_dispatch:
 
@@ -34,5 +34,3 @@ jobs:
           password: ${{ secrets.TEST_PYPI_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
           verbose: true
-          
-      

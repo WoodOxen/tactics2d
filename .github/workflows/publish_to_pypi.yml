@@ -9,7 +9,7 @@ jobs:
         os: [ubuntu-20.04, ubuntu-22.04, windows-latest, macos-latest]
         python-version: ["3.8", "3.9", "3.10", "3.11"]
     runs-on: ${{ matrix.os }}
-    permissions: 
+    permissions:
       id-token: write
     steps:
       - name: Exit if the tag is not a release

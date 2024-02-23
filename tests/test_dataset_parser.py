@@ -1,5 +1,4 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: test_dataset_parser.py
 # @Description: This file implements the test cases for the dataset parser.
@@ -11,10 +10,9 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
+import logging
 import os
 import time
-import logging
-
 from zipfile import ZipFile
 
 import pytest

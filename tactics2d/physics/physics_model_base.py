@@ -1,5 +1,4 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: physics_model_base.py
 # @Description: This file defines an abstract class for a physics model of a traffic participant.

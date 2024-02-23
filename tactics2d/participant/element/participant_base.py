@@ -1,14 +1,13 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: participant_base.py
 # @Description: This file defines an abstract class for a traffic participant.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from abc import ABC, abstractmethod
-from typing import Tuple, List, Any
 import logging
+from abc import ABC, abstractmethod
+from typing import Any, List, Tuple
 
 from tactics2d.participant.trajectory import State, Trajectory
 

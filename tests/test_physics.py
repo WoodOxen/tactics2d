@@ -1,5 +1,4 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: test_physics.py
 # @Description: This file implements the test cases for the physics models.
@@ -15,27 +14,26 @@ import os
 
 RENDER = "DISPLAY" in os.environ
 
-import time
 import logging
+import time
 
 logging.basicConfig(level=logging.INFO)
 
 import numpy as np
-from shapely import hausdorff_distance
-from shapely.geometry import LineString
-from shapely.affinity import affine_transform, rotate
 import pygame
 import pytest
+from shapely import hausdorff_distance
+from shapely.affinity import affine_transform, rotate
+from shapely.geometry import LineString
 
-from tactics2d.participant.trajectory import State
 from tactics2d.participant.element import Vehicle
+from tactics2d.participant.trajectory import State
 from tactics2d.physics import (
     PointMass,
-    SingleTrackKinematics,
-    SingleTrackDynamics,
     SingleTrackDrift,
+    SingleTrackDynamics,
+    SingleTrackKinematics,
 )
-
 
 # fmt: off
 PEDESTRIAN_ACTION_LIST = [
@@ -53,9 +51,9 @@ VEHICLE_ACTION_LIST = [
     ((1, 0), 1000), ((-1, 0), 1000),
     ((4, 0), 1000), ((-4, 0), 1000),
     ((15, 0), 2000), ((-15, 0), 500),
-    ((1, 0), 1000), 
+    ((1, 0), 1000),
     ((0.1, 0.3), 5000), ((0.1, -0.3), 5000),
-    ((0.1, 0.6), 5000), ((0.1, -0.6), 5000), 
+    ((0.1, 0.6), 5000), ((0.1, -0.6), 5000),
 ]
 # fmt: on
 
@@ -396,10 +394,14 @@ def test_single_track_drift(interval, delta_t):
 
     for action, duration in VEHICLE_ACTION_LIST:
         for _ in np.arange(0, duration, interval):
-            state_constrained, omega_wf, omega_wr, real_accel, real_steer = (
-                physics_model_constrained.step(
-                    state_constrained, omega_wf, omega_wr, action[0], action[1], interval
-                )
+            (
+                state_constrained,
+                omega_wf,
+                omega_wr,
+                real_accel,
+                real_steer,
+            ) = physics_model_constrained.step(
+                state_constrained, omega_wf, omega_wr, action[0], action[1], interval
             )
             trajectory.append((state_constrained.x, state_constrained.y))
             if RENDER:

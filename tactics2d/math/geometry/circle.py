@@ -1,13 +1,12 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: circle.py
 # @Description: This file implements some frequently operations on circle.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Tuple, Union
 from enum import Enum
+from typing import Tuple, Union
 
 import numpy as np
 

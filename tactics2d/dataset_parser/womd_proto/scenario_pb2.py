@@ -5,10 +5,10 @@ import sys
 
 _b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode("latin1"))
 from google.protobuf import descriptor as _descriptor
+from google.protobuf import descriptor_pb2
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
-from google.protobuf import descriptor_pb2
 
 # @@protoc_insertion_point(imports)
 
@@ -17,7 +17,6 @@ _sym_db = _symbol_database.Default()
 
 import tactics2d.dataset_parser.womd_proto.compressed_lidar_pb2 as compressed__lidar__pb2
 import tactics2d.dataset_parser.womd_proto.map_pb2 as map__pb2
-
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="scenario.proto",
@@ -634,9 +633,9 @@ _SCENARIO.fields_by_name["tracks"].message_type = _TRACK
 _SCENARIO.fields_by_name["dynamic_map_states"].message_type = _DYNAMICMAPSTATE
 _SCENARIO.fields_by_name["map_features"].message_type = map__pb2._MAPFEATURE
 _SCENARIO.fields_by_name["tracks_to_predict"].message_type = _REQUIREDPREDICTION
-_SCENARIO.fields_by_name["compressed_frame_laser_data"].message_type = (
-    compressed__lidar__pb2._COMPRESSEDFRAMELASERDATA
-)
+_SCENARIO.fields_by_name[
+    "compressed_frame_laser_data"
+].message_type = compressed__lidar__pb2._COMPRESSEDFRAMELASERDATA
 DESCRIPTOR.message_types_by_name["ObjectState"] = _OBJECTSTATE
 DESCRIPTOR.message_types_by_name["Track"] = _TRACK
 DESCRIPTOR.message_types_by_name["DynamicMapState"] = _DYNAMICMAPSTATE

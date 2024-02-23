@@ -1,27 +1,26 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: vehicle.py
 # @Description: This file defines a class for a four-wheeled vehicle.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Any, Tuple
 import logging
+from typing import Any, Tuple
 
 import numpy as np
+from shapely.affinity import affine_transform, translate
 from shapely.geometry import LinearRing
-from shapely.affinity import translate, affine_transform
 
-from .participant_base import ParticipantBase
 from tactics2d.participant.trajectory import State, Trajectory
 from tactics2d.physics import SingleTrackKinematics
 
-from .participant_template import VEHICLE_TEMPLATE, EPA_MAPPING, NCAP_MAPPING, EURO_SEGMENT_MAPPING
+from .participant_base import ParticipantBase
+from .participant_template import EPA_MAPPING, EURO_SEGMENT_MAPPING, NCAP_MAPPING, VEHICLE_TEMPLATE
 
 
 class Vehicle(ParticipantBase):
-    """This class defines a four-wheeled vehicle with its common properties.
+    r"""This class defines a four-wheeled vehicle with its common properties.
 
     The definition of different driven modes of the vehicles can be found here:
 
@@ -83,7 +82,7 @@ class Vehicle(ParticipantBase):
     def __init__(
         self, id_: Any, type_: str = "medium_car", trajectory: Trajectory = None, **kwargs
     ):
-        """Initialize the vehicle.
+        r"""Initialize the vehicle.
 
         Args:
             id_ (int): The unique identifier of the vehicle.
@@ -177,7 +176,6 @@ class Vehicle(ParticipantBase):
         # Auto-construct the physics model for all-wheel-drive (AWD) vehicles.
         else:
             pass
-
 
     def load_from_template(self, type_name: str, overwrite: bool = True, template: dict = None):
         """Load the vehicle properties from the template.

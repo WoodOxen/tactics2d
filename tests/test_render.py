@@ -3,23 +3,23 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-import os
 import json
+import logging
+import os
 import time
 import xml.etree.ElementTree as ET
-import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
 import numpy as np
-from shapely.geometry import Point
-from PIL import Image
 import pygame
 import pytest
+from PIL import Image
+from shapely.geometry import Point
 
-from tactics2d.map.parser import Lanelet2Parser
 from tactics2d.dataset_parser import LevelXParser
-from tactics2d.sensor import TopDownCamera, SingleLineLidar, RenderManager
+from tactics2d.map.parser import Lanelet2Parser
+from tactics2d.sensor import RenderManager, SingleLineLidar, TopDownCamera
 
 
 @pytest.mark.render
@@ -29,7 +29,7 @@ def test_camera(follow_view: bool):
     trajectory_path = "./tactics2d/data/trajectory_sample/inD/data/"
     config_path = "./tactics2d/data/map/map.config"
 
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         configs = json.load(f)
 
     map_parser = Lanelet2Parser()
@@ -71,7 +71,7 @@ def test_lidar(perception_range):
     trajectory_path = "./tactics2d/data/trajectory_sample/inD/data/"
     config_path = "./tactics2d/data/map/map.config"
 
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         configs = json.load(f)
 
     map_parser = Lanelet2Parser()
@@ -115,7 +115,7 @@ def test_render_manager(layout_style, off_screen):
     trajectory_path = "./tactics2d/data/trajectory_sample/inD/data/"
     config_path = "./tactics2d/data/map/map.config"
 
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         configs = json.load(f)
 
     map_parser = Lanelet2Parser()

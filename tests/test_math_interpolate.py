@@ -3,17 +3,17 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-import time
 import logging
+import time
 
 logging.basicConfig(level=logging.INFO)
 
 # import dubins
 import numpy as np
 import pytest
-from scipy.spatial.distance import directed_hausdorff
 from scipy.interpolate import BSpline as SciBSpline
 from scipy.interpolate import CubicSpline as SciCubic
+from scipy.spatial.distance import directed_hausdorff
 
 from tactics2d.math.interpolate import *
 

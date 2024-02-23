@@ -1,20 +1,19 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: pedestrian.py
 # @Description: This file defines a class for a pedestrian.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Any, Tuple
 import logging
+from typing import Any, Tuple
 
-from shapely.geometry import LineString, LinearRing
+from shapely.geometry import LinearRing, LineString
 
-from .participant_base import ParticipantBase
 from tactics2d.participant.trajectory import Trajectory
 from tactics2d.physics import PointMass
 
+from .participant_base import ParticipantBase
 from .participant_template import PEDESTRIAN_TEMPLATE
 
 

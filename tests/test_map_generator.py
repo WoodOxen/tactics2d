@@ -3,13 +3,14 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-import pytest
 import logging
+
+import pytest
 
 logging.basicConfig(level=logging.INFO)
 
-from tactics2d.map.element import Map, Area
-from tactics2d.map.generator import RacingTrackGenerator, ParkingLotGenerator
+from tactics2d.map.element import Area, Map
+from tactics2d.map.generator import ParkingLotGenerator, RacingTrackGenerator
 from tactics2d.participant.trajectory import State
 
 

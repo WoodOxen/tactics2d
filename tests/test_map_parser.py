@@ -4,8 +4,8 @@ sys.path.append(".")
 sys.path.append("..")
 
 import json
-import xml.etree.ElementTree as ET
 import logging
+import xml.etree.ElementTree as ET
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -28,7 +28,7 @@ def test_lanelet2_parser():
 
     map_parser = Lanelet2Parser()
 
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         configs = json.load(f)
 
     map_list = set(configs.keys())
@@ -40,7 +40,7 @@ def test_lanelet2_parser():
         logging.info(f"Parsing map {map_name}.")
 
         try:
-            map_path = "%s/%s/%s.osm" % (data_path, map_config["dataset"], map_name)
+            map_path = "{}/{}/{}.osm".format(data_path, map_config["dataset"], map_name)
             map_root = ET.parse(map_path).getroot()
             map_ = map_parser.parse(map_root, map_config)
             parsed_map_set.add(map_.name)

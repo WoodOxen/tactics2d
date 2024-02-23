@@ -1,5 +1,4 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: single_track_drift.py
 # @Description: This file implements a dynamic single-track model for a vehicle.
@@ -10,8 +9,9 @@ from typing import Tuple, Union
 
 import numpy as np
 
-from .physics_model_base import PhysicsModelBase
 from tactics2d.participant.trajectory import State
+
+from .physics_model_base import PhysicsModelBase
 
 
 class Tire:

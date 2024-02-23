@@ -1,4 +1,4 @@
-from .racing import RacingEnv
 from .parking import ParkingEnv
+from .racing import RacingEnv
 
 __all__ = ["RacingEnv", "ParkingEnv"]

@@ -1,22 +1,21 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: cyclist.py
 # @Description: This file defines a class for a cyclist participant.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Any, Tuple
 import logging
+from typing import Any, Tuple
 
 import numpy as np
-from shapely.geometry import LineString, LinearRing
 from shapely.affinity import affine_transform
+from shapely.geometry import LinearRing, LineString
 
-from .participant_base import ParticipantBase
 from tactics2d.participant.trajectory import Trajectory
 from tactics2d.physics import SingleTrackKinematics
 
+from .participant_base import ParticipantBase
 from .participant_template import CYCLIST_TEMPLATE
 
 

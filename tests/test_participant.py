@@ -1,5 +1,4 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: test_participant.py
 # @Description:
@@ -11,24 +10,24 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-import os
-from io import StringIO
-import time
 import logging
+import os
+import time
+from io import StringIO
 
 import pytest
 
 from tactics2d.participant.element import (
-    ParticipantBase,
-    Vehicle,
     Cyclist,
-    Pedestrian,
     Other,
-    list_vehicle_templates,
+    ParticipantBase,
+    Pedestrian,
+    Vehicle,
     list_cyclist_templates,
     list_pedestrian_templates,
+    list_vehicle_templates,
 )
-from tactics2d.participant.trajectory import Trajectory, State
+from tactics2d.participant.trajectory import State, Trajectory
 
 
 @pytest.mark.participant

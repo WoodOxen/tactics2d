@@ -5,10 +5,10 @@ import sys
 
 _b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode("latin1"))
 from google.protobuf import descriptor as _descriptor
+from google.protobuf import descriptor_pb2
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
-from google.protobuf import descriptor_pb2
 
 # @@protoc_insertion_point(imports)
 
@@ -16,7 +16,6 @@ _sym_db = _symbol_database.Default()
 
 
 import tactics2d.dataset_parser.womd_proto.dataset_pb2 as dataset__pb2
-
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="compressed_lidar.proto",
@@ -360,9 +359,9 @@ _COMPRESSEDLASER.fields_by_name["name"].enum_type = dataset__pb2._LASERNAME_NAME
 _COMPRESSEDLASER.fields_by_name["ri_return1"].message_type = _COMPRESSEDRANGEIMAGE
 _COMPRESSEDLASER.fields_by_name["ri_return2"].message_type = _COMPRESSEDRANGEIMAGE
 _COMPRESSEDFRAMELASERDATA.fields_by_name["lasers"].message_type = _COMPRESSEDLASER
-_COMPRESSEDFRAMELASERDATA.fields_by_name["laser_calibrations"].message_type = (
-    dataset__pb2._LASERCALIBRATION
-)
+_COMPRESSEDFRAMELASERDATA.fields_by_name[
+    "laser_calibrations"
+].message_type = dataset__pb2._LASERCALIBRATION
 _COMPRESSEDFRAMELASERDATA.fields_by_name["pose"].message_type = dataset__pb2._TRANSFORM
 DESCRIPTOR.message_types_by_name["CompressedRangeImage"] = _COMPRESSEDRANGEIMAGE
 DESCRIPTOR.message_types_by_name["Metadata"] = _METADATA

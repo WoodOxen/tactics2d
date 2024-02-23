@@ -1,11 +1,9 @@
-from typing import Tuple
 import warnings
+from typing import Tuple
 
 import numpy as np
-from shapely.geometry import Point
 import pygame
-
-from tactics2d.sensor import SensorBase
+from shapely.geometry import Point
 
 
 class RenderManager:
@@ -90,7 +88,7 @@ class RenderManager:
                 )
                 self.layouts[sensor.id_] = (scale, coords)
 
-    def add_sensor(self, sensor: SensorBase, main_sensor: bool = False):
+    def add_sensor(self, sensor, main_sensor: bool = False):
         """Add a sensor instance to the manager.
 
         Args:

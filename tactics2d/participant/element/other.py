@@ -1,5 +1,4 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: other.py
 # @Description: This file defines a class for a traffic participant of an unknown type/undefined.
@@ -9,13 +8,13 @@
 from typing import Any, Tuple, Union
 
 import numpy as np
-from shapely.geometry import Point, LinearRing, LineString
 from shapely.affinity import affine_transform
+from shapely.geometry import LinearRing, LineString, Point
 
+from tactics2d.participant.trajectory import Trajectory
 from tactics2d.participant.trajectory.trajectory import State
 
 from .participant_base import ParticipantBase
-from tactics2d.participant.trajectory import Trajectory
 
 
 class Other(ParticipantBase):

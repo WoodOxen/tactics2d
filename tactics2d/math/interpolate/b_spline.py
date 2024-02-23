@@ -1,5 +1,4 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: b_spline.py
 # @Description: This file implements a B-spline curve interpolator.
@@ -45,7 +44,7 @@ class BSpline:
             raise ValueError("The knot vectors must be non-decreasing.")
 
     def cox_deBoor(self, knot_vectors, degree: int, u: float) -> float:
-        """Get the value of the basis function N<sub>i</sub>, p(u) at u.
+        r"""Get the value of the basis function N<sub>i</sub>, p(u) at u.
 
         Args:
             knot_vectors (np.ndarray): The subset of knot vectors $\{u_i, u_{i+1}, \dots, u_{i+p+1}\}. The shape is $(p + 2, )$.
@@ -78,7 +77,7 @@ class BSpline:
         knot_vectors: np.ndarray = None,
         n_interpolation: int = 100,
     ) -> np.ndarray:
-        """Get the interpolation points of a b-spline curve.
+        r"""Get the interpolation points of a b-spline curve.
 
         Args:
             control_points (np.ndarray): The control points of the curve. Usually denoted as $P_0, P_1, \dots, P_n$ in literature. The shape is $(n + 1, 2)$.

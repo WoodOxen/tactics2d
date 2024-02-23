@@ -1,13 +1,14 @@
 from typing import Tuple
 
 import numpy as np
-from shapely.geometry import LinearRing, Point, Polygon
-from shapely.affinity import affine_transform
 import pygame
 from pygame.colordict import THECOLORS
+from shapely.affinity import affine_transform
+from shapely.geometry import LinearRing, Point, Polygon
+
+from tactics2d.map.element import Map
 
 from .sensor_base import SensorBase
-from tactics2d.map.element import Map
 
 
 class SingleLineLidar(SensorBase):
@@ -130,7 +131,7 @@ class SingleLineLidar(SensorBase):
             y1s.extend(list(obstacle_coords[:-1, 1]))
             y2s.extend(list(obstacle_coords[1:, 1]))
         if len(x1s) == 0:  # no obstacle around
-            self.scan_result = np.ones((self.point_density)) * float("inf")
+            self.scan_result = np.ones(self.point_density) * float("inf")
             return
         x1s, x2s, y1s, y2s = (
             np.array(x1s).reshape(1, -1),

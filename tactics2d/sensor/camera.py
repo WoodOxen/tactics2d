@@ -1,15 +1,15 @@
 from typing import Tuple, Union
 
 import numpy as np
-from shapely.geometry import Point
-from shapely.affinity import affine_transform
 import pygame
+from shapely.affinity import affine_transform
+from shapely.geometry import Point
 
-from tactics2d.map.element import Area, Lane, RoadLine, Map
-from tactics2d.participant.element import Vehicle, Cyclist, Pedestrian
-from .sensor_base import SensorBase
+from tactics2d.map.element import Area, Lane, Map, RoadLine
+from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
 
 from .render_template import COLOR_PALETTE, DEFAULT_COLOR
+from .sensor_base import SensorBase
 
 
 class TopDownCamera(SensorBase):
