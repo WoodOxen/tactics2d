@@ -1,22 +1,20 @@
-from typing import Union
 import logging
+from typing import Union
 
-import numpy as np
-from shapely.geometry import Point, Polygon
 import gymnasium as gym
+import numpy as np
 from gymnasium import spaces
 from gymnasium.error import InvalidAction
+from shapely.geometry import Point, Polygon
 
 from tactics2d.map.element import Map
 from tactics2d.map.generator import ParkingLotGenerator
 from tactics2d.participant.element import Vehicle
-from tactics2d.physics import SingleTrackKinematics
-from tactics2d.traffic import ScenarioManager
-from tactics2d.traffic.violation_detection import TrafficEvent
-from tactics2d.sensor import TopDownCamera, SingleLineLidar, RenderManager
 from tactics2d.participant.trajectory import State
-
-from tactics2d.participant.element.participant_template import VEHICLE_TEMPLATE
+from tactics2d.physics import SingleTrackKinematics
+from tactics2d.sensor import RenderManager, SingleLineLidar, TopDownCamera
+from tactics2d.traffic import ScenarioManager
+from tactics2d.traffic import ScenarioStatus, TrafficStatus
 
 STATE_W = 200
 STATE_H = 200
@@ -87,26 +85,9 @@ class ParkingScenarioManager(ScenarioManager):
     ):
         super().__init__(render_fps, off_screen, max_step, step_size)
 
-        self.vehicle_configs = VEHICLE_TEMPLATE["medium_car"]
+        self.agent = Vehicle(id_=0)
+        self.agent.load_from_template("medium_car")
 
-        self.agent = Vehicle(
-            id_=0,
-            type_="medium_car",
-            length=self.vehicle_configs["length"],
-            width=self.vehicle_configs["width"],
-            wheel_base=self.vehicle_configs["wheel_base"],
-            speed_range=(-self.max_speed, self.max_speed),
-            steer_range=(-self.max_steer, self.max_steer),
-            accel_range=(-1.0, 1.0),
-            physics_model=SingleTrackKinematics(
-                dist_front_hang=0.5 * self.vehicle_configs["length"]
-                - self.vehicle_configs["front_overhang"],
-                dist_rear_hang=0.5 * self.vehicle_configs["length"]
-                - self.vehicle_configs["rear_overhang"],
-                steer_range=(-self.max_steer, self.max_steer),
-                speed_range=(-self.max_speed, self.max_speed),
-            ),
-        )
         self.participants = {self.agent.id_: self.agent}
 
         self.map_ = Map(name="ParkingLot", scenario_type="parking")
@@ -136,7 +117,7 @@ class ParkingScenarioManager(ScenarioManager):
         self.dist_norm_factor = 10.0
         self.angle_norm_factor = np.pi
 
-    def update(self, action: np.ndarray) -> TrafficEvent:
+    def update(self, action: np.ndarray):
         self.n_step += 1
         self.agent.update(action, self.step_size)
         self.agent.update(action, self.step_size)
@@ -151,13 +132,14 @@ class ParkingScenarioManager(ScenarioManager):
             self.cnt_still = 0
 
         if self.cnt_still >= self.render_fps:
-            self.status = TrafficEvent.NO_ACTION
+            # self.status = TrafficEvent.NO_ACTION
+            pass
 
     def _check_collision(self):
         agent_pose = self.agent.get_pose()
         for _, area in self.map_.areas.items():
             if area.type_ == "obstacle" and agent_pose.intersects(area.geometry):
-                self.status = TrafficEvent.COLLISION_STATIC
+                # self.status = TrafficEvent.COLLISION_STATIC
                 break
 
     def _check_completed(self):
@@ -171,12 +153,13 @@ class ParkingScenarioManager(ScenarioManager):
         iou = intersection_area / union_area
 
         if iou >= self.iou_threshold:
-            self.status = TrafficEvent.COMPLETED
+            # self.status = TrafficEvent.COMPLETED
+            pass
 
     def reset(self):
         self.n_step = 0
         self.cnt_still = 0
-        self.status = TrafficEvent.NORMAL
+        # self.status = TrafficEvent.NORMAL
         # reset map
         self.map_.reset()
         (self.start_state, self.target_area, self.target_heading) = self.map_generator.generate(
@@ -368,35 +351,36 @@ class ParkingEnv(gym.Env):
 
         return observation, info
 
-    def _get_reward(self, status: TrafficEvent):
+    def _get_reward(self, status):
         reward = 0
-        if status == TrafficEvent.TIME_EXCEEDED:
-            reward = -1
-        elif status == TrafficEvent.COLLISION_STATIC:
-            reward = -5
-        elif status == TrafficEvent.OUTSIDE_MAP:
-            reward = -5
-        elif status == TrafficEvent.COMPLETED:
-            reward = 5
-        else:
-            # time penalty
-            time_penalty = -0.1 * np.tanh(
-                self.scenario_manager.n_step / self.scenario_manager.max_step * 0.1
-            )
+        return 0
+        # if status == TrafficEvent.TIME_EXCEEDED:
+        #     reward = -1
+        # elif status == TrafficEvent.COLLISION_STATIC:
+        #     reward = -5
+        # elif status == TrafficEvent.OUTSIDE_MAP:
+        #     reward = -5
+        # elif status == TrafficEvent.COMPLETED:
+        #     reward = 5
+        # else:
+        #     # time penalty
+        #     time_penalty = -0.1 * np.tanh(
+        #         self.scenario_manager.n_step / self.scenario_manager.max_step * 0.1
+        #     )
 
-            # IoU reward
-            current_pose = Polygon(self.scenario_manager.agent.get_pose())
-            target_pose = self.scenario_manager.target_area.geometry
-            current_intersection = current_pose.intersection(target_pose).area
-            current_union = current_pose.union(target_pose).area
-            current_iou = current_intersection / current_union
+        #     # IoU reward
+        #     current_pose = Polygon(self.scenario_manager.agent.get_pose())
+        #     target_pose = self.scenario_manager.target_area.geometry
+        #     current_intersection = current_pose.intersection(target_pose).area
+        #     current_union = current_pose.union(target_pose).area
+        #     current_iou = current_intersection / current_union
 
-            iou_reward = max(0, current_iou - self.max_iou)
-            self.max_iou = max(self.max_iou, current_iou)
+        #     iou_reward = max(0, current_iou - self.max_iou)
+        #     self.max_iou = max(self.max_iou, current_iou)
 
-            reward = time_penalty + iou_reward
+        #     reward = time_penalty + iou_reward
 
-        return reward
+        # return reward
 
     def step(self, action: Union[np.array, int]):
         if not self.action_space.contains(action):
