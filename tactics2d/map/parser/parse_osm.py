@@ -1,10 +1,17 @@
-import xml.etree.ElementTree as ET
+##! python3
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: parse_osm.py
+# @Description: This file defines a parser for lanelet2 format map.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
+
 import warnings
+import xml.etree.ElementTree as ET
 
 from pyproj import Proj
-from shapely.geometry import Point, LineString, Polygon
-
-from tactics2d.map.element import Node, Lane, Area, RoadLine, Regulatory, Map
+from shapely.geometry import LineString, Point, Polygon
+from tactics2d.map.element import Area, Lane, Map, Node, Regulatory, RoadLine
 
 LANE_CHANGE_MAPPING = {
     "line_thin": {
@@ -134,9 +141,9 @@ def _load_lane(xml_node: ET.Element, map_: Map) -> Lane:
 
     point_list = dict()
     for side in ["left", "right"]:
-        point_list[side] = list(map_.roadlines[line_ids[side][0]].linestring.coords)
+        point_list[side] = list(map_.roadlines[line_ids[side][0]].geometry.coords)
         for line_id in line_ids[side][1:]:
-            new_points = list(map_.roadlines[line_id].linestring.coords)
+            new_points = list(map_.roadlines[line_id].geometry.coords)
             _append_point_list(point_list[side], new_points, lane_id)
 
     left_side = LineString(point_list["left"])
@@ -171,9 +178,9 @@ def _load_area(xml_node: ET.Element, map_: Map) -> Area:
         elif member.attrib["role"] == "regulatory_element":
             regulatory_id_list.append(member.attrib["ref"])
 
-    outer_point_list = list(map_.roadlines[line_ids["outer"][0]].linestring.coords)
+    outer_point_list = list(map_.roadlines[line_ids["outer"][0]].geometry.coords)
     for line_id in line_ids["outer"][1:]:
-        new_points = list(map_.roadlines[line_id].linestring.coords)
+        new_points = list(map_.roadlines[line_id].geometry.coords)
         _append_point_list(outer_point_list, new_points, area_id)
     if outer_point_list[0] != outer_point_list[-1]:
         warnings.warn(f"The outer boundary of area {area_id} is not closed.", SyntaxWarning)
@@ -182,9 +189,9 @@ def _load_area(xml_node: ET.Element, map_: Map) -> Area:
     inner_idx = 0
     for line_id in line_ids["inner"]:
         if len(inner_point_list[inner_idx]) == 0:
-            inner_point_list[inner_idx] = list(map_.roadlines[line_id].linestring.coords)
+            inner_point_list[inner_idx] = list(map_.roadlines[line_id].geometry.coords)
         else:
-            new_points = list(map_.roadlines[line_id].linestring.coords)
+            new_points = list(map_.roadlines[line_id].geometry.coords)
             _append_point_list(inner_point_list[inner_idx], new_points, area_id)
         if inner_point_list[inner_idx][0] == inner_point_list[inner_idx][-1]:
             inner_point_list.append([])
@@ -215,7 +222,7 @@ def _load_regulatory(xml_node: ET.Element) -> Regulatory:
     return Regulatory(regulatory_id, relation_list, lane_list, **regulatory_tags)
 
 
-class Lanelet2Parser(object):
+class Lanelet2Parser:
     """This class provides a parser for lanelet2 format map."""
 
     @staticmethod
