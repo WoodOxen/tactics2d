@@ -162,7 +162,7 @@ class ArgoverseParser:
                 ]
                 left_road_line = RoadLine(
                     id_="%05d" % roadline_id_counter,
-                    linestring=LineString(
+                    geometry=LineString(
                         [[point["x"], point["y"]] for point in road_element["left_lane_boundary"]]
                     ),
                     type_=left_type,
@@ -177,7 +177,7 @@ class ArgoverseParser:
                 ]
                 right_road_line = RoadLine(
                     id_="%05d" % roadline_id_counter,
-                    linestring=LineString(
+                    geometry=LineString(
                         [[point["x"], point["y"]] for point in road_element["right_lane_boundary"]]
                     ),
                     type_=right_type,

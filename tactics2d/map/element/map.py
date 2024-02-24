@@ -1,3 +1,10 @@
+##! python3
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: map.py
+# @Description: This file defines a class for a map.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 import enum
 import warnings
 
@@ -23,23 +30,16 @@ class Map:
     """This class implements a map to manage the road elements.
 
     Attributes:
-        name (str, optional): The name of the map. Defaults to None.
-        scenario_type (str, optional): The scenario type of the map. Defaults to None.
-        country (str, optional): The country that the map is located in. Defaults to None.
-        ids (set): The identifier of the elements in the map. All elements in the map should
-            have a unique id. A conflict in ids will raise a KeyError.
-        nodes (dict): The nodes in the map. This attribute needs to be set manually by trigger
-            the "add_node" method.
-        lanes (dict): The lanes in the map. This attribute needs to be set manually by trigger
-            the "add_lane" method.
-        areas (dict): The areas in the map. This attribute needs to be set manually by trigger
-            the "add_area" method.
-        roadlines (dict): The roadlines in the map. This attribute needs to be set manually by
-            trigger the "add_roadline" method.
-        regulations (dict): The regulations in the map. This attribute needs to be set manually
-            by trigger the "add_regulatory" method.
-        boundary (tuple, optional): The boundary of the map expressed in the form of
-            (left, right, front, back). This attribute is automatically calculated when requested.
+        name (str): The name of the map. Defaults to None.
+        scenario_type (str): The scenario type of the map. Defaults to None.
+        country (str): The country that the map is located in. Defaults to None.
+        ids (set): The identifier of the elements in the map. All elements in the map should have a unique id. A conflict in ids will raise a KeyError.
+        nodes (dict): The nodes in the map. Defaults to an empty dictionary. This attribute needs to be set manually by trigger the [add_node](#tactics2d.map.element.Map.add_node) method.
+        lanes (dict): The lanes in the map. Defaults to an empty dictionary. This attribute needs to be set manually by trigger the [add_lane](#tactics2d.map.element.Map.add_lane) method.
+        areas (dict): The areas in the map. Defaults to an empty dictionary. This attribute needs to be set manually by trigger the [add_area](#tactics2d.map.element.Map.add_area) method.
+        roadlines (dict): The roadlines in the map. Defaults to an empty dictionary. This attribute needs to be set manually by trigger the [add_roadline](#tactics2d.map.element.Map.add_roadline) method.
+        regulations (dict): The regulations in the map. Defaults to an empty dictionary. This attribute needs to be set manually by trigger the [add_regulatory](#tactics2d.map.element.Map.add_regulatory) method.
+        boundary (tuple): The boundary of the map expressed in the form of (left, right, front, back). This attribute is **read-only**.
     """
 
     def __init__(self, name: str = None, scenario_type: str = None, country: str = None):

@@ -1,7 +1,7 @@
 ##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: participant_base.py
-# @Description: This file defines an abstract class for a traffic participant.
+# @Description: This script defines an abstract class for a traffic participant.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 

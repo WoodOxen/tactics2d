@@ -120,11 +120,11 @@ class TopDownCamera(SensorBase):
     def _render_roadlines(self):
         for roadline in self.map_.roadlines.values():
             if self.position is not None:
-                if self._in_perception_range(roadline.linestring):
+                if self._in_perception_range(roadline.geometry):
                     continue
 
             color = self._get_color(roadline)
-            points = list(affine_transform(roadline.linestring, self.transform_matrix).coords)
+            points = list(affine_transform(roadline.geometry, self.transform_matrix).coords)
 
             if roadline.type_ == "line_thick":
                 width = max(2, 0.2 * self.scale)

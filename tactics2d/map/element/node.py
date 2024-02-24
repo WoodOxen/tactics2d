@@ -1,8 +1,16 @@
+##! python3
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: node.py
+# @Description: This file defines a class for a map node.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
+
 from shapely.geometry import Point
 
 
 class Node:
-    """This class implements the lenelet2-style map element *node*.
+    """This class implements the lanelet2-style map element *Node*.
 
     The add operation of the node is defined as the addition of the coordinates of the node.
     The subtract operation of the node is defined as the subtraction of the coordinates of the node.
@@ -11,11 +19,17 @@ class Node:
         id_ (str): The id of the node.
         x (float): The x coordinate of the node.
         y (float): The y coordinate of the node.
-        location (Point): The location of the node expressed in geometry format.
+        location (Point): The location of the node expressed in geometry format. This attribute is **read-only**.
     """
 
     def __init__(self, id_: str, x: float, y: float):
-        """Initialize the attributes in the class."""
+        """Initialize an instance of this class.
+
+        Args:
+            id_ (str): The id of the node.
+            x (float): The x coordinate of the node.
+            y (float): The y coordinate of the node.
+        """
         self.id_ = id_
         self.x = x
         self.y = y

@@ -222,7 +222,7 @@ class WOMDParser:
             if len(points) > 2:
                 roadline = RoadLine(
                     id_="%05d" % map_feature.id,
-                    linestring=LineString(points),
+                    geometry=LineString(points),
                     type_=type_,
                     subtype=subtype,
                     color=color,
@@ -232,7 +232,7 @@ class WOMDParser:
         elif map_feature.HasField("road_edge"):
             roadline = RoadLine(
                 id_="%05d" % map_feature.id,
-                linestring=LineString(
+                geometry=LineString(
                     [[point.x, point.y] for point in map_feature.road_edge.polyline]
                 ),
                 type_="road_boarder",

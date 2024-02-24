@@ -1,29 +1,45 @@
-from typing import Tuple, List, Dict
-import time
+##! python3
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: generate_racing_track.py
+# @Description: This file defines a class for generating random racing tracks.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
+
 import logging
+import time
+from typing import Dict, List, Tuple
 
 import numpy as np
-from shapely.geometry import Point, LineString
-
+from shapely.geometry import LineString, Point
+from tactics2d.map.element import Lane, LaneRelationship, Map, RoadLine
 from tactics2d.math.geometry import Circle
 from tactics2d.math.interpolate import Bezier
-from tactics2d.map.element import RoadLine, Lane, LaneRelationship, Map
-
-# Track related configurations
-N_CHECKPOINT = (10, 20)  # the number of turns is ranging in 10-20
-TRACK_WIDTH = 15  # the width of the track is ranging in 15m
-TRACK_RAD = 800  # the maximum curvature radius
-CURVE_RAD = (10, 150)  # the curvature radius is ranging in 10-150m
-TILE_LENGTH = 10  # the length of each tile
 
 
 class RacingTrackGenerator:
-    """Generate a random racing track.
+    """This class generates random racing tracks.
+
+    The generating process can be described as follows:
+
+    1. Generate a circle with a radius = 800 m. Ideally, the time needed for a vehicle to make a full turn in this circle is around 3 minutes if it drives at a speed of 100 km/h.
+    2. Generate some checkpoints that are deviated from the circle.
+    2. Generate the center line by interpolating the checkpoints with Bezier curves.
+    3. Check if the center line has extremely sharp turns. If so, adjust the checkpoints.
+    4. Iterate until the center line is valid.
+    5. Generate the tiles by interpolating the center line.
+    6. Generate the road bounds by adding the track width to the left and right of the center line.
 
     Attributes:
         bezier_order (int): The order of the Bezier curve. Defaults to 2.
         bezier_interpolation (int): The number of interpolation points for each Bezier curve. Defaults to 50.
     """
+
+    _n_checkpoint = (10, 20)  # the number of turns is ranging in 10-20
+    _track_width = 15  # the width of the track is varying around 15m
+    _track_rad = 800  # the maximum curvature radius
+    _curve_rad = (10, 150)  # the curvature radius is ranging in 10-150m
+    _tile_length = 10  # the length of each tile
 
     def __init__(self, bezier_order=2, bezier_interpolation=50):
         """Initialize the attributes in the class."""
@@ -31,10 +47,10 @@ class RacingTrackGenerator:
         self.bezier_interpolation = bezier_interpolation
 
     def _get_checkpoints(self) -> Tuple[List[np.ndarray], List[np.ndarray], bool]:
-        n_checkpoint = np.random.randint(*N_CHECKPOINT)
+        n_checkpoint = np.random.randint(*self._n_checkpoint)
         noise = np.random.uniform(0, 2 * np.pi / n_checkpoint, n_checkpoint)
         alpha = 2 * np.pi * np.arange(n_checkpoint) / n_checkpoint + noise
-        rad = np.random.uniform(TRACK_RAD / 5, TRACK_RAD, n_checkpoint)
+        rad = np.random.uniform(self._track_rad / 5, self._track_rad, n_checkpoint)
 
         checkpoints = np.array([rad * np.cos(alpha), rad * np.sin(alpha)])
         success = False
@@ -56,7 +72,7 @@ class RacingTrackGenerator:
                 pt1_ = (1 - t1) * pt2 + t1 * pt1
                 pt3_ = (1 - t2) * pt2 + t2 * pt3
                 _, radius = Circle.get_circle(Circle.ConstructBy.ThreePoints, pt1_, pt2, pt3_)
-                if radius < CURVE_RAD[0]:
+                if radius < self._curve_rad[0]:
                     if rad[i] > rad[next_i]:
                         rad[next_i] += np.random.uniform(0.0, 10.0)
                     else:
@@ -66,7 +82,7 @@ class RacingTrackGenerator:
                         rad[next_i] * np.cos(alpha[next_i]),
                         rad[next_i] * np.sin(alpha[next_i]),
                     ]
-                elif radius > CURVE_RAD[1]:
+                elif radius > self._curve_rad[1]:
                     if rad[i] > rad[next_i]:
                         rad[next_i] -= np.random.uniform(0.0, 10.0)
                     else:
@@ -139,7 +155,7 @@ class RacingTrackGenerator:
         return center_line
 
     def _get_tiles(self, n_tile: int, center_line: LineString) -> Dict[str, Lane]:
-        center_points = [center_line.interpolate(TILE_LENGTH * i) for i in range(n_tile)]
+        center_points = [center_line.interpolate(self._tile_length * i) for i in range(n_tile)]
 
         # generate tracks with the same length
         left_points = []
@@ -151,7 +167,7 @@ class RacingTrackGenerator:
             pt1 = center_points[i]
             x_diff = pt1.x - pt0.x
             y_diff = pt1.y - pt0.y
-            k = TRACK_WIDTH / 2 / np.linalg.norm([x_diff, y_diff])
+            k = self._track_width / 2 / np.linalg.norm([x_diff, y_diff])
             left_points.append([pt1.x - k * y_diff, pt1.y + k * x_diff])
             right_points.append([pt1.x + k * y_diff, pt1.y - k * x_diff])
 
@@ -202,23 +218,23 @@ class RacingTrackGenerator:
 
         # generate tiles
         distance = center_line.length
-        n_tile = int(np.ceil(distance / TILE_LENGTH))
+        n_tile = int(np.ceil(distance / self._tile_length))
         map_.lanes = self._get_tiles(n_tile, center_line)
 
         map_.roadlines = {
             "start_line": RoadLine(
                 id_="0",
-                linestring=LineString(map_.lanes["0000"].ends),
+                geometry=LineString(map_.lanes["0000"].ends),
                 type_="solid",
                 color=(255, 0, 0),
             ),
             "end_line": RoadLine(
                 id_="1",
-                linestring=LineString(map_.lanes["0000"].starts),
+                geometry=LineString(map_.lanes["0000"].starts),
                 type_="solid",
                 color=(0, 255, 0),
             ),
-            "center_line": RoadLine(id_="2", linestring=center_line),
+            "center_line": RoadLine(id_="2", geometry=center_line),
         }
 
         logging.info(f"The track is {int(distance)}m long and has {n_tile} tiles.")

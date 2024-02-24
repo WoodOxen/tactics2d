@@ -1,8 +1,16 @@
-from typing import Union
-from enum import Enum
-import logging
+##! python3
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: lane.py
+# @Description: This file defines a class for a map lane.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
 
-from shapely.geometry import LineString, LinearRing
+
+import logging
+from enum import Enum
+from typing import Any, Union
+
+from shapely.geometry import LinearRing, LineString
 
 
 class LaneRelationship(Enum):
@@ -13,38 +21,33 @@ class LaneRelationship(Enum):
 
 
 class Lane:
-    """This class implements the lenelet2-style map element *Lane*.
-
-    ??? info "Detailed definition of lanelet2-style lane"
-        [LaneletPrimitives](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md)
+    """This class implements the [lanelet2-style map element *Lane*](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md).
 
     Attributes:
         id_ (str): The unique identifier of the lane.
         left_side (LineString): The left side of the lane.
         right_side (LineString): The right side of the lane.
-        line_ids (set, optional): The ids of the roadline components. Defaults to None.
+        line_ids (set): The ids of the roadline components. Defaults to None.
         type_ (str): The type of the lane. The default value is `"lanelet"`.
-        subtype (str, optional): The subtype of the lane. Defaults to None.
-        location (str, optional): The location of the lane (urban, nonurban, etc.). Defaults to None.
-        inferred_participants (list, optional): The allowing type of traffic participants that can pass the lane. Defaults to None.
-        speed_limit (float, optional): The speed limit in this lane. Defaults to None.
-        speed_limit_unit (str, optional): The unit of speed limit in this area. The valid units
-            are `"km/h"`, `"mi/h"`, and `"m/s"`. Defaults to `"km/h"`.
-        speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or
-            not. Defaults to True.
-        custom_tags (dict, optional): The custom tags of the lane. Defaults to None.
+        subtype (str): The subtype of the lane. Defaults to None.
+        color (Any): The color of the area. If not specified, the color will be assigned based on the rendering template later. Defaults to None.
+        location (str): The location of the lane (urban, nonurban, etc.). Defaults to None.
+        inferred_participants (list): he allowing type of traffic participants that can pass the area. If not specified, the area is not restricted to any type of traffic participants. Defaults to None.
+        speed_limit (float): The speed limit in this area The unit is `m/s`. Defaults to None.
+        speed_limit_mandatory (bool): Whether the speed limit is mandatory or not. Defaults to True.
+        custom_tags (dict): The custom tags of the area. Defaults to None.
+        custom_tags (dict): The custom tags of the lane. Defaults to None.
         predecessors (set): The ids of the available lanes before entering the current lane.
         successors (set): The ids of the available lanes after exiting the current lane.
-        left_neighbors (set): The ids of the available lanes on the left side of the current
-            lane.
-        right_neighbors (set): The ids of the available lanes on the right side of the current
-            lane.
-        start (list, read-only): The start points of the lane.
-        end (list, read-only): The end points of the lane.
-        shape (list, read-only): The shape of the lane.
+        left_neighbors (set): The ids of the lanes that is adjacent to the left side of the current lane and in the same direction.
+        right_neighbors (set): The ids of the lanes that is adjacent to the right side of the current lane and in the same direction.
+        starts (list): The start points of the lane.
+        ends (list): The end points of the lane.
+        geometry (LinearRing): The geometry representation of the lane. This attribute will be automatically obtained during the initialization if there is no None in left_side and right_side.
+        shape (list): The shape of the lane. This attribute is **read-only**.
     """
 
-    _SPEED_UNIT = ["km/h", "mi/h", "m/s"]
+    _speed_units = ["km/h", "mi/h", "m/s"]
 
     def __init__(
         self,
@@ -54,7 +57,7 @@ class Lane:
         line_ids: set = None,
         type_: str = "lanelet",
         subtype: str = None,
-        color: tuple = None,
+        color: Any = None,
         location: str = None,
         inferred_participants: list = None,
         speed_limit: float = None,
@@ -62,6 +65,23 @@ class Lane:
         speed_limit_mandatory: bool = True,
         custom_tags: dict = None,
     ):
+        """Initialize an instance of this class.
+
+        Args:
+            id_ (str): The unique identifier of the lane.
+            left_side (LineString): The left side of the lane.
+            right_side (LineString): The right side of the lane.
+            line_ids (set, optional): The ids of the lines that make up the lane. Defaults to None.
+            type_ (str, optional): The type of the lane.
+            subtype (str, optional): The subtype of the lane.
+            color (Any, optional): The color of the lane. If not specified, the color will be assigned based on the rendering template later.
+            location (str, optional): The location of the lane (urban, nonurban, etc.).
+            inferred_participants (list, optional): The allowing type of traffic participants that can pass the lane. If not specified, the lane is not restricted to any type of traffic participants.
+            speed_limit (float, optional): The speed limit in this lane.
+            speed_limit_unit (str, optional): The unit of speed limit in this lane. The valid units are `km/h`, `mi/h`, and `m/s`. Defaults to "km/h". The speed limit will be automatically converted to `m/s` when initializing the instance. If the unit is invalid, the speed limit will be set to None.
+            speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or not.
+            custom_tags (dict, optional): The custom tags of the lane.
+        """
         self.id_ = id_
         self.left_side = left_side
         self.right_side = right_side
@@ -71,28 +91,37 @@ class Lane:
         self.color = color
         self.location = location
         self.inferred_participants = inferred_participants
-        self.speed_limit = speed_limit
-        self.speed_limit_unit = speed_limit_unit
         self.speed_limit_mandatory = speed_limit_mandatory
         self.custom_tags = custom_tags
 
-        if self.speed_limit_unit not in self._SPEED_UNIT:
-            logging.warning(
-                "Invalid speed limit unit %s. The legal units types are %s"
-                % (self.speed_limit_unit, ", ".join(self._SPEED_UNIT))
-            )
-
-        if not self.left_side is None and not self.right_side is None:
-            self.geometry = LinearRing(
-                list(self.left_side.coords) + list(reversed(list(self.right_side.coords)))
-            )
+        if not None in [left_side, right_side]:
+            self.geometry = LinearRing(list(left_side.coords) + list(right_side.coords))
         else:
             self.geometry = None
+
+        self._set_speed_limit_unit(speed_limit, speed_limit_unit)
 
         self.predecessors = set()
         self.successors = set()
         self.left_neighbors = set()
         self.right_neighbors = set()
+
+    def _set_speed_limit_unit(self, speed_limit: float, speed_limit_unit: str):
+        if not speed_limit_unit in self._speed_units:
+            logging.warning(
+                "Invalid speed limit unit %s. The legal units types are %s"
+                % (speed_limit_unit, ", ".join(self._speed_units))
+            )
+            self.speed_limit = None
+
+        if speed_limit is None:
+            self.speed_limit = None
+        elif speed_limit_unit == "m/s":
+            pass
+        elif speed_limit_unit == "km/h":
+            self.speed_limit = round(speed_limit / 3.6, 3)
+        elif speed_limit_unit == "mi/h":
+            self.speed_limit = round(speed_limit / 2.237, 3)
 
     @property
     def starts(self) -> list:
