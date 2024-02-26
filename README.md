@@ -33,6 +33,10 @@
 
 For further information on `tactics2d`, please refer to our comprehensive [documentation](https://tactics2d.readthedocs.io/en/latest/), and a detailed comparison with other similar libraries is available [here](https://tactics2d.readthedocs.io/en/latest/#why-tactics2d).
 
+## Community
+
+You are welcome to raise issues and join our [discord community](https://discordapp.com/widget?id=1209363816912126003&theme=system) for further discussion.
+
 ## Installation
 
 ### System Requirements
