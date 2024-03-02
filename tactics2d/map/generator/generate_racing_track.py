@@ -12,9 +12,11 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 from shapely.geometry import LineString, Point
+
 from tactics2d.map.element import Lane, LaneRelationship, Map, RoadLine
 from tactics2d.math.geometry import Circle
 from tactics2d.math.interpolate import Bezier
+from tactics2d.participant.trajectory import State
 
 
 class RacingTrackGenerator:
@@ -212,6 +214,7 @@ class RacingTrackGenerator:
         logging.info(f"Start generating a track with {n_checkpoints} checkpoints.")
 
         start_point, start_id = self._get_start_point(n_checkpoints, control_points)
+        map_.customs["start_state"] = State(frame=0, x=start_point.x, y=start_point.y, vx=0, vy=0)
 
         # generate center line
         center_line = self._get_center_line(start_point, start_id, checkpoints, control_points)
