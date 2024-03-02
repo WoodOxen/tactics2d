@@ -15,6 +15,11 @@ from tactics2d.map.parser import OSMParser
 
 
 @pytest.mark.map_parser
+def test_osm_parser():
+    data_path = ""
+
+
+@pytest.mark.map_parser
 def test_lanelet2_parser():
     """Test whether the current parser can manage to parse the provided maps.
 
