@@ -1,7 +1,16 @@
 # Release Notes
 
-Please refer to [Releasing and versioning](https://py-pkgs.org/07-releasing-versioning.html) for the version numbering rules.
+## Known Issues
 
-## V 0.0.0
+### Unfinished Features
 
-Plan to release before the end of 2023.
+- `tactics2d.dataset_parser.NuPlanParser`: Identify the boundaries of a lane element.
+- `tactics2d.dataset_parser.WOMDParser`: Identify the boundaries of a lane element.
+- `tactics2d.dataset_parser.womd_proto`: Add compatibility to protobuf 3.x.x and 4.x.x.
+- `tactics2d.map.parser.OSMParser`: Handle the tag `highway` in `load_way` for the original [OSM label style](https://wiki.openstreetmap.org/wiki/Key:lanes).
+
+## Version 1.0.0 - 2024-03-14
+
+### Overview
+
+### Features

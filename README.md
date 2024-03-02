@@ -39,7 +39,7 @@ You are welcome to raise issues and join our [discord community](https://discord
 
 ## Installation
 
-### System Requirements
+### 0. System Requirements
 
 We have conducted testing for the execution and construction of `tactics2d` on the following platforms:
 
@@ -51,33 +51,45 @@ We have conducted testing for the execution and construction of `tactics2d` on t
 | Windows | $\surd$ | $\surd$ | $\surd$ | $\surd$ |
 | MacOS | $\surd$ | $\surd$ | $\surd$ | $\surd$ |
 
-### Install from PyPI
+### 1.1 Install from PyPI
 
 You can simply install `tactics2d` from PyPI with the following command.
 
 ```shell
+conda create -n tactics2d python=3.8
 pip install tactics2d
 ```
 
-### Install from Github
+### 1.2 Install from Github
 
 You can also install `tactics2d` from from its source on GitHub. This way is recommended if you want to run the sample code or contribute to the development of `tactics2d`.
 
 ```shell
-git clone --recurse-submodules git@github.com:WoodOxen/tactics2d.git
+# clone the repository with submodules but ignore the large files (mainly the NuPlan's map data)
+# please download NuPlan's map data from its official website and put it in the `tactics2d/data/map/NuPlan` directory
+git clone --recurse-submodules --filter=blob:limit=100m git@github.com:WoodOxen/tactics2d.git
 cd tactics2d
 
 conda create -n tactics2d python=3.8
-# if you are a developer, you can install the development dependencies by
-pip install -e .
-# if you are a user, you can install tactics2d by
-pip install .
-
-# test the installation by
-[TODO]
+[TODO] # installation command
+[TODO] # test the installation
 ```
 
 If no errors occurs, you should have installed `tactics2d` successfully.
+
+### 2. Dataset Preparation
+
+According to the licenses of the trajectory datasets, we cannot distribute the original datasets with `tactics2d`. You need to download the datasets from their official websites. Currently, `tactics2d` supports the following datasets:
+
+- [Argoverse 2](https://www.argoverse.org/av2.html)
+- [Dragon Lake Parking (DLP)](https://sites.google.com/berkeley.edu/dlp-dataset)
+- [HighD](https://www.highd-dataset.com/)
+- [inD](https://www.ind-dataset.com/)
+- [rounD](https://www.round-dataset.com/)
+- [ExiD](https://www.exid-dataset.com/)
+- [INTERACTION](http://interaction-dataset.com/)
+- [NuPlan](https://www.nuscenes.org/nuplan)
+- [Waymo Open Motion Dataset v1.2 (WOMD)](https://waymo.com/open/about/)
 
 ## Citation
 
