@@ -13,12 +13,16 @@ from shapely.geometry import Polygon
 
 
 class Area:
-    """This class implements the [lanelet2-style map element *Area*](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md).
+    """This class implements the *Area*
+
+    !!! quote "Reference"
+        [Lanelet2's description of an area](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md
 
     Attributes:
         id_ (str): The unique identifier of the area.
         geometry (Polygon): The geometry information of the area.
-        line_ids (dict): The ids of the lines that circle this area. Defaults to None.
+        line_ids (dict): The ids of the lines that circle this area. Defaults to dict(inner=[], outer=[]).
+        regulatory_ids (set): The ids of the regulations that apply to the area. Defaults to set().
         type_ (str): The type of the area. The default value is "multipolygon".
         subtype (str): The subtype of the area. Defaults to None.
         color (Any): The color of the area. If not specified, the color will be assigned based on the rendering template later. Defaults to None.
@@ -36,7 +40,8 @@ class Area:
         self,
         id_: str,
         geometry: Polygon,
-        line_ids: dict = None,
+        line_ids: dict = dict(inner=[], outer=[]),
+        regulatory_ids: set = set(),
         type_: str = "multipolygon",
         subtype: str = None,
         color: Any = None,
@@ -53,6 +58,7 @@ class Area:
             id_ (str): The unique identifier of the area.
             geometry (Polygon): The geometry shape of the area.
             line_ids (dict, optional): The ids of the lines that circle this area.
+            regulatory_ids (set, optional): The ids of the regulations that apply to the area.
             type_ (str, optional): The type of the area.
             subtype (str, optional): The subtype of the area.
             color (Any, optional): The color of the area. If not specified, the color will be assigned based on the rendering template later.
@@ -66,6 +72,7 @@ class Area:
         self.id_ = id_
         self.geometry = geometry
         self.line_ids = line_ids
+        self.regulatory_ids = regulatory_ids
         self.type_ = type_
         self.subtype = subtype
         self.color = color

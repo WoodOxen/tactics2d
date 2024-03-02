@@ -23,8 +23,9 @@ class Regulatory:
 
     Attributes:
         id_ (str): The id of the regulatory element.
-        relation_ids (set): The ids of the relations that the regulatory element belongs to. Defaults to None.
-        way_ids (set): The ids of the ways that the regulatory element belongs to. Defaults to None.
+        relations (dict): A dictionary of the relations that the regulatory element belongs to. The key is the id of the relation, and the value is the role of the relation. Defaults to an empty dictionary.
+        ways (dict): A dictionary of the ways that the regulatory element belongs to. The key is the id of the way, and the value is the role of the way. Defaults to an empty dictionary.
+        nodes (dict): A dictionary of the nodes that the regulatory element belongs to. The key is the id of the node, and the value is the role of the node. Defaults to an empty dictionary.
         type_ (str): The type of the regulatory element. Defaults to "regulatory_element".
         subtype (str): The subtype of the regulatory element.
         position (str): The position of the regulatory element. Defaults to None.
@@ -37,8 +38,9 @@ class Regulatory:
     def __init__(
         self,
         id_: str,
-        relation_ids: set = None,
-        way_ids: set = None,
+        relations: dict = dict(),
+        ways: dict = dict(),
+        nodes: dict = dict(),
         type_: str = "regulatory_element",
         subtype: str = None,
         position: str = None,
@@ -51,8 +53,9 @@ class Regulatory:
 
         Args:
             id_ (str): The id of the regulatory element.
-            relation_ids (set, optional): The ids of the relations that the regulatory element belongs to.
-            way_ids (set, optional): The ids of the ways that the regulatory element belongs to.
+            relations (dict, optional): A dictionary of the relations that the regulatory element belongs to. The key is the id of the relation, and the value is the role of the relation.
+            ways (dict, optional): A dictionary of the ways that the regulatory element belongs to. The key is the id of the way, and the value is the role of the way.
+            nodes (dict, optional): A dictionary of the nodes that the regulatory element belongs to. The key is the id of the node, and the value is the role of the node.
             type_ (str, optional): The type of the regulatory element.
             subtype (str, optional): The subtype of the regulatory element.
             position (str, optional): The position of the regulatory element.
@@ -66,8 +69,9 @@ class Regulatory:
             raise ValueError("The subtype of Regulatory %s is not defined!" % id_)
 
         self.id_ = id_
-        self.relation_ids = relation_ids
-        self.way_ids = way_ids
+        self.relations = relations
+        self.ways = ways
+        self.nodes = nodes
         self.type_ = type_
         self.subtype = subtype
         self.position = position

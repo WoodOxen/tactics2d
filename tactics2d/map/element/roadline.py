@@ -14,7 +14,11 @@ from shapely.geometry import LineString, Point
 
 
 class RoadLine:
-    """This class implements the [lanelet2-style map element *LineString*](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md).
+    """This class implements the map element *LineString*
+
+    !!! quote "Reference"
+        - [OpenStreetMap's description of a way](https://wiki.openstreetmap.org/wiki/Way)
+        - [Lanelet2's description of a line](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md).
 
     Attributes:
         id_ (str): The unique identifier of the roadline.

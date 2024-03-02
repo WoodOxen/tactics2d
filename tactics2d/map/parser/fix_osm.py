@@ -1,8 +1,7 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: fix_osm.py
-# @Description:
+# @Description: This script provides an util function to fix id conflict in OSM files.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
@@ -10,7 +9,7 @@ import xml.etree.ElementTree as ET
 
 
 def re_id_elements(file, destination_file=None):
-    """This function fix the osm file to avoid id violation between road elements.
+    """This function fix the OSM file to avoid id conflict between road elements.
 
     Args:
         file (str): path to the osm file

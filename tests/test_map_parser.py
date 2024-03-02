@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 import pytest
 
-from tactics2d.map.parser import Lanelet2Parser
+from tactics2d.map.parser import OSMParser
 
 
 @pytest.mark.map_parser
@@ -26,29 +26,29 @@ def test_lanelet2_parser():
     data_path = "./tactics2d/data/map"
     config_path = "./tactics2d/data/map/map.config"
 
-    map_parser = Lanelet2Parser()
+    map_parser = OSMParser(lanelet2=True)
 
     with open(config_path) as f:
         configs = json.load(f)
 
-    map_list = set(configs.keys())
     parsed_map_set = set()
 
     for map_name, map_config in configs.items():
-        if map_config["dataset"] in ["uniD", "exiD"]:
+        if map_config["dataset"] in ["uniD", "exiD", "NuPlan"]:
             continue
         logging.info(f"Parsing map {map_name}.")
 
         try:
             map_path = "{}/{}/{}.osm".format(data_path, map_config["dataset"], map_name)
             map_root = ET.parse(map_path).getroot()
-            map_ = map_parser.parse(map_root, map_config)
+            map_ = map_parser.parse(
+                map_root, map_config["project_rule"], map_config["gps_origin"], map_config
+            )
             parsed_map_set.add(map_.name)
         except SyntaxError as err:
             logging.error(err)
         except KeyError as err:
             logging.error(err)
-        except FileNotFoundError:
-            pass
-
+        except FileNotFoundError as err:
+            raise err
     # assert len(map_list) == len(parsed_map_set)

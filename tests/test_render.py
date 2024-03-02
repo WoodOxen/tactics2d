@@ -18,7 +18,7 @@ from PIL import Image
 from shapely.geometry import Point
 
 from tactics2d.dataset_parser import LevelXParser
-from tactics2d.map.parser import Lanelet2Parser
+from tactics2d.map.parser import OSMParser
 from tactics2d.sensor import RenderManager, SingleLineLidar, TopDownCamera
 
 
@@ -32,9 +32,11 @@ def test_camera(follow_view: bool):
     with open(config_path) as f:
         configs = json.load(f)
 
-    map_parser = Lanelet2Parser()
+    map_parser = OSMParser(lanelet2=True)
     map_root = ET.parse(map_path).getroot()
-    map_ = map_parser.parse(map_root, configs["inD_4"])
+    map_ = map_parser.parse(
+        map_root, configs["inD_4"]["project_rule"], configs["inD_4"]["gps_origin"], configs["inD_4"]
+    )
 
     frame = 40
     dataset_parser = LevelXParser("inD")
@@ -74,9 +76,11 @@ def test_lidar(perception_range):
     with open(config_path) as f:
         configs = json.load(f)
 
-    map_parser = Lanelet2Parser()
+    map_parser = OSMParser(lanelet2=True)
     map_root = ET.parse(map_path).getroot()
-    map_ = map_parser.parse(map_root, configs["inD_4"])
+    map_ = map_parser.parse(
+        map_root, configs["inD_4"]["project_rule"], configs["inD_4"]["gps_origin"], configs["inD_4"]
+    )
 
     frame = 40
     dataset_parser = LevelXParser("inD")
@@ -118,9 +122,11 @@ def test_render_manager(layout_style, off_screen):
     with open(config_path) as f:
         configs = json.load(f)
 
-    map_parser = Lanelet2Parser()
+    map_parser = OSMParser(lanelet2=True)
     map_root = ET.parse(map_path).getroot()
-    map_ = map_parser.parse(map_root, configs["inD_4"])
+    map_ = map_parser.parse(
+        map_root, configs["inD_4"], configs["inD_4"]["gps_origin"], configs["inD_4"]
+    )
 
     dataset_parser = LevelXParser("inD")
     participants, _ = dataset_parser.parse_trajectory(0, trajectory_path, (0, 10000))

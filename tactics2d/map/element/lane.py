@@ -21,13 +21,17 @@ class LaneRelationship(Enum):
 
 
 class Lane:
-    """This class implements the [lanelet2-style map element *Lane*](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md).
+    """This class implements the map element *Lane*
+
+    !!! quote "Reference"
+        [Lanelet2's description of a lane](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md).
 
     Attributes:
         id_ (str): The unique identifier of the lane.
         left_side (LineString): The left side of the lane.
         right_side (LineString): The right side of the lane.
-        line_ids (set): The ids of the roadline components. Defaults to None.
+        line_ids (dict): The ids of the roadline components. The dictionary has two keys: `left` and `right`. Defaults to dict(left=[], right=[]).
+        regulatory_ids (set): The ids of the regulations that apply to the lane. Defaults to set().
         type_ (str): The type of the lane. The default value is `"lanelet"`.
         subtype (str): The subtype of the lane. Defaults to None.
         color (Any): The color of the area. If not specified, the color will be assigned based on the rendering template later. Defaults to None.
@@ -54,7 +58,8 @@ class Lane:
         id_: str,
         left_side: LineString,
         right_side: LineString,
-        line_ids: set = None,
+        line_ids: set = dict(left=[], right=[]),
+        regulatory_ids: set = set(),
         type_: str = "lanelet",
         subtype: str = None,
         color: Any = None,
@@ -71,7 +76,8 @@ class Lane:
             id_ (str): The unique identifier of the lane.
             left_side (LineString): The left side of the lane.
             right_side (LineString): The right side of the lane.
-            line_ids (set, optional): The ids of the lines that make up the lane. Defaults to None.
+            line_ids (set, optional): The ids of the lines that make up the lane.
+            regulatory_ids (set, optional): The ids of the regulations that apply to the lane.
             type_ (str, optional): The type of the lane.
             subtype (str, optional): The subtype of the lane.
             color (Any, optional): The color of the lane. If not specified, the color will be assigned based on the rendering template later.
@@ -86,6 +92,7 @@ class Lane:
         self.left_side = left_side
         self.right_side = right_side
         self.line_ids = line_ids
+        self.regulatory_ids = regulatory_ids
         self.type_ = type_
         self.subtype = subtype
         self.color = color

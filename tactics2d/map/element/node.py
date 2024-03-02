@@ -10,9 +10,14 @@ from shapely.geometry import Point
 
 
 class Node:
-    """This class implements the lanelet2-style map element *Node*.
+    """This class implements the map element *Node*.
+
+    !!! quote "Reference"
+        - [OpenStreetMap's description of a node](https://wiki.openstreetmap.org/wiki/Node)
+        - [Lanelet2's description of a node](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md)
 
     The add operation of the node is defined as the addition of the coordinates of the node.
+
     The subtract operation of the node is defined as the subtraction of the coordinates of the node.
 
     Attributes:

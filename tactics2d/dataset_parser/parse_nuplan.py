@@ -1,26 +1,24 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: parse_nuplan.py
 # @Description: This file implements a parser for NuPlan dataset.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-import os
 import datetime
 import json
-from typing import Tuple, List
+import os
+import sqlite3
+from typing import List, Tuple
 
 import geopandas as gpd
-import pyogrio
-import sqlite3
 import numpy as np
-from shapely.geometry import Point, LineString, Polygon
-from shapely.affinity import affine_transform
+import pyogrio
+from shapely.geometry import LineString, Point, Polygon
 
-from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
+from tactics2d.map.element import Area, Lane, LaneRelationship, Map, Regulatory, RoadLine
+from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
-from tactics2d.map.element import RoadLine, Lane, LaneRelationship, Area, Regulatory, Map
 
 
 class NuPlanParser:
@@ -64,29 +62,6 @@ class NuPlanParser:
             location = cursor.fetchone()[0]
 
         return location
-
-    def update_transform_matrix(self, file: str, folder: str):
-        """This function updates the transform matrix of the map.
-
-        Args:
-            file (str): The name of the trajectory data file. The file is expected to be a sqlite3 database file (.db).
-            folder (str): The path to the folder containing the trajectory file.
-        """
-        with open("./tactics2d/data/map/NuPlan/nuplan-maps-v1.0.json", "r") as f:
-            configs = json.load(f)
-
-        location = self.get_location(file, folder)
-        transform_matrix = configs[location]["layers"]["Intensity"]["transform_matrix"]
-        self.transform_matrix = np.array(
-            [
-                1 / transform_matrix[0][0],
-                transform_matrix[1][0],
-                transform_matrix[0][1],
-                1 / transform_matrix[1][1],
-                -transform_matrix[0][3] / transform_matrix[0][0],
-                -transform_matrix[1][3] / transform_matrix[1][1],
-            ]
-        )
 
     def parse_trajectory(
         self, file: str, folder: str, stamp_range: Tuple[float, float] = None
@@ -160,7 +135,7 @@ class NuPlanParser:
         map_file = os.path.join(folder, file)
         map_meta = gpd.read_file(map_file, layer="meta", engine="pyogrio")
         projection_system = map_meta[map_meta["key"] == "projectedCoordSystem"]["value"].iloc[0]
-        
+
         def load_utm_coords(layer_name):
             gdf_in_pixel_coords = pyogrio.read_dataframe(map_file, layer=layer_name)
             gdf_in_utm_coords = gdf_in_pixel_coords.to_crs(projection_system)
@@ -172,10 +147,7 @@ class NuPlanParser:
         for _, row in boundaries.iterrows():
             boundary_ids = [int(s) for s in row["boundary_segment_fids"].split(",") if s.isdigit()]
             boundary_id = boundary_ids[0] - 1
-            boundary = RoadLine(
-                id_=str(boundary_id),
-                linestring=LineString(row["geometry"]),
-            )
+            boundary = RoadLine(id_=str(boundary_id), geometry=LineString(row["geometry"]))
             map_.add_roadline(boundary)
 
         id_cnt = max(np.array(list(map_.ids.keys()), np.int64)) + 1

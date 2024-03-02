@@ -10,6 +10,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
+import json
 import logging
 import os
 import time
@@ -151,15 +152,23 @@ def test_dlp_parser(file_id: int, stamp_range: tuple, expected: int):
 )
 def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
     folder_path = "./tactics2d/data/trajectory_sample/NuPlan/data/cache"
+    map_folder_path = "./tactics2d/data/map"
+    with open("./tactics2d/data/map/map.config") as f:
+        configs = json.load(f)
 
     dataset_parser = NuPlanParser()
 
     t1 = time.time()
     participants, _ = dataset_parser.parse_trajectory(file_name, folder_path, stamp_range)
     t2 = time.time()
+    location = dataset_parser.get_location(file_name, folder_path)
+    map_path = configs[location]["gpkg_path"]
+    _ = dataset_parser.parse_map(map_path, map_folder_path)
+    t3 = time.time()
 
     assert (len(participants)) == expected
     logging.info(f"The time needed to parse a NuPlan scenario: {t2 - t1}s")
+    logging.info(f"The time needed to parse the map for a NuPlan scenario: {t3 - t2}s")
 
 
 @pytest.mark.dataset_parser

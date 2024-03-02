@@ -39,7 +39,7 @@ class Map:
         areas (dict): The areas in the map. Defaults to an empty dictionary. This attribute needs to be set manually by trigger the [add_area](#tactics2d.map.element.Map.add_area) method.
         roadlines (dict): The roadlines in the map. Defaults to an empty dictionary. This attribute needs to be set manually by trigger the [add_roadline](#tactics2d.map.element.Map.add_roadline) method.
         regulations (dict): The regulations in the map. Defaults to an empty dictionary. This attribute needs to be set manually by trigger the [add_regulatory](#tactics2d.map.element.Map.add_regulatory) method.
-        boundary (tuple): The boundary of the map expressed in the form of (left, right, front, back). This attribute is **read-only**.
+        boundary (tuple): The boundary of the map expressed in the form of (min_x, max_x, min_y, max_y). This attribute is **read-only**.
     """
 
     def __init__(self, name: str = None, scenario_type: str = None, country: str = None):
@@ -82,10 +82,11 @@ class Map:
                 y_max = max(y_max, np.max(area_coords[:, 1]))
 
             self._boundary = (x_min - 10, x_max + 10, y_min - 10, y_max + 10)
+
         return self._boundary
 
     def add_node(self, node: Node):
-        """Add a node to the map.
+        """This function adds a node to the map.
 
         Args:
             node (Node): The node to be added to the map.
@@ -102,7 +103,7 @@ class Map:
         self.ids[node.id_] = MapElement.NODE
 
     def add_roadline(self, roadline: RoadLine):
-        """Add a roadline to the map.
+        """This function adds a roadline to the map.
 
         Args:
             roadline (RoadLine): The roadline to be added to the map.
@@ -124,7 +125,7 @@ class Map:
         self.ids[roadline.id_] = MapElement.ROADLINE
 
     def add_lane(self, lane: Lane):
-        """Add a lane to the map.
+        """This function adds a lane to the map.
 
         Args:
             lane (Lane): The lane to be added to the map.
@@ -142,7 +143,7 @@ class Map:
         self.ids[lane.id_] = MapElement.LANE
 
     def add_area(self, area: Area):
-        """Add an area to the map.
+        """This function adds an area to the map.
 
         Args:
             area (Area): The area to be added to the map.
@@ -160,7 +161,7 @@ class Map:
         self.ids[area.id_] = MapElement.AREA
 
     def add_regulatory(self, regulatory: Regulatory):
-        """Add a regulatory to the map.
+        """This function adds a traffic regulation to the map.
 
         Args:
             regulatory (Regulatory): The regulatory to be added to the map.
@@ -181,7 +182,20 @@ class Map:
         self.regulations[regulatory.id_] = regulatory
         self.ids[regulatory.id_] = MapElement.REGULATORY
 
+    def set_boundary(self, boundary: tuple):
+        """This function sets the boundary of the map.
+
+        Args:
+            boundary (tuple): The boundary of the map expressed in the form of (min_x, max_x, min_y, max_y).
+        """
+        self._boundary = boundary
+
     def get_by_id(self, id_: str):
+        """This function returns the road element with the given id.
+
+        Args:
+            id_ (str): The id of the road element.
+        """
         if not id_ in self.ids:
             warnings.warn(f"Cannot find element with id {id_}.")
             return None
@@ -200,7 +214,7 @@ class Map:
             return self.customs[id_]
 
     def reset(self):
-        """Reset the map by clearing all the road elements."""
+        """This function resets the map by clearing all the road elements."""
         self.ids.clear()
         self.nodes.clear()
         self.lanes.clear()
