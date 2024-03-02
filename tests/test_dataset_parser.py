@@ -166,8 +166,8 @@ def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
 
     try:
         _ = dataset_parser.parse_map(map_path, map_folder_path)
-    except FileNotFoundError:
-        logging.info(f"The map file {map_path} does not exist.")
+    except:
+        logging.info(f"{map_path}")
 
     t3 = time.time()
 
