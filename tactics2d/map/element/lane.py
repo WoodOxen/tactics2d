@@ -102,7 +102,9 @@ class Lane:
         self.custom_tags = custom_tags
 
         if not None in [left_side, right_side]:
-            self.geometry = LinearRing(list(left_side.coords) + list(right_side.coords))
+            self.geometry = LinearRing(
+                list(left_side.coords) + list(reversed(list(right_side.coords)))
+            )
         else:
             self.geometry = None
 

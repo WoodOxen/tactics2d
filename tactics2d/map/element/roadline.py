@@ -117,12 +117,12 @@ class RoadLine:
 
     @property
     def head(self) -> Point:
-        return shapely.get_point(self.linestring, 0)
+        return shapely.get_point(self.geometry, 0)
 
     @property
     def end(self) -> Point:
-        return shapely.get_point(self.linestring, -1)
+        return shapely.get_point(self.geometry, -1)
 
     @property
     def shape(self) -> list:
-        return list(self.linestring.coords)
+        return list(self.geometry.coords)

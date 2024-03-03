@@ -41,14 +41,13 @@ class OSMParser:
 
     def _get_tags(self, xml_node: ET.Element) -> dict:
         tags = dict()
+        bool_tags = {"area", "oneway"}
 
         for tag in xml_node.findall("tag"):
-            tags[tag.attrib["k"]] = tag.attrib["v"]
-
-        if tags.get("area") == "yes":
-            tags["area"] = True
-        if tags.get("oneway") == "yes":
-            tags["oneway"] = True
+            if tag.attrib["k"] in bool_tags:
+                tags[tag.attrib["k"]] = tag.attrib["v"] == "yes"
+            else:
+                tags[tag.attrib["k"]] = tag.attrib["v"]
 
         return tags
 
@@ -65,7 +64,7 @@ class OSMParser:
             "inferred_participants",
             "speed_limit",
         }
-        bool_tags = {"temporary", "speed_limit_mandatory", "dynamic", "fallback"}
+        bool_tags = {"temporary", "speed_limit_mandatory", "dynamic", "fallback", "oneway"}
 
         for tag in xml_node.findall("tag"):
             if tag.attrib["k"] == "type":
@@ -98,6 +97,67 @@ class OSMParser:
                 tags["custom_tags"][tag.attrib["k"]] = tag.attrib["v"]
 
         return tags
+
+    def _load_area(self, xml_node: ET.Element, map_: Map) -> Area:
+        area_id = xml_node.attrib["id"]
+        line_ids = dict(inner=[], outer=[])
+        regulatory_ids = []
+
+        for member in xml_node.findall("member"):
+            if member.attrib["role"] == "outer":
+                line_ids["outer"].append(member.attrib["ref"])
+            elif member.attrib["role"] == "inner":
+                line_ids["inner"].append(member.attrib["ref"])
+            elif member.attrib["role"] == "regulatory_element":
+                regulatory_ids.append(member.attrib["ref"])
+
+        outer_point_list = []
+        for line_id in line_ids["outer"]:
+            if len(outer_point_list) == 0:
+                if map_.roadlines.get(line_id):
+                    outer_point_list = list(map_.roadlines[line_id].geometry.coords)
+            else:
+                if map_.roadlines.get(line_id):
+                    new_points = list(map_.roadlines[line_id].geometry.coords)
+                    try:
+                        self._append_point_list(outer_point_list, new_points, area_id)
+                    except SyntaxError as err:
+                        logging.error(err)
+                        return None
+
+        if len(outer_point_list) == 0:
+            return None
+
+        if outer_point_list[0] != outer_point_list[-1]:
+            logging.warning(f"The outer boundary of area {area_id} is not closed.")
+
+        inner_point_list = [[]]
+        inner_idx = 0
+        for line_id in line_ids["inner"]:
+            if len(inner_point_list[inner_idx]) == 0:
+                if map_.roadlines.get(line_id):
+                    inner_point_list[inner_idx] = list(map_.roadlines[line_id].geometry.coords)
+            else:
+                if map_.roadlines.get(line_id):
+                    new_points = list(map_.roadlines[line_id].geometry.coords)
+                    try:
+                        self._append_point_list(inner_point_list[inner_idx], new_points, area_id)
+                    except SyntaxError as err:
+                        logging.error(err)
+                        return None
+
+            if inner_point_list[inner_idx][0] == inner_point_list[inner_idx][-1]:
+                inner_point_list.append([])
+                inner_idx += 1
+        if len(inner_point_list[-1]) == 0:
+            del inner_point_list[-1]
+        elif inner_point_list[-1][0] != inner_point_list[-1][-1]:
+            logging.warning(f"The inner boundary of area {area_id} is not closed.")
+        polygon = Polygon(outer_point_list, inner_point_list)
+
+        area_tags = self._get_lanelet2_tags(xml_node)
+
+        return Area(area_id, polygon, line_ids, set(regulatory_ids), **area_tags)
 
     def load_bounds_no_proj(self, xml_node: ET.Element) -> tuple:
         """This function loads the boundary of the map from the XML node. The coordinates will not be projected.
@@ -214,23 +274,31 @@ class OSMParser:
         """
         id_ = xml_node.attrib["id"]
         tags = self._get_tags(xml_node)
-
         type_ = tags.pop("type")
+        road_element = None
 
         if type_ == "multipolygon":
-            road_element = self.load_area_lanelet2(xml_node, map_)
+            road_element = self._load_area(xml_node, map_)
+
         elif type_ == "route":
             point_list = []
             line_ids = []
             for member in xml_node.findall("member"):
                 if member.attrib["type"] == "way":
                     line_ids.append(member.attrib["ref"])
-            point_list = list(map_.roadlines[line_ids[0]].geometry.coords)
-            for line_id in line_ids[1:]:
-                new_points = list(map_.roadlines[line_id].geometry.coords)
-                self._append_point_list(point_list, new_points, id_)
-
+            for line_id in line_ids:
+                if len(point_list) == 0:
+                    if map_.roadlines.get(line_id):
+                        point_list = list(map_.roadlines[line_id].geometry.coords)
+                if map_.roadlines.get(line_id):
+                    new_points = list(map_.roadlines[line_id].geometry.coords)
+                    try:
+                        self._append_point_list(point_list, new_points, id_)
+                    except SyntaxError as err:
+                        logging.error(err)
+                        return None
             road_element = RoadLine(id_, LineString(point_list), type_="route", custom_tags=tags)
+
         elif type_ == "restriction":
             subtype = tags.pop("restriction")
             froms = dict()
