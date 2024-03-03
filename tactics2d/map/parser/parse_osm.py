@@ -228,9 +228,7 @@ class OSMParser:
             A node under the x-y coordinates.
         """
         node_id = xml_node.attrib["id"]
-        lon = float(xml_node.attrib["lon"])
-        lat = float(xml_node.attrib["lat"])
-        x, y = projector(lon, lat)
+        x, y = projector(xml_node.attrib["lon"], xml_node.attrib["lat"])
 
         return Node(id_=node_id, x=x - origin[0], y=y - origin[1])
 
@@ -459,6 +457,10 @@ class OSMParser:
         """
         projector = Proj(**project_rule) if project_rule else None
         gps_origin = gps_origin if gps_origin else None
+        to_project = not None in [projector, gps_origin]
+
+        if to_project:
+            origin = projector(*gps_origin)
 
         if configs is None:
             map_ = Map()
@@ -472,21 +474,21 @@ class OSMParser:
         node_boundary = xml_root.find("bounds")
         if node_boundary is not None:
             map_.set_boundary(
-                self.load_bounds_no_proj(node_boundary)
-                if None in [projector, gps_origin]
-                else self.load_bounds(node_boundary, projector, gps_origin)
+                self.load_bounds(node_boundary)
+                if to_project
+                else self.load_bounds_no_proj(node_boundary, projector, origin)
             )
 
-        if None in [projector, gps_origin]:
+        if to_project:
             for xml_node in xml_root.findall("node"):
                 if xml_node.get("action") == "delete":
                     continue
-                map_.add_node(self.load_nodes_no_proj(xml_node))
+                map_.add_node(self.load_nodes(xml_node, projector, origin))
         else:
             for xml_node in xml_root.findall("node"):
                 if xml_node.get("action") == "delete":
                     continue
-                map_.add_node(self.load_nodes(xml_node, projector, gps_origin))
+                map_.add_node(self.load_nodes_no_proj(xml_node))
 
         if self.lanelet2:
             for xml_node in xml_root.findall("way"):
