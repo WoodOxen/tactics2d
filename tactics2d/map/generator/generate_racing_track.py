@@ -198,7 +198,7 @@ class RacingTrackGenerator:
         return tiles
 
     def generate(self, map_: Map):
-        """Generate a random racing scenario.
+        """This method generates a racing scenario and stores it in the given map instance.
 
         Args:
             map_ (Map): The map instance to store the generated racing scenario.
