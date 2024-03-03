@@ -51,7 +51,7 @@ class Lane:
         shape (list): The shape of the lane. This attribute is **read-only**.
     """
 
-    _speed_units = ["km/h", "mi/h", "m/s"]
+    _speed_units = ["km/h", "mi/h", "m/s", "mph"]
 
     def __init__(
         self,
@@ -129,7 +129,7 @@ class Lane:
             pass
         elif speed_limit_unit == "km/h":
             self.speed_limit = round(speed_limit / 3.6, 3)
-        elif speed_limit_unit == "mi/h":
+        elif speed_limit_unit == "mi/h" or speed_limit_unit == "mph":
             self.speed_limit = round(speed_limit / 2.237, 3)
 
     @property
