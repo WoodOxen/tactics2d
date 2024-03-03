@@ -474,9 +474,9 @@ class OSMParser:
         node_boundary = xml_root.find("bounds")
         if node_boundary is not None:
             map_.set_boundary(
-                self.load_bounds(node_boundary)
+                self.load_bounds(node_boundary, projector, origin)
                 if to_project
-                else self.load_bounds_no_proj(node_boundary, projector, origin)
+                else self.load_bounds_no_proj(node_boundary)
             )
 
         if to_project:
