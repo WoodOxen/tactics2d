@@ -10,5 +10,6 @@ from .bezier import Bezier
 from .cubic_spline import CubicSpline
 from .dubins import Dubins
 from .reeds_shepp import ReedsShepp
+from .spiral import Spiral
 
-__all__ = ["BSpline", "Bezier", "CubicSpline", "Dubins", "ReedsShepp"]
+__all__ = ["BSpline", "Bezier", "CubicSpline", "Dubins", "ReedsShepp", "Spiral"]

@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.DEBUG)
 import matplotlib.pyplot as plt
 import pytest
 
-from tactics2d.map.parser import OSMParser
+from tactics2d.map.parser import OSMParser, XODRParser
 from tactics2d.traffic import ScenarioDisplay
 
 
@@ -83,3 +83,10 @@ def test_lanelet2_parser():
             logging.error(err)
         except FileNotFoundError as err:
             raise err
+
+
+if __name__ == "__main__":
+    map_path = "./tests/cases/lbl.xodr"
+    map_root = ET.parse(map_path).getroot()
+    map_parser = XODRParser()
+    map_ = map_parser.parse(map_root)
