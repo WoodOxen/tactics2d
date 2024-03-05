@@ -102,8 +102,11 @@ class Area:
 
     @property
     def shape(self, outer_only: bool = False) -> Tuple[list, list]:
-        outer_shape = list(self.polygon.exterior.coords)
+        outer_shape = list(self.geometry.exterior.coords)
         if outer_only:
             return outer_shape
-        inners_shape = list(self.polygon.interiors.coords)
-        return outer_shape, inners_shape
+        inner_shapes = []
+        for interior in self.geometry.interiors:
+            inner_shapes.append(list(interior.coords))
+
+        return outer_shape, inner_shapes
