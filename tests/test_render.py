@@ -6,6 +6,7 @@ sys.path.append("..")
 import json
 import logging
 import os
+import platform
 import time
 import xml.etree.ElementTree as ET
 
@@ -105,7 +106,7 @@ def test_lidar(perception_range):
 
 
 @pytest.mark.render
-# @pytest.mark.skipif("DISPLAY" not in os.environ, reason="requires display server")
+@pytest.mark.skipif(platform.system() == "Darwin", reason="This test is not supported on MacOS.")
 @pytest.mark.parametrize(
     "layout_style, off_screen",
     [("block", False), ("hierarchy", False), ("block", True), ("hierarchy", True)],
