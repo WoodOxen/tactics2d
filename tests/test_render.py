@@ -105,15 +105,14 @@ def test_lidar(perception_range):
 
 
 @pytest.mark.render
-@pytest.mark.skipif("DISPLAY" not in os.environ, reason="requires display server")
+# @pytest.mark.skipif("DISPLAY" not in os.environ, reason="requires display server")
 @pytest.mark.parametrize(
     "layout_style, off_screen",
-    [("block", False), ("hierarchical", False), ("block", True), ("hierarchical", True)],
+    [("block", False), ("hierarchy", False), ("block", True), ("hierarchy", True)],
 )
-@pytest.mark.skip(reason="Mute for now.")
 def test_render_manager(layout_style, off_screen):
     """This function tests the following functions in RenderManager:
-    _rearrange_layout, add, is_bound, bind, unbind, remove_sensor, update, render, close
+    _rearrange_layout, add, is_bound, bind, unbind, remove_sensor, update, render, reset, close
     """
     map_path = "./tactics2d/data/map/inD/inD_4.osm"
     trajectory_path = "./tactics2d/data/trajectory_sample/inD/data/"
@@ -125,7 +124,7 @@ def test_render_manager(layout_style, off_screen):
     map_parser = OSMParser(lanelet2=True)
     map_root = ET.parse(map_path).getroot()
     map_ = map_parser.parse(
-        map_root, configs["inD_4"], configs["inD_4"]["gps_origin"], configs["inD_4"]
+        map_root, configs["inD_4"]["project_rule"], configs["inD_4"]["gps_origin"], configs["inD_4"]
     )
 
     dataset_parser = LevelXParser("inD")
@@ -163,12 +162,20 @@ def test_render_manager(layout_style, off_screen):
             participant.id_ for participant in participants.values() if participant.is_active(frame)
         ]
 
-        auto_bind_camera(camera1, participant_ids, 0)
-        auto_bind_camera(camera2, participant_ids, 1)
+        if len(participant_ids) == 1:
+            auto_bind_camera(camera1, participant_ids, 0)
+            render_manager.unbind(camera2.id_)
+        elif len(participant_ids) >= 2:
+            auto_bind_camera(camera1, participant_ids, 0)
+            auto_bind_camera(camera2, participant_ids, 1)
 
         render_manager.update(participants, participant_ids, frame)
-        render_manager.render()
+        if not "DISPLAY" in os.environ:
+            render_manager.render()
 
+    render_manager.remove_sensor(0)
+    render_manager.remove_sensor(1)
+    render_manager.reset()
     render_manager.close()
 
     t2 = time.time()

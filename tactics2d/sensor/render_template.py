@@ -1,3 +1,10 @@
+##! python3
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: render_template.py
+# @Description: This file contains the default color palette and zorder for rendering different classes of map elements.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
 COLOR_PALETTE = {
     "red": "#fc5c65",
     "light-red": "#fc5c65",
