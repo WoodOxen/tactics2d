@@ -7,13 +7,13 @@
 
 
 import logging
-from enum import Enum
+from enum import IntEnum
 from typing import Any, Union
 
 from shapely.geometry import LinearRing, LineString
 
 
-class LaneRelationship(Enum):
+class LaneRelationship(IntEnum):
     PREDECESSOR = 1
     SUCCESSOR = 2
     LEFT_NEIGHBOR = 3
@@ -142,7 +142,7 @@ class Lane:
 
     @property
     def shape(self) -> list:
-        return list(self.polygon.coords)
+        return list(self.geometry.coords)
 
     def is_related(self, id_: str) -> LaneRelationship:
         """Check if a given lane is related to the lane
@@ -159,12 +159,14 @@ class Lane:
         elif id_ in self.right_neighbors:
             return LaneRelationship.RIGHT_NEIGHBOR
 
+        return False
+
     def add_related_lane(self, id_: Union[str, list], relationship: LaneRelationship):
         """Add a related lane's id to the corresponding list
 
         Args:
             id_ (str): The related lane's id
-            relationship (LaneRelationship): The relationship of the lanes
+            relationship (LaneRelationship): The relationship of the lanes. The possible values are 1/`PREDECESSOR`, 2/`SUCCESSOR`, 3/`LEFT_NEIGHBOR`, and 4/`RIGHT_NEIGHBOR`.
         """
         if id_ is None:
             return
@@ -173,13 +175,21 @@ class Lane:
             if id_ == self.id_:
                 logging.warning(f"Lane {self.id_} cannot be a related lane to itself.")
                 return
-            if relationship == LaneRelationship.PREDECESSOR:
+            if relationship == LaneRelationship.PREDECESSOR or relationship == int(
+                LaneRelationship.PREDECESSOR
+            ):
                 self.predecessors.add(id_)
-            elif relationship == LaneRelationship.SUCCESSOR:
+            elif relationship == LaneRelationship.SUCCESSOR or relationship == int(
+                LaneRelationship.SUCCESSOR
+            ):
                 self.successors.add(id_)
-            elif relationship == LaneRelationship.LEFT_NEIGHBOR:
+            elif relationship == LaneRelationship.LEFT_NEIGHBOR or relationship == int(
+                LaneRelationship.LEFT_NEIGHBOR
+            ):
                 self.left_neighbors.add(id_)
-            elif relationship == LaneRelationship.RIGHT_NEIGHBOR:
+            elif relationship == LaneRelationship.RIGHT_NEIGHBOR or relationship == int(
+                LaneRelationship.RIGHT_NEIGHBOR
+            ):
                 self.right_neighbors.add(id_)
 
         elif isinstance(id_, list):
