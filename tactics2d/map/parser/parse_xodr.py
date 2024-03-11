@@ -68,11 +68,16 @@ class XODRParser:
         curv_start = float(xml_node.find("spiral").attrib["curvStart"])
         curv_end = float(xml_node.find("spiral").attrib["curvEnd"])
 
-        # if length == 0:
-        #     spiral_interpolator = Spiral(0)
-        # else:
-        #     spiral_interpolator = Spiral((curv_end - curv_start) / length)
-        return []
+        n_interpolate = int(length / 0.1)
+        s_interpolate = np.linspace(0, length, n_interpolate+1)
+        if length < 0.1: # TODO: check the threshold/precision 0.1
+            points = [(x_start, y_start)]
+        else:
+            gamma = (curv_end - curv_start) / length
+            points = Spiral.get_spiral(s_interpolate, [x_start, y_start], heading, curv_start, gamma)
+            points = [(x, y) for x, y in points]
+
+        return points
 
     def _get_arc(self, xml_node: ET.Element) -> list:
         x_start = float(xml_node.attrib["x"])
@@ -105,14 +110,26 @@ class XODRParser:
         b = float(xml_node.find("poly3").attrib["b"])
         c = float(xml_node.find("poly3").attrib["c"])
         d = float(xml_node.find("poly3").attrib["d"])
+        
+        n_interpolate = int(length / 0.1)
+        u_interpolate = np.linspace(0, length, n_interpolate+1)
+        v_interpolate = a * u_interpolate ** 3 + b * u_interpolate ** 2 + c * u_interpolate + d
+        coords_uv = np.array([u_interpolate, v_interpolate]).T
+        transform = np.array([[np.cos(heading), np.sin(heading)], [-np.sin(heading), np.cos(heading)]]) # TODO: check the rotation direction
+        coords_xy = np.dot(coords_uv, transform.T) + np.array([x_start, y_start])
+        points = [(x, y) for x, y in coords_xy]
 
-        return []
+        return points
 
     def _get_param_poly3(self, xml_node: ET.Element) -> list:
         x_start = float(xml_node.attrib["x"])
         y_start = float(xml_node.attrib["y"])
         heading = float(xml_node.attrib["hdg"])
         length = float(xml_node.attrib["length"])
+        if xml_node.find("paramPoly3").attrib["pRange"]:
+            p_range = float(xml_node.find("paramPoly3").attrib["pRange"])
+        else:
+            p_range = 1
         aU = float(xml_node.find("paramPoly3").attrib["aU"])
         bU = float(xml_node.find("paramPoly3").attrib["bU"])
         cU = float(xml_node.find("paramPoly3").attrib["cU"])
@@ -121,8 +138,17 @@ class XODRParser:
         bV = float(xml_node.find("paramPoly3").attrib["bV"])
         cV = float(xml_node.find("paramPoly3").attrib["cV"])
         dV = float(xml_node.find("paramPoly3").attrib["dV"])
-
-        return []
+        
+        n_interpolate = int(length / 0.1)
+        p_interpolate = np.linspace(0, p_range, n_interpolate+1)
+        u_interpolate = aU * p_interpolate ** 3 + bU * p_interpolate ** 2 + cU * p_interpolate + dU
+        v_interpolate = aV * p_interpolate ** 3 + bV * p_interpolate ** 2 + cV * p_interpolate + dV
+        coords_uv = np.array([u_interpolate, v_interpolate]).T
+        transform = np.array([[np.cos(heading), np.sin(heading)], [-np.sin(heading), np.cos(heading)]]) # TODO: check the rotation direction
+        coords_xy = np.dot(coords_uv, transform.T) + np.array([x_start, y_start])
+        points = [(x, y) for x, y in coords_xy]
+        
+        return points
 
     def _get_geometry(self, xml_node: ET.Element) -> list:
         geometry = []
