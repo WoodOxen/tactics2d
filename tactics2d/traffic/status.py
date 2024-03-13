@@ -5,10 +5,10 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from enum import Enum
+from enum import IntEnum
 
 
-class ScenarioStatus(Enum):
+class ScenarioStatus(IntEnum):
     """This class defines the high-level status of a traffic scenario.
 
     The possible status are as follows:
@@ -16,16 +16,20 @@ class ScenarioStatus(Enum):
     1. `NORMAL`: The scenario is running normally.
     2. `COMPLETED`: The scenario is completed.
     3. `TIME_EXCEEDED`: The scenario is not completed within the time limit.
-    4. `FAILED`: The scenario is failed. The reasons for the failure are various and should be specified by [TrafficStatus](#tactics2d.traffic.TrafficStatus) or user defined status.
+    4. `OUT_BOUND`: The ego vehicle is out of the boundary of the map.
+    5. `NO_ACTION`: The ego vehicle does not take any action for a given time period.
+    6. `FAILED`: The scenario is failed. The reasons for the failure are various and should be specified by [TrafficStatus](#tactics2d.traffic.TrafficStatus) or user defined status.
     """
 
     NORMAL = 1
     COMPLETED = 2
     TIME_EXCEEDED = 3
-    FAILED = 4
+    OUT_BOUND = 4
+    NO_ACTION = 5
+    FAILED = 6
 
 
-class TrafficStatus(Enum):
+class TrafficStatus(IntEnum):
     """This class provides a sample for describing the low-level status of a traffic scenario. The user can custom their own status class.
 
     The preliminaries of the status description are as follows:
@@ -44,7 +48,6 @@ class TrafficStatus(Enum):
     8. `VIOLATION_NON_DRIVABLE`: The ego vehicle violates the traffic rule because it is in a non-drivable region, such as the bicycle lane, side walk, and traffic island.
     9. `VIOLATION_TRAFFIC_LIGHT`: The ego vehicle violates the traffic rule because it does not obey the traffic light.
     10. `VIOLATION_TRAFFIC_SIGN`: The ego vehicle violates the traffic rule because it does not obey the traffic sign.
-    11. `NO_ACTION`: The ego vehicle does not take any action for a given time period.
     """
 
     NORMAL = 1
@@ -57,4 +60,3 @@ class TrafficStatus(Enum):
     VIOLATION_NON_DRIVABLE = 8
     VIOLATION_TRAFFIC_LIGHT = 9
     VIOLATION_TRAFFIC_SIGN = 10
-    NO_ACTION = 11

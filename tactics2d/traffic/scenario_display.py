@@ -13,7 +13,7 @@ from matplotlib.patches import Circle, Polygon
 
 from tactics2d.map.element import Area, Lane, RoadLine
 from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
-from tactics2d.sensor.render_template import COLOR_PALETTE, DEFAULT_COLOR, DEFAULT_ORDER
+from tactics2d.sensor.render_template import *
 
 
 class ScenarioDisplay:
