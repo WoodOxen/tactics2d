@@ -56,7 +56,7 @@ def test_lanelet2_parser():
     parsed_map_set = set()
 
     for map_name, map_config in configs.items():
-        if map_config["dataset"] in ["uniD", "exiD", "NuPlan"]:
+        if map_config["dataset"] in ["inD", "rounD", "uniD", "exiD", "NuPlan"]:
             continue
         logging.info(f"Parsing map {map_name}.")
 

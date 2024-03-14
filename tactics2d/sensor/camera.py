@@ -179,7 +179,7 @@ class TopDownCamera(SensorBase):
         )
         radius = max(1, 0.5 * self.scale)
 
-        pygame.draw.circle(self._surface, color, point, radius)
+        pygame.draw.circle(self._surface, color, (point.x, point.y), radius)
 
     def _render_participants(self, participants: dict, participant_ids: list, frame: int = None):
         for participant_id in participant_ids:

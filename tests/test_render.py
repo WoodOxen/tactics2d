@@ -10,15 +10,13 @@ import platform
 import time
 import xml.etree.ElementTree as ET
 
-logging.basicConfig(level=logging.DEBUG)
-
 import numpy as np
 import pygame
 import pytest
 from PIL import Image
 from shapely.geometry import Point
 
-from tactics2d.dataset_parser import LevelXParser
+from tactics2d.dataset_parser import InteractionParser
 from tactics2d.map.parser import OSMParser
 from tactics2d.sensor import RenderManager, SingleLineLidar, TopDownCamera
 
@@ -26,8 +24,10 @@ from tactics2d.sensor import RenderManager, SingleLineLidar, TopDownCamera
 @pytest.mark.render
 @pytest.mark.parametrize("follow_view", [True, False])
 def test_camera(follow_view: bool):
-    map_path = "./tactics2d/data/map/inD/inD_4.osm"
-    trajectory_path = "./tactics2d/data/trajectory_sample/inD/data/"
+    map_path = "./tactics2d/data/map/INTERACTION/DR_DEU_Roundabout_OF.osm"
+    trajectory_path = (
+        "./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/DR_USA_Intersection_EP0"
+    )
     config_path = "./tactics2d/data/map/map.config"
 
     with open(config_path) as f:
@@ -36,12 +36,15 @@ def test_camera(follow_view: bool):
     map_parser = OSMParser(lanelet2=True)
     map_root = ET.parse(map_path).getroot()
     map_ = map_parser.parse(
-        map_root, configs["inD_4"]["project_rule"], configs["inD_4"]["gps_origin"], configs["inD_4"]
+        map_root,
+        configs["DR_DEU_Roundabout_OF"]["project_rule"],
+        configs["DR_DEU_Roundabout_OF"]["gps_origin"],
+        configs["DR_DEU_Roundabout_OF"],
     )
 
-    frame = 40
-    dataset_parser = LevelXParser("inD")
-    participants, _ = dataset_parser.parse_trajectory(0, trajectory_path, (0, 10000))
+    frame = 88000
+    dataset_parser = InteractionParser()
+    participants, _ = dataset_parser.parse_trajectory(0, trajectory_path, (87000, 90000))
     participant_ids = [
         participant.id_ for participant in participants.values() if participant.is_active(frame)
     ]
@@ -52,6 +55,7 @@ def test_camera(follow_view: bool):
     else:
         camera = TopDownCamera(1, map_, (30, 30, 45, 15), window_size=(600, 600))
         state = participants[participant_ids[0]].get_state(frame)
+        logging.info(state.location)
         camera.update(participants, participant_ids, frame, Point(state.location), state.heading)
     observation = camera.get_observation()
     logging.info(f"observation.shape: {observation.shape}")
@@ -70,8 +74,10 @@ def test_camera(follow_view: bool):
 @pytest.mark.render
 @pytest.mark.parametrize("perception_range", [12.0, 30.0, 45.0, 100.0])
 def test_lidar(perception_range):
-    map_path = "./tactics2d/data/map/inD/inD_4.osm"
-    trajectory_path = "./tactics2d/data/trajectory_sample/inD/data/"
+    map_path = "./tactics2d/data/map/INTERACTION/DR_DEU_Roundabout_OF.osm"
+    trajectory_path = (
+        "./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/DR_USA_Intersection_EP0"
+    )
     config_path = "./tactics2d/data/map/map.config"
 
     with open(config_path) as f:
@@ -80,12 +86,15 @@ def test_lidar(perception_range):
     map_parser = OSMParser(lanelet2=True)
     map_root = ET.parse(map_path).getroot()
     map_ = map_parser.parse(
-        map_root, configs["inD_4"]["project_rule"], configs["inD_4"]["gps_origin"], configs["inD_4"]
+        map_root,
+        configs["DR_DEU_Roundabout_OF"]["project_rule"],
+        configs["DR_DEU_Roundabout_OF"]["gps_origin"],
+        configs["DR_DEU_Roundabout_OF"],
     )
 
-    frame = 40
-    dataset_parser = LevelXParser("inD")
-    participants, _ = dataset_parser.parse_trajectory(0, trajectory_path, (0, 10000))
+    frame = 88000
+    dataset_parser = InteractionParser()
+    participants, _ = dataset_parser.parse_trajectory(0, trajectory_path, (87000, 90000))
     participant_ids = [
         participant.id_ for participant in participants.values() if participant.is_active(frame)
     ]
@@ -115,8 +124,10 @@ def test_render_manager(layout_style, off_screen):
     """This function tests the following functions in RenderManager:
     _rearrange_layout, add, is_bound, bind, unbind, remove_sensor, update, render, reset, close
     """
-    map_path = "./tactics2d/data/map/inD/inD_4.osm"
-    trajectory_path = "./tactics2d/data/trajectory_sample/inD/data/"
+    map_path = "./tactics2d/data/map/INTERACTION/DR_DEU_Roundabout_OF.osm"
+    trajectory_path = (
+        "./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/DR_USA_Intersection_EP0"
+    )
     config_path = "./tactics2d/data/map/map.config"
 
     with open(config_path) as f:
@@ -125,11 +136,14 @@ def test_render_manager(layout_style, off_screen):
     map_parser = OSMParser(lanelet2=True)
     map_root = ET.parse(map_path).getroot()
     map_ = map_parser.parse(
-        map_root, configs["inD_4"]["project_rule"], configs["inD_4"]["gps_origin"], configs["inD_4"]
+        map_root,
+        configs["DR_DEU_Roundabout_OF"]["project_rule"],
+        configs["DR_DEU_Roundabout_OF"]["gps_origin"],
+        configs["DR_DEU_Roundabout_OF"],
     )
 
-    dataset_parser = LevelXParser("inD")
-    participants, _ = dataset_parser.parse_trajectory(0, trajectory_path, (0, 10000))
+    dataset_parser = InteractionParser()
+    participants, _ = dataset_parser.parse_trajectory(0, trajectory_path, (87000, 90000))
 
     render_manager = RenderManager(
         fps=100, windows_size=(600, 600), layout_style=layout_style, off_screen=off_screen
@@ -149,16 +163,15 @@ def test_render_manager(layout_style, off_screen):
     render_manager.add_sensor(camera2)
 
     def auto_bind_camera(camera, participant_ids, bind_target):
-        bind_id = render_manager.is_bound(camera.id_)
-        if bind_id is None:
+        if not render_manager.is_bound(camera.id_):
             render_manager.bind(camera.id_, participant_ids[bind_target])
-        elif not participants[bind_id].is_active(frame):
+        elif not participants[render_manager.get_bind_id(camera.id_)].is_active(frame):
             render_manager.unbind(camera.id_)
             render_manager.bind(camera.id_, participant_ids[bind_target])
 
     t1 = time.time()
 
-    for frame in np.arange(0, 50 * 1000, 40):
+    for frame in np.arange(87000, 97000, 100):
         participant_ids = [
             participant.id_ for participant in participants.values() if participant.is_active(frame)
         ]
@@ -171,7 +184,7 @@ def test_render_manager(layout_style, off_screen):
             auto_bind_camera(camera2, participant_ids, 1)
 
         render_manager.update(participants, participant_ids, frame)
-        if not "DISPLAY" in os.environ:
+        if "DISPLAY" in os.environ:
             render_manager.render()
 
     render_manager.remove_sensor(0)
@@ -181,9 +194,9 @@ def test_render_manager(layout_style, off_screen):
 
     t2 = time.time()
 
-    average_fps = 1 // ((t2 - t1) / (50 * 1000 / 40))
+    average_fps = ((97000 - 87000) / 100) / (t2 - t1)
 
-    logging.debug(f"The average FPS is {average_fps}")
+    logging.info(f"The average FPS is {average_fps}")
 
 
 @pytest.mark.skip(reason="This test is not implemented yet.")

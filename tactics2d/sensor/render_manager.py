@@ -161,6 +161,17 @@ class RenderManager:
         """
         return id_ in self._bound_sensors
 
+    def get_bind_id(self, id_) -> int:
+        """This function gets the id of the participant that the sensor is bound to.
+
+        Args:
+            id_ (int): The id of the sensor.
+
+        Returns:
+            The id of the participant that the sensor is bound to. If the sensor is not bound to any participant, return None.
+        """
+        return self._bound_sensors.get(id_)
+
     def bind(self, id_: int, participant_id: int):
         """This function binds a registered sensor with a participant.
 
@@ -202,11 +213,8 @@ class RenderManager:
             observation of all the sensors.
 
         Args:
-            participants (dict): The dictionary of all participants. The render manager
-                will detect which of them is alive.
-            frame (int): Update the sensors to the given frame. If None, the sensors
-                will update to the current frame. The default unit is millisecond.
-                Defaults to None.
+            participants (dict): The dictionary of all participants. The render manager will detect which of them is alive.
+            frame (int): Update the sensors to the given frame. If None, the sensors will update to the current frame. The default unit is millisecond.
         """
         to_remove = []
         for id_, sensor in self._sensors.items():

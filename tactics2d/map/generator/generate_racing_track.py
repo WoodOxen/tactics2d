@@ -40,7 +40,7 @@ class RacingTrackGenerator:
     _n_checkpoint = (10, 20)  # the number of turns is ranging in 10-20
     _track_width = 15  # the width of the track is varying around 15m
     _track_rad = 800  # the maximum curvature radius
-    _curve_rad = (10, 150)  # the curvature radius is ranging in 10-150m
+    _curve_rad = (50, 150)  # the curvature radius is ranging in 10-150m
     _tile_length = 10  # the length of each tile
 
     def __init__(self, bezier_order=2, bezier_interpolation=50):
@@ -182,7 +182,6 @@ class RacingTrackGenerator:
                 left_side=LineString([left_points[i], left_points[i + 1]]),
                 right_side=LineString([right_points[i], right_points[i + 1]]),
                 subtype="road",
-                inferred_participants=["sports_car"],
             )
 
             if i > 0:
@@ -228,7 +227,8 @@ class RacingTrackGenerator:
             "start_line": RoadLine(
                 id_="0",
                 geometry=LineString(map_.lanes["0000"].ends),
-                type_="solid",
+                type_="line_thin",
+                subtype="solid",
                 color=(255, 0, 0),
             ),
             "end_line": RoadLine(

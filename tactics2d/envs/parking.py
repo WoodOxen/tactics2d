@@ -6,7 +6,7 @@
 # @Version: 1.0.0
 
 import logging
-from typing import Tuple, Union
+from typing import Union
 
 import gymnasium as gym
 import numpy as np
@@ -173,12 +173,12 @@ class ParkingEnv(gym.Env):
         else:
             time_penalty = -np.tanh(self.scenario_manager.cnt_step / self.max_step) * 0.1
             if self._max_iou == -np.inf:
-                iou_reward = iou
+                iou_reward = iou if not iou is None else 0
             else:
-                iou_reward = iou - self._max_iou
+                iou_reward = iou - self._max_iou if not iou is None else 0
 
             reward = time_penalty + iou_reward
-            self._max_iou = max(self._max_iou, iou)
+            self._max_iou = max(self._max_iou, iou) if not iou is None else self._max_iou
 
         return reward
 
@@ -190,7 +190,7 @@ class ParkingEnv(gym.Env):
         state_infos["target_heading"] = self.scenario_manager.target_heading
         return state_infos
 
-    def step(self, action: Union[Tuple[float], int]):
+    def step(self, action: Union[np.ndarray, int]):
         """This function takes a step in the environment.
 
         Args:
@@ -210,8 +210,8 @@ class ParkingEnv(gym.Env):
             raise InvalidAction(f"Action {action} is not in the action space.")
         action = action if self.continuous else self._discrete_action[action]
 
-        steering, acceleration = action
-        self.scenario_manager.update(steering, acceleration)
+        steering, accel = action
+        self.scenario_manager.update(steering, accel)
         scenario_status, traffic_status, iou = self.scenario_manager.check_status(action)
 
         terminated = False
@@ -221,7 +221,7 @@ class ParkingEnv(gym.Env):
         elif (scenario_status != ScenarioStatus.NORMAL) or (traffic_status != TrafficStatus.NORMAL):
             truncated = True
 
-        observations = self.scenario_manager.render()
+        observations = self.scenario_manager.get_observation()
         reward = self._get_reward(scenario_status, traffic_status, iou)
 
         infos = self._get_infos(self.scenario_manager.agent.current_state, observations)
@@ -267,7 +267,7 @@ class ParkingEnv(gym.Env):
             render_fps: int = 60,
             off_screen: bool = False,
         ):
-            super().__init__(render_fps, off_screen, max_step, step_size)
+            super().__init__(max_step, step_size, render_fps, off_screen)
 
             self.agent = Vehicle(id_=0)
             self.agent.load_from_template("medium_car")
@@ -303,10 +303,11 @@ class ParkingEnv(gym.Env):
                 "completed": Arrival(),
             }
 
-        def update(self, steering: float, acceleration: float):
+        def update(self, steering: float, accel: float):
             self.cnt_step += 1
             current_state = self.agent.current_state
-            self.agent.physics_model.step(current_state, acceleration, steering)
+            next_state, _, _ = self.agent.physics_model.step(current_state, accel, steering)
+            self.agent.add_state(next_state)
             self.render_manager.update(self.participants, [0], self.agent.current_state.frame)
 
             return self.get_observation()
@@ -346,7 +347,6 @@ class ParkingEnv(gym.Env):
 
         def render(self):
             self.render_manager.render()
-            return self.render_manager.get_observation()
 
         def reset(self):
             self.cnt_step = 0
