@@ -1,5 +1,4 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: parse_interaction.py
 # @Description: This file implements a parser for INTERACTION dataset.
@@ -7,13 +6,13 @@
 # @Version: 1.0.0
 
 import os
-from typing import Tuple, Union
 import re
+from typing import Tuple, Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist
+from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
 from tactics2d.participant.guess_type import GuessType
 from tactics2d.participant.trajectory import State, Trajectory
 

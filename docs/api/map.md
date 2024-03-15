@@ -1,10 +1,17 @@
 ::: tactics2d.map
 
-::: tactics2d.map.converter
+::: tactics2d.map.element
     options:
         heading_level: 2
+        members:
+            - Node
+            - RoadLine
+            - Lane
+            - Area
+            - Regulatory
+            - Map
 
-::: tactics2d.map.element
+::: tactics2d.map.converter
     options:
         heading_level: 2
 

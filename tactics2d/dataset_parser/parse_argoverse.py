@@ -1,22 +1,21 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: parse_argoverse.py
 # @Description: This file implements a parser for Argoverse 2 dataset.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-import os
 import json
+import os
 from typing import Tuple
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from shapely.geometry import LineString, Polygon
 
-from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
+from tactics2d.map.element import Area, Lane, LaneRelationship, Map, RoadLine
+from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
-from tactics2d.map.element import Area, RoadLine, Lane, LaneRelationship, Map
 
 
 class ArgoverseParser:
@@ -138,7 +137,7 @@ class ArgoverseParser:
         """
         file_path = os.path.join(folder, file)
 
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             map_data = json.load(f)
 
         map_ = Map(name="argoverse_" + file.split(".")[0])
@@ -163,7 +162,7 @@ class ArgoverseParser:
                 ]
                 left_road_line = RoadLine(
                     id_="%05d" % roadline_id_counter,
-                    linestring=LineString(
+                    geometry=LineString(
                         [[point["x"], point["y"]] for point in road_element["left_lane_boundary"]]
                     ),
                     type_=left_type,
@@ -178,7 +177,7 @@ class ArgoverseParser:
                 ]
                 right_road_line = RoadLine(
                     id_="%05d" % roadline_id_counter,
-                    linestring=LineString(
+                    geometry=LineString(
                         [[point["x"], point["y"]] for point in road_element["right_lane_boundary"]]
                     ),
                     type_=right_type,
@@ -192,7 +191,7 @@ class ArgoverseParser:
                     id_=str(road_element["id"]),
                     left_side=left_road_line.geometry,
                     right_side=right_road_line.geometry,
-                    line_ids=set([left_road_line.id_, right_road_line.id_]),
+                    line_ids={left_road_line.id_, right_road_line.id_},
                     subtype=self._LANE_TYPE_MAPPING[road_element["lane_type"]],
                     location="urban",
                     custom_tags={"is_intersection": road_element["is_intersection"]},

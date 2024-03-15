@@ -1,22 +1,22 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: parse_levelx.py
 # @Description: This file implements a parser for highD, inD, rounD, exiD, uniD datasets.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-import os
-from typing import Tuple, Union
-import re
 import math
+import os
+import re
+from typing import Tuple, Union
+
+import numpy as np
+import pandas as pd
 
 # import xml.etree.ElementTree as ET
 from pyproj import Proj
-import pandas as pd
-import numpy as np
 
-from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist
+from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 
 # from tactics2d.map.parser import Lanelet2Parser

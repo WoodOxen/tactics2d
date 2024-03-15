@@ -1,23 +1,19 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: scenario_display.py
-# @Description:
+# @Description: This script is used to display the scenario with matplotlib.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Tuple, List, Union
-import warnings
-
-from matplotlib.lines import Line2D
-from matplotlib.patches import Polygon, Circle
-from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.animation import FuncAnimation
+from matplotlib.lines import Line2D
+from matplotlib.patches import Circle, Polygon
 
-from tactics2d.map.element import Lane, Area, RoadLine
-from tactics2d.participant.element import Vehicle, Cyclist, Pedestrian
-from tactics2d.sensor.render_template import COLOR_PALETTE, DEFAULT_COLOR, DEFAULT_ORDER
+from tactics2d.map.element import Area, Lane, RoadLine
+from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
+from tactics2d.sensor.render_template import *
 
 
 class ScenarioDisplay:

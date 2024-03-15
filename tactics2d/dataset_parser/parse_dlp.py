@@ -1,17 +1,16 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: parse_dlp.py
 # @Description: This file implements a parser of the Dragon Lake Parking Dataset.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Tuple, Union
 import json
+from typing import Tuple, Union
 
 import numpy as np
 
-from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
+from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 
 
@@ -83,13 +82,13 @@ class DLPParser:
         else:
             raise TypeError("The input file must be an integer or a string.")
 
-        with open("%s/DJI_%04d_agents.json" % (folder, file_id), "r") as f_agent:
+        with open("%s/DJI_%04d_agents.json" % (folder, file_id)) as f_agent:
             df_agent = json.load(f_agent)
-        with open("%s/DJI_%04d_frames.json" % (folder, file_id), "r") as f_frame:
+        with open("%s/DJI_%04d_frames.json" % (folder, file_id)) as f_frame:
             df_frame = json.load(f_frame)
-        with open("%s/DJI_%04d_instances.json" % (folder, file_id), "r") as f_instance:
+        with open("%s/DJI_%04d_instances.json" % (folder, file_id)) as f_instance:
             df_instance = json.load(f_instance)
-        with open("%s/DJI_%04d_obstacles.json" % (folder, file_id), "r") as f_obstacle:
+        with open("%s/DJI_%04d_obstacles.json" % (folder, file_id)) as f_obstacle:
             df_obstacle = json.load(f_obstacle)
 
         for frame in df_frame.values():

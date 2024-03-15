@@ -1,0 +1,91 @@
+<?xml version="1.0" standalone="yes"?>
+<OpenDRIVE>
+    <header revMajor="1" revMinor="4" name="" version="1.00" date="Mon Aug 10 15:45:34 2020" north="0.0000000000000000e+00" south="0.0000000000000000e+00" east="0.0000000000000000e+00" west="0.0000000000000000e+00">
+    </header>
+    <road name="" length="1.8283185307174625e+02" id="2" junction="-1">
+        <link>
+        </link>
+        <type s="0.0000000000000000e+00" type="unknown"/>
+        <planView>
+            <geometry s="0.0000000000000000e+00" x="1.7763568394002505e-15" y="4.0000000000000007e+01" hdg="2.3684757858670006e-16" length="3.0000000000000000e+01">
+                <line/>
+            </geometry>
+            <geometry s="3.0000000000000000e+01" x="3.0000000000000000e+01" y="4.0000000000000014e+01" hdg="0.0000000000000000e+00" length="1.5707963267948966e+01">
+                <arc curvature="-1.0000000000000001e-01"/>
+            </geometry>
+            <geometry s="4.5707963267948969e+01" x="4.0000000000000000e+01" y="3.0000000000000014e+01" hdg="-1.5707963267948966e+00" length="3.0000000000000036e+01">
+                <line/>
+            </geometry>
+            <geometry s="7.5707963267948998e+01" x="4.0000000000000000e+01" y="-2.1316282072803006e-14" hdg="-1.5707963267948966e+00" length="1.5707963267948974e+01">
+                <arc curvature="-1.0000000000000001e-01"/>
+            </geometry>
+            <geometry s="9.1415926535897967e+01" x="2.9999999999999993e+01" y="-1.0000000000000021e+01" hdg="-3.1415926535848278e+00" length="3.0000000000000014e+01">
+                <line/>
+            </geometry>
+            <geometry s="1.2141592653589798e+02" x="-4.9679432340866123e-11" y="-1.0000000000000000e+01" hdg="3.1415926535897922e+00" length="1.5707963267899299e+01">
+                <arc curvature="-1.0000000000000001e-01"/>
+            </geometry>
+            <geometry s="1.3712388980379728e+02" x="-1.0000000000000012e+01" y="0.0000000000000000e+00" hdg="1.5707963267998624e+00" length="3.0000000000000007e+01">
+                <line/>
+            </geometry>
+            <geometry s="1.6712388980379728e+02" x="-1.0000000000000000e+01" y="3.0000000000000007e+01" hdg="1.5707963267961380e+00" length="1.5707963267948967e+01">
+                <arc curvature="-1.0000000000000001e-01"/>
+            </geometry>
+        </planView>
+        <elevationProfile>
+            <elevation s="0.0000000000000000e+00" a="0.0000000000000000e+00" b="0.0000000000000000e+00" c="0.0000000000000000e+00" d="0.0000000000000000e+00"/>
+        </elevationProfile>
+        <lateralProfile>
+        </lateralProfile>
+        <lanes>
+            <laneOffset s="0.0000000000000000e+00" a="0.0000000000000000e+00" b="0.0000000000000000e+00" c="0.0000000000000000e+00" d="0.0000000000000000e+00"/>
+            <laneSection s="0.0000000000000000e+00">
+                <left>
+                    <lane id="1" type="none" level="false">
+                        <link>
+                        </link>
+                        <width sOffset="0.0000000000000000e+00" a="3.7500000000000000e+00" b="0.0000000000000000e+00" c="0.0000000000000000e+00" d="0.0000000000000000e+00"/>
+                        <roadMark sOffset="0.0000000000000000e+00" type="solid" weight="standard" color="standard" width="1.3000000000000000e-01" laneChange="none" height="1.9999999552965164e-02">
+                        </roadMark>
+                        <speed sOffset="0.0000000000000000e+00" max="1.6666666666666668e+01"/>
+                    </lane>
+                </left>
+                <center>
+                    <lane id="0" type="none" level="false">
+                        <link>
+                        </link>
+                        <roadMark sOffset="0.0000000000000000e+00" type="broken" weight="standard" color="standard" width="1.3000000000000000e-01" laneChange="both" height="1.9999999552965164e-02">
+                        </roadMark>
+                    </lane>
+                </center>
+                <right>
+                    <lane id="-1" type="none" level="false">
+                        <link>
+                        </link>
+                        <width sOffset="0.0000000000000000e+00" a="3.7500000000000000e+00" b="0.0000000000000000e+00" c="0.0000000000000000e+00" d="0.0000000000000000e+00"/>
+                        <roadMark sOffset="0.0000000000000000e+00" type="solid" weight="standard" color="standard" width="1.3000000000000000e-01" laneChange="none" height="1.9999999552965164e-02">
+                        </roadMark>
+                        <speed sOffset="0.0000000000000000e+00" max="1.6666666666666668e+01"/>
+                    </lane>
+                </right>
+            </laneSection>
+        </lanes>
+        <objects>
+        </objects>
+        <signals>
+            <signal s="0.0000000000000000e+00" t="-3.7500000000000000e+00" id="0" name="Sg274Hoechstgeschw110_01.flt" dynamic="no" orientation="+" zOffset="1.2900000065565109e+00" type="274" country="OpenDRIVE" subtype="61" value="1.1000000000000000e+02" unit="km/h" hOffset="0.0000000000000000e+00" pitch="0.0000000000000000e+00" roll="0.0000000000000000e+00" height="0.42" width="0.43">
+            </signal>
+            <signal s="3.0000000000000000e+01" t="-3.7500000000000000e+00" id="2" name="_Sg2" dynamic="yes" orientation="+" zOffset="0.0000000000000000e+00" type="1000001" country="OpenDRIVE" subtype="-1" hOffset="0.0000000000000000e+00" pitch="0.0000000000000000e+00" roll="0.0000000000000000e+00" height="3.22" width="0.45">
+                <userData code="3" value="0.0000000000000000e+00"/>
+            </signal>
+            <signal s="7.5000000000000000e+01" t="-3.7500000000000000e+00" id="1" name="_Sg1" dynamic="yes" orientation="+" zOffset="0.0000000000000000e+00" type="1000001" country="OpenDRIVE" subtype="-1" hOffset="0.0000000000000000e+00" pitch="0.0000000000000000e+00" roll="0.0000000000000000e+00" height="3.22" width="0.45">
+            </signal>
+        </signals>
+        <surface>
+        </surface>
+    </road>
+    <controller name="ctrl000" id="0">
+        <control signalId="2" type="0" />
+        <control signalId="1" type="0" />
+    </controller>
+</OpenDRIVE>

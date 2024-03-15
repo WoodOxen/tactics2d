@@ -1,18 +1,18 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: point_mass.py
 # @Description: This file implements a point mass model for a traffic participant.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Tuple, Union
 import logging
+from typing import Tuple, Union
 
 import numpy as np
 
-from .physics_model_base import PhysicsModelBase
 from tactics2d.participant.trajectory import State
+
+from .physics_model_base import PhysicsModelBase
 
 
 class PointMass(PhysicsModelBase):

@@ -15,6 +15,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Check out private repository WoodOxen/trajectory_data_analysis
+        uses: actions/checkout@v4
+        with:
+          repository: WoodOxen/trajectory_data_analysis
+          token: ${{ secrets.TRAJ_DATA_SCP }}
+          path: tactics2d/data
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -29,18 +35,26 @@ jobs:
         run: |
           mkdir ./tests/runtime
           pytest tests --cov=tactics2d --cov-report=xml
-      - name: Upload coverage reports to Codecov
+      - name: Upload coverage reports to Codecov (Ubuntu)
         uses: codecov/codecov-action@v3
-  
+        if: matrix.os == 'ubuntu-20.04' || matrix.os == 'ubuntu-22.04'
+
   test-modules-on-Ubuntu1804:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.8"]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-            submodules: recursive
+          submodules: recursive
+      - name: Check out private repository WoodOxen/trajectory_data_analysis
+        uses: actions/checkout@v4
+        with:
+          repository: WoodOxen/trajectory_data_analysis
+          token: ${{ secrets.TRAJ_DATA_SCP }}
+          path: tactics2d/data
       - name: Make runtime directory
         run: |
           mkdir ./tests/runtime/

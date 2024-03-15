@@ -1,0 +1,4 @@
+include tactics2d/participant/trajectory_classifier.m
+include tactics2d/data/map/map.config
+recursive-include tactics2d/data/map *.osm
+recursive-include tactics2d/data/trajectory_sample *.csv *.db *.tfrecord *.json *.parquet

@@ -1,19 +1,25 @@
+##! python3
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: test_math_interpolate.py
+# @Description: This script is used to test the interpolators in the math module.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
+
 import sys
 
 sys.path.append(".")
 sys.path.append("..")
 
-import time
 import logging
-
-logging.basicConfig(level=logging.INFO)
+import time
 
 # import dubins
 import numpy as np
 import pytest
-from scipy.spatial.distance import directed_hausdorff
 from scipy.interpolate import BSpline as SciBSpline
 from scipy.interpolate import CubicSpline as SciCubic
+from scipy.spatial.distance import directed_hausdorff
 
 from tactics2d.math.interpolate import *
 
@@ -354,3 +360,18 @@ def test_reeds_shepp(radius, start_point, start_heading, end_point, end_heading,
 
     curve_length = np.linalg.norm(curve[1:] - curve[:-1], axis=1).sum()
     assert abs(path.length - curve_length) / min(path.length, curve_length) < 0.01
+
+
+@pytest.mark.math
+@pytest.mark.parametrize("length, n_interpolation", [(5, 500), (10, 1000), (105, 10000)])
+def test_spiral(length, n_interpolation):
+    spiral = Spiral()
+    start_point = np.array([0, 0])
+    heading = np.random.uniform(0, 2 * np.pi)
+    start_curvature = 0.1
+    gamma = 0.1
+    curve = spiral.get_spiral(length, start_point, heading, start_curvature, gamma)
+
+    curve_length = np.linalg.norm(curve[1:] - curve[:-1], axis=1).sum()
+    assert abs(length - curve_length) / min(length, curve_length) < 0.01
+    assert len(curve) == n_interpolation

@@ -1,22 +1,21 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: cyclist.py
 # @Description: This file defines a class for a cyclist participant.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Any, Tuple
 import logging
+from typing import Any, Tuple
 
 import numpy as np
-from shapely.geometry import LineString, LinearRing
 from shapely.affinity import affine_transform
+from shapely.geometry import LinearRing, LineString
 
-from .participant_base import ParticipantBase
 from tactics2d.participant.trajectory import Trajectory
 from tactics2d.physics import SingleTrackKinematics
 
+from .participant_base import ParticipantBase
 from .participant_template import CYCLIST_TEMPLATE
 
 
@@ -87,7 +86,13 @@ class Cyclist(ParticipantBase):
         if not self.verify:
             self.physics_model = None
         elif not "physics_model" in kwargs or kwargs["physics_model"] is None:
-            self.physics_model = SingleTrackKinematics()
+            self.physics_model = SingleTrackKinematics(
+                lf=self.length / 2,
+                lr=self.length / 2,
+                steer_range=self.steer_range,
+                speed_range=self.speed_range,
+                accel_range=self.accel_range,
+            )
         else:
             self.physics_model = kwargs["physics_model"]
 
@@ -104,9 +109,7 @@ class Cyclist(ParticipantBase):
     def geometry(self) -> LinearRing:
         return self._bbox
 
-    def load_from_template(
-        self, type_name: str, overwrite: bool = True, template: dict = CYCLIST_TEMPLATE
-    ):
+    def load_from_template(self, type_name: str, overwrite: bool = True, template: dict = None):
         """This function automatically complete the missing attributes of the instance based on the template.
 
         Args:
@@ -114,6 +117,9 @@ class Cyclist(ParticipantBase):
             overwrite (bool, optional): Whether to overwrite attributes that are not None with the template's value.
             template (dict, CYCLIST_TEMPLATE): The template to load from. The available template names are ["cyclist", "moped", "motorcycle"]. You can check the details by calling [`tactics2d.participant.element.list_cyclist_templates()`](#tactics2d.participant.element.list_cyclist_templates).
         """
+        if template is None:
+            template = CYCLIST_TEMPLATE
+
         if type_name in template:
             for key, value in template[type_name].items():
                 if getattr(self, key, None) is None or overwrite:

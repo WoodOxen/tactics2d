@@ -1,13 +1,12 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: guess_type.py
 # @Description: This file implements a guesser that predicts the class of traffic participant.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-import numpy as np
 import joblib
+import numpy as np
 
 from tactics2d.participant.trajectory.trajectory import Trajectory
 

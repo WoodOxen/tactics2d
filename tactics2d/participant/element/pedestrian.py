@@ -1,20 +1,19 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: pedestrian.py
 # @Description: This file defines a class for a pedestrian.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from typing import Any, Tuple
 import logging
+from typing import Any, Tuple
 
-from shapely.geometry import LineString, LinearRing
+from shapely.geometry import LinearRing, LineString
 
-from .participant_base import ParticipantBase
 from tactics2d.participant.trajectory import Trajectory
 from tactics2d.physics import PointMass
 
+from .participant_base import ParticipantBase
 from .participant_template import PEDESTRIAN_TEMPLATE
 
 
@@ -90,9 +89,7 @@ class Pedestrian(ParticipantBase):
     def geometry(self):
         return self._radius
 
-    def load_from_template(
-        self, type_name: str, overwrite: bool = True, template: dict = PEDESTRIAN_TEMPLATE
-    ):
+    def load_from_template(self, type_name: str, overwrite: bool = True, template: dict = None):
         """This function automatically complete the missing attributes of the instance based on the template.
 
         Args:
@@ -100,6 +97,9 @@ class Pedestrian(ParticipantBase):
             overwrite (bool, optional): Whether to overwrite attributes that are not None with the template's value.
             template (dict, optional): The template to load from. The available template names are ["adult_male", "adult_female", "children_six_year_old", "children_ten_year_old"]. You can check the details by calling [`tactics2d.participant.element.list_pedestrian_templates()`](#tactics2d.participant.element.list_pedestrian_templates).
         """
+        if template is None:
+            template = PEDESTRIAN_TEMPLATE
+
         if type_name in template:
             for key, value in template[type_name].items():
                 if overwrite or getattr(self, key) is None:

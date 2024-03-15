@@ -13,6 +13,8 @@ nav:
   - Release Notes: "release_notes.md"
   - Installation: "installation.md"
   - Quick Start: "quick_start.md"
+  - Tutorial:
+    - Visualize Interpolation: "./tutorial/interpolator_visualization.ipynb"
   - Customization: "customization.md"
   - Dataset Support: "dataset-support.md"
   - Python API:
@@ -24,9 +26,10 @@ nav:
       - tactics2d.physics: "api/physics.md"
       - tactics2d.sensor: "api/sensor.md"
       - tactics2d.traffic: "api/traffic.md"
+  - Community: "community.md"
   - Publications: "publication.md"
 
-theme: 
+theme:
   name: "material"
   icon:
     admonition:
@@ -46,7 +49,7 @@ theme:
     # Palette toggle for light mode
     - scheme: default
       toggle:
-        icon: material/brightness-7 
+        icon: material/brightness-7
         name: Switch to dark mode
     # Palette toggle for dark mode
     - scheme: slate
@@ -86,6 +89,10 @@ plugins:
             show_source: false
             heading_level: 1
             show_root_heading: true
+  - mkdocs-jupyter:
+      execute: True
+      include_source: True
+      kernel_name: python3
   - search
 
 markdown_extensions:
@@ -95,8 +102,8 @@ markdown_extensions:
   - pymdownx.superfences
 
 extra_javascript:
-  - javascripts/katex.js 
-  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/katex.min.js  
+  - javascripts/katex.js
+  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/katex.min.js
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/contrib/auto-render.min.js
 
 extra_css:

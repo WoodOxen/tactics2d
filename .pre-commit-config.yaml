@@ -1,0 +1,27 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.2.0
+    hooks:
+    -   id: trailing-whitespace
+        exclude: tactics2d/participant/trajectory_classifier.m
+    -   id: end-of-file-fixer
+        exclude: tactics2d/participant/trajectory_classifier.m
+    -   id: check-toml
+    -   id: check-yaml
+    -   id: check-added-large-files
+    -   id: requirements-txt-fixer
+-   repo: https://github.com/asottile/pyupgrade
+    rev: v3.15.1
+    hooks:
+    -   id: pyupgrade
+-   repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+    -   id: isort
+        args: [--profile=black]
+-   repo: https://github.com/python/black
+    rev: 23.12.1
+    hooks:
+    -   id: black

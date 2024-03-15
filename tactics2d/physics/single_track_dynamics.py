@@ -1,5 +1,4 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: single_track_dynamics.py
 # @Description: This file implements a dynamic single-track model for a vehicle.
@@ -10,12 +9,13 @@ from typing import Tuple, Union
 
 import numpy as np
 
-from .physics_model_base import PhysicsModelBase
 from tactics2d.participant.trajectory import State
+
+from .physics_model_base import PhysicsModelBase
 
 
 class SingleTrackDynamics(PhysicsModelBase):
-    """This class implements a dynamic single-track model for a vehicle.
+    r"""This class implements a dynamic single-track model for a vehicle.
 
     The dynamic single-track model is a simplified model to simulate the vehicle dynamics. It combines the front and rear wheels into a single wheel, and the vehicle is assumed to be a point mass.
 

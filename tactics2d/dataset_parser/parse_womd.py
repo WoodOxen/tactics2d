@@ -1,5 +1,4 @@
 ##! python3
-# -*- coding: utf-8 -*-
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: parse_womd.py
 # @Description: This file implements a parser for Waymo Open Motion Dataset v1.2.
@@ -7,16 +6,16 @@
 # @Version: 1.0.0
 
 import os
-from typing import Tuple, List, Union
+from typing import List, Tuple, Union
 
 import numpy as np
-from shapely.geometry import Point, LineString, Polygon
 import tensorflow as tf
+from shapely.geometry import LineString, Point, Polygon
 
-from tactics2d.participant.element import Vehicle, Pedestrian, Cyclist, Other
-from tactics2d.participant.trajectory import State, Trajectory
-from tactics2d.map.element import RoadLine, Lane, LaneRelationship, Area, Regulatory, Map
 from tactics2d.dataset_parser.womd_proto import scenario_pb2
+from tactics2d.map.element import Area, Lane, LaneRelationship, Map, Regulatory, RoadLine
+from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
+from tactics2d.participant.trajectory import State, Trajectory
 
 
 class WOMDParser:
@@ -223,7 +222,7 @@ class WOMDParser:
             if len(points) > 2:
                 roadline = RoadLine(
                     id_="%05d" % map_feature.id,
-                    linestring=LineString(points),
+                    geometry=LineString(points),
                     type_=type_,
                     subtype=subtype,
                     color=color,
@@ -233,7 +232,7 @@ class WOMDParser:
         elif map_feature.HasField("road_edge"):
             roadline = RoadLine(
                 id_="%05d" % map_feature.id,
-                linestring=LineString(
+                geometry=LineString(
                     [[point.x, point.y] for point in map_feature.road_edge.polyline]
                 ),
                 type_="road_boarder",
@@ -243,7 +242,7 @@ class WOMDParser:
         elif map_feature.HasField("stop_sign"):
             stop_sign = Regulatory(
                 id_="%05d" % map_feature.id,
-                way_ids=set(["%05d" % way_id for way_id in map_feature.stop_sign.lane]),
+                way_ids={"%05d" % way_id for way_id in map_feature.stop_sign.lane},
                 subtype="stop_sign",
                 position=Point(map_feature.stop_sign.position.x, map_feature.stop_sign.position.y),
             )
