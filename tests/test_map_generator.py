@@ -1,3 +1,11 @@
+##! python3
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: test_map_generator.py
+# @Description: This script is used to test the map generators in the map module.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
+
 import sys
 
 sys.path.append(".")

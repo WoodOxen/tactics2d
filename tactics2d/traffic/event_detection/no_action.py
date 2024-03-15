@@ -5,13 +5,14 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
+
 import numpy as np
 
 from .event_base import EventBase
 
 
 class NoAction(EventBase):
-    """This class is used to detect whether the agent takes no action for a given time period.
+    """This class defines a detector to check whether the agent has no action for a long time.
 
     Attributes:
         last_action (Union[int, float, np.ndarray]): The last action of the agent.

@@ -5,13 +5,14 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
+
 from shapely.geometry import Polygon
 
 from .event_base import EventBase
 
 
 class OutBound(EventBase):
-    """This class is used to detect whether the agent is out of the map boundary.
+    """This class defines a detector to check whether the agent is out of the map boundary.
 
     Attributes:
         map_boundary (Polygon): The boundary of the map.

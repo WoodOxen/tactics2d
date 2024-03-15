@@ -1,3 +1,11 @@
+##! python3
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# @File: test_math_interpolate.py
+# @Description: This script is used to test the interpolators in the math module.
+# @Author: Yueyuan Li
+# @Version: 1.0.0
+
+
 import sys
 
 sys.path.append(".")

@@ -1,9 +1,10 @@
 ##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: test_participant.py
-# @Description:
+# @Description: This script is used to test the participant module.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
+
 
 import sys
 

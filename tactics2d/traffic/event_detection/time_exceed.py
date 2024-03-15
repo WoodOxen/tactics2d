@@ -5,11 +5,12 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
+
 from .event_base import EventBase
 
 
 class TimeExceed(EventBase):
-    """This class is used to detect whether the current time step has exceeded the maximum tolerant time step.
+    """This class defines a detector to check whether the current time step has exceeded the maximum tolerant time step.
 
     Attributes:
         max_step (int): The maximum tolerant time step.

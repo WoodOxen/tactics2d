@@ -1,9 +1,10 @@
 ##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: test_map_element.py
-# @Description: This file defines the test cases for the map element module.
+# @Description: This file is used to test the elements in the map module.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
+
 
 import logging
 
