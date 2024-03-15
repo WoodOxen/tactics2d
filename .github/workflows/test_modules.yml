@@ -25,6 +25,7 @@ jobs:
           owner: WoodOxen
           repository: trajectory_data_analysis
           token: ${{ secrets.TRAJ_DATA_SCP }}
+      - name: Move trajectory_data_analysis to tactics2d/data
         run: |
           ls
           mv trajectory_data_analysis tactics2d/data
