@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.special import fresnel
 
 
 class Spiral:
@@ -12,47 +13,57 @@ class Spiral:
         """
         self.gamma = gamma
 
-    def get_curve(self, start_point, kappa: float = 0, theta: float = 0) -> np.ndarray:
-        """This method returns the interpolated points of the spiral.
-
-        [TODO]: Correct the implementation of the spiral interpolation.
+    @staticmethod
+    def get_spiral(
+        s: np.ndarray,
+        start_point: np.ndarray,
+        heading: float,
+        curv_start: float,
+        gamma: float,
+    ) -> np.ndarray:
+        """This function gets the points on a spiral curve line.
 
         Args:
-            start_point (_type_): _description_
-            kappa (float, optional): _description_. Defaults to 0.
-            theta (float, optional): _description_. Defaults to 0.
+            s (np.ndarray): The distance from the start point. The shape is (n_interpolate,).
+            start_point (np.ndarray): The start point of the spiral. The shape is (2,).
+            heading (float): The heading of the start point. The unit is radian.
+            curv_start (float): The curvature of the start point.
+            gamma (float): The rate of change of curvature
 
         Returns:
-            The interpolated points of the spiral. The shape is (n_interpolation, 2).
+            np.ndarray: The points on the spiral curve line. The shape is (n_interpolate, 2).
         """
+
+        # # Start
         x_start, y_start = start_point
 
-        # start
-        C0 = x_start + 1j * y_start
+        if gamma == 0 and curv_start == 0:
+            # Straight line
+            x_interpolated = x_start + s * np.cos(heading)
+            y_interpolated = y_start + s * np.sin(heading)
 
-        if self.gamma == 0 and kappa == 0:
-            # straight line
-            Cs = C0 + np.exp(1j * theta * s)
-
-        elif self.gamma == 0 and kappa != 0:
-            # circular arc
-            Cs = (
-                C0
-                + (1 / kappa) * np.exp(1j * theta) / kappa * np.sin(kappa * s)
-                + 1j * (1 - np.cos(kappa * s))
-            )
+        elif gamma == 0 and curv_start != 0:
+            # Arc
+            x_interpolated = x_start + (1 / curv_start) * (np.sin(heading + curv_start * s) - np.sin(heading))
+            y_interpolated = y_start + (1 / curv_start) * (np.cos(heading) - np.cos(heading + curv_start * s))
 
         else:
-            # fresnel integrals
-            Sa, Ca = fresnel((kappa + self.gamma * s) / np.sqrt(np.pi * np.abs(self.gamma)))
-            Sb, Cb = fresnel((kappa + self.gamma * s) / np.sqrt(np.pi * np.abs(self.gamma)))
-            Cs1 = np.sqrt(np.pi * np.abs(self.gamma)) * np.exp(
-                1j * (theta - kappa**2 / 2 / self.gamma)
+            scaler = np.sqrt(np.pi * np.abs(gamma))
+            # Fresnel integrals
+            S_interpolated, C_interpolated = fresnel(
+                (curv_start + gamma * s) / scaler
             )
-            Cs2 = np.sign(self.gamma) * (Ca - Cb) + 1j * (Sa - Sb)
+            S_start, C_start = fresnel(curv_start / scaler)
 
-            Cs = C0 + Cs1 * Cs2
+            # Euler Spiral
+            Cs1 = np.sqrt(np.pi / np.abs(gamma)) * np.exp(
+                1j * (heading - curv_start ** 2 / 2 / gamma)
+            )
+            Cs2 = np.sign(gamma) * (C_interpolated - C_start) + 1j * S_interpolated - 1j * S_start
+            delta_C = Cs1 * Cs2
+            x_interpolated = x_start + delta_C.real
+            y_interpolated = y_start + delta_C.imag
 
-        theta = self._gamma * s**2 / 2 + kappa * s + theta
 
-        return
+        return np.array([x_interpolated, y_interpolated]).T
+    
