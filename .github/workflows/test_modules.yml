@@ -15,20 +15,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Check status for debug
-        run: |
-          ls
-          echo $GITHUB_WORKSPACE
-      - name: Clone WoodOxen/trajectory_data_analysis PRIVATE repository
-        uses: GuillaumeFalourd/clone-github-repo-action@v2.3
+      - name: Check out private repository WoodOxen/trajectory_data_analysis
+        uses: actions/checkout@v4
         with:
-          owner: WoodOxen
-          repository: trajectory_data_analysis
+          repository: WoodOxen/trajectory_data_analysis
           token: ${{ secrets.TRAJ_DATA_SCP }}
-      - name: Move trajectory_data_analysis to tactics2d/data
-        run: |
-          ls
-          mv trajectory_data_analysis tactics2d/data
+          path: tactics2d/data
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -53,9 +45,16 @@ jobs:
       matrix:
         python-version: ["3.8"]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-            submodules: recursive
+          submodules: recursive
+      - name: Check out private repository WoodOxen/trajectory_data_analysis
+        uses: actions/checkout@v4
+        with:
+          repository: WoodOxen/trajectory_data_analysis
+          token: ${{ secrets.TRAJ_DATA_SCP }}
+          path: tactics2d/data
       - name: Make runtime directory
         run: |
           mkdir ./tests/runtime/
