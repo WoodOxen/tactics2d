@@ -14,11 +14,7 @@ class Spiral:
 
     @staticmethod
     def get_spiral(
-        length: float,
-        start_point: np.ndarray,
-        heading: float,
-        start_curvature: float,
-        gamma: float,
+        length: float, start_point: np.ndarray, heading: float, start_curvature: float, gamma: float
     ) -> np.ndarray:
         """This function gets the points on a spiral curve line.
 

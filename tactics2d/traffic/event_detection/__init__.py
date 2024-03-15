@@ -9,6 +9,8 @@ from .arrival import Arrival
 from .collision import DynamicCollision, StaticCollision
 from .event_base import EventBase
 from .no_action import NoAction
+from .off_lane import OffLane
+from .off_route import OffRoute
 from .out_bound import OutBound
 from .time_exceed import TimeExceed
 
@@ -18,6 +20,8 @@ __all__ = [
     "Arrival",
     "EventBase",
     "NoAction",
+    "OffLane",
+    "OffRoute",
     "OutBound",
     "TimeExceed",
 ]

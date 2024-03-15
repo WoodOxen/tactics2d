@@ -39,10 +39,7 @@ class SingleLineLidar(SensorBase):
         max_perception_distance (float): The maximum detection range of the LiDAR. This attribute is **read-only**.
     """
 
-    colors = {
-        "white": (255, 255, 255),
-        "black": (0, 0, 0),
-    }
+    colors = {"white": (255, 255, 255), "black": (0, 0, 0)}
 
     def __init__(
         self,

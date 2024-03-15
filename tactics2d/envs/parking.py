@@ -71,7 +71,7 @@ class ParkingEnv(gym.Env):
 
     The environment provides a reward for each step. The status check and reward is calculated based on the following rules:
 
-    1. Check time exceed: If the time step exceeds the maximum time step (usually it is 20000 steps), the scenario status will be set to `TIME_EXCEEDED` and a negative reward -1 will be given.
+    1. Check time exceed: If the time step exceeds the maximum time step (20000 steps), the scenario status will be set to `TIME_EXCEEDED` and a negative reward -1 will be given.
     2. Check no action: If the agent vehicle does not move for over 100 steps, the scenario status will be set to `NO_ACTION` and a negative reward -1 will be given.
     3. Check out bound: If the agent vehicle goes out of the boundary of the map, the scenario status will be set to `OUT_BOUND` and a negative reward -5 will be given.
     4. Check collision: If the agent vehicle collides with the static obstacles, the traffic status will be set to `COLLISION_STATIC` and a negative reward -5 will be given.
@@ -86,28 +86,15 @@ class ParkingEnv(gym.Env):
     - `state`: The current state of the agent vehicle.
     - `target_area`: The coordinates of the target area.
     - `target_heading`: The heading of the target area.
-
-    Attributes:
-        render_mode (str): The mode of the rendering. It can be "human" or "rgb_array". Defaults to "human".
-        render_fps (int): The frame rate of the rendering. Defaults to 60.
-        max_step (int): The maximum time step of the scenario. Defaults to 20000.
-        continuous (bool): Whether to use continuous action space. Defaults to True.
-        observation_space (gym.spaces.Space): The observation space of the environment.
-        action_space (gym.spaces.Space): The action space of the environment.
-        scenario_manager (ScenarioManager): The scenario manager of the environment.
+    - `traffic_status`: The status of the traffic scenario.
+    - `scenario_status`: The status of the scenario.
     """
 
     _metadata = {"render_modes": ["human", "rgb_array"]}
     _max_fps = 200
     _max_steer = MAX_STEER
     _max_accel = MAX_ACCEL
-    _discrete_actions = {
-        1: (0, 0),
-        2: (-0.5, 0),
-        3: (0.5, 0),
-        4: (0, 1),
-        5: (0, -1),
-    }
+    _discrete_actions = {1: (0, 0), 2: (-0.5, 0), 3: (0.5, 0), 4: (0, 1), 5: (0, -1)}
 
     def __init__(
         self,
@@ -151,15 +138,17 @@ class ParkingEnv(gym.Env):
                 dtype=np.float32,
             )
         else:
-            self.action_space = spaces.Discrete(7)
+            self.action_space = spaces.Discrete(5)
 
         self._max_iou = -np.inf
 
         self.scenario_manager = self._ParkingScenarioManager(
-            type_proportion, self.max_step, 100, self.render_fps, self.render_mode == "rgb_array"
+            type_proportion, self.max_step, 100, self.render_fps, self.render_mode != "human"
         )
 
-    def _get_reward(self, scenario_status, traffic_status, iou):
+    def _get_reward(
+        self, scenario_status: ScenarioStatus, traffic_status: TrafficStatus, iou: float
+    ):
         if traffic_status == TrafficStatus.COLLISION_STATIC:
             reward = -5
         elif (
@@ -183,12 +172,14 @@ class ParkingEnv(gym.Env):
 
         return reward
 
-    def _get_infos(self, state, observations):
+    def _get_infos(self, state, observations, scenario_status, traffic_status):
         state_infos = dict()
         state_infos["lidar"] = observations[1]
         state_infos["state"] = state
         state_infos["target_area"] = self.scenario_manager.target_area
         state_infos["target_heading"] = self.scenario_manager.target_heading
+        state_infos["traffic_status"] = traffic_status
+        state_infos["scenario_status"] = scenario_status
         return state_infos
 
     def step(self, action: Union[np.ndarray, int]):
@@ -212,7 +203,7 @@ class ParkingEnv(gym.Env):
         action = action if self.continuous else self._discrete_action[action]
 
         steering, accel = action
-        self.scenario_manager.update(steering, accel)
+        observations = self.scenario_manager.update(steering, accel)
         scenario_status, traffic_status, iou = self.scenario_manager.check_status(action)
 
         terminated = False
@@ -222,10 +213,14 @@ class ParkingEnv(gym.Env):
         elif (scenario_status != ScenarioStatus.NORMAL) or (traffic_status != TrafficStatus.NORMAL):
             truncated = True
 
-        observations = self.scenario_manager.get_observation()
         reward = self._get_reward(scenario_status, traffic_status, iou)
 
-        infos = self._get_infos(self.scenario_manager.agent.current_state, observations)
+        infos = self._get_infos(
+            self.scenario_manager.agent.current_state,
+            observations,
+            scenario_status,
+            traffic_status,
+        )
 
         return observations[0], reward, terminated, truncated, infos
 
@@ -248,7 +243,12 @@ class ParkingEnv(gym.Env):
         self.scenario_manager.reset()
 
         observations = self.scenario_manager.get_observation()
-        infos = self._get_infos(self.scenario_manager.agent.current_state, observations)
+        infos = self._get_infos(
+            self.scenario_manager.agent.current_state,
+            observations,
+            ScenarioStatus.NORMAL,
+            TrafficStatus.NORMAL,
+        )
 
         return observations[0], infos
 

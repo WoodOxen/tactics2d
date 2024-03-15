@@ -363,14 +363,7 @@ def test_reeds_shepp(radius, start_point, start_heading, end_point, end_heading,
 
 
 @pytest.mark.math
-@pytest.mark.parametrize(
-    "length, n_interpolation",
-    [
-        (5, 500),
-        (10, 1000),
-        (105, 10000),
-    ],
-)
+@pytest.mark.parametrize("length, n_interpolation", [(5, 500), (10, 1000), (105, 10000)])
 def test_spiral(length, n_interpolation):
     spiral = Spiral()
     start_point = np.array([0, 0])
