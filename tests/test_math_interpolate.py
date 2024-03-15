@@ -6,8 +6,6 @@ sys.path.append("..")
 import logging
 import time
 
-logging.basicConfig(level=logging.INFO)
-
 # import dubins
 import numpy as np
 import pytest
@@ -354,3 +352,25 @@ def test_reeds_shepp(radius, start_point, start_heading, end_point, end_heading,
 
     curve_length = np.linalg.norm(curve[1:] - curve[:-1], axis=1).sum()
     assert abs(path.length - curve_length) / min(path.length, curve_length) < 0.01
+
+
+@pytest.mark.math
+@pytest.mark.parametrize(
+    "length, n_interpolation",
+    [
+        (5, 500),
+        (10, 1000),
+        (105, 10000),
+    ],
+)
+def test_spiral(length, n_interpolation):
+    spiral = Spiral()
+    start_point = np.array([0, 0])
+    heading = np.random.uniform(0, 2 * np.pi)
+    start_curvature = 0.1
+    gamma = 0.1
+    curve = spiral.get_spiral(length, start_point, heading, start_curvature, gamma)
+
+    curve_length = np.linalg.norm(curve[1:] - curve[:-1], axis=1).sum()
+    assert abs(length - curve_length) / min(length, curve_length) < 0.01
+    assert len(curve) == n_interpolation
