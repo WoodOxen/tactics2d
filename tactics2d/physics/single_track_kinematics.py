@@ -126,7 +126,7 @@ class SingleTrackKinematics(PhysicsModelBase):
 
     def _step(self, state: State, accel: float, delta: float, interval: int) -> State:
         beta = np.arctan(self.lr / self.wheel_base * np.tan(delta))  # slip angle
-        dts = [float(self.delta_t) / 1000] * (interval // self.delta_t)
+        dts = [float(self.delta_t) / 1000] * int(interval // self.delta_t)
         dts.append(float(interval % self.delta_t) / 1000)
 
         x, y = state.location
@@ -151,6 +151,8 @@ class SingleTrackKinematics(PhysicsModelBase):
             x=x,
             y=y,
             heading=np.mod(phi, 2 * np.pi),
+            vx=v * np.cos(phi),
+            vy=v * np.sin(phi),
             speed=v,
             accel=accel,
         )
