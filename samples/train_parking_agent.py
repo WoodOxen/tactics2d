@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 # @File: trainer_parkinglot.py
 # @Description: This script gives an example on how to train a PPO model in tactic2d's parking lot traffic scenario.
 # @Time: 2023/11/10
@@ -11,26 +10,26 @@ sys.path.append(".")
 sys.path.append("./rllib")
 sys.path.append("..")
 
+import argparse
 import os
 import time
-import argparse
 from collections import deque
 
 import gymnasium as gym
-from gymnasium import Wrapper
 import numpy as np
 import torch
-from torch.distributions import Normal, Categorical
-from torch.utils.tensorboard import SummaryWriter
-from shapely.geometry import LineString
-from shapely.affinity import affine_transform
-
+from gymnasium import Wrapper
 from rllib.algorithms.ppo import *
-from tactics2d.envs import ParkingEnv
-from tactics2d.traffic.violation_detection import TrafficEvent
-from tactics2d.math.interpolate import ReedsShepp
+from shapely.affinity import affine_transform
+from shapely.geometry import LineString
+from torch.distributions import Categorical, Normal
+from torch.utils.tensorboard import SummaryWriter
+
 from samples.action_mask import ActionMask
 from samples.rs_planner import RsPlanner
+from tactics2d.envs import ParkingEnv
+from tactics2d.math.interpolate import ReedsShepp
+from tactics2d.traffic.status import ScenarioStatus
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -114,10 +113,10 @@ class ParkingWrapper(Wrapper):
         n_iter = 10
         for i in range(n_iter):
             collide = False
-            agent_state, _ = self.env.scenario_manager.agent.physics_model.step(
-                agent_state, action, 0.5 / n_iter
+            agent_state, _, _ = self.env.scenario_manager.agent.physics_model.step(
+                agent_state, action[1], action[0], 0.5 / n_iter
             )
-            agent_pose = _get_box(agent_state, self.env.scenario_manager.agent.bbox)
+            agent_pose = _get_box(agent_state, self.env.scenario_manager.agent.geometry)
             for _, area in self.env.scenario_manager.map_.areas.items():
                 if area.type_ == "obstacle" and agent_pose.intersects(area.geometry):
                     collide = True
@@ -129,7 +128,7 @@ class ParkingWrapper(Wrapper):
         return action
 
     def _preprocess_observation(self, info):
-        lidar_info = np.clip(info["lidar"], 0, self.env.scenario_manager.lidar_range)
+        lidar_info = np.clip(info["lidar"], 0, 20)
         lidar_feature = lidar_info
         action_mask_feature = self.action_mask.get_steps(lidar_info)
         other_feature = np.array(
@@ -325,9 +324,6 @@ def trainer(args):
             # If the RS planner can find a path, the agent will execute the path. Otherwise, the agent will use the PPO policy to choose an action.
             if rs_path is not None:
                 total_reward, done, info = execute_path(rs_path, agent, env, state)
-                if not done:
-                    info["status"] = TrafficEvent.FAILED
-                    done = True
             else:
                 action, log_prob, value = agent.get_action(
                     state, scaled_actions, info["action_mask"]
@@ -343,8 +339,8 @@ def trainer(args):
                 if not loss is None:
                     loss_list.append(loss)
 
-        status_info.append(info["status"])
-        success_list.append(int(info["status"] == TrafficEvent.COMPLETED))
+        status_info.append([info["scenario_status"], info["traffic_status"]])
+        success_list.append(int(info["scenario_status"] == ScenarioStatus.COMPLETED))
         reward_list.append(total_reward)
 
         episode_cnt += 1

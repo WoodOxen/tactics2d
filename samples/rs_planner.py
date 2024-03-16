@@ -3,10 +3,9 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-from heapdict import heapdict
-
 import numpy as np
-from shapely.geometry import LineString, Point, LinearRing
+from heapdict import heapdict
+from shapely.geometry import LinearRing, LineString, Point
 
 from tactics2d.math.interpolate import ReedsShepp
 
@@ -14,10 +13,10 @@ from tactics2d.math.interpolate import ReedsShepp
 class RsPlanner:
     def __init__(self, vehicle, lidar_num=120, lidar_range=20.0) -> None:
         self.radius = vehicle.wheel_base / np.tan(0.75)
-        self.VehicleBox = vehicle.bbox
+        self.VehicleBox = vehicle.geometry
         self.lidar_num = lidar_num
         self.vehicle_base = self.init_vehicle_base()
-        self.center_shift = vehicle.physics_model.dist_rear_hang
+        self.center_shift = 0.5 * vehicle.length - vehicle.rear_overhang
         self.start_pos = [0, 0, 0]
         self.move_vehicle_center()
         self.distance_tolerance = 0.05
@@ -47,7 +46,9 @@ class RsPlanner:
             lidar_base.append(distance)
         return np.array(lidar_base)
 
-    def move_vehicle_center(self):
+    def move_vehicle_center(
+        self,
+    ):
         vehicle_coords = np.array(self.VehicleBox.coords[:4])
         vehicle_coords[:, 0] = vehicle_coords[:, 0] + self.center_shift
         self.VehicleBox = LinearRing(vehicle_coords)
@@ -55,7 +56,7 @@ class RsPlanner:
 
     def get_rs_path(self, info):
         startX, startY, startYaw = self.start_pos
-        dest_coords = np.mean(np.array(info["target_area"]), axis=0)
+        dest_coords = np.mean(np.array(list(info["target_area"].geometry.exterior.coords)), axis=0)
         dest_heading = info["target_heading"]
         if self.center_shift != 0:
             dest_coords[0] -= self.center_shift * np.cos(dest_heading)
