@@ -4,11 +4,13 @@
 # @Time: 2023/11/10
 # @Author: Mingyang Jiang, Yueyuan Li
 
+
 import sys
 
 sys.path.append(".")
 sys.path.append("./rllib")
 sys.path.append("..")
+print(sys.path)
 
 import argparse
 import os
