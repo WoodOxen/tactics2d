@@ -12,10 +12,8 @@ nav:
   - Home: "index.md"
   - Release Notes: "release_notes.md"
   - Installation: "installation.md"
-  - Quick Start: "quick_start.md"
   - Tutorial:
     - Visualize Interpolation: "./tutorial/interpolator_visualization.ipynb"
-  - Customization: "customization.md"
   - Dataset Support: "dataset-support.md"
   - Python API:
       - tactics2d.dataset_parser: "api/dataset_parser.md"
@@ -98,8 +96,10 @@ plugins:
 markdown_extensions:
   - abbr
   - admonition
+  - attr_list
   - pymdownx.details
   - pymdownx.superfences
+  - pymdownx.emoji
 
 extra_javascript:
   - javascripts/katex.js

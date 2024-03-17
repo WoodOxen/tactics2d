@@ -8,11 +8,13 @@ We have a Discord server for the community to discuss, ask questions, and make c
 
 ## How to Contribute
 
-We welcome contributions from the community. If you are interested in contributing to the development of `tactics2d`, please follow [Google's Python Style Guide](https://google.github.io/styleguide/pyguide.html) when coding and writing documentation. We also recommend you to run the following commands before making a pull request.
+We welcome contributions from the community. If you are interested in contributing to the development of `tactics2d`, please follow [Google's Python Style Guide](https://google.github.io/styleguide/pyguide.html) when coding and writing documentation. We have already supported an auto-check for the code style and documentation style. You can use the following commands to check the code style and documentation style.
 
 ```shell
-pip install black
-black . -l 100 -C
+pip install pre-commit
+pre-commit run --all-files
 ```
 
-We will support an auto-check for the code style and documentation style in the future. If you have any questions, please feel free to ask in the Discord server or open an issue in the GitHub repository.
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=WoodOxen/Tactics2d&type=Timeline)](https://star-history.com/#WoodOxen/Tactics2d&Timeline)

@@ -27,7 +27,7 @@ Welcome to the official documentation of Python Library tactics2d!
   - 🚲 Traffic participants -- Features a variety of built-in traffic participants with realistic physics parameters, detailed further [here](https://tactics2d.readthedocs.io/en/latest/api/participant/#templates-for-traffic-participants).
   - 📷 Sensors -- Provides bird-eye-view (BEV) semantic segmentation RGB image and single-line LiDAR point cloud for model input.
 - **Visualization** -- Offers a user-friendly visualization tool for real-time rendering of traffic scenarios and participants, along with the capability to record and replay traffic scenarios.
-- **Reliability** -- Over [FILL LATER]\% code is covered by unit tests and integration tests.
+- **Reliability** -- Over 85\% code is covered by unit tests and integration tests.
 
 ## What can you do with `tactics2d`?
 
@@ -37,22 +37,38 @@ Welcome to the official documentation of Python Library tactics2d!
 
 TODO
 
-### Trajectory Dataset Compatibility
+### Dataset Compatibility
 
-| Simulators | Argoverse | DLP | INTERACTION | LevelX | NuPlan | WOMD |
+`tactics2d` excels in parsing various datasets into unified map and traffic participant data structures, enabling seamless integration for both log replay and interactive simulations.
+
+Below is a comparison of dataset support between `tactics2d` and other simulators. `tactics2d` strives to accommodate a wide range of datasets, and we commit to keeping the table updated on a regular basis.
+
+!!! note
+    We have a plan to add support to the following datasets in the future:
+
+    - NGSIM
+    - Lyft 5
+
+Feel free to suggest additional trajectory datasets to be incorporated into our support list by either [opening an issue](https://github.com/WoodOxen/tactics2d/issues) or submitting a pull request. We value community input and are committed to expanding our dataset coverage to better serve our users.
+
+
+
+> This table is updated on 2024-03-14.
+
+| Simulators | [Argoverse](https://www.argoverse.org/av2.html#forecasting-link) | [DLP](https://sites.google.com/berkeley.edu/dlp-dataset) | [INTERACTION](https://interaction-dataset.com/) | [LevelX](https://www.highd-dataset.com/) | [NuPlan](https://www.nuscenes.org/nuplan) | [WOMD](https://waymo.com/open/about/) |
 | --- | --- | --- | --- | --- | --- | --- |
-| CarRacing |
-| SUMO |
-| CARLA |
-| CommonRoad |
-| highway-env |
-| SMARTS |
-| MetaDrive |
-| NuPlan |
-| InterSim |
-| TBSim |
-| Waymax |
-| Tactics2D |
+| [SUMO](https://eclipse.dev/sumo/) | - | - | - | - | - | - |
+| [CarRacing](https://gymnasium.farama.org/environments/box2d/car_racing/) | - | - | - | - | - | - |
+| [CARLA](https://carla.org) | - | - | - | - | - | - |
+| [CommonRoad](https://commonroad.in.tum.de/) | - | - | :white_check_mark: | :white_check_mark: | - | - |
+| [highway-env](https://github.com/Farama-Foundation/HighwayEnv) | - | - | - | - | - | - |
+| [SMARTS](https://github.com/huawei-noah/SMARTS) | - | - | - | - | - | - |
+| [MetaDrive](https://github.com/metadriverse/metadrive) | - | - | - | - | - | - |
+| [NuPlan](https://github.com/motional/nuplan-devkit) | - | - | - | - | :white_check_mark: | - |
+| [InterSim](https://github.com/Tsinghua-MARS-Lab/InterSim) | - | - | - | - | :white_check_mark: | :white_check_mark: |
+| [TBSim](https://github.com/NVlabs/traffic-behavior-simulation) | - | - | - | - | :white_check_mark: | :white_check_mark: |
+| [Waymax](https://github.com/waymo-research/waymax) | - | - | - | - | - | :white_check_mark: |
+| **Tactics2D** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 
 ### Map Format Compatibility
 
