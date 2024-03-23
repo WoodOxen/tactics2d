@@ -22,6 +22,8 @@ import tqdm
 import wandb
 from rllib.algorithms.ppo import *
 
+from tactics2d.envs import RacingEnv
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 wandb.init(project="tactics2d-racing")
@@ -128,16 +130,16 @@ class RacingWrapper(gym.Wrapper):
         else:
             return False
 
-    def _process_reward(self, r):
-        r = max(0, r)
+    def _process_reward(self, reward):
+        reward = max(0, reward)
         # car position
         x, y = self.env.unwrapped.car.hull.position
 
         if (self.prev_position[0] - x) ** 2 + (self.prev_position[1] - y) ** 2 < 0.0001:
-            r -= 0.1
+            reward -= 0.1
 
         if (self.prev_position[0] - x) ** 2 + (self.prev_position[1] - y) ** 2 > 0.8:
-            r -= 0.2
+            reward -= 0.2
 
         self.prev_position = (x, y)
         if self.is_pass(x, y):
@@ -164,7 +166,7 @@ class RacingWrapper(gym.Wrapper):
         if dist > 40 / 6:
             return -20
 
-        return min(r, 1)
+        return min(reward, 1)
 
     def step(self, action):
         action = self._process_action(action)
@@ -194,7 +196,7 @@ class RacingWrapper(gym.Wrapper):
 
 
 def trainer():
-    num_epoch = 300
+    num_epoch = 100
 
     env = gym.make("CarRacing-v2", render_mode="human")
     env = RacingWrapper(env)

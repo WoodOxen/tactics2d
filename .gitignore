@@ -3,9 +3,9 @@
 .scannerwork
 *.lcov
 tactics2d/data
-tests/runtime
-samples/logs
-samples/imgs
+test/runtime
+tutorial/logs
+tutorial/imgs
 */wandb/*
 
 #  vscode

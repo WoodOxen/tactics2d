@@ -27,11 +27,11 @@ from shapely.geometry import LineString
 from torch.distributions import Categorical, Normal
 from torch.utils.tensorboard import SummaryWriter
 
-from samples.action_mask import ActionMask
-from samples.rs_planner import RsPlanner
 from tactics2d.envs import ParkingEnv
 from tactics2d.math.interpolate import ReedsShepp
 from tactics2d.traffic.status import ScenarioStatus
+from tutorial.action_mask import ActionMask
+from tutorial.rs_planner import RsPlanner
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 

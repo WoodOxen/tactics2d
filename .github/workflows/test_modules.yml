@@ -30,11 +30,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install -r tests/requirements.txt
+          pip install -r test/requirements.txt
       - name: Pytest
         run: |
-          mkdir ./tests/runtime
-          pytest tests --cov=tactics2d --cov-report=xml
+          mkdir ./test/runtime
+          pytest test --cov=tactics2d --cov-report=xml
       - name: Upload coverage reports to Codecov (Ubuntu)
         uses: codecov/codecov-action@v3
         if: matrix.os == 'ubuntu-20.04' || matrix.os == 'ubuntu-22.04'
@@ -57,7 +57,7 @@ jobs:
           path: tactics2d/data
       - name: Make runtime directory
         run: |
-          mkdir ./tests/runtime/
+          mkdir ./test/runtime/
           echo $GITHUB_WORKSPACE
       - name: Run pytest in docker
         run: |
@@ -75,5 +75,5 @@ jobs:
               python${{ matrix.python-version }} --version && \
               python${{ matrix.python-version }} -m pip install --upgrade pip && \
               if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && \
-              if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi && \
-              python${{ matrix.python-version }} -m pytest tests"
+              if [ -f test/requirements.txt ]; then pip install -r test/requirements.txt; fi && \
+              python${{ matrix.python-version }} -m pytest test"
