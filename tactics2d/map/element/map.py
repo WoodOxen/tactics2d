@@ -12,6 +12,7 @@ import warnings
 import numpy as np
 
 from .area import Area
+from .junction import Junction
 from .lane import Lane
 from .node import Node
 from .regulatory import Regulatory
@@ -24,11 +25,12 @@ class MapElement(enum.Enum):
     AREA = enum.auto()
     ROADLINE = enum.auto()
     REGULATORY = enum.auto()
+    JUNCTION = enum.auto()
     CUSTOM = enum.auto()
 
 
 class Map:
-    """This class implements a map to manage the road elements.
+    """This class implements a map to manage the road elements. The elements in the map include nodes, lanes, areas, roadlines, and regulations. The map is used to store the road elements and provide the interface to access the elements. Every element in the map should have a unique id.
 
     Attributes:
         name (str): The name of the map. Defaults to None.
@@ -59,6 +61,7 @@ class Map:
         self.nodes = dict()
         self.lanes = dict()
         self.areas = dict()
+        self.junctions = dict()
         self.roadlines = dict()
         self.regulations = dict()
         self.customs = dict()
@@ -138,6 +141,25 @@ class Map:
 
         self.roadlines[roadline.id_] = roadline
         self.ids[roadline.id_] = MapElement.ROADLINE
+
+    def add_junction(self, junction: Junction):
+        """This function adds a junction to the map.
+
+        Args:
+            junction (Junction): The junction to be added to the map.
+        """
+        if junction.id_ in self.ids:
+            if junction.id_ in self.junctions:
+                warnings.warn(
+                    f"Junction {junction.id_} already exists! Replaced the junction with new data."
+                )
+            else:
+                raise KeyError(
+                    f"The id of Junction {junction.id_} is used by the other road element."
+                )
+
+        self.junctions[junction.id_] = junction
+        self.ids[junction.id_] = MapElement.JUNCTION
 
     def add_lane(self, lane: Lane):
         """This function adds a lane to the map.

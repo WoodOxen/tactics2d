@@ -39,7 +39,7 @@ def test_parking_lot_generator():
     ax.set_xlim(boundary[0], boundary[1])
     ax.set_ylim(boundary[2], boundary[3])
     ax.set_aspect("equal")
-    fig.savefig("./tests/runtime/parking_lot.png")
+    fig.savefig("./test/runtime/parking_lot.png")
 
     assert isinstance(start_state, State), "start_state should be a State object."
     assert isinstance(target_area, Area), "target_area should be a Area object."
@@ -60,7 +60,7 @@ def test_racing_track_generator():
     ax.set_xlim(boundary[0], boundary[1])
     ax.set_ylim(boundary[2], boundary[3])
     ax.set_aspect("equal")
-    fig.savefig("./tests/runtime/racing_track.png")
+    fig.savefig("./test/runtime/racing_track.png")
 
     assert isinstance(map_.customs["start_state"], State), "start_state should be a State object."
 

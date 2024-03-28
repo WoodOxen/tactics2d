@@ -5,14 +5,17 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
+
+import logging
 import xml.etree.ElementTree as ET
-from typing import Tuple
+from typing import Tuple, Union
 
 import numpy as np
 from pyproj import CRS
+from shapely.affinity import affine_transform, rotate
 from shapely.geometry import LineString, Point, Polygon
 
-from tactics2d.map.element import Area, Lane, Map, Node, Regulatory, RoadLine
+from tactics2d.map.element import Area, Connection, Junction, Lane, Map, Node, Regulatory, RoadLine
 from tactics2d.math.geometry import Circle
 from tactics2d.math.interpolate import Spiral
 
@@ -49,6 +52,19 @@ class XODRParser:
     ```
     """
 
+    _roadmark_dict = {
+        "botts dots": "",
+        "broken broken": "dashed_dashed",
+        "broken solid": "dashed_solid",
+        "broken": "dashed",
+        "solid broken": "solid_dashed",
+        "solid solid": "solid_solid",
+        "solid": "solid",
+    }
+
+    def __init__(self):
+        self.id_counter = 0
+
     def _get_line(self, xml_node: ET.Element) -> list:
         x_start = float(xml_node.attrib["x"])
         y_start = float(xml_node.attrib["y"])
@@ -68,13 +84,11 @@ class XODRParser:
         curv_start = float(xml_node.find("spiral").attrib["curvStart"])
         curv_end = float(xml_node.find("spiral").attrib["curvEnd"])
 
-        n_interpolate = int(length / 0.1)
-        s_interpolate = np.linspace(0, length, n_interpolate+1)
-        if length < 0.1: # TODO: check the threshold/precision 0.1
+        if length < 0.1:  # TODO: check the threshold/precision 0.1
             points = [(x_start, y_start)]
         else:
             gamma = (curv_end - curv_start) / length
-            points = Spiral.get_spiral(s_interpolate, [x_start, y_start], heading, curv_start, gamma)
+            points = Spiral.get_spiral(length, [x_start, y_start], heading, curv_start, gamma)
             points = [(x, y) for x, y in points]
 
         return points
@@ -87,16 +101,17 @@ class XODRParser:
         curvature = float(xml_node.find("arc").attrib["curvature"])
 
         center, radius = Circle.get_circle_by_tangent_vector(
-            [x_start, y_start], heading, 1 / curvature
+            [x_start, y_start], heading, abs(1 / curvature), "L" if curvature > 0 else "R"
         )
+
         n_interpolate = int(length / 0.1)
         points = [(x_start, y_start)]
-        theta = np.arctan2(y_start - center[1], x_start - center[0])
-        d_theta = length / radius
+        arc_angle = length / radius * np.sign(curvature)
+        start_heading = heading - np.pi / 2 * np.sign(curvature)
 
-        for i in range(n_interpolate):
-            x = center[0] + radius * np.cos(theta + d_theta * i) * np.sign(curvature)
-            y = center[1] + radius * np.sin(theta + d_theta * i) * np.sign(curvature)
+        for i in np.linspace(start_heading, start_heading + arc_angle, n_interpolate):
+            x = center[0] + radius * np.cos(i)
+            y = center[1] + radius * np.sin(i)
             points.append((x, y))
 
         return points
@@ -110,12 +125,14 @@ class XODRParser:
         b = float(xml_node.find("poly3").attrib["b"])
         c = float(xml_node.find("poly3").attrib["c"])
         d = float(xml_node.find("poly3").attrib["d"])
-        
+
         n_interpolate = int(length / 0.1)
-        u_interpolate = np.linspace(0, length, n_interpolate+1)
-        v_interpolate = a * u_interpolate ** 3 + b * u_interpolate ** 2 + c * u_interpolate + d
+        u_interpolate = np.linspace(0, length, n_interpolate + 1)
+        v_interpolate = a * u_interpolate**3 + b * u_interpolate**2 + c * u_interpolate + d
         coords_uv = np.array([u_interpolate, v_interpolate]).T
-        transform = np.array([[np.cos(heading), np.sin(heading)], [-np.sin(heading), np.cos(heading)]]) # TODO: check the rotation direction
+        transform = np.array(
+            [[np.cos(heading), np.sin(heading)], [-np.sin(heading), np.cos(heading)]]
+        )  # TODO: check the rotation direction
         coords_xy = np.dot(coords_uv, transform.T) + np.array([x_start, y_start])
         points = [(x, y) for x, y in coords_xy]
 
@@ -138,49 +155,45 @@ class XODRParser:
         bV = float(xml_node.find("paramPoly3").attrib["bV"])
         cV = float(xml_node.find("paramPoly3").attrib["cV"])
         dV = float(xml_node.find("paramPoly3").attrib["dV"])
-        
+
         n_interpolate = int(length / 0.1)
-        p_interpolate = np.linspace(0, p_range, n_interpolate+1)
-        u_interpolate = aU * p_interpolate ** 3 + bU * p_interpolate ** 2 + cU * p_interpolate + dU
-        v_interpolate = aV * p_interpolate ** 3 + bV * p_interpolate ** 2 + cV * p_interpolate + dV
+        p_interpolate = np.linspace(0, p_range, n_interpolate + 1)
+        u_interpolate = aU * p_interpolate**3 + bU * p_interpolate**2 + cU * p_interpolate + dU
+        v_interpolate = aV * p_interpolate**3 + bV * p_interpolate**2 + cV * p_interpolate + dV
         coords_uv = np.array([u_interpolate, v_interpolate]).T
-        transform = np.array([[np.cos(heading), np.sin(heading)], [-np.sin(heading), np.cos(heading)]]) # TODO: check the rotation direction
+        transform = np.array(
+            [[np.cos(heading), np.sin(heading)], [-np.sin(heading), np.cos(heading)]]
+        )  # TODO: check the rotation direction
         coords_xy = np.dot(coords_uv, transform.T) + np.array([x_start, y_start])
         points = [(x, y) for x, y in coords_xy]
-        
+
         return points
 
     def _get_geometry(self, xml_node: ET.Element) -> list:
         geometry = []
 
-        if xml_node.find("line"):
+        if not xml_node.find("line") is None:
             geometry = self._get_line(xml_node)
-        elif xml_node.find("spiral"):
+        elif not xml_node.find("spiral") is None:
             geometry = self._get_spiral(xml_node)
-        elif xml_node.find("arc"):
+        elif not xml_node.find("arc") is None:
             geometry = self._get_arc(xml_node)
-        elif xml_node.find("poly3"):
+            # geometry = []
+        elif not xml_node.find("poly3") is None:
             geometry = self._get_poly3(xml_node)
-        elif xml_node.find("paramPoly3"):
+        elif not xml_node.find("paramPoly3") is None:
             geometry = self._get_param_poly3(xml_node)
 
         return geometry
 
-    def _load_lane(self, xml_node: ET.Element):
-        return
+    def _check_continuity(self, new_points, points):
+        if len(points) == 0:
+            return True
 
-    def _load_lane_section(self, xml_node: ET.Element):
-        if xml_node is None:
-            return
+        if len(new_points) == 0:
+            return True
 
-        lanes = []
-        if xml_node.get("left"):
-            lanes.append(self._load_lane(xml_node.get("left")))
-        if xml_node.get("center"):
-            lanes.append(self._load_lane(xml_node.get("center")))
-        if xml_node.get("right"):
-            lanes.append(self._load_lane(xml_node.get("right")))
-        return
+        return np.linalg.norm(np.array(new_points[0]) - np.array(points[-1])) < 0.1
 
     def load_header(self, xml_node: ET.Element):
         """This function loads the header of the OpenDRIVE map.
@@ -209,21 +222,203 @@ class XODRParser:
 
         return header_info, projector
 
+    def load_roadmark(self, points: Union[list, LineString], xml_node: ET.Element):
+        type_ = "virtual"
+        subtype = None
+
+        # TODO: handel "botts dots",
+        if xml_node is None or xml_node.attrib["type"] == "none":
+            pass
+        elif xml_node.attrib["type"] == "curb":
+            type_ = "curbstone"
+        elif xml_node.attrib["type"] == "edge":
+            type_ = "road_border"
+        elif xml_node.attrib["type"] == "grass":
+            type_ = "grass"
+        else:
+            type_ = "line_thin" if float(xml_node.attrib["width"]) <= 0.15 else "line_thick"
+            subtype = self._roadmark_dict[xml_node.attrib["type"]]
+
+        if xml_node is None or not hasattr(xml_node, "color"):
+            color = None
+        elif xml_node.attrib["color"] == "standard":
+            color = "white"
+        elif xml_node.attrib["color"] == "violet":
+            color = "purple"
+        else:
+            color = xml_node.attrib["color"]
+
+        lane_change = (False, False)
+        if xml_node is None:
+            lane_change = (True, True)
+        elif xml_node.attrib["laneChange"] == "none":
+            lane_change = None
+        elif xml_node.attrib["laneChange"] == "both":
+            lane_change = (True, True)
+        elif xml_node.attrib["laneChange"] == "decrease":
+            lane_change = (False, True)
+        elif xml_node.attrib["laneChange"] == "increase":
+            lane_change = (True, False)
+
+        custom_tags = {
+            "weight": None
+            if xml_node is None or not hasattr(xml_node, "weight")
+            else xml_node.attrib["weight"],
+        }
+
+        roadline = RoadLine(
+            id_=self.id_counter,
+            geometry=LineString(points),
+            type_=type_,
+            subtype=subtype,
+            color=color,
+            width=None
+            if xml_node is None or not hasattr(xml_node, "width")
+            else xml_node.attrib["width"],
+            height=None
+            if xml_node is None or not hasattr(xml_node, "height")
+            else xml_node.attrib["height"],
+            lane_change=lane_change,
+            temporary=False,
+            custom_tags=custom_tags,
+        )
+        self.id_counter += 1
+
+        return roadline
+
+    def load_lane(self, ref_line, xml_node: ET.Element, type_node: ET.Element):
+        # ref_value should always be a positive value
+        sign = np.sign(int(xml_node.attrib["id"]))
+
+        if sign == 0:
+            raise ValueError("Lane id of left/right lanes should not be 0.")
+
+        location = type_node.attrib["type"] if hasattr(type_node, "type") else None
+
+        default_speed_limit = (
+            None
+            if type_node.get("speed") is None or "max" not in type_node.attrib
+            else float(type_node.attrib["max"])
+        )
+        default_speed_limit_unit = (
+            "km/h"
+            if type_node.get("speed") is None or "unit" not in type_node.attrib
+            else type_node.attrib["unit"]
+        )
+
+        if sign > 0:
+            right_side = ref_line.geometry
+            left_side = ref_line.geometry.offset_curve(float(xml_node.find("width").attrib["a"]))
+            new_ref_line = left_side
+            line_ids = {"left": [self.id_counter], "right": [ref_line.id_]}
+        else:
+            left_side = ref_line.geometry
+            right_side = ref_line.geometry.offset_curve(-float(xml_node.find("width").attrib["a"]))
+            new_ref_line = right_side
+            line_ids = {"left": [ref_line.id_], "right": [self.id_counter]}
+
+        roadline = self.load_roadmark(new_ref_line, xml_node.find("roadMark"))
+
+        lane = Lane(
+            id_=self.id_counter,
+            left_side=left_side,
+            right_side=right_side,
+            subtype=xml_node.attrib["type"],
+            line_ids=line_ids,
+            speed_limit=default_speed_limit
+            if xml_node.find("speed") is None or "max" not in xml_node.find("speed").attrib
+            else float(xml_node.find("speed").attrib["max"]),
+            speed_limit_unit=default_speed_limit_unit
+            if xml_node.find("speed") is None or "unit" not in xml_node.find("speed").attrib
+            else xml_node.find("speed").attrib["unit"],
+            location=location,
+        )
+        self.id_counter += 1
+
+        return lane, roadline
+
+    def load_object(self, x, y, heading, xml_node: ET.Element):
+        s = float(xml_node.attrib["s"])
+        t = float(xml_node.attrib["t"])
+        zOffset = float(xml_node.attrib["zOffset"])
+        relative_heading = float(xml_node.attrib["hdg"]) if "hdg" in xml_node.attrib else 0
+        width = float(xml_node.attrib["width"]) if "width" in xml_node.attrib else None
+        length = float(xml_node.attrib["length"]) if "length" in xml_node.attrib else None
+        height = float(xml_node.attrib["height"]) if "height" in xml_node.attrib else None
+        radius = float(xml_node.attrib["radius"]) if "radius" in xml_node.attrib else None
+        # orientation = xml_node.attrib["orientation"] if "orientation" in xml_node.attrib else "+"
+        # orientation = 1 if orientation == "+" else -1
+
+        # convert local coordinate to global coordinate
+        x_origin = x + s * np.cos(heading) - t * np.sin(heading)
+        y_origin = y + s * np.sin(heading) + t * np.cos(heading)
+        # object_heading = heading + relative_heading * orientation
+
+        if not None in [width, length]:
+            shape = Polygon(
+                [
+                    [0.5 * width, -0.5 * length],
+                    [0.5 * width, 0.5 * length],
+                    [-0.5 * width, 0.5 * length],
+                    [-0.5 * width, -0.5 * length],
+                ]
+            )
+
+        elif not radius is None:
+            shape = np.array(
+                [
+                    (np.cos(theta) * radius, np.sin(theta) * radius)
+                    for theta in np.linspace(0, 2 * np.pi, 100)
+                ]
+            )
+        else:
+            shape = Point(s, t)
+
+        shape = rotate(shape, relative_heading, origin=(0, 0))
+        shape = affine_transform(
+            shape,
+            [
+                np.cos(heading),
+                -np.sin(heading),
+                np.sin(heading),
+                np.cos(heading),
+                x_origin,
+                y_origin,
+            ],
+        )
+
+        # TODO: handle traffic participants and road areas separately
+        area = Area(
+            id_=self.id_counter,
+            geometry=shape,
+            subtype=xml_node.attrib["type"] if "type" in xml_node.attrib else None,
+        )
+        self.id_counter += 1
+
+        return area
+
     def load_road(self, xml_node: ET.Element):
+        objects = []
+        lanes = []
+        roadlines = []
+        points = []
         link_node = xml_node.find("link")
 
         # type
         type_node = xml_node.find("type")
-        if type_node.find("speed"):
-            speed_limit = type_node.find("speed").attrib["max"]
-            speed_unit = type_node.find("speed").attrib["unit"]
-            print(speed_limit, speed_unit)
 
         # plan view
-        points = []
+        first_geometry = xml_node.find("planView").find("geometry")
+        x = float(first_geometry.attrib["x"])
+        y = float(first_geometry.attrib["y"])
+        heading = float(first_geometry.attrib["hdg"])
         for geometry_node in xml_node.find("planView").findall("geometry"):
             new_points = self._get_geometry(geometry_node)
-            points.extend(new_points)
+            if self._check_continuity(new_points, points):
+                points.extend(new_points)
+            else:
+                logging.warning("The geometry is not continuous.")
+                points.extend(new_points)
 
         # elevation profile
         elevation_profile_node = xml_node.find("elevationProfile")
@@ -233,20 +428,79 @@ class XODRParser:
 
         # lanes
         lanes_node = xml_node.find("lanes")
-        lane_offset_node = lanes_node.find("laneOffset")
-        self._load_lane_section(lanes_node.find("laneSection"))
+        lane_sections = []
+        for lane_section_node in lanes_node.findall("laneSection"):
+            # DEBUG: curve processing
+
+            center_line = self.load_roadmark(
+                points, lane_section_node.find("center").find("lane").find("roadMark")
+            )  # RoadLine
+            if center_line is None:
+                raise ValueError("Center line must be defined.")
+
+            roadlines.append(center_line)
+
+            if not lane_section_node.find("left") is None:
+                lane_nodes = sorted(
+                    lane_section_node.find("left").findall("lane"), key=lambda x: x.attrib["id"]
+                )
+                ref_line = center_line
+                for lane_node in lane_nodes:
+                    lane, ref_line = self.load_lane(ref_line, lane_node, type_node)
+                    lanes.append(lane)
+                    roadlines.append(ref_line)
+
+            if not lane_section_node.find("right") is None:
+                lane_nodes = sorted(
+                    lane_section_node.find("right").findall("lane"), key=lambda x: x.attrib["id"]
+                )
+                ref_line = center_line
+                for lane_node in lane_nodes:
+                    lane, ref_line = self.load_lane(ref_line, lane_node, type_node)
+                    lanes.append(lane)
+                    roadlines.append(ref_line)
 
         if lanes_node is None:
             raise ValueError("Road must have lanes element.")
 
         objects_node = xml_node.find("objects")
+        if not objects_node is None:
+            for object_node in objects_node.findall("object"):
+                area = self.load_object(x, y, heading, object_node)
+                objects.append(area)
 
-        return
+        return lanes, roadlines, objects
 
     def load_junction(self, xml_node: ET.Element):
-        return
+        junction = Junction(id_=self.id_counter)
+        self.id_counter += 1
+
+        for connection_node in xml_node.findall("connection"):
+            connection = Connection(
+                id_=self.id_counter,
+                incoming_road=connection_node.attrib["incomingRoad"],
+                connecting_road=connection_node.attrib["connectingRoad"],
+                contact_point=connection_node.attrib["contactPoint"],
+            )
+            self.id_counter += 1
+
+            for lane_link in xml_node.findall("laneLink"):
+                connection.add_lane_link((lane_link.attrib["from"], lane_link.attrib["to"]))
+
+            junction.add_connection(connection)
+
+        return junction
 
     def parse(self, xml_root: ET.Element):
+        """This function parses the OpenDRIVE format map. To ensure that all road elements have an unique id, the function automatically reassign the id of the road elements.
+
+        Args:
+            xml_root (ET.Element): The root of the XML tree.
+
+        Returns:
+            _type_: _description_
+        """
+
         header_node = xml_root.find("header")
         if header_node is not None:
             header_info, projector = self.load_header(header_node)
@@ -256,7 +510,17 @@ class XODRParser:
             to_project = True
 
         for road in xml_root.findall("road"):
-            self.load_road(road)
+            lanes, roadlines, objects = self.load_road(road)
+            for lane in lanes:
+                map_.add_lane(lane)
+            for roadline in roadlines:
+                map_.add_roadline(roadline)
+            for obj in objects:
+                map_.add_area(obj)
 
-        # for junction in xml_root.findall("junction"):
-        #     self.load_junction(junction)
+        for junction in xml_root.findall("junction"):
+            map_.add_junction(self.load_junction(junction))
+
+        # reset the id counter
+        self.id_counter = 0
+        return map_
