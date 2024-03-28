@@ -498,7 +498,7 @@ class XODRParser:
             xml_root (ET.Element): The root of the XML tree.
 
         Returns:
-            _type_: _description_
+            map_ (Map): The parsed map.
         """
 
         header_node = xml_root.find("header")
