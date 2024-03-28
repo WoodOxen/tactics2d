@@ -74,9 +74,9 @@ def test_junction():
     connection2 = map_element.Connection(
         id_="2", incoming_road="4", connecting_road="5", contact_point="end", lane_links=[]
     )
-    junction = map_element.Junction(id_="1", connections=[connection1])
+    junction = map_element.Junction(id_="1", connections={connection1.id_: connection1})
     junction.add_connection(connection2)
-    logging.info(f"lane links: {junction.lane_links}")
+    assert len(junction.connections) == 2
 
 
 @pytest.mark.map_element
