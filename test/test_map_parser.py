@@ -15,8 +15,6 @@ import json
 import logging
 import xml.etree.ElementTree as ET
 
-logging.basicConfig(level=logging.DEBUG)
-
 import matplotlib.pyplot as plt
 import pytest
 
@@ -40,7 +38,8 @@ def test_osm_parser():
     scenario_display = ScenarioDisplay()
     scenario_display.display_map(map_, ax)
     ax.plot()
-    fig.savefig("./tests/runtime/raw.png")
+    fig.savefig("./test/runtime/raw.png")
+    plt.close(fig)
 
 
 @pytest.mark.map_parser
@@ -83,7 +82,8 @@ def test_lanelet2_parser():
             scenario_display.display_map(map_, ax)
             ax.set_aspect("equal")
             ax.plot()
-            fig.savefig(f"./tests/runtime/{map_name}.png", dpi=300)
+            fig.savefig(f"./test/runtime/{map_name}.png", dpi=300)
+            plt.close(fig)
 
         except SyntaxError as err:
             logging.error(err)
@@ -93,8 +93,26 @@ def test_lanelet2_parser():
             raise err
 
 
-if __name__ == "__main__":
-    map_path = "./tests/cases/lbl.xodr"
+@pytest.mark.map_parser
+@pytest.mark.parametrize(
+    "map_path, img_path",
+    [
+        ("./test/cases/cross.xodr", "./test/runtime/cross.png"),
+        ("./test/cases/ring.xodr", "./test/runtime/ring.png"),
+    ],
+)
+def test_xodr_parser(map_path, img_path):
     map_root = ET.parse(map_path).getroot()
     map_parser = XODRParser()
     map_ = map_parser.parse(map_root)
+
+    fig, ax = plt.subplots()
+    fig.set_layout_engine("none")
+    ax.set_aspect("equal")
+    ax.set_axis_off()
+
+    scenario_display = ScenarioDisplay()
+    scenario_display.display_map(map_, ax)
+    ax.plot()
+    fig.savefig(img_path, facecolor="black")
+    plt.close(fig)

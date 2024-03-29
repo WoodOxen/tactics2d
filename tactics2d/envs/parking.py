@@ -172,6 +172,20 @@ class ParkingEnv(gym.Env):
 
         return reward
 
+    def _get_relative_pose(self, state):
+        target_pose = np.array(
+            [
+                self.scenario_manager.target_area.geometry.centroid.x,
+                self.scenario_manager.target_area.geometry.centroid.y,
+            ]
+        )
+        target_heading = self.scenario_manager.target_heading
+        diff_position = np.linalg.norm(target_pose - np.array(state.location))
+        diff_angle = np.arctan2(target_pose[1] - state.y, target_pose[0] - state.x) - state.heading
+        diff_heading = target_heading - state.heading
+
+        return diff_position, diff_angle, diff_heading
+
     def _get_infos(self, state, observations, scenario_status, traffic_status):
         state_infos = dict()
         state_infos["lidar"] = observations[1]
@@ -180,6 +194,11 @@ class ParkingEnv(gym.Env):
         state_infos["target_heading"] = self.scenario_manager.target_heading
         state_infos["traffic_status"] = traffic_status
         state_infos["scenario_status"] = scenario_status
+        (
+            state_infos["diff_position"],
+            state_infos["diff_angle"],
+            state_infos["diff_heading"],
+        ) = self._get_relative_pose(state)
         return state_infos
 
     def step(self, action: Union[np.ndarray, int]):

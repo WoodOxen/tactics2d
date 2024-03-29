@@ -29,13 +29,13 @@
   - 🚲 Traffic participants -- Features a variety of built-in traffic participants with realistic physics parameters, detailed further [here](https://tactics2d.readthedocs.io/en/latest/api/participant/#templates-for-traffic-participants).
   - 📷 Sensors -- Provides bird-eye-view (BEV) semantic segmentation RGB image and single-line LiDAR point cloud for model input.
 - **Visualization** -- Offers a user-friendly visualization tool for real-time rendering of traffic scenarios and participants, along with the capability to record and replay traffic scenarios.
-- **Reliability** -- Over [FILL LATER]\% code is covered by unit tests and integration tests.
+- **Reliability** -- Over 85\% code is covered by unit tests and integration tests.
 
 For further information on `tactics2d`, please refer to our comprehensive [documentation](https://tactics2d.readthedocs.io/en/latest/), and a detailed comparison with other similar libraries is available [here](https://tactics2d.readthedocs.io/en/latest/#why-tactics2d).
 
 ## Community
 
-You are welcome to raise issues and join our [discord community](https://discordapp.com/widget?id=1209363816912126003&theme=system) for further discussion.
+We have a [Discord Community](https://discordapp.com/widget?id=1209363816912126003&theme=system) for support. Feel free to ask questions. Posting in [Github Issues](https://github.com/WoodOxen/tactics2d/issues) and PRs are also welcome.
 
 ## Installation
 
@@ -45,11 +45,11 @@ We have conducted testing for the execution and construction of `tactics2d` on t
 
 | System | 3.8 | 3.9 | 3.10 | 3.11 |
 | --- | --- | --- | --- | --- |
-| Ubuntu 18.04 | $\surd$ | - | - | - |
-| Ubuntu 20.04 | $\surd$ | $\surd$ | $\surd$ | $\surd$ |
-| Ubuntu 22.04 | $\surd$ | $\surd$ | $\surd$ | $\surd$ |
-| Windows | $\surd$ | $\surd$ | $\surd$ | $\surd$ |
-| MacOS | $\surd$ | $\surd$ | $\surd$ | $\surd$ |
+| Ubuntu 18.04 | :white_check_mark: | - | - | - |
+| Ubuntu 20.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| MacOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 
 ### 1.1 Install from PyPI
 

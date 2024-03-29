@@ -281,30 +281,6 @@ class Vehicle(ParticipantBase):
         ]
         return affine_transform(self._bbox, transform_matrix)
 
-    def get_pose_new(self, **kwargs) -> LinearRing:
-        if kwargs is None or "frame" in kwargs:
-            state = self.trajectory.get_state(kwargs["frame"])
-        elif "state" in kwargs and isinstance(kwargs["state"], State):
-            state = kwargs["state"]
-        elif "heading" in kwargs:
-            if "location" in kwargs:
-                state = State(0, kwargs["location"][0], kwargs["location"][1], kwargs["heading"])
-            elif "x" in kwargs and "y" in kwargs:
-                state = State(0, kwargs["x"], kwargs["y"], kwargs["heading"])
-        else:
-            raise NotImplementedError("Invalid arguments.")
-
-        transform_matrix = [
-            np.cos(state.heading),
-            -np.sin(state.heading),
-            np.sin(state.heading),
-            np.cos(state.heading),
-            state.location[0],
-            state.location[1],
-        ]
-        bbox = translate(self.bbox_new, self.center_shift)
-        return affine_transform(bbox, transform_matrix)
-
     def get_trace(self, frame_range: Tuple[int, int] = None) -> LinearRing:
         """This function gets the trace of the vehicle within the requested frame range.
 

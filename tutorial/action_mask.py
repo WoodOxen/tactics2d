@@ -34,7 +34,7 @@ class ActionMask:
         self.vehicle_base = self.init_vehicle_base()
 
     def init_vehicle_box(self):
-        VehicleBox = self.vehicle.bbox
+        VehicleBox = self.vehicle.geometry
         car_coords = np.array(VehicleBox.coords)[:4]  # (4,2)
         car_coords_x = car_coords[:, 0].reshape(-1)
         car_coords_y = car_coords[:, 1].reshape(-1)  # (4)
@@ -42,8 +42,8 @@ class ActionMask:
         for action in self.action_space:
             state = State(0, 0, 0, 0, 0, 0, 0)
             for _ in range(self.n_iter):
-                state, _ = self.vehicle.physics_model.step(
-                    state, action, self.step_time / self.n_iter
+                state, _, _ = self.vehicle.physics_model.step(
+                    state, action[1], action[0], self.step_time / self.n_iter
                 )
                 x, y, heading = state.x, state.y, state.heading
                 car_x_ = car_coords_x * np.cos(heading) - car_coords_y * np.sin(heading) + x  # (4)
@@ -78,7 +78,7 @@ class ActionMask:
         lidar_base = []
         ORIGIN = Point((0, 0))
         for l in self.lidar_lines:
-            distance = l.intersection(self.vehicle.bbox).distance(ORIGIN)
+            distance = l.intersection(self.vehicle.geometry).distance(ORIGIN)
             lidar_base.append(distance)
         return np.array(lidar_base)
 
