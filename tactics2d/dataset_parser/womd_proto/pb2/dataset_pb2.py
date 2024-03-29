@@ -5,7 +5,6 @@ import sys
 
 _b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode("latin1"))
 from google.protobuf import descriptor as _descriptor
-from google.protobuf import descriptor_pb2
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
@@ -15,20 +14,24 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-import tactics2d.dataset_parser.womd_proto.label_pb2 as label__pb2
-import tactics2d.dataset_parser.womd_proto.map_pb2 as map__pb2
-import tactics2d.dataset_parser.womd_proto.vector_pb2 as vector__pb2
+import tactics2d.dataset_parser.womd_proto.pb2.label_pb2 as label__pb2
+import tactics2d.dataset_parser.womd_proto.pb2.map_pb2 as map__pb2
+import tactics2d.dataset_parser.womd_proto.pb2.vector_pb2 as vector__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="dataset.proto",
     package="waymo.open_dataset",
     syntax="proto2",
+    serialized_options=None,
     serialized_pb=_b(
         '\n\rdataset.proto\x12\x12waymo.open_dataset\x1a\x0blabel.proto\x1a\tmap.proto\x1a\x0cvector.proto"\x1b\n\x0bMatrixShape\x12\x0c\n\x04\x64ims\x18\x01 \x03(\x05"O\n\x0bMatrixFloat\x12\x10\n\x04\x64\x61ta\x18\x01 \x03(\x02\x42\x02\x10\x01\x12.\n\x05shape\x18\x02 \x01(\x0b\x32\x1f.waymo.open_dataset.MatrixShape"O\n\x0bMatrixInt32\x12\x10\n\x04\x64\x61ta\x18\x01 \x03(\x05\x42\x02\x10\x01\x12.\n\x05shape\x18\x02 \x01(\x0b\x32\x1f.waymo.open_dataset.MatrixShape"l\n\nCameraName"^\n\x04Name\x12\x0b\n\x07UNKNOWN\x10\x00\x12\t\n\x05\x46RONT\x10\x01\x12\x0e\n\nFRONT_LEFT\x10\x02\x12\x0f\n\x0b\x46RONT_RIGHT\x10\x03\x12\r\n\tSIDE_LEFT\x10\x04\x12\x0e\n\nSIDE_RIGHT\x10\x05"]\n\tLaserName"P\n\x04Name\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x07\n\x03TOP\x10\x01\x12\t\n\x05\x46RONT\x10\x02\x12\r\n\tSIDE_LEFT\x10\x03\x12\x0e\n\nSIDE_RIGHT\x10\x04\x12\x08\n\x04REAR\x10\x05"\x1e\n\tTransform\x12\x11\n\ttransform\x18\x01 \x03(\x01"X\n\x08Velocity\x12\x0b\n\x03v_x\x18\x01 \x01(\x02\x12\x0b\n\x03v_y\x18\x02 \x01(\x02\x12\x0b\n\x03v_z\x18\x03 \x01(\x02\x12\x0b\n\x03w_x\x18\x04 \x01(\x01\x12\x0b\n\x03w_y\x18\x05 \x01(\x01\x12\x0b\n\x03w_z\x18\x06 \x01(\x01"\xa3\x03\n\x11\x43\x61meraCalibration\x12\x31\n\x04name\x18\x01 \x01(\x0e\x32#.waymo.open_dataset.CameraName.Name\x12\x11\n\tintrinsic\x18\x02 \x03(\x01\x12\x30\n\textrinsic\x18\x03 \x01(\x0b\x32\x1d.waymo.open_dataset.Transform\x12\r\n\x05width\x18\x04 \x01(\x05\x12\x0e\n\x06height\x18\x05 \x01(\x05\x12g\n\x19rolling_shutter_direction\x18\x06 \x01(\x0e\x32\x44.waymo.open_dataset.CameraCalibration.RollingShutterReadOutDirection"\x8d\x01\n\x1eRollingShutterReadOutDirection\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x11\n\rTOP_TO_BOTTOM\x10\x01\x12\x11\n\rLEFT_TO_RIGHT\x10\x02\x12\x11\n\rBOTTOM_TO_TOP\x10\x03\x12\x11\n\rRIGHT_TO_LEFT\x10\x04\x12\x12\n\x0eGLOBAL_SHUTTER\x10\x05"\xcd\x01\n\x10LaserCalibration\x12\x30\n\x04name\x18\x01 \x01(\x0e\x32".waymo.open_dataset.LaserName.Name\x12\x19\n\x11\x62\x65\x61m_inclinations\x18\x02 \x03(\x01\x12\x1c\n\x14\x62\x65\x61m_inclination_min\x18\x03 \x01(\x01\x12\x1c\n\x14\x62\x65\x61m_inclination_max\x18\x04 \x01(\x01\x12\x30\n\textrinsic\x18\x05 \x01(\x0b\x32\x1d.waymo.open_dataset.Transform"\xf6\x03\n\x07\x43ontext\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x42\n\x13\x63\x61mera_calibrations\x18\x02 \x03(\x0b\x32%.waymo.open_dataset.CameraCalibration\x12@\n\x12laser_calibrations\x18\x03 \x03(\x0b\x32$.waymo.open_dataset.LaserCalibration\x12\x30\n\x05stats\x18\x04 \x01(\x0b\x32!.waymo.open_dataset.Context.Stats\x1a\xa4\x02\n\x05Stats\x12J\n\x13laser_object_counts\x18\x01 \x03(\x0b\x32-.waymo.open_dataset.Context.Stats.ObjectCount\x12K\n\x14\x63\x61mera_object_counts\x18\x05 \x03(\x0b\x32-.waymo.open_dataset.Context.Stats.ObjectCount\x12\x13\n\x0btime_of_day\x18\x02 \x01(\t\x12\x10\n\x08location\x18\x03 \x01(\t\x12\x0f\n\x07weather\x18\x04 \x01(\t\x1aJ\n\x0bObjectCount\x12,\n\x04type\x18\x01 \x01(\x0e\x32\x1e.waymo.open_dataset.Label.Type\x12\r\n\x05\x63ount\x18\x02 \x01(\x05"\xfd\x01\n\nRangeImage\x12\x1e\n\x16range_image_compressed\x18\x02 \x01(\x0c\x12$\n\x1c\x63\x61mera_projection_compressed\x18\x03 \x01(\x0c\x12#\n\x1brange_image_pose_compressed\x18\x04 \x01(\x0c\x12#\n\x1brange_image_flow_compressed\x18\x05 \x01(\x0c\x12%\n\x1dsegmentation_label_compressed\x18\x06 \x01(\x0c\x12\x38\n\x0brange_image\x18\x01 \x01(\x0b\x32\x1f.waymo.open_dataset.MatrixFloatB\x02\x18\x01"\xe0\x02\n\x17\x43\x61meraSegmentationLabel\x12\x1e\n\x16panoptic_label_divisor\x18\x01 \x01(\x05\x12\x16\n\x0epanoptic_label\x18\x02 \x01(\x0c\x12q\n instance_id_to_global_id_mapping\x18\x03 \x03(\x0b\x32G.waymo.open_dataset.CameraSegmentationLabel.InstanceIDToGlobalIDMapping\x12\x13\n\x0bsequence_id\x18\x04 \x01(\t\x12\x1b\n\x13num_cameras_covered\x18\x05 \x01(\x0c\x1ah\n\x1bInstanceIDToGlobalIDMapping\x12\x19\n\x11local_instance_id\x18\x01 \x01(\x05\x12\x1a\n\x12global_instance_id\x18\x02 \x01(\x05\x12\x12\n\nis_tracked\x18\x03 \x01(\x08"\xe4\x02\n\x0b\x43\x61meraImage\x12\x31\n\x04name\x18\x01 \x01(\x0e\x32#.waymo.open_dataset.CameraName.Name\x12\r\n\x05image\x18\x02 \x01(\x0c\x12+\n\x04pose\x18\x03 \x01(\x0b\x32\x1d.waymo.open_dataset.Transform\x12.\n\x08velocity\x18\x04 \x01(\x0b\x32\x1c.waymo.open_dataset.Velocity\x12\x16\n\x0epose_timestamp\x18\x05 \x01(\x01\x12\x0f\n\x07shutter\x18\x06 \x01(\x01\x12\x1b\n\x13\x63\x61mera_trigger_time\x18\x07 \x01(\x01\x12 \n\x18\x63\x61mera_readout_done_time\x18\x08 \x01(\x01\x12N\n\x19\x63\x61mera_segmentation_label\x18\n \x01(\x0b\x32+.waymo.open_dataset.CameraSegmentationLabel"l\n\x0c\x43\x61meraLabels\x12\x31\n\x04name\x18\x01 \x01(\x0e\x32#.waymo.open_dataset.CameraName.Name\x12)\n\x06labels\x18\x02 \x03(\x0b\x32\x19.waymo.open_dataset.Label"\xa1\x01\n\x05Laser\x12\x30\n\x04name\x18\x01 \x01(\x0e\x32".waymo.open_dataset.LaserName.Name\x12\x32\n\nri_return1\x18\x02 \x01(\x0b\x32\x1e.waymo.open_dataset.RangeImage\x12\x32\n\nri_return2\x18\x03 \x01(\x0b\x32\x1e.waymo.open_dataset.RangeImage"\xb8\x04\n\x05\x46rame\x12,\n\x07\x63ontext\x18\x01 \x01(\x0b\x32\x1b.waymo.open_dataset.Context\x12\x18\n\x10timestamp_micros\x18\x02 \x01(\x03\x12+\n\x04pose\x18\x03 \x01(\x0b\x32\x1d.waymo.open_dataset.Transform\x12/\n\x06images\x18\x04 \x03(\x0b\x32\x1f.waymo.open_dataset.CameraImage\x12)\n\x06lasers\x18\x05 \x03(\x0b\x32\x19.waymo.open_dataset.Laser\x12/\n\x0claser_labels\x18\x06 \x03(\x0b\x32\x19.waymo.open_dataset.Label\x12@\n\x16projected_lidar_labels\x18\t \x03(\x0b\x32 .waymo.open_dataset.CameraLabels\x12\x37\n\rcamera_labels\x18\x08 \x03(\x0b\x32 .waymo.open_dataset.CameraLabels\x12:\n\x0eno_label_zones\x18\x07 \x03(\x0b\x32".waymo.open_dataset.Polygon2dProto\x12\x34\n\x0cmap_features\x18\n \x03(\x0b\x32\x1e.waymo.open_dataset.MapFeature\x12\x35\n\x0fmap_pose_offset\x18\x0b \x01(\x0b\x32\x1c.waymo.open_dataset.Vector3d*\t\x08\xe8\x07\x10\x80\x80\x80\x80\x02'
     ),
-    dependencies=[label__pb2.DESCRIPTOR, map__pb2.DESCRIPTOR, vector__pb2.DESCRIPTOR],
+    dependencies=[
+        label__pb2.DESCRIPTOR,
+        map__pb2.DESCRIPTOR,
+        vector__pb2.DESCRIPTOR,
+    ],
 )
-_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 
 _CAMERANAME_NAME = _descriptor.EnumDescriptor(
@@ -37,23 +40,27 @@ _CAMERANAME_NAME = _descriptor.EnumDescriptor(
     filename=None,
     file=DESCRIPTOR,
     values=[
-        _descriptor.EnumValueDescriptor(name="UNKNOWN", index=0, number=0, options=None, type=None),
-        _descriptor.EnumValueDescriptor(name="FRONT", index=1, number=1, options=None, type=None),
         _descriptor.EnumValueDescriptor(
-            name="FRONT_LEFT", index=2, number=2, options=None, type=None
+            name="UNKNOWN", index=0, number=0, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="FRONT_RIGHT", index=3, number=3, options=None, type=None
+            name="FRONT", index=1, number=1, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="SIDE_LEFT", index=4, number=4, options=None, type=None
+            name="FRONT_LEFT", index=2, number=2, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="SIDE_RIGHT", index=5, number=5, options=None, type=None
+            name="FRONT_RIGHT", index=3, number=3, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="SIDE_LEFT", index=4, number=4, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="SIDE_RIGHT", index=5, number=5, serialized_options=None, type=None
         ),
     ],
     containing_type=None,
-    options=None,
+    serialized_options=None,
     serialized_start=280,
     serialized_end=374,
 )
@@ -65,19 +72,27 @@ _LASERNAME_NAME = _descriptor.EnumDescriptor(
     filename=None,
     file=DESCRIPTOR,
     values=[
-        _descriptor.EnumValueDescriptor(name="UNKNOWN", index=0, number=0, options=None, type=None),
-        _descriptor.EnumValueDescriptor(name="TOP", index=1, number=1, options=None, type=None),
-        _descriptor.EnumValueDescriptor(name="FRONT", index=2, number=2, options=None, type=None),
         _descriptor.EnumValueDescriptor(
-            name="SIDE_LEFT", index=3, number=3, options=None, type=None
+            name="UNKNOWN", index=0, number=0, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="SIDE_RIGHT", index=4, number=4, options=None, type=None
+            name="TOP", index=1, number=1, serialized_options=None, type=None
         ),
-        _descriptor.EnumValueDescriptor(name="REAR", index=5, number=5, options=None, type=None),
+        _descriptor.EnumValueDescriptor(
+            name="FRONT", index=2, number=2, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="SIDE_LEFT", index=3, number=3, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="SIDE_RIGHT", index=4, number=4, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="REAR", index=5, number=5, serialized_options=None, type=None
+        ),
     ],
     containing_type=None,
-    options=None,
+    serialized_options=None,
     serialized_start=389,
     serialized_end=469,
 )
@@ -89,25 +104,27 @@ _CAMERACALIBRATION_ROLLINGSHUTTERREADOUTDIRECTION = _descriptor.EnumDescriptor(
     filename=None,
     file=DESCRIPTOR,
     values=[
-        _descriptor.EnumValueDescriptor(name="UNKNOWN", index=0, number=0, options=None, type=None),
         _descriptor.EnumValueDescriptor(
-            name="TOP_TO_BOTTOM", index=1, number=1, options=None, type=None
+            name="UNKNOWN", index=0, number=0, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="LEFT_TO_RIGHT", index=2, number=2, options=None, type=None
+            name="TOP_TO_BOTTOM", index=1, number=1, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="BOTTOM_TO_TOP", index=3, number=3, options=None, type=None
+            name="LEFT_TO_RIGHT", index=2, number=2, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="RIGHT_TO_LEFT", index=4, number=4, options=None, type=None
+            name="BOTTOM_TO_TOP", index=3, number=3, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="GLOBAL_SHUTTER", index=5, number=5, options=None, type=None
+            name="RIGHT_TO_LEFT", index=4, number=4, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="GLOBAL_SHUTTER", index=5, number=5, serialized_options=None, type=None
         ),
     ],
     containing_type=None,
-    options=None,
+    serialized_options=None,
     serialized_start=872,
     serialized_end=1013,
 )
@@ -136,13 +153,14 @@ _MATRIXSHAPE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
-        )
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -174,7 +192,8 @@ _MATRIXFLOAT = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=_descriptor._ParseOptions(descriptor_pb2.FieldOptions(), _b("\020\001")),
+            serialized_options=_b("\020\001"),
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="shape",
@@ -191,13 +210,14 @@ _MATRIXFLOAT = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -229,7 +249,8 @@ _MATRIXINT32 = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=_descriptor._ParseOptions(descriptor_pb2.FieldOptions(), _b("\020\001")),
+            serialized_options=_b("\020\001"),
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="shape",
@@ -246,13 +267,14 @@ _MATRIXINT32 = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -271,8 +293,10 @@ _CAMERANAME = _descriptor.Descriptor(
     fields=[],
     extensions=[],
     nested_types=[],
-    enum_types=[_CAMERANAME_NAME],
-    options=None,
+    enum_types=[
+        _CAMERANAME_NAME,
+    ],
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -291,8 +315,10 @@ _LASERNAME = _descriptor.Descriptor(
     fields=[],
     extensions=[],
     nested_types=[],
-    enum_types=[_LASERNAME_NAME],
-    options=None,
+    enum_types=[
+        _LASERNAME_NAME,
+    ],
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -324,13 +350,14 @@ _TRANSFORM = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
-        )
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -362,7 +389,8 @@ _VELOCITY = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="v_y",
@@ -379,7 +407,8 @@ _VELOCITY = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="v_z",
@@ -396,7 +425,8 @@ _VELOCITY = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="w_x",
@@ -413,7 +443,8 @@ _VELOCITY = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="w_y",
@@ -430,7 +461,8 @@ _VELOCITY = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="w_z",
@@ -447,13 +479,14 @@ _VELOCITY = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -485,7 +518,8 @@ _CAMERACALIBRATION = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="intrinsic",
@@ -502,7 +536,8 @@ _CAMERACALIBRATION = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="extrinsic",
@@ -519,7 +554,8 @@ _CAMERACALIBRATION = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="width",
@@ -536,7 +572,8 @@ _CAMERACALIBRATION = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="height",
@@ -553,7 +590,8 @@ _CAMERACALIBRATION = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="rolling_shutter_direction",
@@ -570,13 +608,16 @@ _CAMERACALIBRATION = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
-    enum_types=[_CAMERACALIBRATION_ROLLINGSHUTTERREADOUTDIRECTION],
-    options=None,
+    enum_types=[
+        _CAMERACALIBRATION_ROLLINGSHUTTERREADOUTDIRECTION,
+    ],
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -608,7 +649,8 @@ _LASERCALIBRATION = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="beam_inclinations",
@@ -625,7 +667,8 @@ _LASERCALIBRATION = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="beam_inclination_min",
@@ -642,7 +685,8 @@ _LASERCALIBRATION = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="beam_inclination_max",
@@ -659,7 +703,8 @@ _LASERCALIBRATION = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="extrinsic",
@@ -676,13 +721,14 @@ _LASERCALIBRATION = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -714,7 +760,8 @@ _CONTEXT_STATS_OBJECTCOUNT = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="count",
@@ -731,13 +778,14 @@ _CONTEXT_STATS_OBJECTCOUNT = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -768,7 +816,8 @@ _CONTEXT_STATS = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="camera_object_counts",
@@ -785,7 +834,8 @@ _CONTEXT_STATS = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="time_of_day",
@@ -802,7 +852,8 @@ _CONTEXT_STATS = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="location",
@@ -819,7 +870,8 @@ _CONTEXT_STATS = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="weather",
@@ -836,13 +888,16 @@ _CONTEXT_STATS = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
-    nested_types=[_CONTEXT_STATS_OBJECTCOUNT],
+    nested_types=[
+        _CONTEXT_STATS_OBJECTCOUNT,
+    ],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -873,7 +928,8 @@ _CONTEXT = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="camera_calibrations",
@@ -890,7 +946,8 @@ _CONTEXT = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="laser_calibrations",
@@ -907,7 +964,8 @@ _CONTEXT = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="stats",
@@ -924,13 +982,16 @@ _CONTEXT = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
-    nested_types=[_CONTEXT_STATS],
+    nested_types=[
+        _CONTEXT_STATS,
+    ],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -962,7 +1023,8 @@ _RANGEIMAGE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="camera_projection_compressed",
@@ -979,7 +1041,8 @@ _RANGEIMAGE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="range_image_pose_compressed",
@@ -996,7 +1059,8 @@ _RANGEIMAGE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="range_image_flow_compressed",
@@ -1013,7 +1077,8 @@ _RANGEIMAGE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="segmentation_label_compressed",
@@ -1030,7 +1095,8 @@ _RANGEIMAGE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="range_image",
@@ -1047,13 +1113,14 @@ _RANGEIMAGE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=_descriptor._ParseOptions(descriptor_pb2.FieldOptions(), _b("\030\001")),
+            serialized_options=_b("\030\001"),
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -1085,7 +1152,8 @@ _CAMERASEGMENTATIONLABEL_INSTANCEIDTOGLOBALIDMAPPING = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="global_instance_id",
@@ -1102,7 +1170,8 @@ _CAMERASEGMENTATIONLABEL_INSTANCEIDTOGLOBALIDMAPPING = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="is_tracked",
@@ -1119,13 +1188,14 @@ _CAMERASEGMENTATIONLABEL_INSTANCEIDTOGLOBALIDMAPPING = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -1156,7 +1226,8 @@ _CAMERASEGMENTATIONLABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="panoptic_label",
@@ -1173,7 +1244,8 @@ _CAMERASEGMENTATIONLABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="instance_id_to_global_id_mapping",
@@ -1190,7 +1262,8 @@ _CAMERASEGMENTATIONLABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="sequence_id",
@@ -1207,7 +1280,8 @@ _CAMERASEGMENTATIONLABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="num_cameras_covered",
@@ -1224,13 +1298,16 @@ _CAMERASEGMENTATIONLABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
-    nested_types=[_CAMERASEGMENTATIONLABEL_INSTANCEIDTOGLOBALIDMAPPING],
+    nested_types=[
+        _CAMERASEGMENTATIONLABEL_INSTANCEIDTOGLOBALIDMAPPING,
+    ],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -1262,7 +1339,8 @@ _CAMERAIMAGE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="image",
@@ -1279,7 +1357,8 @@ _CAMERAIMAGE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="pose",
@@ -1296,7 +1375,8 @@ _CAMERAIMAGE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="velocity",
@@ -1313,7 +1393,8 @@ _CAMERAIMAGE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="pose_timestamp",
@@ -1330,7 +1411,8 @@ _CAMERAIMAGE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="shutter",
@@ -1347,7 +1429,8 @@ _CAMERAIMAGE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="camera_trigger_time",
@@ -1364,7 +1447,8 @@ _CAMERAIMAGE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="camera_readout_done_time",
@@ -1381,7 +1465,8 @@ _CAMERAIMAGE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="camera_segmentation_label",
@@ -1398,13 +1483,14 @@ _CAMERAIMAGE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -1436,7 +1522,8 @@ _CAMERALABELS = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="labels",
@@ -1453,13 +1540,14 @@ _CAMERALABELS = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -1491,7 +1579,8 @@ _LASER = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="ri_return1",
@@ -1508,7 +1597,8 @@ _LASER = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="ri_return2",
@@ -1525,13 +1615,14 @@ _LASER = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -1563,7 +1654,8 @@ _FRAME = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="timestamp_micros",
@@ -1580,7 +1672,8 @@ _FRAME = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="pose",
@@ -1597,7 +1690,8 @@ _FRAME = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="images",
@@ -1614,7 +1708,8 @@ _FRAME = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="lasers",
@@ -1631,7 +1726,8 @@ _FRAME = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="laser_labels",
@@ -1648,7 +1744,8 @@ _FRAME = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="projected_lidar_labels",
@@ -1665,7 +1762,8 @@ _FRAME = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="camera_labels",
@@ -1682,7 +1780,8 @@ _FRAME = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="no_label_zones",
@@ -1699,7 +1798,8 @@ _FRAME = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="map_features",
@@ -1716,7 +1816,8 @@ _FRAME = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="map_pose_offset",
@@ -1733,16 +1834,19 @@ _FRAME = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=True,
     syntax="proto2",
-    extension_ranges=[(1000, 536870912)],
+    extension_ranges=[
+        (1000, 536870912),
+    ],
     oneofs=[],
     serialized_start=2973,
     serialized_end=3541,
@@ -1808,13 +1912,14 @@ DESCRIPTOR.message_types_by_name["CameraImage"] = _CAMERAIMAGE
 DESCRIPTOR.message_types_by_name["CameraLabels"] = _CAMERALABELS
 DESCRIPTOR.message_types_by_name["Laser"] = _LASER
 DESCRIPTOR.message_types_by_name["Frame"] = _FRAME
+_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 MatrixShape = _reflection.GeneratedProtocolMessageType(
     "MatrixShape",
     (_message.Message,),
     dict(
         DESCRIPTOR=_MATRIXSHAPE,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.MatrixShape)
     ),
 )
@@ -1825,7 +1930,7 @@ MatrixFloat = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_MATRIXFLOAT,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.MatrixFloat)
     ),
 )
@@ -1836,7 +1941,7 @@ MatrixInt32 = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_MATRIXINT32,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.MatrixInt32)
     ),
 )
@@ -1847,7 +1952,7 @@ CameraName = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_CAMERANAME,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.CameraName)
     ),
 )
@@ -1858,7 +1963,7 @@ LaserName = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_LASERNAME,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.LaserName)
     ),
 )
@@ -1869,7 +1974,7 @@ Transform = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_TRANSFORM,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Transform)
     ),
 )
@@ -1880,7 +1985,7 @@ Velocity = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_VELOCITY,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Velocity)
     ),
 )
@@ -1891,7 +1996,7 @@ CameraCalibration = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_CAMERACALIBRATION,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.CameraCalibration)
     ),
 )
@@ -1902,7 +2007,7 @@ LaserCalibration = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_LASERCALIBRATION,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.LaserCalibration)
     ),
 )
@@ -1921,17 +2026,17 @@ Context = _reflection.GeneratedProtocolMessageType(
                     (_message.Message,),
                     dict(
                         DESCRIPTOR=_CONTEXT_STATS_OBJECTCOUNT,
-                        __module__="dataset_pb2",
+                        __module__="dataset_pb2"
                         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Context.Stats.ObjectCount)
                     ),
                 ),
                 DESCRIPTOR=_CONTEXT_STATS,
-                __module__="dataset_pb2",
+                __module__="dataset_pb2"
                 # @@protoc_insertion_point(class_scope:waymo.open_dataset.Context.Stats)
             ),
         ),
         DESCRIPTOR=_CONTEXT,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Context)
     ),
 )
@@ -1944,7 +2049,7 @@ RangeImage = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_RANGEIMAGE,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.RangeImage)
     ),
 )
@@ -1959,12 +2064,12 @@ CameraSegmentationLabel = _reflection.GeneratedProtocolMessageType(
             (_message.Message,),
             dict(
                 DESCRIPTOR=_CAMERASEGMENTATIONLABEL_INSTANCEIDTOGLOBALIDMAPPING,
-                __module__="dataset_pb2",
+                __module__="dataset_pb2"
                 # @@protoc_insertion_point(class_scope:waymo.open_dataset.CameraSegmentationLabel.InstanceIDToGlobalIDMapping)
             ),
         ),
         DESCRIPTOR=_CAMERASEGMENTATIONLABEL,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.CameraSegmentationLabel)
     ),
 )
@@ -1976,7 +2081,7 @@ CameraImage = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_CAMERAIMAGE,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.CameraImage)
     ),
 )
@@ -1987,7 +2092,7 @@ CameraLabels = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_CAMERALABELS,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.CameraLabels)
     ),
 )
@@ -1998,7 +2103,7 @@ Laser = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_LASER,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Laser)
     ),
 )
@@ -2009,23 +2114,14 @@ Frame = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_FRAME,
-        __module__="dataset_pb2",
+        __module__="dataset_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Frame)
     ),
 )
 _sym_db.RegisterMessage(Frame)
 
 
-_MATRIXFLOAT.fields_by_name["data"].has_options = True
-_MATRIXFLOAT.fields_by_name["data"]._options = _descriptor._ParseOptions(
-    descriptor_pb2.FieldOptions(), _b("\020\001")
-)
-_MATRIXINT32.fields_by_name["data"].has_options = True
-_MATRIXINT32.fields_by_name["data"]._options = _descriptor._ParseOptions(
-    descriptor_pb2.FieldOptions(), _b("\020\001")
-)
-_RANGEIMAGE.fields_by_name["range_image"].has_options = True
-_RANGEIMAGE.fields_by_name["range_image"]._options = _descriptor._ParseOptions(
-    descriptor_pb2.FieldOptions(), _b("\030\001")
-)
+_MATRIXFLOAT.fields_by_name["data"]._options = None
+_MATRIXINT32.fields_by_name["data"]._options = None
+_RANGEIMAGE.fields_by_name["range_image"]._options = None
 # @@protoc_insertion_point(module_scope)

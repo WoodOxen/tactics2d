@@ -5,7 +5,6 @@ import sys
 
 _b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode("latin1"))
 from google.protobuf import descriptor as _descriptor
-from google.protobuf import descriptor_pb2
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
@@ -15,19 +14,22 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-import tactics2d.dataset_parser.womd_proto.compressed_lidar_pb2 as compressed__lidar__pb2
-import tactics2d.dataset_parser.womd_proto.map_pb2 as map__pb2
+import tactics2d.dataset_parser.womd_proto.pb2.map_pb2 as map__pb2
+import tactics2d.dataset_parser.womd_proto.pb3.compressed_lidar_pb2 as compressed__lidar__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="scenario.proto",
     package="waymo.open_dataset",
-    syntax="proto2",
+    syntax="proto3",
+    serialized_options=None,
     serialized_pb=_b(
-        '\n\x0escenario.proto\x12\x12waymo.open_dataset\x1a\x16\x63ompressed_lidar.proto\x1a\tmap.proto"\xba\x01\n\x0bObjectState\x12\x10\n\x08\x63\x65nter_x\x18\x02 \x01(\x01\x12\x10\n\x08\x63\x65nter_y\x18\x03 \x01(\x01\x12\x10\n\x08\x63\x65nter_z\x18\x04 \x01(\x01\x12\x0e\n\x06length\x18\x05 \x01(\x02\x12\r\n\x05width\x18\x06 \x01(\x02\x12\x0e\n\x06height\x18\x07 \x01(\x02\x12\x0f\n\x07heading\x18\x08 \x01(\x02\x12\x12\n\nvelocity_x\x18\t \x01(\x02\x12\x12\n\nvelocity_y\x18\n \x01(\x02\x12\r\n\x05valid\x18\x0b \x01(\x08"\xe6\x01\n\x05Track\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x39\n\x0bobject_type\x18\x02 \x01(\x0e\x32$.waymo.open_dataset.Track.ObjectType\x12/\n\x06states\x18\x03 \x03(\x0b\x32\x1f.waymo.open_dataset.ObjectState"e\n\nObjectType\x12\x0e\n\nTYPE_UNSET\x10\x00\x12\x10\n\x0cTYPE_VEHICLE\x10\x01\x12\x13\n\x0fTYPE_PEDESTRIAN\x10\x02\x12\x10\n\x0cTYPE_CYCLIST\x10\x03\x12\x0e\n\nTYPE_OTHER\x10\x04"R\n\x0f\x44ynamicMapState\x12?\n\x0blane_states\x18\x01 \x03(\x0b\x32*.waymo.open_dataset.TrafficSignalLaneState"\xac\x01\n\x12RequiredPrediction\x12\x13\n\x0btrack_index\x18\x01 \x01(\x05\x12J\n\ndifficulty\x18\x02 \x01(\x0e\x32\x36.waymo.open_dataset.RequiredPrediction.DifficultyLevel"5\n\x0f\x44ifficultyLevel\x12\x08\n\x04NONE\x10\x00\x12\x0b\n\x07LEVEL_1\x10\x01\x12\x0b\n\x07LEVEL_2\x10\x02"\xcb\x03\n\x08Scenario\x12\x13\n\x0bscenario_id\x18\x05 \x01(\t\x12\x1a\n\x12timestamps_seconds\x18\x01 \x03(\x01\x12\x1a\n\x12\x63urrent_time_index\x18\n \x01(\x05\x12)\n\x06tracks\x18\x02 \x03(\x0b\x32\x19.waymo.open_dataset.Track\x12?\n\x12\x64ynamic_map_states\x18\x07 \x03(\x0b\x32#.waymo.open_dataset.DynamicMapState\x12\x34\n\x0cmap_features\x18\x08 \x03(\x0b\x32\x1e.waymo.open_dataset.MapFeature\x12\x17\n\x0fsdc_track_index\x18\x06 \x01(\x05\x12\x1b\n\x13objects_of_interest\x18\x04 \x03(\x05\x12\x41\n\x11tracks_to_predict\x18\x0b \x03(\x0b\x32&.waymo.open_dataset.RequiredPrediction\x12Q\n\x1b\x63ompressed_frame_laser_data\x18\x0c \x03(\x0b\x32,.waymo.open_dataset.CompressedFrameLaserDataJ\x04\x08\t\x10\n'
+        '\n\x0escenario.proto\x12\x12waymo.open_dataset\x1a\x16\x63ompressed_lidar.proto\x1a\tmap.proto"\xba\x01\n\x0bObjectState\x12\x10\n\x08\x63\x65nter_x\x18\x02 \x01(\x01\x12\x10\n\x08\x63\x65nter_y\x18\x03 \x01(\x01\x12\x10\n\x08\x63\x65nter_z\x18\x04 \x01(\x01\x12\x0e\n\x06length\x18\x05 \x01(\x02\x12\r\n\x05width\x18\x06 \x01(\x02\x12\x0e\n\x06height\x18\x07 \x01(\x02\x12\x0f\n\x07heading\x18\x08 \x01(\x02\x12\x12\n\nvelocity_x\x18\t \x01(\x02\x12\x12\n\nvelocity_y\x18\n \x01(\x02\x12\r\n\x05valid\x18\x0b \x01(\x08"\xe6\x01\n\x05Track\x12\n\n\x02id\x18\x01 \x01(\x05\x12\x39\n\x0bobject_type\x18\x02 \x01(\x0e\x32$.waymo.open_dataset.Track.ObjectType\x12/\n\x06states\x18\x03 \x03(\x0b\x32\x1f.waymo.open_dataset.ObjectState"e\n\nObjectType\x12\x0e\n\nTYPE_UNSET\x10\x00\x12\x10\n\x0cTYPE_VEHICLE\x10\x01\x12\x13\n\x0fTYPE_PEDESTRIAN\x10\x02\x12\x10\n\x0cTYPE_CYCLIST\x10\x03\x12\x0e\n\nTYPE_OTHER\x10\x04"R\n\x0f\x44ynamicMapState\x12?\n\x0blane_states\x18\x01 \x03(\x0b\x32*.waymo.open_dataset.TrafficSignalLaneState"\xac\x01\n\x12RequiredPrediction\x12\x13\n\x0btrack_index\x18\x01 \x01(\x05\x12J\n\ndifficulty\x18\x02 \x01(\x0e\x32\x36.waymo.open_dataset.RequiredPrediction.DifficultyLevel"5\n\x0f\x44ifficultyLevel\x12\x08\n\x04NONE\x10\x00\x12\x0b\n\x07LEVEL_1\x10\x01\x12\x0b\n\x07LEVEL_2\x10\x02"\xcb\x03\n\x08Scenario\x12\x13\n\x0bscenario_id\x18\x05 \x01(\t\x12\x1a\n\x12timestamps_seconds\x18\x01 \x03(\x01\x12\x1a\n\x12\x63urrent_time_index\x18\n \x01(\x05\x12)\n\x06tracks\x18\x02 \x03(\x0b\x32\x19.waymo.open_dataset.Track\x12?\n\x12\x64ynamic_map_states\x18\x07 \x03(\x0b\x32#.waymo.open_dataset.DynamicMapState\x12\x34\n\x0cmap_features\x18\x08 \x03(\x0b\x32\x1e.waymo.open_dataset.MapFeature\x12\x17\n\x0fsdc_track_index\x18\x06 \x01(\x05\x12\x1b\n\x13objects_of_interest\x18\x04 \x03(\x05\x12\x41\n\x11tracks_to_predict\x18\x0b \x03(\x0b\x32&.waymo.open_dataset.RequiredPrediction\x12Q\n\x1b\x63ompressed_frame_laser_data\x18\x0c \x03(\x0b\x32,.waymo.open_dataset.CompressedFrameLaserDataJ\x04\x08\t\x10\nb\x06proto3'
     ),
-    dependencies=[compressed__lidar__pb2.DESCRIPTOR, map__pb2.DESCRIPTOR],
+    dependencies=[
+        compressed__lidar__pb2.DESCRIPTOR,
+        map__pb2.DESCRIPTOR,
+    ],
 )
-_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 
 _TRACK_OBJECTTYPE = _descriptor.EnumDescriptor(
@@ -37,23 +39,23 @@ _TRACK_OBJECTTYPE = _descriptor.EnumDescriptor(
     file=DESCRIPTOR,
     values=[
         _descriptor.EnumValueDescriptor(
-            name="TYPE_UNSET", index=0, number=0, options=None, type=None
+            name="TYPE_UNSET", index=0, number=0, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="TYPE_VEHICLE", index=1, number=1, options=None, type=None
+            name="TYPE_VEHICLE", index=1, number=1, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="TYPE_PEDESTRIAN", index=2, number=2, options=None, type=None
+            name="TYPE_PEDESTRIAN", index=2, number=2, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="TYPE_CYCLIST", index=3, number=3, options=None, type=None
+            name="TYPE_CYCLIST", index=3, number=3, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="TYPE_OTHER", index=4, number=4, options=None, type=None
+            name="TYPE_OTHER", index=4, number=4, serialized_options=None, type=None
         ),
     ],
     containing_type=None,
-    options=None,
+    serialized_options=None,
     serialized_start=392,
     serialized_end=493,
 )
@@ -65,12 +67,18 @@ _REQUIREDPREDICTION_DIFFICULTYLEVEL = _descriptor.EnumDescriptor(
     filename=None,
     file=DESCRIPTOR,
     values=[
-        _descriptor.EnumValueDescriptor(name="NONE", index=0, number=0, options=None, type=None),
-        _descriptor.EnumValueDescriptor(name="LEVEL_1", index=1, number=1, options=None, type=None),
-        _descriptor.EnumValueDescriptor(name="LEVEL_2", index=2, number=2, options=None, type=None),
+        _descriptor.EnumValueDescriptor(
+            name="NONE", index=0, number=0, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="LEVEL_1", index=1, number=1, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="LEVEL_2", index=2, number=2, serialized_options=None, type=None
+        ),
     ],
     containing_type=None,
-    options=None,
+    serialized_options=None,
     serialized_start=699,
     serialized_end=752,
 )
@@ -99,7 +107,8 @@ _OBJECTSTATE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="center_y",
@@ -116,7 +125,8 @@ _OBJECTSTATE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="center_z",
@@ -133,7 +143,8 @@ _OBJECTSTATE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="length",
@@ -150,7 +161,8 @@ _OBJECTSTATE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="width",
@@ -167,7 +179,8 @@ _OBJECTSTATE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="height",
@@ -184,7 +197,8 @@ _OBJECTSTATE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="heading",
@@ -201,7 +215,8 @@ _OBJECTSTATE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="velocity_x",
@@ -218,7 +233,8 @@ _OBJECTSTATE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="velocity_y",
@@ -235,7 +251,8 @@ _OBJECTSTATE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="valid",
@@ -252,15 +269,16 @@ _OBJECTSTATE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
-    syntax="proto2",
+    syntax="proto3",
     extension_ranges=[],
     oneofs=[],
     serialized_start=74,
@@ -290,7 +308,8 @@ _TRACK = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="object_type",
@@ -307,7 +326,8 @@ _TRACK = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="states",
@@ -324,15 +344,18 @@ _TRACK = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
-    enum_types=[_TRACK_OBJECTTYPE],
-    options=None,
+    enum_types=[
+        _TRACK_OBJECTTYPE,
+    ],
+    serialized_options=None,
     is_extendable=False,
-    syntax="proto2",
+    syntax="proto3",
     extension_ranges=[],
     oneofs=[],
     serialized_start=263,
@@ -362,15 +385,16 @@ _DYNAMICMAPSTATE = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
-        )
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
-    syntax="proto2",
+    syntax="proto3",
     extension_ranges=[],
     oneofs=[],
     serialized_start=495,
@@ -400,7 +424,8 @@ _REQUIREDPREDICTION = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="difficulty",
@@ -417,15 +442,18 @@ _REQUIREDPREDICTION = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
-    enum_types=[_REQUIREDPREDICTION_DIFFICULTYLEVEL],
-    options=None,
+    enum_types=[
+        _REQUIREDPREDICTION_DIFFICULTYLEVEL,
+    ],
+    serialized_options=None,
     is_extendable=False,
-    syntax="proto2",
+    syntax="proto3",
     extension_ranges=[],
     oneofs=[],
     serialized_start=580,
@@ -455,7 +483,8 @@ _SCENARIO = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="timestamps_seconds",
@@ -472,7 +501,8 @@ _SCENARIO = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="current_time_index",
@@ -489,7 +519,8 @@ _SCENARIO = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="tracks",
@@ -506,7 +537,8 @@ _SCENARIO = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="dynamic_map_states",
@@ -523,7 +555,8 @@ _SCENARIO = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="map_features",
@@ -540,7 +573,8 @@ _SCENARIO = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="sdc_track_index",
@@ -557,7 +591,8 @@ _SCENARIO = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="objects_of_interest",
@@ -574,7 +609,8 @@ _SCENARIO = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="tracks_to_predict",
@@ -591,7 +627,8 @@ _SCENARIO = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="compressed_frame_laser_data",
@@ -608,15 +645,16 @@ _SCENARIO = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
-    syntax="proto2",
+    syntax="proto3",
     extension_ranges=[],
     oneofs=[],
     serialized_start=755,
@@ -641,13 +679,14 @@ DESCRIPTOR.message_types_by_name["Track"] = _TRACK
 DESCRIPTOR.message_types_by_name["DynamicMapState"] = _DYNAMICMAPSTATE
 DESCRIPTOR.message_types_by_name["RequiredPrediction"] = _REQUIREDPREDICTION
 DESCRIPTOR.message_types_by_name["Scenario"] = _SCENARIO
+_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 ObjectState = _reflection.GeneratedProtocolMessageType(
     "ObjectState",
     (_message.Message,),
     dict(
         DESCRIPTOR=_OBJECTSTATE,
-        __module__="scenario_pb2",
+        __module__="scenario_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.ObjectState)
     ),
 )
@@ -658,7 +697,7 @@ Track = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_TRACK,
-        __module__="scenario_pb2",
+        __module__="scenario_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Track)
     ),
 )
@@ -669,7 +708,7 @@ DynamicMapState = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_DYNAMICMAPSTATE,
-        __module__="scenario_pb2",
+        __module__="scenario_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.DynamicMapState)
     ),
 )
@@ -680,7 +719,7 @@ RequiredPrediction = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_REQUIREDPREDICTION,
-        __module__="scenario_pb2",
+        __module__="scenario_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.RequiredPrediction)
     ),
 )
@@ -691,7 +730,7 @@ Scenario = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_SCENARIO,
-        __module__="scenario_pb2",
+        __module__="scenario_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Scenario)
     ),
 )
