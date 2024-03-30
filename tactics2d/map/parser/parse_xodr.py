@@ -23,7 +23,7 @@ from tactics2d.math.interpolate import Spiral
 class XODRParser:
     """This class implements a parser for the OpenDRIVE format map.
 
-    !!! quote "Reference
+    !!! quote "Reference"
         [ASAM OpenDRIVE BS 1.8.0 Specification, 2023-11-22](https://publications.pages.asam.net/standards/ASAM_OpenDRIVE/ASAM_OpenDRIVE_Specification/latest/specification/index.html)
 
     The general structure of the OpenDRIVE map is as follows:

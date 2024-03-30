@@ -5,7 +5,6 @@ import sys
 
 _b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode("latin1"))
 from google.protobuf import descriptor as _descriptor
-from google.protobuf import descriptor_pb2
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
@@ -15,18 +14,20 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-import tactics2d.dataset_parser.womd_proto.keypoint_pb2 as keypoint__pb2
+import tactics2d.dataset_parser.womd_proto.pb2.keypoint_pb2 as keypoint__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="label.proto",
     package="waymo.open_dataset",
     syntax="proto2",
+    serialized_options=None,
     serialized_pb=_b(
         '\n\x0blabel.proto\x12\x12waymo.open_dataset\x1a\x0ekeypoint.proto"\xbd\t\n\x05Label\x12*\n\x03\x62ox\x18\x01 \x01(\x0b\x32\x1d.waymo.open_dataset.Label.Box\x12\x34\n\x08metadata\x18\x02 \x01(\x0b\x32".waymo.open_dataset.Label.Metadata\x12,\n\x04type\x18\x03 \x01(\x0e\x32\x1e.waymo.open_dataset.Label.Type\x12\n\n\x02id\x18\x04 \x01(\t\x12M\n\x1a\x64\x65tection_difficulty_level\x18\x05 \x01(\x0e\x32).waymo.open_dataset.Label.DifficultyLevel\x12L\n\x19tracking_difficulty_level\x18\x06 \x01(\x0e\x32).waymo.open_dataset.Label.DifficultyLevel\x12\x1f\n\x17num_lidar_points_in_box\x18\x07 \x01(\x05\x12#\n\x1bnum_top_lidar_points_in_box\x18\r \x01(\x05\x12G\n\x0flaser_keypoints\x18\x08 \x01(\x0b\x32,.waymo.open_dataset.keypoints.LaserKeypointsH\x00\x12I\n\x10\x63\x61mera_keypoints\x18\t \x01(\x0b\x32-.waymo.open_dataset.keypoints.CameraKeypointsH\x00\x12:\n\x0b\x61ssociation\x18\n \x01(\x0b\x32%.waymo.open_dataset.Label.Association\x12 \n\x18most_visible_camera_name\x18\x0b \x01(\t\x12\x38\n\x11\x63\x61mera_synced_box\x18\x0c \x01(\x0b\x32\x1d.waymo.open_dataset.Label.Box\x1a\xbf\x01\n\x03\x42ox\x12\x10\n\x08\x63\x65nter_x\x18\x01 \x01(\x01\x12\x10\n\x08\x63\x65nter_y\x18\x02 \x01(\x01\x12\x10\n\x08\x63\x65nter_z\x18\x03 \x01(\x01\x12\x0e\n\x06length\x18\x05 \x01(\x01\x12\r\n\x05width\x18\x04 \x01(\x01\x12\x0e\n\x06height\x18\x06 \x01(\x01\x12\x0f\n\x07heading\x18\x07 \x01(\x01"B\n\x04Type\x12\x10\n\x0cTYPE_UNKNOWN\x10\x00\x12\x0b\n\x07TYPE_3D\x10\x01\x12\x0b\n\x07TYPE_2D\x10\x02\x12\x0e\n\nTYPE_AA_2D\x10\x03\x1ap\n\x08Metadata\x12\x0f\n\x07speed_x\x18\x01 \x01(\x01\x12\x0f\n\x07speed_y\x18\x02 \x01(\x01\x12\x0f\n\x07speed_z\x18\x05 \x01(\x01\x12\x0f\n\x07\x61\x63\x63\x65l_x\x18\x03 \x01(\x01\x12\x0f\n\x07\x61\x63\x63\x65l_y\x18\x04 \x01(\x01\x12\x0f\n\x07\x61\x63\x63\x65l_z\x18\x06 \x01(\x01\x1a&\n\x0b\x41ssociation\x12\x17\n\x0flaser_object_id\x18\x01 \x01(\t"`\n\x04Type\x12\x10\n\x0cTYPE_UNKNOWN\x10\x00\x12\x10\n\x0cTYPE_VEHICLE\x10\x01\x12\x13\n\x0fTYPE_PEDESTRIAN\x10\x02\x12\r\n\tTYPE_SIGN\x10\x03\x12\x10\n\x0cTYPE_CYCLIST\x10\x04"8\n\x0f\x44ifficultyLevel\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x0b\n\x07LEVEL_1\x10\x01\x12\x0b\n\x07LEVEL_2\x10\x02\x42\x11\n\x0fkeypoints_oneof"2\n\x0ePolygon2dProto\x12\t\n\x01x\x18\x01 \x03(\x01\x12\t\n\x01y\x18\x02 \x03(\x01\x12\n\n\x02id\x18\x03 \x01(\t'
     ),
-    dependencies=[keypoint__pb2.DESCRIPTOR],
+    dependencies=[
+        keypoint__pb2.DESCRIPTOR,
+    ],
 )
-_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 
 _LABEL_BOX_TYPE = _descriptor.EnumDescriptor(
@@ -36,16 +37,20 @@ _LABEL_BOX_TYPE = _descriptor.EnumDescriptor(
     file=DESCRIPTOR,
     values=[
         _descriptor.EnumValueDescriptor(
-            name="TYPE_UNKNOWN", index=0, number=0, options=None, type=None
+            name="TYPE_UNKNOWN", index=0, number=0, serialized_options=None, type=None
         ),
-        _descriptor.EnumValueDescriptor(name="TYPE_3D", index=1, number=1, options=None, type=None),
-        _descriptor.EnumValueDescriptor(name="TYPE_2D", index=2, number=2, options=None, type=None),
         _descriptor.EnumValueDescriptor(
-            name="TYPE_AA_2D", index=3, number=3, options=None, type=None
+            name="TYPE_3D", index=1, number=1, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="TYPE_2D", index=2, number=2, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="TYPE_AA_2D", index=3, number=3, serialized_options=None, type=None
         ),
     ],
     containing_type=None,
-    options=None,
+    serialized_options=None,
     serialized_start=870,
     serialized_end=936,
 )
@@ -58,23 +63,23 @@ _LABEL_TYPE = _descriptor.EnumDescriptor(
     file=DESCRIPTOR,
     values=[
         _descriptor.EnumValueDescriptor(
-            name="TYPE_UNKNOWN", index=0, number=0, options=None, type=None
+            name="TYPE_UNKNOWN", index=0, number=0, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="TYPE_VEHICLE", index=1, number=1, options=None, type=None
+            name="TYPE_VEHICLE", index=1, number=1, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="TYPE_PEDESTRIAN", index=2, number=2, options=None, type=None
+            name="TYPE_PEDESTRIAN", index=2, number=2, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="TYPE_SIGN", index=3, number=3, options=None, type=None
+            name="TYPE_SIGN", index=3, number=3, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="TYPE_CYCLIST", index=4, number=4, options=None, type=None
+            name="TYPE_CYCLIST", index=4, number=4, serialized_options=None, type=None
         ),
     ],
     containing_type=None,
-    options=None,
+    serialized_options=None,
     serialized_start=1092,
     serialized_end=1188,
 )
@@ -86,12 +91,18 @@ _LABEL_DIFFICULTYLEVEL = _descriptor.EnumDescriptor(
     filename=None,
     file=DESCRIPTOR,
     values=[
-        _descriptor.EnumValueDescriptor(name="UNKNOWN", index=0, number=0, options=None, type=None),
-        _descriptor.EnumValueDescriptor(name="LEVEL_1", index=1, number=1, options=None, type=None),
-        _descriptor.EnumValueDescriptor(name="LEVEL_2", index=2, number=2, options=None, type=None),
+        _descriptor.EnumValueDescriptor(
+            name="UNKNOWN", index=0, number=0, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="LEVEL_1", index=1, number=1, serialized_options=None, type=None
+        ),
+        _descriptor.EnumValueDescriptor(
+            name="LEVEL_2", index=2, number=2, serialized_options=None, type=None
+        ),
     ],
     containing_type=None,
-    options=None,
+    serialized_options=None,
     serialized_start=1190,
     serialized_end=1246,
 )
@@ -120,7 +131,8 @@ _LABEL_BOX = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="center_y",
@@ -137,7 +149,8 @@ _LABEL_BOX = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="center_z",
@@ -154,7 +167,8 @@ _LABEL_BOX = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="length",
@@ -171,7 +185,8 @@ _LABEL_BOX = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="width",
@@ -188,7 +203,8 @@ _LABEL_BOX = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="height",
@@ -205,7 +221,8 @@ _LABEL_BOX = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="heading",
@@ -222,13 +239,16 @@ _LABEL_BOX = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
-    enum_types=[_LABEL_BOX_TYPE],
-    options=None,
+    enum_types=[
+        _LABEL_BOX_TYPE,
+    ],
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -259,7 +279,8 @@ _LABEL_METADATA = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="speed_y",
@@ -276,7 +297,8 @@ _LABEL_METADATA = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="speed_z",
@@ -293,7 +315,8 @@ _LABEL_METADATA = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="accel_x",
@@ -310,7 +333,8 @@ _LABEL_METADATA = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="accel_y",
@@ -327,7 +351,8 @@ _LABEL_METADATA = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="accel_z",
@@ -344,13 +369,14 @@ _LABEL_METADATA = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -381,13 +407,14 @@ _LABEL_ASSOCIATION = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
-        )
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -418,7 +445,8 @@ _LABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="metadata",
@@ -435,7 +463,8 @@ _LABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="type",
@@ -452,7 +481,8 @@ _LABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="id",
@@ -469,7 +499,8 @@ _LABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="detection_difficulty_level",
@@ -486,7 +517,8 @@ _LABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="tracking_difficulty_level",
@@ -503,7 +535,8 @@ _LABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="num_lidar_points_in_box",
@@ -520,7 +553,8 @@ _LABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="num_top_lidar_points_in_box",
@@ -537,7 +571,8 @@ _LABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="laser_keypoints",
@@ -554,7 +589,8 @@ _LABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="camera_keypoints",
@@ -571,7 +607,8 @@ _LABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="association",
@@ -588,7 +625,8 @@ _LABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="most_visible_camera_name",
@@ -605,7 +643,8 @@ _LABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="camera_synced_box",
@@ -622,13 +661,21 @@ _LABEL = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
-    nested_types=[_LABEL_BOX, _LABEL_METADATA, _LABEL_ASSOCIATION],
-    enum_types=[_LABEL_TYPE, _LABEL_DIFFICULTYLEVEL],
-    options=None,
+    nested_types=[
+        _LABEL_BOX,
+        _LABEL_METADATA,
+        _LABEL_ASSOCIATION,
+    ],
+    enum_types=[
+        _LABEL_TYPE,
+        _LABEL_DIFFICULTYLEVEL,
+    ],
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -639,7 +686,7 @@ _LABEL = _descriptor.Descriptor(
             index=0,
             containing_type=None,
             fields=[],
-        )
+        ),
     ],
     serialized_start=52,
     serialized_end=1265,
@@ -668,7 +715,8 @@ _POLYGON2DPROTO = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="y",
@@ -685,7 +733,8 @@ _POLYGON2DPROTO = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="id",
@@ -702,13 +751,14 @@ _POLYGON2DPROTO = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -740,6 +790,7 @@ _LABEL.fields_by_name["camera_keypoints"].containing_oneof = _LABEL.oneofs_by_na
 ]
 DESCRIPTOR.message_types_by_name["Label"] = _LABEL
 DESCRIPTOR.message_types_by_name["Polygon2dProto"] = _POLYGON2DPROTO
+_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 Label = _reflection.GeneratedProtocolMessageType(
     "Label",
@@ -750,7 +801,7 @@ Label = _reflection.GeneratedProtocolMessageType(
             (_message.Message,),
             dict(
                 DESCRIPTOR=_LABEL_BOX,
-                __module__="label_pb2",
+                __module__="label_pb2"
                 # @@protoc_insertion_point(class_scope:waymo.open_dataset.Label.Box)
             ),
         ),
@@ -759,7 +810,7 @@ Label = _reflection.GeneratedProtocolMessageType(
             (_message.Message,),
             dict(
                 DESCRIPTOR=_LABEL_METADATA,
-                __module__="label_pb2",
+                __module__="label_pb2"
                 # @@protoc_insertion_point(class_scope:waymo.open_dataset.Label.Metadata)
             ),
         ),
@@ -768,12 +819,12 @@ Label = _reflection.GeneratedProtocolMessageType(
             (_message.Message,),
             dict(
                 DESCRIPTOR=_LABEL_ASSOCIATION,
-                __module__="label_pb2",
+                __module__="label_pb2"
                 # @@protoc_insertion_point(class_scope:waymo.open_dataset.Label.Association)
             ),
         ),
         DESCRIPTOR=_LABEL,
-        __module__="label_pb2",
+        __module__="label_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Label)
     ),
 )
@@ -787,7 +838,7 @@ Polygon2dProto = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_POLYGON2DPROTO,
-        __module__="label_pb2",
+        __module__="label_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.Polygon2dProto)
     ),
 )

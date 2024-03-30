@@ -1,0 +1,2 @@
+ignore:
+  - "tactics2d/dataset_parser/womd_proto"

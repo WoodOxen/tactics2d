@@ -1,4 +1,4 @@
-fastparquet
+fastparquet>=2022.11.0
 geopandas>=0.10.2
 gymnasium>=0.28.0
 joblib>=1.3.2

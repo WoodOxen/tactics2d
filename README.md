@@ -51,28 +51,33 @@ We have conducted testing for the execution and construction of `tactics2d` on t
 | Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | MacOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 
-### 1.1 Install from PyPI
+### 1. Installation
+
+We strongly recommend using `conda` to manage the Python environment. If you don't have `conda` installed, you can download it from [here](https://docs.conda.io/en/latest/miniconda.html).
+
+```shell
+# create a new conda environment
+conda create -n tactics2d python=3.9
+```
+
+#### 1.1 Install from PyPI
 
 You can simply install `tactics2d` from PyPI with the following command.
 
 ```shell
-conda create -n tactics2d python=3.8
 pip install tactics2d
 ```
 
-### 1.2 Install from Github
+#### 1.2 Install from Github
 
 You can also install `tactics2d` from from its source on GitHub. This way is recommended if you want to run the sample code or contribute to the development of `tactics2d`.
 
 ```shell
 # clone the repository with submodules but ignore the large files (mainly the NuPlan's map data)
 # please download NuPlan's map data from its official website and put it in the `tactics2d/data/map/NuPlan` directory
-git clone --recurse-submodules --filter=blob:limit=100m git@github.com:WoodOxen/tactics2d.git
+git clone --recurse-submodules git@github.com:WoodOxen/tactics2d.git
 cd tactics2d
-
-conda create -n tactics2d python=3.8
-[TODO] # installation command
-[TODO] # test the installation
+pip install -v .
 ```
 
 If no errors occurs, you should have installed `tactics2d` successfully.
@@ -84,12 +89,54 @@ According to the licenses of the trajectory datasets, we cannot distribute the o
 - [Argoverse 2](https://www.argoverse.org/av2.html)
 - [Dragon Lake Parking (DLP)](https://sites.google.com/berkeley.edu/dlp-dataset)
 - [HighD](https://www.highd-dataset.com/)
-- [inD](https://www.ind-dataset.com/)
-- [rounD](https://www.round-dataset.com/)
+- [InD](https://www.ind-dataset.com/)
+- [RounD](https://www.round-dataset.com/)
 - [ExiD](https://www.exid-dataset.com/)
 - [INTERACTION](http://interaction-dataset.com/)
 - [NuPlan](https://www.nuscenes.org/nuplan)
 - [Waymo Open Motion Dataset v1.2 (WOMD)](https://waymo.com/open/about/)
+
+You can put the downloaded files at whatever location you like. In the parser, you can specify the path to the dataset.
+
+### 3. Run the Tutorial
+
+## Demo
+
+`tactics2d` supports the parsing of various real-world trajectory datasets, including Argoverse, Dragon Lake Parking (DLP), INTERACTION, LevelX Series (highD, inD, rounD, ExiD), NuPlan, and Waymo Open Motion Dataset (WOMD).
+
+### Highway cases (HighD, ExiD)
+
+![HighD Location 3](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/highD_loc_3.gif)
+
+![ExiD Location 6](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/exiD_loc_6.gif)
+
+### Intersection cases (InD, Argoverse, INTERACTION, NuPlan, WOMD)
+
+<p float="left">
+  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/inD_loc_4.gif" width="45%" />
+  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/argoverse_sample.gif" width="45%" />
+</p>
+
+<p float="left">
+  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_USA_Intersection_GL.gif" width="45%" />
+  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/womd_sample.gif" width="45%" />
+</p>
+
+### Roundabout cases (RounD, INTERACTION, )
+
+<p float="left">
+  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/rounD_loc_0.gif" width="45%" />
+  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_DEU_Roundabout_OF.gif" width="45%" />
+</p>
+
+### Parking cases (DLP, Self-generated)
+
+<p float="left">
+  <img src="https://github.com/MotacillaAlba/image-storage/blob/main/img/dlp_sample.gif?raw=true" width="45%" />
+  <!-- <img src="" width="300" />  -->
+</p>
+
+### Racing cases (Self-generated)
 
 ## Citation
 
@@ -97,7 +144,7 @@ If you find `tactics2d` useful, please cite this in your publication.
 
 ```bibtex
 @article{li2023tactics2d,
-  title={Tactics2D: A Multi-agent Reinforcement Learning Environment for Driving Decision-making},
+  title={Tactics2D: A Reinforcement Learning Environment Library with Generative Scenarios for Driving Decision-making},
   author={Li, Yueyuan and Zhang, Songan and Jiang, Mingyang and Chen, Xingyuan and Yang, Ming},
   journal={arXiv preprint arXiv:2311.11058},
   year={2023}

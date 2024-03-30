@@ -5,7 +5,6 @@ import sys
 
 _b = sys.version_info[0] < 3 and (lambda x: x) or (lambda x: x.encode("latin1"))
 from google.protobuf import descriptor as _descriptor
-from google.protobuf import descriptor_pb2
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
 from google.protobuf import symbol_database as _symbol_database
@@ -16,18 +15,20 @@ from google.protobuf.internal import enum_type_wrapper
 _sym_db = _symbol_database.Default()
 
 
-import tactics2d.dataset_parser.womd_proto.vector_pb2 as vector__pb2
+import tactics2d.dataset_parser.womd_proto.pb2.vector_pb2 as vector__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="keypoint.proto",
     package="waymo.open_dataset.keypoints",
     syntax="proto2",
+    serialized_options=None,
     serialized_pb=_b(
         '\n\x0ekeypoint.proto\x12\x1cwaymo.open_dataset.keypoints\x1a\x0cvector.proto")\n\x12KeypointVisibility\x12\x13\n\x0bis_occluded\x18\x01 \x01(\x08"\x90\x01\n\nKeypoint2d\x12\x31\n\x0blocation_px\x18\x01 \x01(\x0b\x32\x1c.waymo.open_dataset.Vector2d\x12\x44\n\nvisibility\x18\x02 \x01(\x0b\x32\x30.waymo.open_dataset.keypoints.KeypointVisibility*\t\x08\xe8\x07\x10\x80\x80\x80\x80\x02"\x8f\x01\n\nKeypoint3d\x12\x30\n\nlocation_m\x18\x01 \x01(\x0b\x32\x1c.waymo.open_dataset.Vector3d\x12\x44\n\nvisibility\x18\x02 \x01(\x0b\x32\x30.waymo.open_dataset.keypoints.KeypointVisibility*\t\x08\xe8\x07\x10\x80\x80\x80\x80\x02"\xc8\x01\n\x0e\x43\x61meraKeypoint\x12\x38\n\x04type\x18\x01 \x01(\x0e\x32*.waymo.open_dataset.keypoints.KeypointType\x12=\n\x0bkeypoint_2d\x18\x02 \x01(\x0b\x32(.waymo.open_dataset.keypoints.Keypoint2d\x12=\n\x0bkeypoint_3d\x18\x03 \x01(\x0b\x32(.waymo.open_dataset.keypoints.Keypoint3d"Q\n\x0f\x43\x61meraKeypoints\x12>\n\x08keypoint\x18\x01 \x03(\x0b\x32,.waymo.open_dataset.keypoints.CameraKeypoint"\x88\x01\n\rLaserKeypoint\x12\x38\n\x04type\x18\x01 \x01(\x0e\x32*.waymo.open_dataset.keypoints.KeypointType\x12=\n\x0bkeypoint_3d\x18\x02 \x01(\x0b\x32(.waymo.open_dataset.keypoints.Keypoint3d"O\n\x0eLaserKeypoints\x12=\n\x08keypoint\x18\x01 \x03(\x0b\x32+.waymo.open_dataset.keypoints.LaserKeypoint*\xee\x03\n\x0cKeypointType\x12\x1d\n\x19KEYPOINT_TYPE_UNSPECIFIED\x10\x00\x12\x16\n\x12KEYPOINT_TYPE_NOSE\x10\x01\x12\x1f\n\x1bKEYPOINT_TYPE_LEFT_SHOULDER\x10\x05\x12\x1c\n\x18KEYPOINT_TYPE_LEFT_ELBOW\x10\x06\x12\x1c\n\x18KEYPOINT_TYPE_LEFT_WRIST\x10\x07\x12\x1a\n\x16KEYPOINT_TYPE_LEFT_HIP\x10\x08\x12\x1b\n\x17KEYPOINT_TYPE_LEFT_KNEE\x10\t\x12\x1c\n\x18KEYPOINT_TYPE_LEFT_ANKLE\x10\n\x12 \n\x1cKEYPOINT_TYPE_RIGHT_SHOULDER\x10\r\x12\x1d\n\x19KEYPOINT_TYPE_RIGHT_ELBOW\x10\x0e\x12\x1d\n\x19KEYPOINT_TYPE_RIGHT_WRIST\x10\x0f\x12\x1b\n\x17KEYPOINT_TYPE_RIGHT_HIP\x10\x10\x12\x1c\n\x18KEYPOINT_TYPE_RIGHT_KNEE\x10\x11\x12\x1d\n\x19KEYPOINT_TYPE_RIGHT_ANKLE\x10\x12\x12\x1a\n\x16KEYPOINT_TYPE_FOREHEAD\x10\x13\x12\x1d\n\x19KEYPOINT_TYPE_HEAD_CENTER\x10\x14'
     ),
-    dependencies=[vector__pb2.DESCRIPTOR],
+    dependencies=[
+        vector__pb2.DESCRIPTOR,
+    ],
 )
-_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 _KEYPOINTTYPE = _descriptor.EnumDescriptor(
     name="KeypointType",
@@ -36,56 +37,76 @@ _KEYPOINTTYPE = _descriptor.EnumDescriptor(
     file=DESCRIPTOR,
     values=[
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_UNSPECIFIED", index=0, number=0, options=None, type=None
+            name="KEYPOINT_TYPE_UNSPECIFIED", index=0, number=0, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_NOSE", index=1, number=1, options=None, type=None
+            name="KEYPOINT_TYPE_NOSE", index=1, number=1, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_LEFT_SHOULDER", index=2, number=5, options=None, type=None
+            name="KEYPOINT_TYPE_LEFT_SHOULDER",
+            index=2,
+            number=5,
+            serialized_options=None,
+            type=None,
         ),
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_LEFT_ELBOW", index=3, number=6, options=None, type=None
+            name="KEYPOINT_TYPE_LEFT_ELBOW", index=3, number=6, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_LEFT_WRIST", index=4, number=7, options=None, type=None
+            name="KEYPOINT_TYPE_LEFT_WRIST", index=4, number=7, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_LEFT_HIP", index=5, number=8, options=None, type=None
+            name="KEYPOINT_TYPE_LEFT_HIP", index=5, number=8, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_LEFT_KNEE", index=6, number=9, options=None, type=None
+            name="KEYPOINT_TYPE_LEFT_KNEE", index=6, number=9, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_LEFT_ANKLE", index=7, number=10, options=None, type=None
+            name="KEYPOINT_TYPE_LEFT_ANKLE", index=7, number=10, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_RIGHT_SHOULDER", index=8, number=13, options=None, type=None
+            name="KEYPOINT_TYPE_RIGHT_SHOULDER",
+            index=8,
+            number=13,
+            serialized_options=None,
+            type=None,
         ),
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_RIGHT_ELBOW", index=9, number=14, options=None, type=None
+            name="KEYPOINT_TYPE_RIGHT_ELBOW", index=9, number=14, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_RIGHT_WRIST", index=10, number=15, options=None, type=None
+            name="KEYPOINT_TYPE_RIGHT_WRIST",
+            index=10,
+            number=15,
+            serialized_options=None,
+            type=None,
         ),
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_RIGHT_HIP", index=11, number=16, options=None, type=None
+            name="KEYPOINT_TYPE_RIGHT_HIP", index=11, number=16, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_RIGHT_KNEE", index=12, number=17, options=None, type=None
+            name="KEYPOINT_TYPE_RIGHT_KNEE", index=12, number=17, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_RIGHT_ANKLE", index=13, number=18, options=None, type=None
+            name="KEYPOINT_TYPE_RIGHT_ANKLE",
+            index=13,
+            number=18,
+            serialized_options=None,
+            type=None,
         ),
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_FOREHEAD", index=14, number=19, options=None, type=None
+            name="KEYPOINT_TYPE_FOREHEAD", index=14, number=19, serialized_options=None, type=None
         ),
         _descriptor.EnumValueDescriptor(
-            name="KEYPOINT_TYPE_HEAD_CENTER", index=15, number=20, options=None, type=None
+            name="KEYPOINT_TYPE_HEAD_CENTER",
+            index=15,
+            number=20,
+            serialized_options=None,
+            type=None,
         ),
     ],
     containing_type=None,
-    options=None,
+    serialized_options=None,
     serialized_start=905,
     serialized_end=1399,
 )
@@ -132,13 +153,14 @@ _KEYPOINTVISIBILITY = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
-        )
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -170,7 +192,8 @@ _KEYPOINT2D = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="visibility",
@@ -187,16 +210,19 @@ _KEYPOINT2D = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=True,
     syntax="proto2",
-    extension_ranges=[(1000, 536870912)],
+    extension_ranges=[
+        (1000, 536870912),
+    ],
     oneofs=[],
     serialized_start=106,
     serialized_end=250,
@@ -225,7 +251,8 @@ _KEYPOINT3D = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="visibility",
@@ -242,16 +269,19 @@ _KEYPOINT3D = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=True,
     syntax="proto2",
-    extension_ranges=[(1000, 536870912)],
+    extension_ranges=[
+        (1000, 536870912),
+    ],
     oneofs=[],
     serialized_start=253,
     serialized_end=396,
@@ -280,7 +310,8 @@ _CAMERAKEYPOINT = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="keypoint_2d",
@@ -297,7 +328,8 @@ _CAMERAKEYPOINT = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="keypoint_3d",
@@ -314,13 +346,14 @@ _CAMERAKEYPOINT = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -352,13 +385,14 @@ _CAMERAKEYPOINTS = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
-        )
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -390,7 +424,8 @@ _LASERKEYPOINT = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
         _descriptor.FieldDescriptor(
             name="keypoint_3d",
@@ -407,13 +442,14 @@ _LASERKEYPOINT = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
+            serialized_options=None,
+            file=DESCRIPTOR,
         ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -445,13 +481,14 @@ _LASERKEYPOINTS = _descriptor.Descriptor(
             containing_type=None,
             is_extension=False,
             extension_scope=None,
-            options=None,
-        )
+            serialized_options=None,
+            file=DESCRIPTOR,
+        ),
     ],
     extensions=[],
     nested_types=[],
     enum_types=[],
-    options=None,
+    serialized_options=None,
     is_extendable=False,
     syntax="proto2",
     extension_ranges=[],
@@ -479,13 +516,14 @@ DESCRIPTOR.message_types_by_name["CameraKeypoints"] = _CAMERAKEYPOINTS
 DESCRIPTOR.message_types_by_name["LaserKeypoint"] = _LASERKEYPOINT
 DESCRIPTOR.message_types_by_name["LaserKeypoints"] = _LASERKEYPOINTS
 DESCRIPTOR.enum_types_by_name["KeypointType"] = _KEYPOINTTYPE
+_sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 KeypointVisibility = _reflection.GeneratedProtocolMessageType(
     "KeypointVisibility",
     (_message.Message,),
     dict(
         DESCRIPTOR=_KEYPOINTVISIBILITY,
-        __module__="keypoint_pb2",
+        __module__="keypoint_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.keypoints.KeypointVisibility)
     ),
 )
@@ -496,7 +534,7 @@ Keypoint2d = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_KEYPOINT2D,
-        __module__="keypoint_pb2",
+        __module__="keypoint_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.keypoints.Keypoint2d)
     ),
 )
@@ -507,7 +545,7 @@ Keypoint3d = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_KEYPOINT3D,
-        __module__="keypoint_pb2",
+        __module__="keypoint_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.keypoints.Keypoint3d)
     ),
 )
@@ -518,7 +556,7 @@ CameraKeypoint = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_CAMERAKEYPOINT,
-        __module__="keypoint_pb2",
+        __module__="keypoint_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.keypoints.CameraKeypoint)
     ),
 )
@@ -529,7 +567,7 @@ CameraKeypoints = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_CAMERAKEYPOINTS,
-        __module__="keypoint_pb2",
+        __module__="keypoint_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.keypoints.CameraKeypoints)
     ),
 )
@@ -540,7 +578,7 @@ LaserKeypoint = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_LASERKEYPOINT,
-        __module__="keypoint_pb2",
+        __module__="keypoint_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.keypoints.LaserKeypoint)
     ),
 )
@@ -551,7 +589,7 @@ LaserKeypoints = _reflection.GeneratedProtocolMessageType(
     (_message.Message,),
     dict(
         DESCRIPTOR=_LASERKEYPOINTS,
-        __module__="keypoint_pb2",
+        __module__="keypoint_pb2"
         # @@protoc_insertion_point(class_scope:waymo.open_dataset.keypoints.LaserKeypoints)
     ),
 )
