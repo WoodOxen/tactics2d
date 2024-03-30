@@ -113,26 +113,26 @@ You can put the downloaded files at whatever location you like. In the parser, y
 ### Intersection cases (InD, Argoverse, INTERACTION, NuPlan, WOMD)
 
 <p float="left">
-  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/inD_loc_4.gif" width="300" />
-  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/argoverse_sample.gif" width="300" />
+  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/inD_loc_4.gif" width="45%" />
+  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/argoverse_sample.gif" width="45%" />
 </p>
 
 <p float="left">
-  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_USA_Intersection_GL.gif" width="300" />
-  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/womd_sample.gif" width="300" />
+  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_USA_Intersection_GL.gif" width="45%" />
+  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/womd_sample.gif" width="45%" />
 </p>
 
 ### Roundabout cases (RounD, INTERACTION, )
 
 <p float="left">
-  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/rounD_loc_0.gif" width="300" />
-  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_DEU_Roundabout_OF.gif" width="300" />
+  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/rounD_loc_0.gif" width="45%" />
+  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_DEU_Roundabout_OF.gif" width="45%" />
 </p>
 
 ### Parking cases (DLP, Self-generated)
 
 <p float="left">
-  <img src="https://github.com/MotacillaAlba/image-storage/blob/main/img/dlp_sample.gif?raw=true" width="300" />
+  <img src="https://github.com/MotacillaAlba/image-storage/blob/main/img/dlp_sample.gif?raw=true" width="45%" />
   <!-- <img src="" width="300" />  -->
 </p>
 
