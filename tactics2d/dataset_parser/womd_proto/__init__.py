@@ -5,18 +5,6 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-import logging
-
-import google.protobuf
-from packaging import version
-
-if version.parse(google.protobuf.__version__) <= version.parse("3.20.3"):
-    from .pb2 import scenario_pb2 as scenario_pb2
-
-    logging.info("Using Protocol Buffers v2")
-else:
-    from .pb3 import scenario_pb2 as scenario_pb2
-
-    logging.info("Using Protocol Buffers v3")
+from .pb2 import scenario_pb2 as scenario_pb2
 
 __all__ = ["scenario_pb2"]
