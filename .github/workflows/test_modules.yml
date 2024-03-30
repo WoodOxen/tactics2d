@@ -4,14 +4,11 @@ on:
   - pull_request
   - workflow_dispatch
 
-env:
-  PROTOCAL_BUFFERS_PYTHON_IMPLEMENTATION: python
-
 jobs:
   test-modules:
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04]
+        os: [ubuntu-20.04, ubuntu-22.04, windows-latest, macos-latest]
         python-version: ['3.8', '3.9', '3.10', '3.11']
     runs-on: ${{ matrix.os }}
     steps:
@@ -37,7 +34,6 @@ jobs:
           pip install -r test/requirements.txt
       - name: Pytest
         run: |
-          echo $PROTOCAL_BUFFERS_PYTHON_IMPLEMENTATION
           mkdir ./test/runtime
           pytest test --cov=tactics2d --cov-report=xml
       - name: Upload coverage reports to Codecov (Ubuntu)
@@ -68,7 +64,6 @@ jobs:
         run: |
           docker pull ubuntu:18.04
           docker run \
-            -e PROTOCAL_BUFFERS_PYTHON_IMPLEMENTATION=python \
             -v $GITHUB_WORKSPACE:/tactics2d \
             ubuntu:18.04 \
             /bin/bash -c 'apt-get update && \
