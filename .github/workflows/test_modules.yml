@@ -67,6 +67,7 @@ jobs:
         run: |
           docker pull ubuntu:18.04
           docker run \
+            -e PROTOCAL_BUFFERS_PYTHON_IMPLEMENTATION=python \
             -v $GITHUB_WORKSPACE:/tactics2d \
             ubuntu:18.04 \
             /bin/bash -c 'apt-get update && \
@@ -80,5 +81,4 @@ jobs:
               python${{ matrix.python-version }} -m pip install --upgrade pip && \
               if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && \
               if [ -f test/requirements.txt ]; then pip install -r test/requirements.txt; fi && \
-              export PROTOCAL_BUFFERS_PYTHON_IMPLEMENTATION=python && \
               python${{ matrix.python-version }} -m pytest test'
