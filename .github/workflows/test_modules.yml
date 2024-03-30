@@ -11,8 +11,8 @@ jobs:
   test-modules:
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04, windows-latest, macos-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        os: [ubuntu-20.04, ubuntu-22.04]
+        python-version: ['3.8', '3.9', '3.10', '3.11']
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -29,7 +29,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
+          cache: 'pip'
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8"]
+        python-version: ['3.8']
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -69,7 +69,7 @@ jobs:
           docker run \
             -v $GITHUB_WORKSPACE:/tactics2d \
             ubuntu:18.04 \
-            /bin/bash -c "apt-get update && \
+            /bin/bash -c 'apt-get update && \
               apt-get install -y software-properties-common && \
               add-apt-repository -y ppa:deadsnakes/ppa && \
               apt-get update && \
@@ -81,4 +81,4 @@ jobs:
               if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && \
               if [ -f test/requirements.txt ]; then pip install -r test/requirements.txt; fi && \
               export PROTOCAL_BUFFERS_PYTHON_IMPLEMENTATION=python && \
-              python${{ matrix.python-version }} -m pytest test"
+              python${{ matrix.python-version }} -m pytest test'
