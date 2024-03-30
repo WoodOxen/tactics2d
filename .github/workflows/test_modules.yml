@@ -35,6 +35,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r test/requirements.txt
+          echo $PROTOCAL_BUFFERS_PYTHON_IMPLEMENTATION
       - name: Pytest
         run: |
           mkdir ./test/runtime
