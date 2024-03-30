@@ -1,4 +1,2 @@
 ignore:
   - "tactics2d/dataset_parser/womd_proto"
-  - "tactics2d/dataset_parser/parse_womd.py"
-  - "tactics2d/dataset_parser/parse_nuplan.py"
