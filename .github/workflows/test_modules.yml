@@ -4,9 +4,6 @@ on:
   - pull_request
   - workflow_dispatch
 
-env:
-  PROTOCAL_BUFFERS_PYTHON_IMPLEMENTATION: python
-
 jobs:
   test-modules:
     strategy:
@@ -35,9 +32,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r test/requirements.txt
-          echo $PROTOCAL_BUFFERS_PYTHON_IMPLEMENTATION
       - name: Pytest
+        env:
+          PROTOCAL_BUFFERS_PYTHON_IMPLEMENTATION: python
         run: |
+          echo $PROTOCAL_BUFFERS_PYTHON_IMPLEMENTATION
           mkdir ./test/runtime
           pytest test --cov=tactics2d --cov-report=xml
       - name: Upload coverage reports to Codecov (Ubuntu)
