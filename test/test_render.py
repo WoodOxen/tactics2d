@@ -71,7 +71,7 @@ def test_camera(follow_view: bool):
     img = Image.fromarray(observation)
     img = img.rotate(270)
 
-    if not os.path.exists("./特色他/runtime"):
+    if not os.path.exists("./test/runtime"):
         os.makedirs("./test/runtime")
     if follow_view:
         img.save("./test/runtime/test_camera_follow_view.jpg")
