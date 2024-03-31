@@ -97,8 +97,15 @@ def test_lanelet2_parser():
 @pytest.mark.parametrize(
     "map_path, img_path",
     [
-        ("./test/cases/cross.xodr", "./test/runtime/cross.png"),
-        ("./test/cases/ring.xodr", "./test/runtime/ring.png"),
+        ("./test/cases/XodrSamples/cross.xodr", "./test/runtime/cross.png"),
+        ("./test/cases/XodrSamples/ring.xodr", "./test/runtime/ring.png"),
+        ("./test/cases/XodrSamples/LargeParkingLot.xodr", "./test/runtime/LargeParkingLot.png"),
+        ("./test/cases/XodrSamples/FourWayStop.xodr", "./test/runtime/FourWayStop.png"),
+        ("./test/cases/XodrSamples/SimpleBankedRoad.xodr", "./test/runtime/SimpleBankedRoad.png"),
+        (
+            "./test/cases/XodrSamples/SimpleFreewayRamps.xodr",
+            "./test/runtime/SimpleFreewayRamps.png",
+        ),
     ],
 )
 def test_xodr_parser(map_path, img_path):
