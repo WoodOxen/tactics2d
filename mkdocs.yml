@@ -14,6 +14,7 @@ nav:
   - Installation: "installation.md"
   - Tutorial:
     - Visualize Interpolation: "./tutorial/interpolator_visualization.ipynb"
+    - Visualize Datasets: "./tutorial/dataset_visualization.ipynb"
   - Dataset Support: "dataset-support.md"
   - Python API:
       - tactics2d.dataset_parser: "api/dataset_parser.md"
