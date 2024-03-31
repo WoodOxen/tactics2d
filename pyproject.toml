@@ -1,6 +1,6 @@
 [project]
 name = "tactics2d"
-version = "0.1.5"
+version = "0.1.6"
 description = "Tactics2D: A Reinforcement Learning Environment Library with Generative Scenarios for Driving Decision-making"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }
@@ -45,7 +45,7 @@ build-backend = "setuptools.build_meta"
 include-package-data = true
 
 [tool.setuptools.package-data]
-tactics2d = ["*.m", "*.config"]
+tactics2d = ["tactics2d/participant/trajectory_classifier.m", "tactics2d/dataset_parser/map.config"]
 
 [tool.setuptools.packages.find]
 exclude = ["test", "tactics2d/data/"]
