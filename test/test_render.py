@@ -36,7 +36,7 @@ def test_camera(follow_view: bool):
     trajectory_path = (
         "./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/DR_USA_Intersection_EP0"
     )
-    config_path = "./tactics2d/data/map/map.config"
+    config_path = "./tactics2d/dataset_parser/map.config"
 
     with open(config_path) as f:
         configs = json.load(f)
@@ -86,7 +86,7 @@ def test_lidar(perception_range):
     trajectory_path = (
         "./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/DR_USA_Intersection_EP0"
     )
-    config_path = "./tactics2d/data/map/map.config"
+    config_path = "./tactics2d/dataset_parser/map.config"
 
     with open(config_path) as f:
         configs = json.load(f)
@@ -136,7 +136,7 @@ def test_render_manager(layout_style, off_screen):
     trajectory_path = (
         "./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/DR_USA_Intersection_EP0"
     )
-    config_path = "./tactics2d/data/map/map.config"
+    config_path = "./tactics2d/dataset_parser/map.config"
 
     with open(config_path) as f:
         configs = json.load(f)
