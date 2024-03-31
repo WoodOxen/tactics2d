@@ -35,7 +35,30 @@ Welcome to the official documentation of Python Library tactics2d!
 
 ### Similar Works
 
-TODO
+`tactics2d` is crafted to offer a robust and intuitive environment tailored for the development and evaluation of autonomous driving decision-making models. As a third-party library, `tactics2d` does not cater to any specific dataset; instead, its focus lies in facilitating parsing, visualization, log replaying, and interactive simulation across a diverse array of datasets and map formats. The table below provides a comparative overview of `tactics2d` alongside other open-source simulators under active maintenance.
+
+> These tables are updated on 2024-04-01.
+> Notations:
+> :white_check_mark: = Implemented and tested
+> :construction: = Under development
+> `-` = Not implemented and not planned
+
+### Functionality
+
+| Simulator | Built-in RL Environment | Custom Trajectory | Custom Map | Dataset Compatibility | Interactive NPCs | Multi-agent |
+| --- | --- | --- | --- | --- | --- | --- |
+| [SUMO](https://eclipse.dev/sumo/) | - | :white_check_mark: | :white_check_mark: | - | :white_check_mark: | - |
+| [CarRacing](https://gymnasium.farama.org/environments/box2d/car_racing/) | :white_check_mark: | - | - | - | - | - |
+| [CARLA](https://carla.org) | - | :white_check_mark: | :white_check_mark: | - | :white_check_mark: | :white_check_mark: |
+| [CommonRoad](https://commonroad.in.tum.de/) | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | - |
+| [highway-env](https://github.com/Farama-Foundation/HighwayEnv) | :white_check_mark: | - | - | - | :white_check_mark: | - |
+| [SMARTS](https://github.com/huawei-noah/SMARTS) | :white_check_mark: | - | - | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [MetaDrive](https://github.com/metadriverse/metadrive) | :white_check_mark: | :white_check_mark: | :white_check_mark: | - | :white_check_mark: | :white_check_mark: |
+| [NuPlan](https://github.com/motional/nuplan-devkit) | - | - | - | - | :white_check_mark: | - |
+| [InterSim](https://github.com/Tsinghua-MARS-Lab/InterSim) | - | - | - | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [TBSim](https://github.com/NVlabs/traffic-behavior-simulation) | - | - | - | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [Waymax](https://github.com/waymo-research/waymax) | :white_check_mark: | - | - | - | :white_check_mark: | :white_check_mark: |
+| **Tactics2D** | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :construction: | :construction: |
 
 ### Dataset Compatibility
 
@@ -43,17 +66,13 @@ TODO
 
 Below is a comparison of dataset support between `tactics2d` and other simulators. `tactics2d` strives to accommodate a wide range of datasets, and we commit to keeping the table updated on a regular basis.
 
-!!! note
+!!! note "TODO"
     We have a plan to add support to the following datasets in the future:
 
     - NGSIM
     - Lyft 5
 
 Feel free to suggest additional trajectory datasets to be incorporated into our support list by either [opening an issue](https://github.com/WoodOxen/tactics2d/issues) or submitting a pull request. We value community input and are committed to expanding our dataset coverage to better serve our users.
-
-
-
-> This table is updated on 2024-03-14.
 
 | Simulators | [Argoverse](https://www.argoverse.org/av2.html#forecasting-link) | [DLP](https://sites.google.com/berkeley.edu/dlp-dataset) | [INTERACTION](https://interaction-dataset.com/) | [LevelX](https://www.highd-dataset.com/) | [NuPlan](https://www.nuscenes.org/nuplan) | [WOMD](https://waymo.com/open/about/) |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -72,17 +91,17 @@ Feel free to suggest additional trajectory datasets to be incorporated into our 
 
 ### Map Format Compatibility
 
-| Simulators | OpenDRIVE | OSM | SUMO Roadnet |
+| Simulators | OpenDRIVE | OpenStreetMap | SUMO Roadnet |
 | --- | --- | --- | --- |
-| CarRacing |
-| SUMO |
-| CARLA |
-| CommonRoad |
-| highway-env |
-| SMARTS |
-| MetaDrive |
-| NuPlan |
-| InterSim |
-| TBSim |
-| Waymax |
-| Tactics2D |
+| [SUMO](https://eclipse.dev/sumo/) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [CarRacing](https://gymnasium.farama.org/environments/box2d/car_racing/) | - | - | - |
+| [CARLA](https://carla.org) | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| [CommonRoad](https://commonroad.in.tum.de/) | :white_check_mark: | :white_check_mark: | - |
+| [highway-env](https://github.com/Farama-Foundation/HighwayEnv) | - | - | - |
+| [SMARTS](https://github.com/huawei-noah/SMARTS) | :white_check_mark: | - | :white_check_mark: |
+| [MetaDrive](https://github.com/metadriverse/metadrive) | :white_check_mark: | - | :white_check_mark: |
+| [NuPlan](https://github.com/motional/nuplan-devkit) | - | - | - |
+| [InterSim](https://github.com/Tsinghua-MARS-Lab/InterSim) | - | - | - |
+| [TBSim](https://github.com/NVlabs/traffic-behavior-simulation) | - | - | - |
+| [Waymax](https://github.com/waymo-research/waymax) | - | - | - |
+| **Tactics2D** | :white_check_mark: | :white_check_mark: | :construction: |

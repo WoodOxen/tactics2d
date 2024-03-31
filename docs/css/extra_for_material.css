@@ -27,6 +27,10 @@ td {
 	line-height: 1.2;
 }
 
+table {
+	table-layout: fixed;
+	width: 100%;
+}
 
 /******************* Table Description ***************************/
 div.doc-md-description {

@@ -66,11 +66,7 @@ class Junction:
         connections (dict): The connections of the junction. Defaults to an empty dictionary.
     """
 
-    def __init__(
-        self,
-        id_: str,
-        connections: dict = {},
-    ):
+    def __init__(self, id_: str, connections: dict = {}):
         """Initialize the junction.
 
         Args:

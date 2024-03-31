@@ -11,7 +11,7 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.lines import Line2D
 from matplotlib.patches import Circle, Polygon
 
-from tactics2d.map.element import Area, Lane, RoadLine
+from tactics2d.map.element import Area, Lane, Map, RoadLine
 from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
 from tactics2d.sensor.render_template import *
 
@@ -71,6 +71,9 @@ class ScenarioDisplay:
             return None
 
         line_shape = np.array(roadline.shape)
+        if len(line_shape) == 0:
+            return None
+
         line_width = 0.5 if roadline.type_ in ["line_thin", "curbstone"] else 1
 
         if roadline.subtype == "solid_solid":
@@ -133,7 +136,13 @@ class ScenarioDisplay:
             )
         ]
 
-    def display_map(self, map_, ax):
+    def display_map(self, map_: Map, ax: plt.Axes):
+        """This function plots the map on the given axis.
+
+        Args:
+            map_ (Map): The map to be displayed.
+            ax (plt.Axes): The axis to display the map on.
+        """
         for area in map_.areas.values():
             area = Polygon(
                 area.geometry.exterior.coords,

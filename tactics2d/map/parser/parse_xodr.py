@@ -261,9 +261,11 @@ class XODRParser:
             lane_change = (True, False)
 
         custom_tags = {
-            "weight": None
-            if xml_node is None or not hasattr(xml_node, "weight")
-            else xml_node.attrib["weight"],
+            "weight": (
+                None
+                if xml_node is None or not hasattr(xml_node, "weight")
+                else xml_node.attrib["weight"]
+            )
         }
 
         roadline = RoadLine(
@@ -272,12 +274,16 @@ class XODRParser:
             type_=type_,
             subtype=subtype,
             color=color,
-            width=None
-            if xml_node is None or not hasattr(xml_node, "width")
-            else xml_node.attrib["width"],
-            height=None
-            if xml_node is None or not hasattr(xml_node, "height")
-            else xml_node.attrib["height"],
+            width=(
+                None
+                if xml_node is None or not hasattr(xml_node, "width")
+                else xml_node.attrib["width"]
+            ),
+            height=(
+                None
+                if xml_node is None or not hasattr(xml_node, "height")
+                else xml_node.attrib["height"]
+            ),
             lane_change=lane_change,
             temporary=False,
             custom_tags=custom_tags,
@@ -325,12 +331,16 @@ class XODRParser:
             right_side=right_side,
             subtype=xml_node.attrib["type"],
             line_ids=line_ids,
-            speed_limit=default_speed_limit
-            if xml_node.find("speed") is None or "max" not in xml_node.find("speed").attrib
-            else float(xml_node.find("speed").attrib["max"]),
-            speed_limit_unit=default_speed_limit_unit
-            if xml_node.find("speed") is None or "unit" not in xml_node.find("speed").attrib
-            else xml_node.find("speed").attrib["unit"],
+            speed_limit=(
+                default_speed_limit
+                if xml_node.find("speed") is None or "max" not in xml_node.find("speed").attrib
+                else float(xml_node.find("speed").attrib["max"])
+            ),
+            speed_limit_unit=(
+                default_speed_limit_unit
+                if xml_node.find("speed") is None or "unit" not in xml_node.find("speed").attrib
+                else xml_node.find("speed").attrib["unit"]
+            ),
             location=location,
         )
         self.id_counter += 1
