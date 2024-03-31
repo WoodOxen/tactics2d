@@ -154,7 +154,7 @@ def test_dlp_parser(file_id: int, stamp_range: tuple, expected: int):
 def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
     folder_path = "./tactics2d/data/trajectory_sample/NuPlan/data/cache"
     map_folder_path = "./tactics2d/data/map"
-    with open("./tactics2d/data/map/map.config") as f:
+    with open("./tactics2d/dataset_parser/map.config") as f:
         configs = json.load(f)
 
     dataset_parser = NuPlanParser()

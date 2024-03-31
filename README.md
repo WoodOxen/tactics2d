@@ -19,7 +19,7 @@
 `tactics2d` is an open-source Python library that provides diverse and challenging traffic scenarios for the development and evaluation of reinforcement learning-based decision-making models in autonomous driving. `tactics2d` stands out with the following key features:
 
 - **Compatibility**
-  - 📦 Trajectory dataset -- Enables seamless importation of various real-world trajectory datasets, including Argoverse, Dragon Lake Parking (DLP), INTERACTION, LevelX Series (highD, inD, rounD, ExiD), NuPlan, and Waymo Open Motion Dataset (WOMD), encompassing both trajectory parsing and map information.
+  - 📦 Trajectory dataset -- Enables seamless importation of various real-world trajectory datasets, including Argoverse, Dragon Lake Parking (DLP), INTERACTION, LevelX Series (HighD, InD, RounD, ExiD), NuPlan, and Waymo Open Motion Dataset (WOMD), encompassing both trajectory parsing and map information.
   - 📄 Map format -- Enables parsing and conversion of commonly used open map formats like OpenDRIVE, Lanelet2-style OpenStreetMap (OSM), and SUMO roadnet.
 - **Customizability**
   - 🚗 Traffic participants -- Supports the creation of new traffic participant classes with customizable physical attributes, physics dynamics/kinematics models, and behavior models.
@@ -112,29 +112,25 @@ You can put the downloaded files at whatever location you like. In the parser, y
 
 ### Intersection cases (InD, Argoverse, INTERACTION, NuPlan, WOMD)
 
-<p float="left">
-  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/inD_loc_4.gif" width="45%" />
-  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/argoverse_sample.gif" width="45%" />
-</p>
+| InD | Argoverse |
+| -- | -- |
+| ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/inD_loc_4.gif) | ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/argoverse_sample.gif) |
 
-<p float="left">
-  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_USA_Intersection_GL.gif" width="45%" />
-  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/womd_sample.gif" width="45%" />
-</p>
+| INTERACTION | WOMD |
+| -- | -- |
+| ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_USA_Intersection_GL.gif) | ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/womd_sample.gif) |
 
 ### Roundabout cases (RounD, INTERACTION, )
 
-<p float="left">
-  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/rounD_loc_0.gif" width="45%" />
-  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_DEU_Roundabout_OF.gif" width="45%" />
-</p>
+| RounD | INTERACTION |
+| -- | -- |
+| ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/rounD_loc_0.gif) | ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_DEU_Roundabout_OF.gif) |
 
 ### Parking cases (DLP, Self-generated)
 
-<p float="left">
-  <img src="https://github.com/MotacillaAlba/image-storage/blob/main/img/dlp_sample.gif?raw=true" width="45%" />
-  <!-- <img src="" width="300" />  -->
-</p>
+| DLP | Self-generated |
+| -- | -- |
+| ![](https://github.com/MotacillaAlba/image-storage/blob/main/img/dlp_sample.gif?raw=true) | ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/parking_sample.gif) | |
 
 ### Racing cases (Self-generated)
 

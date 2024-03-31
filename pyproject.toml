@@ -1,9 +1,54 @@
+[project]
+name = "tactics2d"
+version = "0.1.3"
+description = "Tactics2D: A Reinforcement Learning Environment Library with Generative Scenarios for Driving Decision-making"
+readme = { file = "README.md", content-type = "text/markdown" }
+license = { file = "LICENSE" }
+requires-python = ">= 3.8"
+keywords = ["reinforcement-learning", "environment", "simulator", "decision-making", "traffic-behavior"]
+authors = [
+    { name = "Yueyuan Li", email = "rowena.academic@gmail.com" }
+]
+maintainers = [
+    { name = "Yueyuan Li", email = "rowena.academic@gmail.com" }
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+]
+dynamic = ["dependencies"]
+
+[project.urls]
+Documentation = "https://tactics2d.readthedocs.io/en/latest/"
+Repository = "https://github.com/WoodOxen/tactics2d"
+
+[project.optional-dependencies]
+test = [
+    "bezier",
+    "Pillow",
+    "pytest",
+    "pytest-cov",
+]
+
 [build-system]
 requires = [
-    "setuptools >= 40.9.0",
+    "setuptools >= 60.0.0",
     "wheel"
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+exclude = ["tutorial", "tutorial/rllib/rllib", "test", "tactics2d/data/"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = "requirements.txt" }
 
 [tool.black]
 line-length = 100

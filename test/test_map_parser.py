@@ -52,7 +52,7 @@ def test_lanelet2_parser():
     """
 
     data_path = "./tactics2d/data/map"
-    config_path = "./tactics2d/data/map/map.config"
+    config_path = "./tactics2d/dataset_parser/map.config"
 
     map_parser = OSMParser(lanelet2=True)
     scenario_display = ScenarioDisplay()

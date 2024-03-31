@@ -1,15 +1,14 @@
 name: Publish to PyPI
+
 on:
   workflow_dispatch
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
