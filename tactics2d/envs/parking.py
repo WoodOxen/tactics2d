@@ -29,7 +29,7 @@ from tactics2d.traffic.event_detection import (
     TimeExceed,
 )
 
-MAX_STEER = 0.75
+MAX_STEER = 0.524 # 0.75
 MAX_ACCEL = 2.0
 
 
@@ -141,6 +141,7 @@ class ParkingEnv(gym.Env):
             self.action_space = spaces.Discrete(5)
 
         self._max_iou = -np.inf
+        self._min_dist_to_target = np.inf
 
         self.scenario_manager = self._ParkingScenarioManager(
             type_proportion, self.max_step, 100, self.render_fps, self.render_mode != "human"
@@ -161,7 +162,7 @@ class ParkingEnv(gym.Env):
         elif scenario_status == ScenarioStatus.COMPLETED:
             reward = 5
         else:
-            time_penalty = -np.tanh(self.scenario_manager.cnt_step / self.max_step) * 0.1
+            time_penalty = -np.tanh(self.scenario_manager.cnt_step / self.max_step) * 0.001
             if self._max_iou == -np.inf:
                 iou_reward = iou if not iou is None else 0
             else:
@@ -169,6 +170,24 @@ class ParkingEnv(gym.Env):
 
             reward = time_penalty + iou_reward
             self._max_iou = max(self._max_iou, iou) if not iou is None else self._max_iou
+
+            curr_dist_to_target = np.linalg.norm(
+                np.array(
+                    [
+                        self.scenario_manager.agent.current_state.x,
+                        self.scenario_manager.agent.current_state.y,
+                    ]
+                )
+                - np.array(
+                    [
+                        self.scenario_manager.target_area.geometry.centroid.x,
+                        self.scenario_manager.target_area.geometry.centroid.y,
+                    ]
+                )
+            )
+            if curr_dist_to_target < self._min_dist_to_target:
+                reward += (self._min_dist_to_target - curr_dist_to_target)*0.1
+                self._min_dist_to_target = curr_dist_to_target
 
         return reward
 
@@ -268,6 +287,20 @@ class ParkingEnv(gym.Env):
             ScenarioStatus.NORMAL,
             TrafficStatus.NORMAL,
         )
+        self._min_dist_to_target = np.linalg.norm(
+                np.array(
+                    [
+                        self.scenario_manager.agent.current_state.x,
+                        self.scenario_manager.agent.current_state.y,
+                    ]
+                )
+                - np.array(
+                    [
+                        self.scenario_manager.target_area.geometry.centroid.x,
+                        self.scenario_manager.target_area.geometry.centroid.y,
+                    ]
+                )
+            )
 
         return observations[0], infos
 
