@@ -156,7 +156,7 @@ class OSMParser:
         polygon = Polygon(outer_point_list, inner_point_list)
 
         area_tags = self._get_lanelet2_tags(xml_node)
-        
+
         return Area(area_id, polygon, line_ids, set(regulatory_ids), **area_tags)
 
     def load_bounds_no_proj(self, xml_node: ET.Element) -> tuple:

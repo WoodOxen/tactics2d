@@ -8,13 +8,13 @@
 
 import logging
 import xml.etree.ElementTree as ET
+from copy import deepcopy
 from typing import Tuple, Union
 
 import numpy as np
 from pyproj import CRS
 from shapely.affinity import affine_transform, rotate
 from shapely.geometry import LineString, Point, Polygon
-from copy import deepcopy
 
 from tactics2d.map.element import Area, Connection, Junction, Lane, Map, Node, Regulatory, RoadLine
 from tactics2d.math.geometry import Circle
@@ -83,7 +83,7 @@ class XODRParser:
         if length > 0.1:
             n_interpolate = int(length / 0.1)
 
-            for i in np.linspace(0.1, length, n_interpolate-1):
+            for i in np.linspace(0.1, length, n_interpolate - 1):
                 x_end = x_start + i * np.cos(heading)
                 y_end = y_start + i * np.sin(heading)
                 points.append((x_end, y_end))
@@ -185,7 +185,7 @@ class XODRParser:
 
     def _get_geometry(self, xml_node: ET.Element) -> list:
         """
-            Road Reference line
+        Road Reference line
         """
         geometry = []
 
@@ -312,7 +312,6 @@ class XODRParser:
 
         return roadline
 
-
     def load_lane(self, ref_line, xml_node: ET.Element, type_node: ET.Element):
         # ref_value should always be a positive value
         sign = np.sign(int(xml_node.attrib["id"]))
@@ -343,7 +342,6 @@ class XODRParser:
             right_side = ref_line.geometry.offset_curve(-float(xml_node.find("width").attrib["a"]))
             new_ref_line = right_side
             line_ids = {"left": [ref_line.id_], "right": [self.id_counter]}
-
 
         roadline = self.load_roadmark(new_ref_line, xml_node.find("roadMark"))
 
@@ -380,14 +378,14 @@ class XODRParser:
 
         zOffset = float(xml_node.attrib["zOffset"])
         relative_heading = float(xml_node.attrib["hdg"]) if "hdg" in xml_node.attrib else 0
-        
+
         width = float(xml_node.attrib["width"]) if "width" in xml_node.attrib else None
         length = float(xml_node.attrib["length"]) if "length" in xml_node.attrib else None
         height = float(xml_node.attrib["height"]) if "height" in xml_node.attrib else None
         radius = float(xml_node.attrib["radius"]) if "radius" in xml_node.attrib else None
 
         # convert local coordinate to global coordinate
-        heading = ref_heading 
+        heading = ref_heading
         x_origin = x - t * np.sin(heading)
         y_origin = y + t * np.cos(heading)
         # object_heading = heading + relative_heading * orientation
@@ -424,7 +422,7 @@ class XODRParser:
                 y_origin,
             ],
         )
-        
+
         # TODO: handle traffic participants and road areas separately
         area = Area(
             id_=self.id_counter,
@@ -434,7 +432,6 @@ class XODRParser:
         self.id_counter += 1
 
         return area
-    
 
     def load_road(self, xml_node: ET.Element):
         objects = []
@@ -461,8 +458,10 @@ class XODRParser:
             else:
                 logging.warning("The geometry is not continuous.")
                 points.extend(new_points)
-        
-        s_points = np.sqrt(np.sum((np.array(points) - np.array([points[0]] + points)[:-1, :])**2, axis=1))
+
+        s_points = np.sqrt(
+            np.sum((np.array(points) - np.array([points[0]] + points)[:-1, :]) ** 2, axis=1)
+        )
         # I suggest you to put forward an issue to numpy to change this function name
         s_points = np.cumsum(s_points)
 
@@ -474,12 +473,18 @@ class XODRParser:
 
         # lanes
         lanes_node = xml_node.find("lanes")
-        lane_sections_offset = [float(lane_section.attrib["s"]) for lane_section in lanes_node.findall("laneSection")] + [s_points[-1]]
+        lane_sections_offset = [
+            float(lane_section.attrib["s"]) for lane_section in lanes_node.findall("laneSection")
+        ] + [s_points[-1]]
         for ls_idx, lane_section_node in enumerate(lanes_node.findall("laneSection")):
-            
             # Load center line for lanesection
-            ls_start_offset, ls_end_offset = lane_sections_offset[ls_idx], lane_sections_offset[ls_idx + 1]
-            center_points = np.array(points)[(s_points >= ls_start_offset - 0.1) & (s_points <= ls_end_offset + 0.1)].tolist()
+            ls_start_offset, ls_end_offset = (
+                lane_sections_offset[ls_idx],
+                lane_sections_offset[ls_idx + 1],
+            )
+            center_points = np.array(points)[
+                (s_points >= ls_start_offset - 0.1) & (s_points <= ls_end_offset + 0.1)
+            ].tolist()
             if len(center_points) == 1:
                 center_points.append(center_points[0])
 
@@ -488,20 +493,25 @@ class XODRParser:
                 geometry=LineString(center_points),
             )
             self.id_counter += 1
-            
+
             # Load road marks for lanesection
             road_marks = lane_section_node.find("center").find("lane").findall("roadMark")
-            road_mark_offsets = [float(road_mark.attrib["sOffset"]) for road_mark in road_marks] + [s_points[-1]]
+            road_mark_offsets = [float(road_mark.attrib["sOffset"]) for road_mark in road_marks] + [
+                s_points[-1]
+            ]
             for road_mark_idx, road_mark in enumerate(road_marks):
-                s_offset, e_offset = road_mark_offsets[road_mark_idx], road_mark_offsets[road_mark_idx + 1]
-                part_refline = np.array(points)[(s_points>= s_offset - 0.1) & (s_points <= e_offset+ 0.1)].tolist()
-    
+                s_offset, e_offset = (
+                    road_mark_offsets[road_mark_idx],
+                    road_mark_offsets[road_mark_idx + 1],
+                )
+                part_refline = np.array(points)[
+                    (s_points >= s_offset - 0.1) & (s_points <= e_offset + 0.1)
+                ].tolist()
+
                 if len(part_refline) == 1:
                     part_refline.append(part_refline[0])
 
-                part_refline = self.load_roadmark(
-                   part_refline, road_mark
-                )  # RoadLine
+                part_refline = self.load_roadmark(part_refline, road_mark)  # RoadLine
                 if part_refline is None:
                     raise ValueError("Center line must be defined.")
                 roadlines.append(part_refline)
@@ -534,7 +544,7 @@ class XODRParser:
         if not objects_node is None:
             headings = self.get_headings(points)
             for object_node in objects_node.findall("object"):
-                area = self.load_object(points, s_points, headings , object_node)
+                area = self.load_object(points, s_points, headings, object_node)
                 objects.append(area)
 
         return lanes, roadlines, objects
