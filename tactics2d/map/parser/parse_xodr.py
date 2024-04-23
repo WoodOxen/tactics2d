@@ -14,6 +14,7 @@ import numpy as np
 from pyproj import CRS
 from shapely.affinity import affine_transform, rotate
 from shapely.geometry import LineString, Point, Polygon
+from copy import deepcopy
 
 from tactics2d.map.element import Area, Connection, Junction, Lane, Map, Node, Regulatory, RoadLine
 from tactics2d.math.geometry import Circle
@@ -65,16 +66,30 @@ class XODRParser:
     def __init__(self):
         self.id_counter = 0
 
+    def get_headings(self, points):
+        diff = np.diff(np.array(points), axis=0)
+        headings = np.arctan2(diff[:, 1], diff[:, 0]).tolist()
+        headings.append(headings[-1])
+        return headings
+
     def _get_line(self, xml_node: ET.Element) -> list:
         x_start = float(xml_node.attrib["x"])
         y_start = float(xml_node.attrib["y"])
         heading = float(xml_node.attrib["hdg"])
         length = float(xml_node.attrib["length"])
 
-        x_end = x_start + length * np.cos(heading)
-        y_end = y_start + length * np.sin(heading)
+        points = [(x_start, y_start)]
 
-        return [(x_start, y_start), (x_end, y_end)]
+        if length > 0.1:
+            n_interpolate = int(length / 0.1)
+
+            for i in np.linspace(0.1, length, n_interpolate-1):
+                x_end = x_start + i * np.cos(heading)
+                y_end = y_start + i * np.sin(heading)
+                points.append((x_end, y_end))
+
+        points.append((x_start + length * np.cos(heading), y_start + length * np.sin(heading)))
+        return points
 
     def _get_spiral(self, xml_node: ET.Element) -> list:
         x_start = float(xml_node.attrib["x"])
@@ -90,7 +105,6 @@ class XODRParser:
             gamma = (curv_end - curv_start) / length
             points = Spiral.get_spiral(length, [x_start, y_start], heading, curv_start, gamma)
             points = [(x, y) for x, y in points]
-
         return points
 
     def _get_arc(self, xml_node: ET.Element) -> list:
@@ -105,7 +119,8 @@ class XODRParser:
         )
 
         n_interpolate = int(length / 0.1)
-        points = [(x_start, y_start)]
+        points = []
+
         arc_angle = length / radius * np.sign(curvature)
         start_heading = heading - np.pi / 2 * np.sign(curvature)
 
@@ -113,7 +128,6 @@ class XODRParser:
             x = center[0] + radius * np.cos(i)
             y = center[1] + radius * np.sin(i)
             points.append((x, y))
-
         return points
 
     def _get_poly3(self, xml_node: ET.Element) -> list:
@@ -170,6 +184,9 @@ class XODRParser:
         return points
 
     def _get_geometry(self, xml_node: ET.Element) -> list:
+        """
+            Road Reference line
+        """
         geometry = []
 
         if not xml_node.find("line") is None:
@@ -184,6 +201,9 @@ class XODRParser:
         elif not xml_node.find("paramPoly3") is None:
             geometry = self._get_param_poly3(xml_node)
 
+        if len(geometry) >= 2:
+            if geometry[-2] == geometry[-1]:
+                geometry.pop(-1)
         return geometry
 
     def _check_continuity(self, new_points, points):
@@ -292,6 +312,7 @@ class XODRParser:
 
         return roadline
 
+
     def load_lane(self, ref_line, xml_node: ET.Element, type_node: ET.Element):
         # ref_value should always be a positive value
         sign = np.sign(int(xml_node.attrib["id"]))
@@ -323,6 +344,7 @@ class XODRParser:
             new_ref_line = right_side
             line_ids = {"left": [ref_line.id_], "right": [self.id_counter]}
 
+
         roadline = self.load_roadmark(new_ref_line, xml_node.find("roadMark"))
 
         lane = Lane(
@@ -347,21 +369,27 @@ class XODRParser:
 
         return lane, roadline
 
-    def load_object(self, x, y, heading, xml_node: ET.Element):
+    def load_object(self, points, s_points, headings, xml_node: ET.Element):
         s = float(xml_node.attrib["s"])
         t = float(xml_node.attrib["t"])
+
+        # find the closest point on the reference line
+        idx = np.argmin(np.abs(s_points - s))
+        ref_heading = headings[idx]
+        x, y = points[idx]
+
         zOffset = float(xml_node.attrib["zOffset"])
         relative_heading = float(xml_node.attrib["hdg"]) if "hdg" in xml_node.attrib else 0
+        
         width = float(xml_node.attrib["width"]) if "width" in xml_node.attrib else None
         length = float(xml_node.attrib["length"]) if "length" in xml_node.attrib else None
         height = float(xml_node.attrib["height"]) if "height" in xml_node.attrib else None
         radius = float(xml_node.attrib["radius"]) if "radius" in xml_node.attrib else None
-        # orientation = xml_node.attrib["orientation"] if "orientation" in xml_node.attrib else "+"
-        # orientation = 1 if orientation == "+" else -1
 
         # convert local coordinate to global coordinate
-        x_origin = x + s * np.cos(heading) - t * np.sin(heading)
-        y_origin = y + s * np.sin(heading) + t * np.cos(heading)
+        heading = ref_heading 
+        x_origin = x - t * np.sin(heading)
+        y_origin = y + t * np.cos(heading)
         # object_heading = heading + relative_heading * orientation
 
         if not None in [width, length]:
@@ -384,19 +412,19 @@ class XODRParser:
         else:
             shape = Point(s, t)
 
-        shape = rotate(shape, relative_heading, origin=(0, 0))
+        shape = rotate(shape, (relative_heading / np.pi) * 180)
         shape = affine_transform(
             shape,
             [
-                np.cos(heading),
-                -np.sin(heading),
-                np.sin(heading),
-                np.cos(heading),
+                np.cos(heading - np.pi / 2),
+                -np.sin(heading - np.pi / 2),
+                np.sin(heading - np.pi / 2),
+                np.cos(heading - np.pi / 2),
                 x_origin,
                 y_origin,
             ],
         )
-
+        
         # TODO: handle traffic participants and road areas separately
         area = Area(
             id_=self.id_counter,
@@ -411,7 +439,10 @@ class XODRParser:
         objects = []
         lanes = []
         roadlines = []
+
+        # refline points
         points = []
+
         link_node = xml_node.find("link")
 
         # type
@@ -429,6 +460,10 @@ class XODRParser:
             else:
                 logging.warning("The geometry is not continuous.")
                 points.extend(new_points)
+        
+        s_points = np.sqrt(np.sum((np.array(points) - np.array([points[0]] + points)[:-1, :])**2, axis=1))
+        # I suggest you to put forward an issue to numpy to change this function name
+        s_points = np.cumsum(s_points)
 
         # elevation profile
         elevation_profile_node = xml_node.find("elevationProfile")
@@ -438,22 +473,39 @@ class XODRParser:
 
         # lanes
         lanes_node = xml_node.find("lanes")
-        lane_sections = []
-        for lane_section_node in lanes_node.findall("laneSection"):
-            # DEBUG: curve processing
+        lane_sections_offset = [float(lane_section.attrib["s"]) for lane_section in lanes_node.findall("laneSection")] + [s_points[-1]]
+        for ls_idx, lane_section_node in enumerate(lanes_node.findall("laneSection")):
+            
+            # Load center line for lanesection
+            ls_start_offset, ls_end_offset = lane_sections_offset[ls_idx], lane_sections_offset[ls_idx + 1]
+            center_line = RoadLine(
+                id_=self.id_counter,
+                geometry=LineString(np.array(points)[(s_points >= ls_start_offset) & (s_points <= ls_end_offset)]),
+            )
+            self.id_counter += 1
+            
+            # Load road marks for lanesection
+            road_marks = lane_section_node.find("center").find("lane").findall("roadMark")
+            road_mark_offsets = [float(road_mark.attrib["sOffset"]) for road_mark in road_marks] + [s_points[-1]]
+            for road_mark_idx, road_mark in enumerate(road_marks):
+                s_offset, e_offset = road_mark_offsets[road_mark_idx], road_mark_offsets[road_mark_idx + 1]
+                part_refline = np.array(points)[(s_points>= s_offset - 0.1) & (s_points <= e_offset+ 0.1)].tolist()
+    
+                if len(part_refline) == 1:
+                    part_refline.append(part_refline[0])
 
-            center_line = self.load_roadmark(
-                points, lane_section_node.find("center").find("lane").find("roadMark")
-            )  # RoadLine
-            if center_line is None:
-                raise ValueError("Center line must be defined.")
-
-            roadlines.append(center_line)
+                part_refline = self.load_roadmark(
+                   part_refline, road_mark
+                )  # RoadLine
+                if part_refline is None:
+                    raise ValueError("Center line must be defined.")
+                roadlines.append(part_refline)
 
             if not lane_section_node.find("left") is None:
                 lane_nodes = sorted(
                     lane_section_node.find("left").findall("lane"), key=lambda x: x.attrib["id"]
                 )
+
                 ref_line = center_line
                 for lane_node in lane_nodes:
                     lane, ref_line = self.load_lane(ref_line, lane_node, type_node)
@@ -475,8 +527,9 @@ class XODRParser:
 
         objects_node = xml_node.find("objects")
         if not objects_node is None:
+            headings = self.get_headings(points)
             for object_node in objects_node.findall("object"):
-                area = self.load_object(x, y, heading, object_node)
+                area = self.load_object(points, s_points, headings , object_node)
                 objects.append(area)
 
         return lanes, roadlines, objects

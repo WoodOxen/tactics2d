@@ -157,6 +157,9 @@ class OSMParser:
         polygon = Polygon(outer_point_list, inner_point_list)
 
         area_tags = self._get_lanelet2_tags(xml_node)
+        
+        # Bug: area_tags contains the key "height" which is not a valid parameter for Area initialization
+        del area_tags["height"]
 
         return Area(area_id, polygon, line_ids, set(regulatory_ids), **area_tags)
 
