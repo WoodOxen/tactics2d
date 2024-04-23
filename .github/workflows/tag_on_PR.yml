@@ -1,11 +1,7 @@
 name: Tag on Pull Request
 
 on:
-  pull_request:
-    branches:
-      - master
-    types:
-      - closed
+  workflow_dispatch
 
 jobs:
   tag_on_PR:
