@@ -60,7 +60,6 @@ class OSMParser:
             "subtype",
             "color",
             "width",
-            "height",
             "location",
             "inferred_participants",
             "speed_limit",
@@ -158,9 +157,6 @@ class OSMParser:
 
         area_tags = self._get_lanelet2_tags(xml_node)
         
-        # Bug: area_tags contains the key "height" which is not a valid parameter for Area initialization
-        del area_tags["height"]
-
         return Area(area_id, polygon, line_ids, set(regulatory_ids), **area_tags)
 
     def load_bounds_no_proj(self, xml_node: ET.Element) -> tuple:

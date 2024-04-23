@@ -434,6 +434,7 @@ class XODRParser:
         self.id_counter += 1
 
         return area
+    
 
     def load_road(self, xml_node: ET.Element):
         objects = []
@@ -478,9 +479,13 @@ class XODRParser:
             
             # Load center line for lanesection
             ls_start_offset, ls_end_offset = lane_sections_offset[ls_idx], lane_sections_offset[ls_idx + 1]
+            center_points = np.array(points)[(s_points >= ls_start_offset - 0.1) & (s_points <= ls_end_offset + 0.1)].tolist()
+            if len(center_points) == 1:
+                center_points.append(center_points[0])
+
             center_line = RoadLine(
                 id_=self.id_counter,
-                geometry=LineString(np.array(points)[(s_points >= ls_start_offset) & (s_points <= ls_end_offset)]),
+                geometry=LineString(center_points),
             )
             self.id_counter += 1
             
