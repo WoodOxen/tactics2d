@@ -31,6 +31,87 @@ Welcome to the official documentation of Python Library tactics2d!
 
 ## What can you do with `tactics2d`?
 
+[Description]
+
+### Features
+
+> Updated on April 1, 2024.
+>
+> Corresponds to version 0.1.6.
+
+**Dataset Parser**
+
+Support parsing maps and trajectories from the following datasets:
+
+- HighD
+- InD
+- RounD
+- ExiD
+- Argoverse
+- Dragon Lake Parking (DLP)
+- INTERACTION
+- NuPlan
+- WOMD
+
+**Map Parser**
+
+Support parsing maps in the following formats:
+
+- OpenStreetMap (OSM)
+- OpenStreetMap annotated in Lanelet2
+- OpenDRIVE (XODR)
+
+**Math Interpolation Algorithms**
+
+Support the following interpolation algorithms:
+
+- B-Spline
+- Bezier
+- Cubic
+- Spiral
+- Dubins
+- Reeds Shepp
+
+**Traffic Participant**
+
+The following traffic participants are implemented:
+
+- Vehicle
+- Cyclist
+- Pedestrian
+
+For each traffic participants, a set of parameters are available to configure the behavior.
+
+**Physics Model**
+
+The following physics model of traffic participants are supported:
+
+- Bicycle model (Kinematic): recommended for cyclists and low-speed vehicles
+- Bicycle model (Dynamic): recommended for cyclists and high-speed vehicles
+- Point mass (Kinematic): recommended for pedestrians
+- Single-track drift model (Dynamic): recommended for vehicles
+
+**Road Element**
+
+The following road elements are implemented:
+
+- Lane
+- Area
+- Junction
+- Road line
+- Base class of traffic regulations
+
+**Traffic Event Detection**
+
+- Static collision detection
+- Dynamic collision detection
+- Arrival event detection
+
+**Sensor**
+
+- Bird-eye-view (BEV) semantic segmentation RGB image
+- Single-line LiDAR point cloud
+
 ## Why `tactics2d`?
 
 ### Similar Works
