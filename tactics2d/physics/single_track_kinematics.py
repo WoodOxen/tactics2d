@@ -137,7 +137,7 @@ class SingleTrackKinematics(PhysicsModelBase):
             dx = v * np.cos(phi + beta)
             dy = v * np.sin(phi + beta)
             dv = accel
-            dphi = v / self.wheel_base * np.tan(delta)
+            dphi = v / self.wheel_base * np.tan(delta) * np.cos(beta)
 
             x += dx * dt
             y += dy * dt
