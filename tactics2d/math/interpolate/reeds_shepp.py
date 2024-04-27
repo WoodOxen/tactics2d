@@ -75,7 +75,7 @@ class ReedsSheppPath:
             end_angle = (start_angle - radian) if clockwise else (start_angle + radian)
             end_point = circle_center + np.array([np.cos(end_angle), np.sin(end_angle)]) * radius
             end_heading = (heading - radian) if clockwise else (heading + radian)
-            yaw = np.arange(heading, end_heading, (-1 if clockwise else 1) * step_size / radius)
+            yaw = np.linspace(heading, end_heading, arc_curve.shape[0])
 
             return arc_curve, yaw, end_point, end_heading
 
@@ -83,10 +83,10 @@ class ReedsSheppPath:
             end_point = (
                 point + np.array([np.cos(heading), np.sin(heading)]) * radius * length * forward
             )
-            x_step = step_size * np.cos(heading) * forward
-            y_step = step_size * np.sin(heading) * forward
-            x = np.arange(point[0], end_point[0], x_step)
-            y = np.arange(point[1], end_point[1], y_step)
+            total_length = np.linalg.norm(end_point - point)
+            num_points = int(np.ceil(total_length / step_size))
+            x = np.linspace(point[0], end_point[0], num_points)
+            y = np.linspace(point[1], end_point[1], num_points)
             straight_line = np.array([x, y]).T
             yaw = np.ones_like(x) * heading
 
