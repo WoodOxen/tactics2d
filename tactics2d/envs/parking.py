@@ -308,7 +308,7 @@ class ParkingEnv(gym.Env):
         _max_steer = MAX_STEER
         _max_accel = MAX_ACCEL
         _lidar_range = 20
-        _lidar_line = 120
+        _lidar_line = 360
         _window_size = (500, 500)
         _state_size = (200, 200)
 
@@ -350,7 +350,7 @@ class ParkingEnv(gym.Env):
             # traffic event detectors
             self.status_checklist = {
                 "time_exceed": TimeExceed(self.max_step),
-                "no_action": NoAction(100),
+                "no_action": NoAction(1000),
                 "out_bound": OutBound(),
                 "collision": StaticCollision(),
                 "completed": Arrival(),
