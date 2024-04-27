@@ -30,7 +30,7 @@ class ParkingLotGenerator:
     _origin = Point(0.0, 0.0)
     _scenario_size = 30.0
     _margin = 13.0
-    _dist_to_obstacle = (0.1, 1.0)
+    _dist_to_obstacle = (0.8, 1.6)
     _heading_distribution = {
         "bay": (np.pi / 2, np.pi / 36, np.pi * 5 / 12, np.pi * 7 / 12),
         "parallel": (0, np.pi / 36, -np.pi / 12, np.pi / 12),
@@ -111,7 +111,7 @@ class ParkingLotGenerator:
         center_point = Point(0.0, self._truncate_gaussian(y_min + 0.4, 0.2, y_min, y_min + 0.8))
 
         shape = self._get_bbox(center_point, heading, *self.vehicle_size)
-        area = Area(id_=0, geometry=shape, color=self._target_color)
+        area = Area(id_=0, geometry=shape, subtype="target_area", color=self._target_color)
 
         return area, heading
 
@@ -363,9 +363,7 @@ class ParkingLotGenerator:
                     id_ += 1
 
         # randomly drop the obstacles
-        for obstacle in obstacles:
-            if np.random.uniform() < 0.0:
-                obstacles.remove(obstacle)
+        obstacles = [obstacle for obstacle in obstacles if np.random.uniform() >= 0.05]
 
         # store obstacles in map
         for obstacle in obstacles:

@@ -328,7 +328,7 @@ class ParkingEnv(gym.Env):
                 lf=self.agent.length / 2 - self.agent.front_overhang,
                 lr=self.agent.length / 2 - self.agent.rear_overhang,
                 steer_range=(-self._max_steer, self._max_steer),
-                speed_range=self.agent.speed_range,
+                speed_range=(-0.5, 0.5),
                 accel_range=(-self._max_accel, self._max_accel),
                 interval=self.step_size,
             )
