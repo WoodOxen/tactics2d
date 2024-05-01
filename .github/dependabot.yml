@@ -4,7 +4,12 @@
 # https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
 
 version: 2
-registries: "*"
+registries:
+  data-trajectory:
+    type: git
+    url: https://github.com
+    username: SCP-CN-001
+    password: ${{ secrets.TRAJ_DATA }}
 updates:
   - package-ecosystem: "pip" # See documentation for possible values
     directory: "/" # Location of package manifests
