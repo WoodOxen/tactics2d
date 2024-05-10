@@ -350,7 +350,7 @@ class ParkingEnv(gym.Env):
             # traffic event detectors
             self.status_checklist = {
                 "time_exceed": TimeExceed(self.max_step),
-                "no_action": NoAction(1000),
+                "no_action": NoAction(100),
                 "out_bound": OutBound(),
                 "collision": StaticCollision(),
                 "completed": Arrival(),
@@ -375,7 +375,7 @@ class ParkingEnv(gym.Env):
                 scenario_status = ScenarioStatus.TIME_EXCEEDED
                 return scenario_status, traffic_status, None
 
-            is_no_action = self.status_checklist["no_action"].update(action)
+            is_no_action = self.status_checklist["no_action"].update(agent_pose)
             if is_no_action:
                 traffic_status = ScenarioStatus.NO_ACTION
                 return scenario_status, traffic_status, None

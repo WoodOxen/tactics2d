@@ -344,7 +344,7 @@ class RacingEnv(gym.Env):
                 scenario_status = ScenarioStatus.TIME_EXCEEDED
                 return scenario_status, traffic_status
 
-            is_no_action = self.status_checklist["no_action"].update(action)
+            is_no_action = self.status_checklist["no_action"].update(agent_pose)
             if is_no_action:
                 traffic_status = ScenarioStatus.NO_ACTION
                 return scenario_status, traffic_status
