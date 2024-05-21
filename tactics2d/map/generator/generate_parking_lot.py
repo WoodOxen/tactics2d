@@ -126,7 +126,7 @@ class ParkingLotGenerator:
         return obstacle
 
     def _get_left_wall(
-        self, id_: int, target_area: Area, dist_to_obstacle: np.ndarray[float, float]
+        self, id_: int, target_area: Area, dist_to_obstacle: np.ndarray
     ) -> Area:
         _, top_left, bottom_left, bottom_right, _ = list(target_area.geometry.exterior.coords)
 
@@ -153,7 +153,7 @@ class ParkingLotGenerator:
         return obstacle
 
     def _get_right_wall(
-        self, id_: int, target_area: Area, dist_to_obstacle: np.ndarray[float, float]
+        self, id_: int, target_area: Area, dist_to_obstacle: np.ndarray
     ) -> Area:
         top_right, top_left, _, bottom_right, _ = list(target_area.geometry.exterior.coords)
 
@@ -180,7 +180,7 @@ class ParkingLotGenerator:
         return obstacle
 
     def _get_side_vehicle(
-        self, id_: int, dist_to_obstacle: np.ndarray[float, float], left_side: bool = True
+        self, id_: int, dist_to_obstacle: np.ndarray, left_side: bool = True
     ) -> Area:
         heading = self._truncate_gaussian(*self._heading_distribution[self.mode])
 
