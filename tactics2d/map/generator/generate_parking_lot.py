@@ -32,11 +32,13 @@ class ParkingLotGenerator:
     _margin = 13.0
     _dist_to_obstacle = (0.8, 1.6)
     _heading_distribution = {
-        "bay": (np.pi / 2, np.pi / 36, np.pi * 5 / 12, np.pi * 7 / 12),
-        "parallel": (0, np.pi / 36, -np.pi / 12, np.pi / 12),
+        "bay": (np.pi / 2, np.pi / 54, np.pi * 4 / 9, np.pi * 5 / 9),
+        "parallel": (0, np.pi / 54, -np.pi / 18, np.pi / 18),
     }
     _length = {"bay": 7.0, "parallel": 4.5}
     _vehicle_size = (5.3, 2.5)
+    _n_parking_lots_bay = 9
+    _n_parking_lots_parallel = 7
     _target_color = (0, 238, 118, 100)
 
     def __init__(
@@ -124,7 +126,7 @@ class ParkingLotGenerator:
         return obstacle
 
     def _get_left_wall(
-        self, id_: int, target_area: Area, dist_to_obstacle: Tuple[float, float]
+        self, id_: int, target_area: Area, dist_to_obstacle: np.ndarray[float, float]
     ) -> Area:
         _, top_left, bottom_left, bottom_right, _ = list(target_area.geometry.exterior.coords)
 
@@ -151,7 +153,7 @@ class ParkingLotGenerator:
         return obstacle
 
     def _get_right_wall(
-        self, id_: int, target_area: Area, dist_to_obstacle: Tuple[float, float]
+        self, id_: int, target_area: Area, dist_to_obstacle: np.ndarray[float, float]
     ) -> Area:
         top_right, top_left, _, bottom_right, _ = list(target_area.geometry.exterior.coords)
 
@@ -178,7 +180,7 @@ class ParkingLotGenerator:
         return obstacle
 
     def _get_side_vehicle(
-        self, id_: int, dist_to_obstacle: Tuple[float, float], left_side: bool = True
+        self, id_: int, dist_to_obstacle: np.ndarray[float, float], left_side: bool = True
     ) -> Area:
         heading = self._truncate_gaussian(*self._heading_distribution[self.mode])
 
@@ -272,12 +274,18 @@ class ParkingLotGenerator:
             back_wall = self._get_back_wall()
 
             # generate a wall / static vehicle as an obstacle on the left side of the target area
-            dist_to_obstacle = (self._dist_to_obstacle[0] + 0.1, self._dist_to_obstacle[1])
-            left_obstacle = (
-                self._get_side_vehicle(1, dist_to_obstacle)
-                if np.random.uniform() < 0.5
-                else self._get_left_wall(1, target_area, dist_to_obstacle)
-            )
+            dist_to_obstacle = np.array((self._dist_to_obstacle[0] + 0.1, self._dist_to_obstacle[1]))
+            if np.random.uniform() < 0.2:
+                left_obstacle = self._get_left_wall(1, target_area, dist_to_obstacle)
+            else:
+                left_obstacle = self._get_side_vehicle(1, dist_to_obstacle, True)
+                # generate other vehicle on left
+                next_vehicle_distance = self.vehicle_size[1] if self.mode == "bay" else self.vehicle_size[0]
+                parking_lot_num = self._n_parking_lots_bay if self.mode == "bay" else self._n_parking_lots_parallel
+                for i in range((parking_lot_num-3)//2): # 3 is the number of obstacles already generated
+                    dist_to_obstacle += next_vehicle_distance + self._dist_to_obstacle[0]
+                    left_obstacle_ = self._get_side_vehicle(2*i + 3, dist_to_obstacle, True)
+                    obstacles.append(left_obstacle_)
 
             # generate a wall / static vehicle as an obstacle on the right side of the target area
             dist_target_to_left_obstacle = target_area.geometry.distance(left_obstacle.geometry)
@@ -290,13 +298,19 @@ class ParkingLotGenerator:
                     max(0.25 * self.vehicle_size[0] - dist_target_to_left_obstacle, 0)
                     + self._dist_to_obstacle[0]
                 )
-            dist_to_obstacle = (min_dist_to_obstacle, self._dist_to_obstacle[1])
 
-            right_obstacle = (
-                self._get_side_vehicle(2, dist_to_obstacle, False)
-                if np.random.uniform() < 0.5
-                else self._get_right_wall(2, target_area, dist_to_obstacle)
-            )
+            dist_to_obstacle = np.array((min_dist_to_obstacle, self._dist_to_obstacle[1]))
+            if np.random.uniform() < 0.2:
+                right_obstacle = self._get_right_wall(2, target_area, dist_to_obstacle)
+            else:
+                right_obstacle = self._get_side_vehicle(2, dist_to_obstacle, False)
+                # generate other vehicle on right
+                next_vehicle_distance = self.vehicle_size[1] if self.mode == "bay" else self.vehicle_size[0]
+                parking_lot_num = self._n_parking_lots_bay if self.mode == "bay" else self._n_parking_lots_parallel
+                for i in range((parking_lot_num-3)//2):
+                    dist_to_obstacle += next_vehicle_distance + self._dist_to_obstacle[0]
+                    right_obstacle_ = self._get_side_vehicle(2*i + 4, dist_to_obstacle, False)
+                    obstacles.append(right_obstacle_)
 
             dist_target_to_right = target_area.geometry.distance(right_obstacle.geometry)
             valid_obstacles = self._verify_obstacles(
@@ -345,7 +359,7 @@ class ParkingLotGenerator:
                 y_max_obstacle + self._length[self.mode] + 6,
             )
 
-            id_ = 3
+            id_ = len(obstacles) + 1
             for _ in range(3):
                 x = np.random.uniform(*x_range)
                 y = np.random.uniform(*y_range)
