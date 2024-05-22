@@ -15,7 +15,8 @@ nav:
   - Tutorial:
     - Visualize Interpolation: "./tutorial/interpolator_visualization.ipynb"
     - Visualize Datasets: "./tutorial/dataset_visualization.ipynb"
-  - Dataset Support: "dataset-support.md"
+    - Train an Agent in Parking Environment: "./tutorial/train_parking_demo.ipynb"
+  - Dataset Support: "./dataset-support/dataset-support.md"
   - Python API:
       - tactics2d.dataset_parser: "api/dataset_parser.md"
       - tactics2d.envs: "api/envs.md"
@@ -89,8 +90,9 @@ plugins:
             heading_level: 1
             show_root_heading: true
   - mkdocs-jupyter:
-      execute: True
-      include_source: True
+      execute: false
+      include_requirejs: true
+      include_source: true
       kernel_name: python3
   - search
 

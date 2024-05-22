@@ -4,9 +4,7 @@
 *.lcov
 tactics2d/data
 test/runtime
-tutorial/logs
-tutorial/imgs
-*/wandb/*
+**/wandb/*
 **/logs/*
 
 #  vscode

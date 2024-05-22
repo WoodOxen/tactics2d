@@ -441,3 +441,8 @@ class ParkingEnv(gym.Env):
                 [wall for wall in self.map_.areas.values() if wall.subtype != "target_area"]
             )
             self.status_checklist["completed"].reset(self.target_area)
+
+    def close(self):
+        """This function closes the environment."""
+        self.scenario_manager.render_manager.close()
+        super().close()

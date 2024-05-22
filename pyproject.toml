@@ -1,6 +1,6 @@
 [project]
 name = "tactics2d"
-version = "0.1.6"
+version = "0.1.7"
 description = "Tactics2D: A Reinforcement Learning Environment Library with Generative Scenarios for Driving Decision-making"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }
