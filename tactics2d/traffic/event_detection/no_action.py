@@ -31,7 +31,7 @@ class NoAction(EventBase):
         self.cnt_no_action = 0
         self.max_step = max_step
 
-    def update(self, agent_pose:Polygon) -> bool:
+    def update(self, agent_pose: Polygon) -> bool:
         """This function updates the no-action counter based on the given agent pose.
 
         Args:

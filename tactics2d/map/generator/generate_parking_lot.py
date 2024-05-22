@@ -125,9 +125,7 @@ class ParkingLotGenerator:
 
         return obstacle
 
-    def _get_left_wall(
-        self, id_: int, target_area: Area, dist_to_obstacle: np.ndarray
-    ) -> Area:
+    def _get_left_wall(self, id_: int, target_area: Area, dist_to_obstacle: np.ndarray) -> Area:
         _, top_left, bottom_left, bottom_right, _ = list(target_area.geometry.exterior.coords)
 
         wall_top_right = self._get_random_position(
@@ -152,9 +150,7 @@ class ParkingLotGenerator:
         obstacle = Area(id_="%04d" % id_, type_="obstacle", geometry=shape)
         return obstacle
 
-    def _get_right_wall(
-        self, id_: int, target_area: Area, dist_to_obstacle: np.ndarray
-    ) -> Area:
+    def _get_right_wall(self, id_: int, target_area: Area, dist_to_obstacle: np.ndarray) -> Area:
         top_right, top_left, _, bottom_right, _ = list(target_area.geometry.exterior.coords)
 
         wall_bottom_left = self._get_random_position(
@@ -274,17 +270,27 @@ class ParkingLotGenerator:
             back_wall = self._get_back_wall()
 
             # generate a wall / static vehicle as an obstacle on the left side of the target area
-            dist_to_obstacle = np.array((self._dist_to_obstacle[0] + 0.1, self._dist_to_obstacle[1]))
+            dist_to_obstacle = np.array(
+                (self._dist_to_obstacle[0] + 0.1, self._dist_to_obstacle[1])
+            )
             if np.random.uniform() < 0.2:
                 left_obstacle = self._get_left_wall(1, target_area, dist_to_obstacle)
             else:
                 left_obstacle = self._get_side_vehicle(1, dist_to_obstacle, True)
                 # generate other vehicle on left
-                next_vehicle_distance = self.vehicle_size[1] if self.mode == "bay" else self.vehicle_size[0]
-                parking_lot_num = self._n_parking_lots_bay if self.mode == "bay" else self._n_parking_lots_parallel
-                for i in range((parking_lot_num-3)//2): # 3 is the number of obstacles already generated
+                next_vehicle_distance = (
+                    self.vehicle_size[1] if self.mode == "bay" else self.vehicle_size[0]
+                )
+                parking_lot_num = (
+                    self._n_parking_lots_bay
+                    if self.mode == "bay"
+                    else self._n_parking_lots_parallel
+                )
+                for i in range(
+                    (parking_lot_num - 3) // 2
+                ):  # 3 is the number of obstacles already generated
                     dist_to_obstacle += next_vehicle_distance + self._dist_to_obstacle[0]
-                    left_obstacle_ = self._get_side_vehicle(2*i + 3, dist_to_obstacle, True)
+                    left_obstacle_ = self._get_side_vehicle(2 * i + 3, dist_to_obstacle, True)
                     obstacles.append(left_obstacle_)
 
             # generate a wall / static vehicle as an obstacle on the right side of the target area
@@ -305,11 +311,17 @@ class ParkingLotGenerator:
             else:
                 right_obstacle = self._get_side_vehicle(2, dist_to_obstacle, False)
                 # generate other vehicle on right
-                next_vehicle_distance = self.vehicle_size[1] if self.mode == "bay" else self.vehicle_size[0]
-                parking_lot_num = self._n_parking_lots_bay if self.mode == "bay" else self._n_parking_lots_parallel
-                for i in range((parking_lot_num-3)//2):
+                next_vehicle_distance = (
+                    self.vehicle_size[1] if self.mode == "bay" else self.vehicle_size[0]
+                )
+                parking_lot_num = (
+                    self._n_parking_lots_bay
+                    if self.mode == "bay"
+                    else self._n_parking_lots_parallel
+                )
+                for i in range((parking_lot_num - 3) // 2):
                     dist_to_obstacle += next_vehicle_distance + self._dist_to_obstacle[0]
-                    right_obstacle_ = self._get_side_vehicle(2*i + 4, dist_to_obstacle, False)
+                    right_obstacle_ = self._get_side_vehicle(2 * i + 4, dist_to_obstacle, False)
                     obstacles.append(right_obstacle_)
 
             dist_target_to_right = target_area.geometry.distance(right_obstacle.geometry)
