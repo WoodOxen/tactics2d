@@ -7,6 +7,7 @@
 
 
 from tactics2d.map.element import Area
+from shapely.geometry import Polygon
 
 from .event_base import EventBase
 
@@ -29,7 +30,7 @@ class Arrival(EventBase):
         self.target_area = target_area
         self.threshold = threshold
 
-    def update(self, agent_pose: Area):
+    def update(self, agent_pose: Polygon):
         """This function updates the status of the task completion.
 
         Args:

@@ -218,10 +218,7 @@ def trainer():
                 "continuous": True,
             },
             "critic_net": AgentCritic,
-            "critic_kwargs": {
-                "state_dim": 6400,
-                "hidden_size": 32,
-            },
+            "critic_kwargs": {"state_dim": 6400, "hidden_size": 32},
             "vf_coef": 1,
             "gae_lambda": 0.97,
             "adv_norm": False,

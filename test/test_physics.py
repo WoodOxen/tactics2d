@@ -395,14 +395,10 @@ def test_single_track_drift(interval, delta_t):
 
     for action, duration in VEHICLE_ACTION_LIST:
         for _ in np.arange(0, duration, interval):
-            (
-                state_constrained,
-                omega_wf,
-                omega_wr,
-                real_accel,
-                real_steer,
-            ) = physics_model_constrained.step(
-                state_constrained, omega_wf, omega_wr, action[0], action[1], interval
+            (state_constrained, omega_wf, omega_wr, real_accel, real_steer) = (
+                physics_model_constrained.step(
+                    state_constrained, omega_wf, omega_wr, action[0], action[1], interval
+                )
             )
             trajectory.append((state_constrained.x, state_constrained.y))
             if RENDER:

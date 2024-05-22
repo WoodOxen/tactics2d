@@ -184,15 +184,15 @@ class SingleLineLidar(SensorBase):
         # the false positive intersections on line L1(not on ray L1)
         lidar_line_x = (np.cos(theta) * self.perception_range).reshape(-1, 1)  # (point_density, 1)
         lidar_line_y = (np.sin(theta) * self.perception_range).reshape(-1, 1)
-        raw_x[raw_x > np.maximum(tmp_zero, lidar_line_x)] = tmp_inf
-        raw_x[raw_x < np.minimum(-tmp_zero, lidar_line_x)] = tmp_inf
-        raw_y[raw_y > np.maximum(tmp_zero, lidar_line_y)] = tmp_inf
-        raw_y[raw_y < np.minimum(-tmp_zero, lidar_line_y)] = tmp_inf
+        raw_x[raw_x > np.maximum(tmp_zero, lidar_line_x) + tmp_zero] = tmp_inf
+        raw_x[raw_x < np.minimum(-tmp_zero, lidar_line_x) - tmp_zero] = tmp_inf
+        raw_y[raw_y > np.maximum(tmp_zero, lidar_line_y) + tmp_zero] = tmp_inf
+        raw_y[raw_y < np.minimum(-tmp_zero, lidar_line_y) - tmp_zero] = tmp_inf
         # the false positive intersections on line L2(not on edge L2)
-        raw_x[raw_x > np.maximum(x1s, x2s)] = tmp_inf
-        raw_x[raw_x < np.minimum(x1s, x2s)] = tmp_inf
-        raw_y[raw_y > np.maximum(y1s, y2s)] = tmp_inf
-        raw_y[raw_y < np.minimum(y1s, y2s)] = tmp_inf
+        raw_x[raw_x > np.maximum(x1s, x2s) + tmp_zero] = tmp_inf
+        raw_x[raw_x < np.minimum(x1s, x2s) - tmp_zero] = tmp_inf
+        raw_y[raw_y > np.maximum(y1s, y2s) + tmp_zero] = tmp_inf
+        raw_y[raw_y < np.minimum(y1s, y2s) - tmp_zero] = tmp_inf
         # the (L1, L2) which are parallel
         raw_x[parallel_line_pos] = tmp_inf
 

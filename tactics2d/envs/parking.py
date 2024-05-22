@@ -29,7 +29,7 @@ from tactics2d.traffic.event_detection import (
     TimeExceed,
 )
 
-MAX_STEER = 0.75
+MAX_STEER = 0.524  # 0.75
 MAX_ACCEL = 2.0
 
 
@@ -141,6 +141,7 @@ class ParkingEnv(gym.Env):
             self.action_space = spaces.Discrete(5)
 
         self._max_iou = -np.inf
+        self._min_dist_to_target = np.inf
 
         self.scenario_manager = self._ParkingScenarioManager(
             type_proportion, self.max_step, 100, self.render_fps, self.render_mode != "human"
@@ -161,7 +162,7 @@ class ParkingEnv(gym.Env):
         elif scenario_status == ScenarioStatus.COMPLETED:
             reward = 5
         else:
-            time_penalty = -np.tanh(self.scenario_manager.cnt_step / self.max_step) * 0.1
+            time_penalty = -np.tanh(self.scenario_manager.cnt_step / self.max_step) * 0.001
             if self._max_iou == -np.inf:
                 iou_reward = iou if not iou is None else 0
             else:
@@ -169,6 +170,24 @@ class ParkingEnv(gym.Env):
 
             reward = time_penalty + iou_reward
             self._max_iou = max(self._max_iou, iou) if not iou is None else self._max_iou
+
+            curr_dist_to_target = np.linalg.norm(
+                np.array(
+                    [
+                        self.scenario_manager.agent.current_state.x,
+                        self.scenario_manager.agent.current_state.y,
+                    ]
+                )
+                - np.array(
+                    [
+                        self.scenario_manager.target_area.geometry.centroid.x,
+                        self.scenario_manager.target_area.geometry.centroid.y,
+                    ]
+                )
+            )
+            if curr_dist_to_target < self._min_dist_to_target:
+                reward += (self._min_dist_to_target - curr_dist_to_target) * 0.1
+                self._min_dist_to_target = curr_dist_to_target
 
         return reward
 
@@ -194,11 +213,9 @@ class ParkingEnv(gym.Env):
         state_infos["target_heading"] = self.scenario_manager.target_heading
         state_infos["traffic_status"] = traffic_status
         state_infos["scenario_status"] = scenario_status
-        (
-            state_infos["diff_position"],
-            state_infos["diff_angle"],
-            state_infos["diff_heading"],
-        ) = self._get_relative_pose(state)
+        (state_infos["diff_position"], state_infos["diff_angle"], state_infos["diff_heading"]) = (
+            self._get_relative_pose(state)
+        )
         return state_infos
 
     def step(self, action: Union[np.ndarray, int]):
@@ -235,10 +252,7 @@ class ParkingEnv(gym.Env):
         reward = self._get_reward(scenario_status, traffic_status, iou)
 
         infos = self._get_infos(
-            self.scenario_manager.agent.current_state,
-            observations,
-            scenario_status,
-            traffic_status,
+            self.scenario_manager.agent.current_state, observations, scenario_status, traffic_status
         )
 
         return observations[0], reward, terminated, truncated, infos
@@ -268,6 +282,20 @@ class ParkingEnv(gym.Env):
             ScenarioStatus.NORMAL,
             TrafficStatus.NORMAL,
         )
+        self._min_dist_to_target = np.linalg.norm(
+            np.array(
+                [
+                    self.scenario_manager.agent.current_state.x,
+                    self.scenario_manager.agent.current_state.y,
+                ]
+            )
+            - np.array(
+                [
+                    self.scenario_manager.target_area.geometry.centroid.x,
+                    self.scenario_manager.target_area.geometry.centroid.y,
+                ]
+            )
+        )
 
         return observations[0], infos
 
@@ -275,7 +303,7 @@ class ParkingEnv(gym.Env):
         _max_steer = MAX_STEER
         _max_accel = MAX_ACCEL
         _lidar_range = 20
-        _lidar_line = 120
+        _lidar_line = 360
         _window_size = (500, 500)
         _state_size = (200, 200)
 
@@ -295,7 +323,7 @@ class ParkingEnv(gym.Env):
                 lf=self.agent.length / 2 - self.agent.front_overhang,
                 lr=self.agent.length / 2 - self.agent.rear_overhang,
                 steer_range=(-self._max_steer, self._max_steer),
-                speed_range=self.agent.speed_range,
+                speed_range=(-0.5, 0.5),
                 accel_range=(-self._max_accel, self._max_accel),
                 interval=self.step_size,
             )
@@ -342,7 +370,7 @@ class ParkingEnv(gym.Env):
                 scenario_status = ScenarioStatus.TIME_EXCEEDED
                 return scenario_status, traffic_status, None
 
-            is_no_action = self.status_checklist["no_action"].update(action)
+            is_no_action = self.status_checklist["no_action"].update(agent_pose)
             if is_no_action:
                 traffic_status = ScenarioStatus.NO_ACTION
                 return scenario_status, traffic_status, None

@@ -7,6 +7,7 @@
 
 
 import numpy as np
+from shapely.geometry import Polygon
 
 from .event_base import EventBase
 
@@ -26,38 +27,30 @@ class NoAction(EventBase):
         Args:
             max_no_action (int, optional): The maximum tolerant time step for no action.
         """
-        self.last_action = None
+        self.last_pose = None
         self.cnt_no_action = 0
         self.max_step = max_step
 
-    def update(self, action) -> bool:
-        """This function updates the no-action counter based on the given action.
+    def update(self, agent_pose: Polygon) -> bool:
+        """This function updates the no-action counter based on the given agent pose.
 
         Args:
-            action (Union[int, float, np.ndarray]): The action of the agent.
+            agent_pose (Polygon): The current pose of the agent.
 
         Returns:
             If the no-action counter exceeds the maximum time step, return True; otherwise, return False.
         """
-        if isinstance(action, int) or isinstance(action, float):
-            if self.last_action is None:
-                self.last_action = action
-            elif np.abs(action) < 1e-5:
-                self.cnt_no_action += 1
-                self.last_action = action
-            else:
-                self.cnt_no_action = 0
-                self.last_action = action
+        if self.last_pose is None:
+            self.last_pose = agent_pose
         else:
-            action = np.array(action)
-            if self.last_action is None:
-                self.last_action = action
-            elif np.linalg.norm(action - self.last_action) < 1e-5:
+            intersection = agent_pose.intersection(self.last_pose)
+            union = agent_pose.union(self.last_pose)
+            iou = intersection.area / union.area
+            if iou > 0.999:
                 self.cnt_no_action += 1
-                self.last_action = action
             else:
                 self.cnt_no_action = 0
-                self.last_action = action
+            self.last_pose = agent_pose
 
         return self.cnt_no_action > self.max_step
 
