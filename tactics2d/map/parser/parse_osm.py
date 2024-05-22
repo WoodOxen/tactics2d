@@ -60,7 +60,6 @@ class OSMParser:
             "subtype",
             "color",
             "width",
-            "height",
             "location",
             "inferred_participants",
             "speed_limit",
