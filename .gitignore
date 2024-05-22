@@ -4,7 +4,6 @@
 *.lcov
 tactics2d/data
 test/runtime
-**/tutorial/data
 **/wandb/*
 **/logs/*
 
