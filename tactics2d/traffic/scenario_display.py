@@ -145,8 +145,8 @@ class ScenarioDisplay:
         """
         for area in map_.areas.values():
             area = Polygon(
-                area.geometry.exterior.coords,
-                True,
+                xy=area.geometry.exterior.coords,
+                closed=True,
                 facecolor=self._get_color(area),
                 edgecolor=None,
                 zorder=self._get_order(area),
@@ -155,8 +155,8 @@ class ScenarioDisplay:
 
         for lane in map_.lanes.values():
             lane = Polygon(
-                lane.geometry.coords,
-                True,
+                xy=lane.geometry.coords,
+                closed=True,
                 facecolor=self._get_color(lane),
                 edgecolor=None,
                 zorder=self._get_order(lane),
@@ -189,8 +189,8 @@ class ScenarioDisplay:
                 if participant.id_ not in self.participant_patches:
                     self.participant_patches[participant.id_] = ax.add_patch(
                         Polygon(
-                            participant.get_pose(frame).coords,
-                            True,
+                            xy=participant.get_pose(frame).coords,
+                            closed=True,
                             facecolor=self._get_color(participant),
                             edgecolor=None,
                             zorder=self._get_order(participant),
@@ -204,8 +204,8 @@ class ScenarioDisplay:
                 if participant.id_ not in self.participant_patches:
                     self.participant_patches[participant.id_] = ax.add_patch(
                         Polygon(
-                            participant.get_pose(frame).coords,
-                            True,
+                            xy=participant.get_pose(frame).coords,
+                            closed=True,
                             facecolor=self._get_color(participant),
                             edgecolor=None,
                             zorder=self._get_order(participant),

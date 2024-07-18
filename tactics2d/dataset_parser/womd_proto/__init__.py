@@ -5,6 +5,6 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from .pb2 import scenario_pb2 as scenario_pb2
+from .pb2 import scenario_pb2 as scenario_pbv2
 
-__all__ = ["scenario_pb2"]
+__all__ = ["scenario_pbv2"]
