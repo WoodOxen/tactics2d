@@ -71,12 +71,12 @@ def test_camera(follow_view: bool):
     img = Image.fromarray(observation)
     img = img.rotate(270)
 
-    if not os.path.exists("./test/runtime"):
-        os.makedirs("./test/runtime")
+    if not os.path.exists("./tests/runtime"):
+        os.makedirs("./tests/runtime")
     if follow_view:
-        img.save("./test/runtime/test_camera_follow_view.jpg")
+        img.save("./tests/runtime/test_camera_follow_view.jpg")
     else:
-        img.save("./test/runtime/test_camera.jpg")
+        img.save("./tests/runtime/test_camera.jpg")
 
 
 @pytest.mark.render
@@ -117,9 +117,9 @@ def test_lidar(perception_range):
     img = Image.fromarray(observation)
     img = img.rotate(270)
 
-    if not os.path.exists("./test/runtime"):
-        os.makedirs("./test/runtime")
-    img.save(f"./test/runtime/test_lidar_{int(perception_range)}.jpg")
+    if not os.path.exists("./tests/runtime"):
+        os.makedirs("./tests/runtime")
+    img.save(f"./tests/runtime/test_lidar_{int(perception_range)}.jpg")
 
 
 @pytest.mark.render

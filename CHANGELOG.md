@@ -6,6 +6,8 @@
 
 ### Changed
 
+- Move `test` to `tests` in the root directory.
+
 ### Fixed
 
 ### Deprecated
@@ -18,6 +20,7 @@
 - `tactics2d.dataset_parser.WOMDParser`: Identify the boundaries of a lane element.
 - `tactics2d.dataset_parser.womd_proto`: Add compatibility to protobuf 3.x.x and 4.x.x.
 - `tactics2d.map.parser.OSMParser`: Handle the tag `highway` in `load_way` for the original [OSM label style](https://wiki.openstreetmap.org/wiki/Key:lanes).
+- `tactics2d.dataset_parser`: Improve the efficiency.
 
 ## [0.1.7] - 2024-05-22
 
