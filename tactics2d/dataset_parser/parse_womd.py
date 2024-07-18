@@ -12,7 +12,11 @@ import numpy as np
 import tensorflow as tf
 from shapely.geometry import LineString, Point, Polygon
 
-from tactics2d.dataset_parser.womd_proto import scenario_pb2
+import protobuf
+if protobuf.__version__ <= "3.20.3":
+    from tactics2d.dataset_parser.womd_proto import scenario_pb as scenario_pb
+else:
+    from tactics2d.dataset_parser.womd_proto import scenario_pb3 as scenario_pb
 from tactics2d.map.element import Area, Lane, LaneRelationship, Map, Regulatory, RoadLine
 from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
@@ -59,7 +63,7 @@ class WOMDParser:
 
         for data in dataset:
             proto_string = data.numpy()
-            scenario = scenario_pb2.Scenario()
+            scenario = scenario_pb.Scenario()
             scenario.ParseFromString(proto_string)
             id_list.append(scenario.scenario_id)
 
@@ -115,7 +119,7 @@ class WOMDParser:
             cnt += 1
 
         proto_string = data.numpy()
-        scenario = scenario_pb2.Scenario()
+        scenario = scenario_pb.Scenario()
         scenario.ParseFromString(proto_string)
 
         timestamps = scenario.timestamps_seconds
@@ -307,7 +311,7 @@ class WOMDParser:
 
         for data in dataset:
             proto_string = data.numpy()
-            scenario = scenario_pb2.Scenario()
+            scenario = scenario_pb.Scenario()
             scenario.ParseFromString(proto_string)
 
             if scenario_id is None:
