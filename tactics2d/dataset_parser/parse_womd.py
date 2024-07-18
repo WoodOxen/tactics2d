@@ -12,11 +12,12 @@ import numpy as np
 import tensorflow as tf
 from shapely.geometry import LineString, Point, Polygon
 
-import protobuf
-if protobuf.__version__ <= "3.20.3":
-    from tactics2d.dataset_parser.womd_proto import scenario_pb as scenario_pb
+import google.protobuf
+if google.protobuf.__version__ <= "3.20.3":
+    from tactics2d.dataset_parser.womd_proto import pb2 as scenario_pb
 else:
-    from tactics2d.dataset_parser.womd_proto import scenario_pb3 as scenario_pb
+    from tactics2d.dataset_parser.womd_proto import pb3 as scenario_pb
+
 from tactics2d.map.element import Area, Lane, LaneRelationship, Map, Regulatory, RoadLine
 from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
