@@ -523,6 +523,8 @@ class XODRParser:
 
                 ref_line = center_line
                 for lane_node in lane_nodes:
+                    if type_node is None:
+                        continue
                     lane, ref_line = self.load_lane(ref_line, lane_node, type_node)
                     lanes.append(lane)
                     roadlines.append(ref_line)
@@ -533,6 +535,8 @@ class XODRParser:
                 )
                 ref_line = center_line
                 for lane_node in lane_nodes:
+                    if type_node is None:
+                        continue
                     lane, ref_line = self.load_lane(ref_line, lane_node, type_node)
                     lanes.append(lane)
                     roadlines.append(ref_line)
