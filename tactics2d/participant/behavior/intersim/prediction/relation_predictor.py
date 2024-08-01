@@ -17,28 +17,40 @@ from tqdm import tqdm
 
 from enum import IntEnum
 
-class TrajectoryType(IntEnum):
-    STATIONARY = 0
-    STRAIGHT = 1
-    STRAIGHT_LEFT = 2
-    STRAIGHT_RIGHT = 3
-    LEFT_U_TURN = 4
-    LEFT_TURN = 5
-    RIGHT_U_TURN = 6
-    RIGHT_TURN = 7
+# class TrajectoryType(IntEnum):
+#     STATIONARY = 0
+#     STRAIGHT = 1
+#     STRAIGHT_LEFT = 2
+#     STRAIGHT_RIGHT = 3
+#     LEFT_U_TURN = 4
+#     LEFT_TURN = 5
+#     RIGHT_U_TURN = 6
+#     RIGHT_TURN = 7
 
-class AgentType(IntEnum):
-    unset = 0
-    vehicle = 1
-    pedestrian = 2
-    cyclist = 3
-    other = 4
+# class AgentType(IntEnum):
+#     unset = 0
+#     vehicle = 1
+#     pedestrian = 2
+#     cyclist = 3
+#     other = 4
 
-    @staticmethod
-    def to_string(a: int):
-        return str(AgentType(a)).split('.')[1]
+#     @staticmethod
+#     def to_string(a: int):
+#         return str(AgentType(a)).split('.')[1]
 
 def get_normalized(polygons, x, y, angle):
+    """
+    This function normalizes a set of polygons by rotating and translating them based on the given parameters.
+
+    Args:
+        polygons (np.array): The polygons to normalize, expected to be a 3D numpy array of shape (N, M, 2).
+        x (float): The x-coordinate to translate by.
+        y (float): The y-coordinate to translate by.
+        angle (float): The angle in radians to rotate the polygons by.
+
+    Returns:
+        np.array: The normalized polygons.
+    """
     cos_ = math.cos(angle)
     sin_ = math.sin(angle)
     n = polygons.shape[1]
@@ -52,9 +64,28 @@ def get_normalized(polygons, x, y, angle):
             new_polygons[polygon_idx, i, 1] = polygons[polygon_idx, i, 0] * sin_ + polygons[polygon_idx, i, 1] * cos_
     return new_polygons
 
-
 def predict_reactor_for_onepair(target_reactor_id, all_agent_trajectories, track_type_int, time_offset, raw_data,
                                 history_frame_num, future_frame_num, objects_id, args, model, device, threshold=0.5):
+    """
+    This function predicts the reactor for a given pair of interacting agents.
+
+    Args:
+        target_reactor_id (int): The ID of the target reactor agent for prediction.
+        all_agent_trajectories (np.array): Trajectories of all agents in the scenario.
+        track_type_int (int): The type of track as an integer.
+        time_offset (int): Time offset for the prediction.
+        raw_data (dict): Raw data containing road and scenario information.
+        history_frame_num (int): The number of historical frames to consider.
+        future_frame_num (int): The number of future frames to predict.
+        objects_id (np.array): A list of object IDs.
+        args (Namespace): Configuration arguments for the prediction.
+        model (torch.nn.Module): The model to use for prediction.
+        device (torch.device): The device on which to perform the prediction.
+        threshold (float): The threshold for deciding the reaction type.
+
+    Returns:
+        list: A list of pairs [inf_id, reactor_id] where the reactor_id has been confirmed based on the prediction.
+    """
     start_time=time.time()
     mapping_to_return = []
     for i in range(0, objects_id.shape[0]):
@@ -92,7 +123,6 @@ def predict_reactor_for_onepair(target_reactor_id, all_agent_trajectories, track
         # labels是所有轨迹的xy坐标点
 
         image = np.zeros([224, 224, 60 + 90], dtype=np.int8)
-        args.image = image
 
         # create some dummies just to check if it works
         gt_future_is_valid = np.ones_like(all_agent_trajectories_this_batch)[:, :, 0]
@@ -106,11 +136,11 @@ def predict_reactor_for_onepair(target_reactor_id, all_agent_trajectories, track
         tracks_type = np.ones_like(all_agent_trajectories_this_batch)[:, 0, 0]
         # print("Tag relation before get agents")
         vectors, polyline_spans, trajs = utils_cython.get_agents(all_agent_trajectories_this_batch, gt_future_is_valid,
-                                                                 tracks_type, False, args, gt_reactor)
+                                                                 tracks_type, False, image, gt_reactor)
         # print("Tag relation after get agents")
         map_start_polyline_idx = len(polyline_spans)
         # print("Tag relation before get roads")
-        vectors_, polyline_spans_, goals_2D, lanes = utils_cython.get_roads(raw_data, normalizer, args)
+        vectors_, polyline_spans_, goals_2D, lanes = utils_cython.get_roads(raw_data, normalizer, image)
         # print("Tag relation after get roads")
         polyline_spans_ = polyline_spans_ + len(vectors)
         vectors = np.concatenate([vectors, vectors_])
@@ -141,7 +171,7 @@ def predict_reactor_for_onepair(target_reactor_id, all_agent_trajectories, track
             'inf_id': objects_id_this_batch[1],
             'all_agent_ids': objects_id_this_batch.copy(),
             # 'inf_label': inf_label,
-            'image': args.image
+            'image': image
         }
         # if eval_time < 80:
         #     mapping['final_idx'] = eval_time - 1
@@ -173,7 +203,37 @@ def predict_reactor_for_onepair(target_reactor_id, all_agent_trajectories, track
     return result_to_return
 
 class RelationPredictor:
+    """
+    RelationPredictor is a class designed to predict the relationships between agents within a traffic scenario.
+    It initializes with various settings and allows to load and use a neural network model for prediction.
+
+    Attributes:
+        data: A dictionary containing the current scenario data.
+        threshold (float): The decision threshold for the predictions.
+        model: The neural network model used for making predictions.
+        device: The computational device type for running predictions (e.g., 'cpu', 'cuda').
+        args: Namespace containing the arguments for prediction settings.
+        model_path: The file path to the model checkpoint for loading the model.
+        predict_device: The target device type for executing predictions.
+        max_prediction_num (int): The maximum number of predictions allowed.
+        rank: The rank of the current device in distributed training, if applicable.
+        prediction_data: Data used for predictions.
+        dataset: The dataset name being used ('Waymo' or 'NuPlan').
+        predicting_horizon (int): The time horizon for predictions.
+        predicting_lock: A flag indicating if predictions are locked (not to be modified).
+    """
+
     def __init__(self, **kwargs):
+        """
+        This function initializes the RelationPredictor with configurations provided as keyword arguments.
+
+        Args:
+            kwargs (dict): A dictionary of configuration parameters such as:
+                - time_horizon: The prediction time horizon.
+                - model: The neural network model to be used.
+                - model_path: The path to the model checkpoint.
+                - other_params: Additional custom parameters for the prediction, such as 'laneGCN-4' or 'raster'.
+        """
         self.data = None
         self.threshold = 0.5
         self.model = None
@@ -190,6 +250,22 @@ class RelationPredictor:
         self.predicting_lock = False
 
     def __call__(self, **kwargs):
+        """
+        Call the RelationPredictor instance to initialize the predictor and load the model for prediction.
+
+        Args:
+            kwargs (dict): A dictionary of parameters including:
+                - predict_device: The device used for prediction ('cpu', 'cuda', etc.).
+                - model: The neural network model instance for prediction.
+                - model_path: The dictionary containing paths to different model checkpoints.
+                - new_data: The new data to be used for the prediction.
+                - predictor_list: A list containing predictor information.
+                - use_prediction: A flag indicating whether to use the prediction data.
+                - time_horizon: The time horizon for the current prediction scenario.
+
+        Returns:
+            None
+        """
         # init predictor and load model
         if self.device is None:
             predict_device = kwargs['predict_device']
@@ -199,10 +275,6 @@ class RelationPredictor:
                 self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu", 0)
                 self.rank = 0
                 print(f"predicting relation with {self.device}")
-        if self.args is None:
-            utils.args = utils.Args
-            self.args = utils.args
-            assert 'laneGCN-4' in self.args.other_params and 'raster' in self.args.other_params, self.args.other_params
 
         if self.model is None:
             if 'model' in kwargs and kwargs['model'] is not None:
@@ -319,11 +391,17 @@ class RelationPredictor:
             self.data['predicting']['ego_id'] = [select, selected_agent_id]
 
     def load_model(self):
+        """
+        Loads the relation prediction model onto the specified device.
+
+        This method initializes the VectorNet model and recovers the model weights from the provided
+        checkpoint path. The model is then set to evaluation mode, preparing it for inference.
+        """
         print("Start loading relation prediction model")
         if self.rank is not None:
             # setup(self.rank, 512)
             torch.cuda.set_device(self.rank)
-        model = VectorNet(self.args).to(self.device)
+        model = VectorNet()
         model_recover_path = self.model_path
         model.eval()
         torch.no_grad()
@@ -340,8 +418,20 @@ class RelationPredictor:
         self.model = model
         print("Model loaded for relation prediction")
 
-
     def predict_one_time(self, current_data, each_pair, current_frame=0, predict_with_rules=True, clear_history=True):
+        """
+        Performs a single prediction for a given pair of agents.
+
+        Args:
+            current_data (dict): The current data containing information about the scene.
+            each_pair (tuple): A tuple of (ego_agent, target_agent).
+            current_frame (int): The current frame in the trajectory.
+            predict_with_rules (bool): A flag to indicate whether to use rule-based predictions.
+            clear_history (bool): A flag to indicate whether to clear the history of predictions.
+
+        Returns:
+            list: A list of tuples containing the predicted relationships.
+        """
         end_time=time.time()
         # 对给定的一对代理进行单次预测
         start_time=time.time()
@@ -530,7 +620,6 @@ class RelationPredictor:
             relationship_predicted += predicted_relationships
         # print(f'predicted backwards adding {predicted_relationships} to {relationship_predicted}')
         torch.cuda.empty_cache()
-        self.args.image = None
 
         self.predicting_lock = False
         if clear_history:
@@ -541,6 +630,15 @@ class RelationPredictor:
         print(f'predict_one_time_in{end_time-start_time}')
 
     def setting_goal_points(self, current_data):
+        """
+        This function sets the goal points for each agent in the current data.
+
+        Args:
+            current_data (dict): The current scene data containing information on agents and their trajectory.
+
+        This method iterates through the list of agents, retrieves their goal points, and stores them in the 
+        'predicting' dictionary of the scenario data. It also flags whether each agent should follow the goal point.
+        """
         start_time=time.time()
         # select one ego vehicle
         agent_dic = current_data['agent']
@@ -557,7 +655,21 @@ class RelationPredictor:
         end_time=time.time()
         print(f'setting_goal_points_in{end_time-start_time}')
 
-    def get_goal(self, current_data, agent_id, dataset='Waymo') -> List:
+    def get_goal(self, current_data, agent_id, dataset='Waymo'):
+        """
+        This function determines the goal point for an agent based on the dataset.
+
+        Args:
+            current_data (dict): The current scene data containing agent trajectories.
+            agent_id (int or str): The identifier for the agent whose goal is being determined.
+            dataset (str): The dataset being used, can be 'Waymo' or 'NuPlan'.
+
+        Returns:
+            list: A list containing the [goal_point, yaw], where goal_point is a [x, y] coordinate.
+        
+        This function serves to find the last valid position in agent trajectory to use as a goal point. 
+        The behavior differs based on the dataset, following the inherent structure and information available in each.
+        """
         # get last valid point as the goal point
         # agent_dic = current_data['agent'][agent_id]
         agent_dic = current_data['predicting']['original_trajectory'][agent_id]

@@ -6,7 +6,7 @@ import random
 import time
 
 from plan.env_planner import EnvPlanner, Agent, SudoInterpolator
-import interactive_sim.envs.util as utils
+import envs.util as utils
 import plan.utils as plan_helper
 
 
@@ -42,51 +42,97 @@ class BasePlanner(EnvPlanner):
     The BasePlanner is used to control the ego agent only.
     The BasePlanner is derived from the EnvPlanner, change predefined functions to build/test your own planner.
     """
-    def plan_marginal_trajectories(self, current_state, current_frame_idx, ego_agent_id, my_current_pose, my_current_v_per_step):
-        current_state['agent'][ego_agent_id]['action'] = 'follow'
-        if my_current_v_per_step > 1 * self.frame_rate:
-            my_current_v_per_step = 0.1 * self.frame_rate
-        elif my_current_v_per_step < 0.001 * self.frame_rate:
-            my_current_v_per_step = 0
 
+    def plan_marginal_trajectories(self, current_state, current_frame_idx, ego_agent_id, my_current_pose, my_current_v_per_step):
+        """
+        This function plans marginal trajectories for the ego agent based on the current state and frame index.
+        
+        Args:
+            current_state (dict): The current state of the scene or simulation.
+            current_frame_idx (int): The current frame index in the scenario.
+            ego_agent_id (str): The identifier for the ego agent.
+            my_current_pose (tuple): The current pose of the ego agent, as a tuple (x, y, yaw).
+            my_current_v_per_step (float): The current velocity of the ego agent in units per step.
+
+        Returns:
+            tuple: A tuple containing the list of interpolators, the list of interpolated marginal trajectories, 
+                and the current routes for the ego agent.
+        """
+        # Set the action for the ego agent to 'follow'.
+        current_state['agent'][ego_agent_id]['action'] = 'follow'
+        
+        # Clamp the current velocity per step to a maximum and minimum frame rate multiplier.
+        my_current_v_per_step = min(max(my_current_v_per_step, 0), 0.1) * self.frame_rate
+
+        # Optional: Print execution time, if the PRINT_TIMER flag is true.
         if PRINT_TIMER:
             last_tic = time.perf_counter()
 
+        # Get current routes for the ego agent, or use an empty list if none are found.
         current_routes = current_state['predicting']['route'][ego_agent_id] if \
             ego_agent_id in current_state['predicting']['route'] else []
-        my_trajs, current_routes = self.get_reroute_traj(current_state=current_state,
-                                                         agent_id=ego_agent_id,
-                                                         current_frame_idx=current_frame_idx,
-                                                         dynamic_turnings=True,
-                                                         current_route=current_routes,
-                                                         is_ego=True)
+
+        # Get rerouted trajectories and update current routes for the ego agent.
+        my_trajs, current_routes = self.get_reroute_traj(
+            current_state=current_state,
+            agent_id=ego_agent_id,
+            current_frame_idx=current_frame_idx,
+            dynamic_turnings=True,
+            current_route=current_routes,
+            is_ego=True
+        )
+
+        # Store the updated routes in the current state.
         if ego_agent_id not in current_state['predicting']['route']:
             current_state['predicting']['route'][ego_agent_id] = current_routes
-            # draw goal point
+
+            # Record the goal point for marking.
             goal_pt, goal_yaw = self.online_predictor.data['predicting']['goal_pts'][ego_agent_id]
             current_state['predicting']['mark_pts'] = [goal_pt]
 
+        # Diagnostic print to check if the agent is off-road.
         if not self.current_on_road:
             print("TEST OFF ROAD!!!!!!!!")
 
+        # Optional: Print execution time for ego agent rerouting.
         if PRINT_TIMER:
             print(f"Time spent on ego reroute:  {time.perf_counter() - last_tic:04f}s")
             last_tic = time.perf_counter()
 
+        # Create a list of interpolators and interpolated marginal trajectories for the ego agent.
         my_interpolators = []
         my_interpolated_marginal_trajectories = []
         for my_traj in my_trajs:
             my_interpolator = SudoInterpolator(my_traj.copy(), my_current_pose)
-            my_interpolated_trajectory = self.get_trajectory_from_interpolator(my_interpolator=my_interpolator,
-                                                                               my_current_speed=my_current_v_per_step,
-                                                                               agent_id=ego_agent_id)
-            my_traj = my_interpolated_trajectory[:, :2]
-            my_interpolator = SudoInterpolator(my_traj.copy(), my_current_pose)
+            my_interpolated_trajectory = self.get_trajectory_from_interpolator(
+                my_interpolator=my_interpolator,
+                my_current_speed=my_current_v_per_step,
+                agent_id=ego_agent_id
+            )
+            my_traj = my_interpolated_trajectory[:, :2]  # Preserve only the (x, y) coordinates.
             my_interpolators.append(my_interpolator)
             my_interpolated_marginal_trajectories.append(my_interpolated_trajectory)
+
+        # Return the prepared interpolators, trajectories, and routes for the ego agent.
         return my_interpolators, my_interpolated_marginal_trajectories, current_routes
 
     def make_predictions(self, current_state, current_frame_idx, ego_agent_id):
+        """
+        This function generates predictions for other agents in the scene and differentiates them into prior and varying groups
+        based on velocity and type.
+
+        Args:
+            current_state (dict): The current state of the simulation or scene.
+            current_frame_idx (int): The index of the current frame.
+            ego_agent_id (str): The identifier for the ego agent.
+
+        Returns:
+            tuple: Four lists containing:
+                - other_agent_traj: Trajectories of other non-ego agents predicted with standard velocity.
+                - other_agent_ids: Identifiers of the other agents with standard trajectories.
+                - prior_agent_traj: Trajectories with constant velocity or indicating parking positions.
+                - prior_agent_ids: Identifiers of the agents predicted to have constant velocity or parking.
+        """
         other_agent_traj = []
         other_agent_ids = []
         # prior for ped and cyclist
@@ -236,6 +282,16 @@ class BasePlanner(EnvPlanner):
         return  other_agent_traj, other_agent_ids, prior_agent_traj, prior_agent_ids
 
     def plan_ego(self, current_state, current_frame_idx):
+        """
+        This function plans the ego agent's behavior based on the current state and frame index.
+
+        Args:
+            current_state (dict): The current state of the traffic scenario or simulation.
+            current_frame_idx (int): The current frame index within the scenario.
+
+        Returns:
+            dict: The updated state of the planning system, including the results of the planning.
+        """
         current_state['predicting']['emergency_stopping'] = False
         if self.is_planning(current_frame_idx) and current_state is not None:
             # load scenario data
@@ -534,7 +590,7 @@ class BasePlanner(EnvPlanner):
                                     self.online_predictor.predict_one_time(each_pair=[ego_agent_id, target_agent_id],
                                                                                 current_frame=current_frame_idx,
                                                                                 clear_history=True,
-                                                                                with_rules=self.predict_with_rules,
+                                                                                predict_with_rules=self.predict_with_rules,
                                                                                 current_data=current_state)
                                     detected_relation = self.online_predictor.data['predicting']['relation']
                                     predict_time = time.perf_counter() - predict_tic

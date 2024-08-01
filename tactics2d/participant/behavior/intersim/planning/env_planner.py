@@ -5,7 +5,7 @@ import copy
 import random
 import time
 
-import interactive_sim.envs.util as utils
+import envs.util as utils
 import plan.utils as plan_helper
 from agents.car import Agent
 
@@ -42,6 +42,18 @@ class EnvPlanner:
     """
 
     def __init__(self, env_config, predictor, dataset='Waymo', map_api=None):
+        """
+        This function initializes the planner with the required configurations and components.
+
+        Args:
+            env_config: A configuration object that contains environment-specific settings.
+            predictor: The predictor component used for forecasting the behavior of agents.
+            dataset (str, optional): The name of the dataset being used ('Waymo' by default).
+            map_api (optional): An API for map-related functionalities.
+
+        Attributes:
+            (Various self attributes are initialized based on env_config and other parameters.)
+        """
         self.planning_from = env_config.env.planning_from
         self.planning_interval = env_config.env.planning_interval
         self.planning_horizon = env_config.env.planning_horizon
@@ -72,6 +84,17 @@ class EnvPlanner:
         self.past_lanes = {}
 
     def reset(self, *args, **kwargs):
+        """
+        This function resets the planner's state and reset the online predictor with new data.
+
+        Args:
+            args: Additional positional arguments, if needed.
+            kwargs: Keyword arguments including 'new_data', 'model_path', 'time_horizon', 'predict_device', and 'ego_planner'.
+
+        Notes:
+            - The time taken for resetting the predictor is measured and printed.
+            - The 'current_on_road' flag is set to True, indicating the ego agent is on the road.
+        """
         time1 = time.perf_counter()
         self.online_predictor(new_data=kwargs['new_data'], model_path=kwargs['model_path'],
                               time_horizon=kwargs['time_horizon'], predict_device=kwargs['predict_device'],
@@ -84,6 +107,15 @@ class EnvPlanner:
         # self.data = self.online_predictor.data
 
     def is_planning(self, current_frame_idx):
+        """
+        This function checks if the current frame index is within the planning window and meets the planning conditions.
+
+        Args:
+            current_frame_idx (int): The current frame index to evaluate for planning.
+
+        Returns:
+            bool: True if the current frame index is suitable for planning; False otherwise.
+        """
         self.scenario_frame_number = current_frame_idx
         frame_diff = self.scenario_frame_number - self.planning_from
         if frame_diff >= 0 and frame_diff % self.planning_interval == 0:
@@ -91,6 +123,15 @@ class EnvPlanner:
         return False
 
     def is_first_planning(self, current_frame_idx):
+        """
+        This function checks if it's the very first planning frame.
+
+        Args:
+            current_frame_idx (int): The current frame index to evaluate.
+
+        Returns:
+            bool: True if this is the first planning frame; False otherwise.
+        """
         self.scenario_frame_number = current_frame_idx
         frame_diff = self.scenario_frame_number - self.planning_from
         if frame_diff >= 0 and frame_diff == 0: # frame_diff % self.planning_interval == 0:
@@ -98,6 +139,19 @@ class EnvPlanner:
         return False
 
     def collision_based_relevant_detection(self, current_frame_idx, current_state, predict_ego=True):
+        """
+        This function detects relevant agents based on potential collisions for planning purposes.
+
+        Args:
+            current_frame_idx (int): The index of the current frame in the scenario.
+            current_state (dict): A dictionary containing the state of the current scenario.
+            predict_ego (bool, optional): A flag to indicate whether to predict ego agent collisions. Defaults to True.
+
+        Yields:
+            A list of colliding agent pairs that are relevant for the prediction.
+
+        Modifies current_state to record the updated relevant agents and their colliding pairs.
+        """
         ego_agent = current_state['predicting']['ego_id'][1]
         # print("before: ", current_state['predicting']['relevant_agents'], bool(current_state['predicting']['relevant_agents']))
         if not current_state['predicting']['relevant_agents']:
@@ -190,12 +244,30 @@ class EnvPlanner:
         # print(f"Collision based relevant agent detected finished: \n{relevant_agents} \n{colliding_pairs}")
 
     def clear_markers_per_step(self, current_state, current_frame_idx):
+        """
+        Clears markers for each step if planning is to be performed at the current frame index.
+
+        Args:
+            current_state (dict): The current state of the prediction environment.
+            current_frame_idx (int): The current frame index to evaluate for planning requirements.
+        """
         if self.is_planning(current_frame_idx):
             current_state['predicting']['relation'] = []
             current_state['predicting']['points_to_mark'] = []
             current_state['predicting']['trajectory_to_mark'] = []
 
     def get_prediction_trajectories(self, current_frame_idx, current_state=None, time_horizon=80):
+        """
+        Retrieves prediction trajectories based on the current state and planning conditions.
+
+        Args:
+            current_frame_idx (int): The index of the current frame to evaluate.
+            current_state (dict, optional): The current state dictionary; defaults to None.
+            time_horizon (int, optional): The prediction time horizon in frames; defaults to 80.
+
+        Returns:
+            bool: True if planning is performed, False otherwise.
+        """
         if self.is_planning(current_frame_idx):
             frame_diff = self.scenario_frame_number - self.planning_from
             self.collision_based_relevant_detection(current_frame_idx, current_state)
@@ -216,10 +288,20 @@ class EnvPlanner:
                         valid_lane_types=[1, 2],
                         excluded_lanes=[]):
         """
-        :param current_state: extract lanes from it
-        :param my_current_pose: current pose for searching
-        :param selected_lanes: only search lanes in this list and ignore others
-        :param include_unparallel: return lanes without yaw difference checking
+        Finds the closest lane to the current pose of an agent from the provided state.
+
+        Args:
+            current_state (dict): The current state of the road and agents.
+            agent_id (int, optional): The identifier of the agent; defaults to None.
+            my_current_pose (list, optional): The current pose [x, y, yaw] of the agent; defaults to None.
+            my_current_v_per_step (float, optional): The current speed of the agent; defaults to None.
+            include_unparallel (bool, optional): Whether to include lanes regardless of yaw difference.
+            selected_lanes (list, optional): A list of lanes to consider; other lanes are ignored.
+            valid_lane_types (list, optional): A list of valid lane types to search within.
+            excluded_lanes (list, optional): A list of lanes to be excluded from the search.
+
+        Returns:
+            tuple: A tuple containing the closest lane, the index of the closest point on that lane, and the distance to the lane.
         """
         # find a closest lane for a state
         closest_dist = 999999
@@ -295,9 +377,19 @@ class EnvPlanner:
     def get_reroute_traj(self, current_state, agent_id, current_frame_idx,
                          follow_org_route=False, dynamic_turnings=True, current_route=[], is_ego=False):
         """
-        return a marginal planned trajectory with a simple lane follower
-        for NuPlan, use route_roadbloacks. a list of road bloacks
-        for Waymo, use route, a list of lane_ids, and prior, a list of lane_ids detected from the original gt trajectories
+        This function generates a marginal planned trajectory using a simple lane follower algorithm.
+
+        Args:
+            current_state (dict): The current state of the simulation environment.
+            agent_id (int): The unique identifier for the agent.
+            current_frame_idx (int): The index of the current frame.
+            follow_org_route (bool): Flag to follow the original route.
+            dynamic_turnings (bool): Flag to consider dynamic turnings in the route.
+            current_route (list): The current route being used, specified as a list of lane IDs.
+            is_ego (bool): Flag to indicate if the agent is the ego (main) agent.
+
+        Returns:
+            tuple: A tuple containing the generated trajectory and the route used.
         """
         assert self.routed_traj is not None, self.routed_traj
         # generate a trajectory based on the route
@@ -881,6 +973,19 @@ class EnvPlanner:
             return self.routed_traj[agent_id], current_route
 
     def adjust_speed_for_collision(self, interpolator, distance_to_end, current_v, end_point_v, reschedule_speed_profile=False):
+        """
+        Adjusts the agent's speed to avoid a potential collision by applying constant deceleration.
+
+        Args:
+            interpolator: The interpolator instance used for generating trajectory points.
+            distance_to_end (float): The distance to the end of the trajectory or collision point.
+            current_v (float): The current speed of the agent.
+            end_point_v (float): The desired speed at the collision point.
+            reschedule_speed_profile (bool, optional): Flag to reschedule the speed profile; defaults to False.
+
+        Returns:
+            np.array: A numpy array containing the adjusted trajectory points.
+        """
         # constant deceleration
         time_to_collision = min(self.planning_horizon, distance_to_end / (current_v + end_point_v + 0.0001) * 2)
         time_to_decelerate = abs(current_v - end_point_v) / (0.1/self.frame_rate)
@@ -941,6 +1046,17 @@ class EnvPlanner:
 
     def get_traffic_light_collision_pts(self, current_state, current_frame_idx,
                                         continue_time_threshold=5):
+        """
+        Identifies collision points at traffic lights based on the current state and frame index.
+
+        Args:
+            current_state (dict): The current state of the traffic environment.
+            current_frame_idx (int): The index of the current frame.
+            continue_time_threshold (int, optional): The time threshold for continuous traffic light states.
+
+        Returns:
+            list: A list of end points for traffic light collision checks, useful for planning routes.
+        """
         tl_dics = current_state['traffic_light']
         road_dics = current_state['road']
         traffic_light_ending_pts = []
@@ -988,6 +1104,24 @@ class EnvPlanner:
                                          check_turning_dynamics=True, desired_speed=7,
                                          emergency_stop=False, hold_still=False,
                                          agent_id=None, a_scale_turning=0.7, a_scale_not_turning=0.9):
+        """
+        Generates a trajectory based on the interpolator and dynamic speed adjustments for turns.
+
+        Args:
+            my_interpolator: The interpolator instance for trajectory generation.
+            my_current_speed (float): The current speed of the agent.
+            a_per_step (float, optional): The acceleration or deceleration step value.
+            check_turning_dynamics (bool, optional): Flag to check for turning dynamics.
+            desired_speed (float, optional): The desired speed for the agent.
+            emergency_stop (bool, optional): Flag to indicate an emergency stop situation.
+            hold_still (bool, optional): Flag to hold the agent in place.
+            agent_id (int, optional): The identifier for the agent, used for specific checks.
+            a_scale_turning (float, optional): The acceleration scale factor for turning scenarios.
+            a_scale_not_turning (float, optional): The acceleration scale factor for non-turning scenarios.
+
+        Returns:
+            np.array: A numpy array containing the generated trajectory.
+        """
         total_frames = self.planning_horizon
         total_pts_in_interpolator = my_interpolator.trajectory.shape[0]
         trajectory = np.ones((total_frames, 4)) * -1
@@ -1062,10 +1196,18 @@ class EnvPlanner:
     def update_env_trajectory_reguild(self, current_frame_idx, relevant_only=True,
                                       current_state=None, plan_for_ego=False, dynamic_env=True):
         """
-        plan and update trajectory to commit for relevant environment agents
-        current_frame_idx: 1,2,3,...,11(first frame to plan)
-        """
+        This function plans and updates trajectory to commit for relevant environment agents
 
+        Args:
+            current_frame_idx (int): The starting frame index for planning trajectories(1,2,3,...,11(first frame to plan)).
+            relevant_only (bool, optional): When set to True, only plan for relevant agents.
+            current_state (dict): The current state of the simulation environment.
+            plan_for_ego (bool, optional): Flag indicating whether to plan for the ego vehicle.
+            dynamic_env (bool, optional): Indicates if the environment is dynamic.
+
+        Returns:
+            dict: The updated current state with planned and adjusted trajectories for agents.
+        """
         if not dynamic_env:
             return current_state
 
@@ -1366,6 +1508,19 @@ class EnvPlanner:
         return current_state
 
     def trajectory_from_cubic_BC(self, p1, p2, p3, p4, v):
+        """
+        Generates a trajectory based on a cubic Bezier curve with given control points and a target speed.
+
+        Args:
+            p1 (list): The starting point of the curve [x1, y1].
+            p2 (list): The first control point [x2, y2].
+            p3 (list): The second control point [x3, y3].
+            p4 (list): The ending point of the curve [x4, y4].
+            v (float): The target speed (in m/s) for generating the trajectory.
+
+        Returns:
+            np.array: A numpy array containing the generated trajectory points.
+        """
         # form a Bezier Curve
         total_dist = utils.euclidean_distance(p4, p1)
         total_t = min(93, int(total_dist/max(1, v)))
@@ -1386,6 +1541,16 @@ class EnvPlanner:
         return np.array(traj_to_return, ndmin=2)
 
     def assert_traj(self, traj):
+        """
+        Validates the smoothness of the trajectory by checking the distance between consecutive points.
+
+        Args:
+            traj (np.array): The trajectory to validate in the form of a numpy array.
+
+        Returns:
+            int: Returns -1 if the trajectory is smooth throughout or the index of the point where a 
+            significant jump occurred, indicating a potential issue with the trajectory.
+        """
         total_time, _ = traj.shape
         if total_time < 30:
             return -1
@@ -1402,11 +1567,33 @@ class EnvPlanner:
         return -1
 
 class SudoInterpolator:
+    """
+    A class used for interpolating trajectories within a given framework, allowing the calculation of positions
+    along a trajectory at specified distances.
+    """
     def __init__(self, trajectory, current_pose):
+        """
+        This function initializes the SudoInterpolator with a trajectory and a current pose.
+
+        Args:
+            trajectory (array-like): The trajectory data points to interpolate.
+            current_pose (array-like): The current pose of the agent, typically [x, y, z, yaw].
+        """
         self.trajectory = trajectory
         self.current_pose = current_pose
 
     def interpolate(self, distance: float, starting_from=None, debug=False):
+        """
+        This function interpolates the trajectory to find the pose at a specified distance from the current pose.
+
+        Args:
+            distance (float): The distance along the trajectory to find the corresponding pose.
+            starting_from (int, optional): The index to start interpolation from; defaults to None, indicating no implementation yet.
+            debug (bool, optional): Flag to enable debug mode for detailed logging.
+
+        Returns:
+            list: The pose [x, y, z, yaw] vector at the specified distance along the trajectory.
+        """
         if starting_from is not None:
             assert False, 'not implemented'
         else:
@@ -1446,12 +1633,33 @@ class SudoInterpolator:
             # return self.get_state_from_poses(pose1, pose2, 0, 0.001)
 
     def get_state_from_poses(self, pose1, pose2, mul, divider):
+        """
+        This function calculates the intermediate state between two poses based on a multiplier and divider.
+
+        Args:
+            pose1 (list): The first pose [x, y, z, yaw].
+            pose2 (list): The second pose [x, y, z, yaw].
+            mul (float): The multiplier to adjust the position between the two poses.
+            divider (float): The divisor used in the multiplication to calculate the intermediate position.
+
+        Returns:
+            list: The calculated intermediate state [x, y, z, yaw].
+        """
         x = (pose2[0] - pose1[0]) * mul / (divider + 0.0001) + pose1[0]
         y = (pose2[1] - pose1[1]) * mul / (divider + 0.0001) + pose1[1]
         yaw = utils.normalize_angle(plan_helper.get_angle_of_a_line(pt1=pose1, pt2=pose2))
         return [x, y, 0, yaw]
 
     def get_distance_with_index(self, index: int):
+        """
+        This function calculates the cumulative distance up to a given index in the trajectory.
+
+        Args:
+            index (int): The index in the trajectory up to which the cumulative distance is calculated.
+
+        Returns:
+            float: The cumulative distance up to the specified index.
+        """
         distance = 0
         if index != 0:
             pose = self.trajectory.copy()
@@ -1469,6 +1677,15 @@ class SudoInterpolator:
         return distance
 
     def get_speed_with_index(self, index: int):
+        """
+        This function gets the speed at a specific index in the trajectory based on the distance between consecutive points.
+
+        Args:
+            index (int): The index in the trajectory at which the speed is calculated.
+
+        Returns:
+            float or None: The speed at the specified index or None if the index is 0.
+        """
         if index != 0:
             p_t = self.trajectory[index, :2]
             p_t1 = self.trajectory[index - 1, :2]

@@ -83,8 +83,8 @@ cdef int get_rand_int(int l, int r):
 
 args = None
 
-# def _get_roads(xyzs, vector_dirs, types, road_ids, normalizer, args):
-def _get_roads(decoded_example, normalizer, args):
+# def _get_roads(xyzs, vector_dirs, types, road_ids, normalizer, image):
+def _get_roads(decoded_example, normalizer, image):
     cdef:
         np.float32_t x = normalizer.x, y = normalizer.y, yaw = normalizer.yaw
         np.float32_t cos_ = cos(yaw), sin_ = sin(yaw)
@@ -122,25 +122,19 @@ def _get_roads(decoded_example, normalizer, args):
 
         # raster
         int do_raster = 0
-        np.ndarray[np.int8_t, ndim=3] image
         int x_int, y_int, raster_scale = 1
         float x_float, y_float
 
         # early_fuse
         int do_early_fuse = 0
 
-
-    # if 'raster' in args.other_params:
     if True:
         do_raster = 1
-        image = args.image
-        # raster_scale = args.other_params['raster_scale']
     for i in range(num_points):
         xyz[i, 0] -= x
         xyz[i, 1] -= y
         xyz[i, 0], xyz[i, 1] = xyz[i, 0] * cos_ - xyz[i, 1] * sin_, xyz[i, 0] * sin_ + xyz[i, 1] * cos_
 
-    # cdef int use_lane_point = args.agent_type != 'pedestrian'
     cdef int use_lane_point = 1
 
     for i in range(num_points):
@@ -169,7 +163,6 @@ def _get_roads(decoded_example, normalizer, args):
         int length, stride, start, cur, t, c
         np.float32_t t_float, scale = 1.0, t2_float
 
-    # if 'raster' in args.other_params:
     if True:
         goals_2D_len = 0
         i = 0
@@ -195,7 +188,6 @@ def _get_roads(decoded_example, normalizer, args):
     lanes = []
 
     stride = 5
-    # if 'stride_10_2' in args.other_params:
     if True:
         stride = 10
         scale = 0.03
@@ -264,9 +256,9 @@ def _get_roads(decoded_example, normalizer, args):
 
     return vectors, polyline_spans, len_vectors, polyline_num, goals_2D, goals_2D_len, lanes
 
-def get_roads(road_raw, normalizer, args):
+def get_roads(road_raw, normalizer, image):
     vectors, polyline_spans, len_vectors, polyline_num, goals_2D, goals_2D_len, lanes = \
-        _get_roads(road_raw, normalizer, args)
+        _get_roads(road_raw, normalizer, image)
     return vectors[:len_vectors].copy(), polyline_spans[:polyline_num].copy(), goals_2D[:goals_2D_len].copy(), lanes
 
 cdef int _raster_float_to_int(float a, int is_y, float scale):
@@ -293,7 +285,7 @@ cdef float _raster_int_to_float(int a, int is_y, float scale):
 def raster_int_to_float(a, is_y, scale):
     return _raster_int_to_float(a, is_y, scale)
 
-def _get_agents(gt_trajectory_, gt_future_is_valid_, tracks_type_, visualize, args, gt_influencer_traj_, prediction_scores_):
+def _get_agents(gt_trajectory_, gt_future_is_valid_, tracks_type_, visualize, image, gt_influencer_traj_, prediction_scores_):
     cdef:
         int i, j, k, this_id, now, lst, len_vectors = 0, max_point_num = 2500, polyline_num = 0, agent_num = gt_trajectory_.shape[0]
         int history_frame_num = 11, max_vector_num = 10000
@@ -319,19 +311,14 @@ def _get_agents(gt_trajectory_, gt_future_is_valid_, tracks_type_, visualize, ar
 
         # raster
         int do_raster = 0
-        np.ndarray[np.int8_t, ndim=3] image
         int x, y, raster_scale = 1
 
         int do_early_fuse = 0
 
     trajs = []
 
-    # if 'raster' in args.other_params:
     if True:
-        # assert 'interactive' not in args.other_params
         do_raster = 1
-        image = args.image
-        # raster_scale = args.other_params['raster_scale']
 
     for i in range(agent_num):
         start = len_vectors
@@ -362,20 +349,6 @@ def _get_agents(gt_trajectory_, gt_future_is_valid_, tracks_type_, visualize, ar
                             image[x, y, j] = 1
                         else:
                             image[x, y, j + 20] = 1
-
-        # if i == 0:
-        #     if gt_influencer_traj_ is not None:
-        #         # add a new influencer info
-        #         # has one pred(on eval)/gt(on training)
-        #         assert len(gt_influencer_traj_.shape) == 2, gt_influencer_traj_.shape
-        #         time_frames, _ = gt_influencer_traj_[history_frame_num:, :].shape
-        #         for j in range(time_frames):
-        #             current_time_frame = j + history_frame_num
-        #             # if args.do_eval or gt_future_is_valid[i, current_time_frame]:
-        #             x = _raster_float_to_int(gt_influencer_traj_[current_time_frame, 0], 0, raster_scale)
-        #             y = _raster_float_to_int(gt_influencer_traj_[current_time_frame, 1], 1, raster_scale)
-        #             if _in_image(x, y):
-        #                 image[x, y, j + 60] = 1
 
         # history_frame_num = 11
         for j in range(history_frame_num - 1):
@@ -424,8 +397,8 @@ def _get_agents(gt_trajectory_, gt_future_is_valid_, tracks_type_, visualize, ar
 
     return vectors, polyline_spans, len_vectors, polyline_num, trajs
 
-def get_agents(gt_trajectory, gt_future_is_valid, tracks_type, visualize, args, gt_influencer_traj=None, prediction_scores=None):
-    vectors, polyline_spans, len_vectors, polyline_num, trajs = _get_agents(gt_trajectory, gt_future_is_valid, tracks_type, visualize, args, gt_influencer_traj, prediction_scores)
+def get_agents(gt_trajectory, gt_future_is_valid, tracks_type, visualize, image, gt_influencer_traj=None, prediction_scores=None):
+    vectors, polyline_spans, len_vectors, polyline_num, trajs = _get_agents(gt_trajectory, gt_future_is_valid, tracks_type, visualize, image, gt_influencer_traj, prediction_scores)
     return vectors[:len_vectors].copy(), polyline_spans[:polyline_num].copy(), trajs
 
 def _get_normalized(np.ndarray[np.float32_t, ndim=3] polygons, np.float32_t x, np.float32_t y, np.float32_t angle):
@@ -591,7 +564,7 @@ def _classify_track(np.ndarray[int, ndim=1] gt_future_is_valid, np.ndarray[np.fl
 
 def _tnt_square_filter(np.ndarray[np.float32_t, ndim=2] goals_2D,
                        np.ndarray[np.float32_t, ndim=1] scores,
-                       args):
+                       image):
     cdef:
         int n = goals_2D.shape[0]
         int i, j, width = 100, x, y, m = 0
