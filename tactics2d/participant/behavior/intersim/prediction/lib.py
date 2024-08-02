@@ -1,11 +1,10 @@
 import math
 
 import numpy as np
+import prediction.utils as utils
 import torch
 import torch.nn.functional as F
-from torch import nn, Tensor
-
-import prediction.utils as utils
+from torch import Tensor, nn
 
 
 class LayerNorm(nn.Module):
@@ -14,7 +13,7 @@ class LayerNorm(nn.Module):
     """
 
     def __init__(self, hidden_size, eps=1e-5):
-        super(LayerNorm, self).__init__()
+        super().__init__()
         self.weight = nn.Parameter(torch.ones(hidden_size))
         self.bias = nn.Parameter(torch.zeros(hidden_size))
         self.variance_epsilon = eps
@@ -28,7 +27,7 @@ class LayerNorm(nn.Module):
 
 class MLP(nn.Module):
     def __init__(self, hidden_size, out_features=None):
-        super(MLP, self).__init__()
+        super().__init__()
         if out_features is None:
             out_features = hidden_size
         self.linear = nn.Linear(hidden_size, out_features)
@@ -49,9 +48,13 @@ class GlobalGraph(nn.Module):
     """
 
     def __init__(self, hidden_size, attention_head_size=None, num_attention_heads=1):
-        super(GlobalGraph, self).__init__()
+        super().__init__()
         self.num_attention_heads = num_attention_heads
-        self.attention_head_size = hidden_size // num_attention_heads if attention_head_size is None else attention_head_size
+        self.attention_head_size = (
+            hidden_size // num_attention_heads
+            if attention_head_size is None
+            else attention_head_size
+        )
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
         self.num_qkv = 1
@@ -75,8 +78,7 @@ class GlobalGraph(nn.Module):
         return extended_attention_mask
 
     def transpose_for_scores(self, x):
-        sz = x.size()[:-1] + (self.num_attention_heads,
-                              self.attention_head_size)
+        sz = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
         # (batch, max_vector_num, head, head_size)
         x = x.view(*sz)
         # (batch, head, max_vector_num, head_size)
@@ -92,7 +94,8 @@ class GlobalGraph(nn.Module):
         value_layer = self.transpose_for_scores(mixed_value_layer)
 
         attention_scores = torch.matmul(
-            query_layer / math.sqrt(self.attention_head_size), key_layer.transpose(-1, -2))
+            query_layer / math.sqrt(self.attention_head_size), key_layer.transpose(-1, -2)
+        )
         # print(attention_scores.shape, attention_mask.shape)
         if attention_mask is not None:
             attention_scores = attention_scores + self.get_extended_attention_mask(attention_mask)
@@ -102,12 +105,13 @@ class GlobalGraph(nn.Module):
         # if utils.args.attention_decay and utils.second_span:
         if False:
             utils.logging(self.attention_decay, prob=0.01)
-            value_layer = torch.cat([value_layer[:, 0:1, 0:1, :] * self.attention_decay, value_layer[:, 0:1, 1:, :]],
-                                    dim=2)
+            value_layer = torch.cat(
+                [value_layer[:, 0:1, 0:1, :] * self.attention_decay, value_layer[:, 0:1, 1:, :]],
+                dim=2,
+            )
         context_layer = torch.matmul(attention_probs, value_layer)
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[
-                                  :-2] + (self.all_head_size,)
+        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(*new_context_layer_shape)
         if return_scores:
             assert attention_probs.shape[1] == 1
@@ -118,17 +122,29 @@ class GlobalGraph(nn.Module):
 
 
 class CrossAttention(GlobalGraph):
-    def __init__(self, hidden_size, attention_head_size=None, num_attention_heads=1, key_hidden_size=None,
-                 query_hidden_size=None):
-        super(CrossAttention, self).__init__(hidden_size, attention_head_size, num_attention_heads)
+    def __init__(
+        self,
+        hidden_size,
+        attention_head_size=None,
+        num_attention_heads=1,
+        key_hidden_size=None,
+        query_hidden_size=None,
+    ):
+        super().__init__(hidden_size, attention_head_size, num_attention_heads)
         if query_hidden_size is not None:
             self.query = nn.Linear(query_hidden_size, self.all_head_size * self.num_qkv)
         if key_hidden_size is not None:
             self.key = nn.Linear(key_hidden_size, self.all_head_size * self.num_qkv)
             self.value = nn.Linear(key_hidden_size, self.all_head_size * self.num_qkv)
 
-    def forward(self, hidden_states_query, hidden_states_key=None, attention_mask=None, mapping=None,
-                return_scores=False):
+    def forward(
+        self,
+        hidden_states_query,
+        hidden_states_key=None,
+        attention_mask=None,
+        mapping=None,
+        return_scores=False,
+    ):
         mixed_query_layer = self.query(hidden_states_query)
         mixed_key_layer = self.key(hidden_states_key)
         mixed_value_layer = self.value(hidden_states_key)
@@ -138,16 +154,18 @@ class CrossAttention(GlobalGraph):
         value_layer = self.transpose_for_scores(mixed_value_layer)
 
         attention_scores = torch.matmul(
-            query_layer / math.sqrt(self.attention_head_size), key_layer.transpose(-1, -2))
+            query_layer / math.sqrt(self.attention_head_size), key_layer.transpose(-1, -2)
+        )
         if attention_mask is not None:
-            assert hidden_states_query.shape[1] == attention_mask.shape[1] \
-                   and hidden_states_key.shape[1] == attention_mask.shape[2]
+            assert (
+                hidden_states_query.shape[1] == attention_mask.shape[1]
+                and hidden_states_key.shape[1] == attention_mask.shape[2]
+            )
             attention_scores = attention_scores + self.get_extended_attention_mask(attention_mask)
         attention_probs = nn.Softmax(dim=-1)(attention_scores)
         context_layer = torch.matmul(attention_probs, value_layer)
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[
-                                  :-2] + (self.all_head_size,)
+        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(*new_context_layer_shape)
         if return_scores:
             return context_layer, torch.squeeze(attention_probs, dim=1)
@@ -156,15 +174,20 @@ class CrossAttention(GlobalGraph):
 
 class GlobalGraphRes(nn.Module):
     def __init__(self, hidden_size):
-        super(GlobalGraphRes, self).__init__()
+        super().__init__()
         self.global_graph = GlobalGraph(hidden_size, hidden_size // 2)
         self.global_graph2 = GlobalGraph(hidden_size, hidden_size // 2)
 
     def forward(self, hidden_states, attention_mask=None, mapping=None):
         # hidden_states = self.global_graph(hidden_states, attention_mask, mapping) \
         #                 + self.global_graph2(hidden_states, attention_mask, mapping)
-        hidden_states = torch.cat([self.global_graph(hidden_states, attention_mask, mapping),
-                                   self.global_graph2(hidden_states, attention_mask, mapping)], dim=-1)
+        hidden_states = torch.cat(
+            [
+                self.global_graph(hidden_states, attention_mask, mapping),
+                self.global_graph2(hidden_states, attention_mask, mapping),
+            ],
+            dim=-1,
+        )
         return hidden_states
 
 
@@ -174,18 +197,26 @@ class PointSubGraph(nn.Module):
     """
 
     def __init__(self, hidden_size):
-        super(PointSubGraph, self).__init__()
+        super().__init__()
         self.hidden_size = hidden_size
-        self.layers = nn.ModuleList([MLP(2, hidden_size // 2),
-                                     MLP(hidden_size, hidden_size // 2),
-                                     MLP(hidden_size, hidden_size)])
+        self.layers = nn.ModuleList(
+            [
+                MLP(2, hidden_size // 2),
+                MLP(hidden_size, hidden_size // 2),
+                MLP(hidden_size, hidden_size),
+            ]
+        )
 
     def forward(self, hidden_states: Tensor, agent: Tensor):
         device = hidden_states.device
         predict_agent_num, point_num = hidden_states.shape[0], hidden_states.shape[1]
         hidden_size = self.hidden_size
         assert (agent.shape[0], agent.shape[1]) == (predict_agent_num, hidden_size)
-        agent = agent[:, :hidden_size // 2].unsqueeze(1).expand([predict_agent_num, point_num, hidden_size // 2])
+        agent = (
+            agent[:, : hidden_size // 2]
+            .unsqueeze(1)
+            .expand([predict_agent_num, point_num, hidden_size // 2])
+        )
         for layer_index, layer in enumerate(self.layers):
             if layer_index == 0:
                 hidden_states = layer(hidden_states)
@@ -203,7 +234,7 @@ class SubGraph(nn.Module):
     """
 
     def __init__(self, args, hidden_size, depth=None):
-        super(SubGraph, self).__init__()
+        super().__init__()
         self.args = args
         if depth is None:
             depth = args.sub_graph_depth
@@ -220,15 +251,17 @@ class SubGraph(nn.Module):
 
         # utils.logging('subgraph', sub_graph_batch_size, max_vector_num, hidden_size, prob=0.001)
 
-        attention_mask = torch.zeros([sub_graph_batch_size, max_vector_num, hidden_size // 2],
-                                     device=device)
+        attention_mask = torch.zeros(
+            [sub_graph_batch_size, max_vector_num, hidden_size // 2], device=device
+        )
         zeros = torch.zeros([hidden_size // 2], device=device)
         for i in range(sub_graph_batch_size):
             # assert li_vector_num[i] > 0
-            attention_mask[i][li_vector_num[i]:max_vector_num].fill_(-10000.0)
+            attention_mask[i][li_vector_num[i] : max_vector_num].fill_(-10000.0)
         for layer_index, layer in enumerate(self.layers):
-            new_hidden_states = torch.zeros([sub_graph_batch_size, max_vector_num, hidden_size],
-                                            device=device)
+            new_hidden_states = torch.zeros(
+                [sub_graph_batch_size, max_vector_num, hidden_size], device=device
+            )
 
             encoded_hidden_states = layer(hidden_states)
             for j in range(max_vector_num):
@@ -237,6 +270,8 @@ class SubGraph(nn.Module):
                 max_hidden, _ = torch.max(encoded_hidden_states + attention_mask, dim=1)
                 max_hidden = torch.max(max_hidden, zeros)
                 attention_mask[:, j] += 10000.0
-                new_hidden_states[:, j] = torch.cat((encoded_hidden_states[:, j], max_hidden), dim=-1)
+                new_hidden_states[:, j] = torch.cat(
+                    (encoded_hidden_states[:, j], max_hidden), dim=-1
+                )
             hidden_states = new_hidden_states
         return torch.max(hidden_states, dim=1)[0]

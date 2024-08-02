@@ -2,7 +2,7 @@
 
 ## InterSim
 
-The `intersim` module is a third-party algorithm that provides interactive traffic behavior model. The `intersim` module is refactored from the interaction model proposed by 
+The `intersim` module is a third-party algorithm that provides interactive traffic behavior model. The `intersim` module is refactored from the interaction model proposed by
 
 > Sun, Qiao, et al. "InterSim: Interactive traffic simulation via explicit relation modeling." *2022 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)*. IEEE, 2022.
 
@@ -23,7 +23,7 @@ The original implementation is available at [Tsinghua-MARS-Lab/InterSim](https:/
 TODO:
 
 - 所有函数的调用形式都是从最高路径 (tactics2d) 开始
-- 所有纯数学、无物理意义的utils函数整理到intersim/utils文件夹中，不要分别放在planning和prediction里面
+- 所有纯数学、无物理意义的utils函数整理到tactics2d/utils文件夹中，不要分别放在planning和prediction里面
 - 用tactics2d里面的agent，如果interface有缺失的属性，先跟我讨论如何补充的方案
 - 目前看起来并不能跑通，抓紧时间debug
 - setup.py不要了，等到重构完了结合到tactics2d里面去

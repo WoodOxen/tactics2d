@@ -11,28 +11,36 @@ import sys
 import time
 from collections import defaultdict
 from random import randint
-from typing import Dict, List, Tuple, NamedTuple, Any, Union, Optional
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 
 import numpy as np
 import torch
 import yaml
 from torch import Tensor
 
+
 def get_from_mapping(mapping: List[Dict], key=None):
     if key is None:
         line_context = inspect.getframeinfo(inspect.currentframe().f_back).code_context[0]
-        key = line_context.split('=')[0].strip()
+        key = line_context.split("=")[0].strip()
     return [each[key] for each in mapping]
+
 
 def rotate(x, y, angle):
     res_x = x * math.cos(angle) - y * math.sin(angle)
     res_y = x * math.sin(angle) + y * math.cos(angle)
     return res_x, res_y
 
-def get_dis(points: np.ndarray, point_label):
-    return np.sqrt(np.square((points[:, 0] - point_label[0])) + np.square((points[:, 1] - point_label[1])))
 
-def merge_tensors(tensors: List[torch.Tensor], device, hidden_size=None) -> Tuple[Tensor, List[int]]:
+def get_dis(points: np.ndarray, point_label):
+    return np.sqrt(
+        np.square(points[:, 0] - point_label[0]) + np.square(points[:, 1] - point_label[1])
+    )
+
+
+def merge_tensors(
+    tensors: List[torch.Tensor], device, hidden_size=None
+) -> Tuple[Tensor, List[int]]:
     """
     merge a list of tensors into a tensor
     """
@@ -43,8 +51,9 @@ def merge_tensors(tensors: List[torch.Tensor], device, hidden_size=None) -> Tupl
     res = torch.zeros([len(tensors), max(lengths), hidden_size], device=device)
     for i, tensor in enumerate(tensors):
         if tensor is not None:
-            res[i][:tensor.shape[0]] = tensor
+            res[i][: tensor.shape[0]] = tensor
     return res, lengths
+
 
 def merge_tensors_not_add_dim(tensor_list_list, module, sub_batch_size, device):
     # TODO(cyrushx): Can you add docstring and comments on what this function does?
@@ -63,10 +72,11 @@ def merge_tensors_not_add_dim(tensor_list_list, module, sub_batch_size, device):
         sub_output_tensor_list = []
         sum = 0
         for each in sub_tensor_list_list:
-            sub_output_tensor_list.append(outputs[sum:sum + len(each)])
+            sub_output_tensor_list.append(outputs[sum : sum + len(each)])
             sum += len(each)
         output_tensor_list.extend(sub_output_tensor_list)
     return output_tensor_list
+
 
 class Args:
     data_dir = None
@@ -137,6 +147,7 @@ class Args:
     inter_agent_types = None
     config = None
     image = None
+
 
 class Normalizer:
     def __init__(self, x, y, yaw):

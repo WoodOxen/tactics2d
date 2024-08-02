@@ -1,6 +1,8 @@
-import numpy as np
 import math
 import pickle
+
+import numpy as np
+
 
 class PredictionLoader:
     r"""
@@ -36,20 +38,20 @@ class PredictionLoader:
                 pred_yaw is a numpy array of shape (80,).
         """
 
-        scenario = data['scenario']
+        scenario = data["scenario"]
         vectors = []
         agent_to_pred = {}
 
         # with open(result_path, 'rb') as f:
         #     prediction_loaded = pickle.load(f)
 
-        for agent_id in data['agent']:
-            agent = data['agent'][agent_id]
-            pose = agent['pose']
-            speed = agent['speed']
-            shape = agent['shape']
-            type = int(agent['type'])
-            to_predict = int(agent['to_predict'])
+        for agent_id in data["agent"]:
+            agent = data["agent"][agent_id]
+            pose = agent["pose"]
+            speed = agent["speed"]
+            shape = agent["shape"]
+            type = int(agent["type"])
+            to_predict = int(agent["to_predict"])
 
             if self.all_agents or to_predict:
                 # import random
@@ -76,22 +78,29 @@ class PredictionLoader:
 
                 if scenario in prediction_loaded:
                     if agent_id in prediction_loaded[scenario]:
-                        if 'rst' in prediction_loaded[scenario][agent_id]:
+                        if "rst" in prediction_loaded[scenario][agent_id]:
                             # load without offset
-                            pred_scores = np.exp(prediction_loaded[scenario][agent_id]['score'])
-                            loaded_pred = prediction_loaded[scenario][agent_id]['rst']    #result
+                            pred_scores = np.exp(prediction_loaded[scenario][agent_id]["score"])
+                            loaded_pred = prediction_loaded[scenario][agent_id]["rst"]  # result
 
                             for each_prediction in range(6):
                                 # agent_index = prediction_loaded[scenario]['ids'].index(agent_id)
                                 # pred_trajectory[each_prediction, :, :] = prediction_loaded[scenario]['rst'][each_prediction, agent_index, :, :]
-                                pred_trajectory[each_prediction, :, :] = loaded_pred[each_prediction, :, :]
+                                pred_trajectory[each_prediction, :, :] = loaded_pred[
+                                    each_prediction, :, :
+                                ]
                                 for i in range(80):
                                     if i > 0:
-                                        x, y = pred_trajectory[each_prediction, i - 1, 0], pred_trajectory[each_prediction, i - 1, 1]
+                                        x, y = (
+                                            pred_trajectory[each_prediction, i - 1, 0],
+                                            pred_trajectory[each_prediction, i - 1, 1],
+                                        )
                                     else:
                                         x, y = pose[10, 0], pose[10, 1]
-                                    pred_yaw[each_prediction, i] = get_angle(pred_trajectory[each_prediction, i, 0] - x,
-                                                                             pred_trajectory[each_prediction, i, 1] - y)
+                                    pred_yaw[each_prediction, i] = get_angle(
+                                        pred_trajectory[each_prediction, i, 0] - x,
+                                        pred_trajectory[each_prediction, i, 1] - y,
+                                    )
                                     if pred_yaw[each_prediction, i] < 0:
                                         pred_yaw[each_prediction, i] += 2.0 * math.pi
                                     # TODO: delta_x not defined
@@ -99,8 +108,9 @@ class PredictionLoader:
                                         pred_yaw[each_prediction, i] = pose[10, -1]
                         else:
                             print(list(prediction_loaded[scenario][agent_id].keys()))
-                            assert False, f'rst not in prediction result, is it with time offset? if so, use the predictor with time offset'
-
+                            assert (
+                                False
+                            ), f"rst not in prediction result, is it with time offset? if so, use the predictor with time offset"
 
                 # if scenario in prediction_loaded:
                 #     loaded_scores = np.exp(np.array(prediction_loaded[scenario]['score']))
@@ -125,21 +135,23 @@ class PredictionLoader:
                 #                     # TODO: delta_x not defined
                 #                     if abs(delta_x) + abs(delta_y) < 0.05:
                 #                         pred_yaw[each_prediction, i] = pose[10, -1]
-                        # else:
-                        #     loaded_ids = prediction_loaded[scenario]['ids']
-                        #     print(f'agent {agent_id} in {loaded_ids}/{scenario} not found in prediction result')
+                # else:
+                #     loaded_ids = prediction_loaded[scenario]['ids']
+                #     print(f'agent {agent_id} in {loaded_ids}/{scenario} not found in prediction result')
                 else:
                     # skip scenarios not in prediction result file
-                    print(f'scenario {scenario} not found in prediction result {prediction_loaded.keys()}')
+                    print(
+                        f"scenario {scenario} not found in prediction result {prediction_loaded.keys()}"
+                    )
                     return None
 
                 agent_to_pred[agent_id] = {}
-                agent_to_pred[agent_id]['pred_trajectory'] = pred_trajectory
-                agent_to_pred[agent_id]['pred_yaw'] = pred_yaw
+                agent_to_pred[agent_id]["pred_trajectory"] = pred_trajectory
+                agent_to_pred[agent_id]["pred_yaw"] = pred_yaw
                 if np.sum(pred_scores) > 0.01:
-                    agent_to_pred[agent_id]['pred_scores'] = pred_scores / np.sum(pred_scores)
+                    agent_to_pred[agent_id]["pred_scores"] = pred_scores / np.sum(pred_scores)
                 else:
-                    agent_to_pred[agent_id]['pred_scores'] = pred_scores
+                    agent_to_pred[agent_id]["pred_scores"] = pred_scores
                 # print(pose[10, -1], pred_yaw[10], pose[11:][:10, :2], pred_trajectory[:10])
 
         #                 info_dic = {'pred_trajectory': pred_trajectories,
@@ -147,4 +159,3 @@ class PredictionLoader:
         #                             'pred_scores': pred_scores}
 
         return agent_to_pred
-

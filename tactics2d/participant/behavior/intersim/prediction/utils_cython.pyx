@@ -4,10 +4,12 @@
 
 language_level = 3
 import numpy as np
-cimport numpy as np
+
 cimport cython
-from libc.stdlib cimport rand, RAND_MAX
-from libc.time cimport clock, CLOCKS_PER_SEC
+cimport numpy as np
+from libc.stdlib cimport RAND_MAX, rand
+from libc.time cimport CLOCKS_PER_SEC, clock
+
 
 cdef extern from "math.h":
     double sin(double x)
