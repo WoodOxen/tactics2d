@@ -185,6 +185,29 @@ Auto-generated
 
 ### Racing cases (Self-generated)
 
+## Acknowledgement
+
+### Core Development Team
+
+This project is developed and maintained by the following individuals:
+
+SCP-CN-001, MotacillaAlba, jiamiya, ...
+
+### Contributors
+
+This project has benefited from the contributions of the following individuals:
+
+Merealtea, zhuanghany11, liyuhang699, shuo-Liu, AnthonyWithLi, ...
+
+### Third-party Libraries
+
+`tactics2d` has referred to the following third-party libraries to implement some of its functionalities:
+
+1. Interactive Behavior Models
+
+     - [InterSim](https://github.com/Tsinghua-MARS-Lab/InterSim)
+     - [LimSim](https://github.com/PJLab-ADG/LimSim)
+
 ## Citation
 
 If you find `tactics2d` useful, please cite this in your publication.
