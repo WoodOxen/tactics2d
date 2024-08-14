@@ -1,22 +1,55 @@
-import argparse
 import inspect
-import json
 import math
-import multiprocessing
-import os
-import pickle
-import random
-import subprocess
-import sys
-import time
-from collections import defaultdict
-from random import randint
-from typing import Dict, List, Tuple, NamedTuple, Any, Union, Optional
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import torch
-import yaml
 from torch import Tensor
+
+def normalize_angle(angle):
+    """
+    Normalize an angle to [-pi, pi].
+    :param angle: (float)
+    :return: (float) Angle in radian in [-pi, pi]
+    """
+    while angle > np.pi:
+        angle -= 2.0 * np.pi
+
+    while angle < -np.pi:
+        angle += 2.0 * np.pi
+
+    return angle
+
+def mph_to_meterpersecond(mph):
+    return mph * 0.4472222222
+
+
+def get_angle_of_a_line(pt1, pt2):
+    # angle from horizon to the right, counter-clockwise,
+    x1, y1 = pt1
+    x2, y2 = pt2
+    angle = math.atan2(y2 - y1, x2 - x1)
+    return angle
+
+
+def get_current_pose_and_v(current_state, agent_id, current_frame_idx):
+    my_current_pose = current_state["agent"][agent_id]["pose"][current_frame_idx - 1]
+    if (
+        current_state["agent"][agent_id]["pose"][current_frame_idx - 1, 0] == -1
+        or current_state["agent"][agent_id]["pose"][current_frame_idx - 6, 0] == -1
+    ):
+        my_current_v_per_step = 0
+        print("Past invalid for ", agent_id, " and setting v to 0")
+    else:
+        my_current_v_per_step = (
+            utils.euclidean_distance(
+                current_state["agent"][agent_id]["pose"][current_frame_idx - 1, :2],
+                current_state["agent"][agent_id]["pose"][current_frame_idx - 6, :2],
+            )
+            / 5
+        )
+    return my_current_pose, my_current_v_per_step
+
 
 def get_from_mapping(mapping: List[Dict], key=None) -> List:
     """
@@ -31,10 +64,12 @@ def get_from_mapping(mapping: List[Dict], key=None) -> List:
     Returns:
         List: A list of values extracted from each dictionary using the specified key.
     """
+
+def get_from_mapping(mapping: List[Dict], key=None):
     if key is None:
         # Infer the key if not provided by examining the code context of the caller.
         line_context = inspect.getframeinfo(inspect.currentframe().f_back).code_context[0]
-        key = line_context.split('=')[0].strip()
+        key = line_context.split("=")[0].strip()
     return [each[key] for each in mapping]
 
 def rotate(x: float, y: float, angle: float) -> Tuple[float, float]:
@@ -49,6 +84,8 @@ def rotate(x: float, y: float, angle: float) -> Tuple[float, float]:
     Returns:
         Tuple[float, float]: The coordinates of the point after rotation.
     """
+
+def rotate(x, y, angle):
     res_x = x * math.cos(angle) - y * math.sin(angle)
     res_y = x * math.sin(angle) + y * math.cos(angle)
     return res_x, res_y
@@ -66,7 +103,16 @@ def get_dis(points: np.ndarray, point_label: tuple) -> float:
     """
     return np.sqrt(np.square((points[:, 0] - point_label[0])) + np.square((points[:, 1] - point_label[1])))
 
-def merge_tensors(tensors: List[torch.Tensor], device, hidden_size: int = 128) -> Tuple[torch.Tensor, List[int]]:
+
+def get_dis(points: np.ndarray, point_label):
+    return np.sqrt(
+        np.square(points[:, 0] - point_label[0]) + np.square(points[:, 1] - point_label[1])
+    )
+
+
+def merge_tensors(
+    tensors: List[torch.Tensor], device, hidden_size=None
+) -> Tuple[Tensor, List[int]]:
     """
     This function merges a list of tensors into a single tensor, preserving the maximum length among them.
     
@@ -82,8 +128,9 @@ def merge_tensors(tensors: List[torch.Tensor], device, hidden_size: int = 128) -
     res = torch.zeros([len(tensors), max(lengths), hidden_size], device=device)
     for i, tensor in enumerate(tensors):
         if tensor is not None:
-            res[i][:tensor.shape[0]] = tensor
+            res[i][: tensor.shape[0]] = tensor
     return res, lengths
+
 
 def merge_tensors_not_add_dim(tensor_list_list, module, sub_batch_size, device):
     """
@@ -116,10 +163,82 @@ def merge_tensors_not_add_dim(tensor_list_list, module, sub_batch_size, device):
         sub_output_tensor_list = []
         sum = 0
         for each in sub_tensor_list_list:
-            sub_output_tensor_list.append(outputs[sum:sum + len(each)])
+            sub_output_tensor_list.append(outputs[sum : sum + len(each)])
             sum += len(each)
         output_tensor_list.extend(sub_output_tensor_list)
     return output_tensor_list
+
+
+class Args:
+    data_dir = None
+    data_kind = None
+    debug = None
+    train_batch_size = 64
+    seed = None
+    eval_batch_size = None
+    distributed_training = None
+    cuda_visible_device_num = None
+    log_dir = None
+    learning_rate = None
+    do_eval = None
+    hidden_size = 128
+    sub_graph_depth = 3
+    global_graph_depth = None
+    train_batch_size = None
+    num_train_epochs = None
+    initializer_range = None
+    sub_graph_batch_size = 4096
+    temp_file_dir = None
+    output_dir = None
+    use_map = None
+    reuse_temp_file = None
+    old_version = None
+    model_recover_path = None
+    do_train = None
+    max_distance = None
+    no_sub_graph = None
+    other_params: Dict = {
+        "train_relation": True,
+        "l1_loss": True,
+        "densetnt": True,
+        "goals_2D": True,
+        "enhance_global_graph": True,
+        "laneGCN": True,
+        "point_sub_graph": True,
+        "laneGCN-4": True,
+        "stride_10_2": True,
+        "raster": True,
+    }
+    eval_params = None
+    train_params = None
+    no_agents = None
+    not_use_api = None
+    core_num = 16
+    visualize = None
+    train_extra = None
+    hidden_dropout_prob = None
+    use_centerline = None
+    autoregression = None
+    lstm = None
+    add_prefix = None
+    attention_decay = True
+    do_test = None
+    placeholder = None
+    multi = None
+    method_span = None
+    waymo = None
+    argoverse = None
+    nuscenes = None
+    single_agent = None
+    agent_type = None
+    future_frame_num = 80
+    no_cuda = None
+    mode_num = None
+    nms_threshold = None
+    inter_agent_types = None
+    config = None
+    image = None
+
 
 class Normalizer:
     """
@@ -127,6 +246,7 @@ class Normalizer:
     It encapsulates the origin (x, y) coordinate and the yaw angle for the normalization transformation.
     """
 
+    
     def __init__(self, x: float, y: float, yaw: float):
         """
         This function initializes the Normalizer with a specific origin and yaw angle.

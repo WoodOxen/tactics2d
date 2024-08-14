@@ -1,5 +1,7 @@
-import numpy as np
 import math
+
+import numpy as np
+
 
 class PredictionLoader:
     """
@@ -40,17 +42,19 @@ class PredictionLoader:
             dict: A dictionary mapping agent identifiers to their respective predictions. Each prediction is another dictionary with 'pred_trajectory' and 'pred_yaw', and optionally 'pred_scores'.
         """
         # Initialize the scenario and containers for predictions and agents
-        scenario = data['scenario']
+        scenario = data["scenario"]
         agent_to_pred = {}
 
-        # Iterate over each agent in the scenario
-        for agent_id in data['agent']:
-            agent = data['agent'][agent_id]
-            pose = agent['pose']
-            speed = agent['speed']
-            shape = agent['shape']
-            type = int(agent['type'])
-            to_predict = int(agent['to_predict'])
+        # with open(result_path, 'rb') as f:
+        #     prediction_loaded = pickle.load(f)
+
+        for agent_id in data["agent"]:
+            agent = data["agent"][agent_id]
+            pose = agent["pose"]
+            speed = agent["speed"]
+            shape = agent["shape"]
+            type = int(agent["type"])
+            to_predict = int(agent["to_predict"])
 
             # Process the agent if all agents need to be processed or if this specific agent needs a prediction
             if self.all_agents or to_predict:
@@ -93,7 +97,60 @@ class PredictionLoader:
                     'pred_yaw': pred_yaw,
                     'pred_scores': pred_scores / np.sum(pred_scores) if np.sum(pred_scores) > 0.01 else pred_scores
                 }
+                if scenario in prediction_loaded:
+                    if agent_id in prediction_loaded[scenario]:
+                        if "rst" in prediction_loaded[scenario][agent_id]:
+                            # load without offset
+                            pred_scores = np.exp(prediction_loaded[scenario][agent_id]["score"])
+                            loaded_pred = prediction_loaded[scenario][agent_id]["rst"]  # result
+
+                            for each_prediction in range(6):
+                                # agent_index = prediction_loaded[scenario]['ids'].index(agent_id)
+                                # pred_trajectory[each_prediction, :, :] = prediction_loaded[scenario]['rst'][each_prediction, agent_index, :, :]
+                                pred_trajectory[each_prediction, :, :] = loaded_pred[
+                                    each_prediction, :, :
+                                ]
+                                for i in range(80):
+                                    if i > 0:
+                                        x, y = (
+                                            pred_trajectory[each_prediction, i - 1, 0],
+                                            pred_trajectory[each_prediction, i - 1, 1],
+                                        )
+                                    else:
+                                        x, y = pose[10, 0], pose[10, 1]
+                                    pred_yaw[each_prediction, i] = get_angle(
+                                        pred_trajectory[each_prediction, i, 0] - x,
+                                        pred_trajectory[each_prediction, i, 1] - y,
+                                    )
+                                    if pred_yaw[each_prediction, i] < 0:
+                                        pred_yaw[each_prediction, i] += 2.0 * math.pi
+                                    # TODO: delta_x not defined
+                                    if abs(delta_x) + abs(delta_y) < 0.01:
+                                        pred_yaw[each_prediction, i] = pose[10, -1]
+                        else:
+                            print(list(prediction_loaded[scenario][agent_id].keys()))
+                            assert (
+                                False
+                            ), f"rst not in prediction result, is it with time offset? if so, use the predictor with time offset"
+                else:
+                    # skip scenarios not in prediction result file
+                    print(
+                        f"scenario {scenario} not found in prediction result {prediction_loaded.keys()}"
+                    )
+                    return None
+
+                agent_to_pred[agent_id] = {}
+                agent_to_pred[agent_id]["pred_trajectory"] = pred_trajectory
+                agent_to_pred[agent_id]["pred_yaw"] = pred_yaw
+                if np.sum(pred_scores) > 0.01:
+                    agent_to_pred[agent_id]["pred_scores"] = pred_scores / np.sum(pred_scores)
+                else:
+                    agent_to_pred[agent_id]["pred_scores"] = pred_scores
+                # print(pose[10, -1], pred_yaw[10], pose[11:][:10, :2], pred_trajectory[:10])
+
+        #                 info_dic = {'pred_trajectory': pred_trajectories,
+        #                             'pred_yaw': pred_yaws,
+        #                             'pred_scores': pred_scores}
 
         # Return the dictionary containing predictions for all agents in the scenario
         return agent_to_pred
-

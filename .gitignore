@@ -3,7 +3,7 @@
 .scannerwork
 *.lcov
 tactics2d/data
-test/runtime
+tests/runtime
 **/wandb/*
 **/logs/*
 

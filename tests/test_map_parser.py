@@ -38,7 +38,7 @@ def test_osm_parser():
     scenario_display = ScenarioDisplay()
     scenario_display.display_map(map_, ax)
     ax.plot()
-    fig.savefig("./test/runtime/raw.png")
+    fig.savefig("./tests/runtime/raw.png")
     plt.close(fig)
 
 
@@ -82,7 +82,7 @@ def test_lanelet2_parser():
             scenario_display.display_map(map_, ax)
             ax.set_aspect("equal")
             ax.plot()
-            fig.savefig(f"./test/runtime/{map_name}.png", dpi=300)
+            fig.savefig(f"./tests/runtime/{map_name}.png", dpi=300)
             plt.close(fig)
 
         except SyntaxError as err:
@@ -97,14 +97,14 @@ def test_lanelet2_parser():
 @pytest.mark.parametrize(
     "map_path, img_path",
     [
-        ("./test/cases/XodrSamples/cross.xodr", "./test/runtime/cross.png"),
-        ("./test/cases/XodrSamples/ring.xodr", "./test/runtime/ring.png"),
-        ("./test/cases/XodrSamples/LargeParkingLot.xodr", "./test/runtime/LargeParkingLot.png"),
-        ("./test/cases/XodrSamples/FourWayStop.xodr", "./test/runtime/FourWayStop.png"),
-        ("./test/cases/XodrSamples/SimpleBankedRoad.xodr", "./test/runtime/SimpleBankedRoad.png"),
+        ("./tests/cases/XodrSamples/cross.xodr", "./tests/runtime/cross.png"),
+        ("./tests/cases/XodrSamples/ring.xodr", "./tests/runtime/ring.png"),
+        ("./tests/cases/XodrSamples/LargeParkingLot.xodr", "./tests/runtime/LargeParkingLot.png"),
+        ("./tests/cases/XodrSamples/FourWayStop.xodr", "./tests/runtime/FourWayStop.png"),
+        ("./tests/cases/XodrSamples/SimpleBankedRoad.xodr", "./tests/runtime/SimpleBankedRoad.png"),
         (
-            "./test/cases/XodrSamples/SimpleFreewayRamps.xodr",
-            "./test/runtime/SimpleFreewayRamps.png",
+            "./tests/cases/XodrSamples/SimpleFreewayRamps.xodr",
+            "./tests/runtime/SimpleFreewayRamps.png",
         ),
     ],
 )
