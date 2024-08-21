@@ -138,6 +138,7 @@ def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
 )
 def test_b_spline(degree: int, control_points: np.ndarray, knots: np.ndarray, n_interpolation: int):
     if control_points is None:
+
         n_control_point = np.random.randint(5, 100)
         control_points = np.zeros((n_control_point, 2))
         for i in range(1, n_control_point):
