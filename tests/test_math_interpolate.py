@@ -138,7 +138,7 @@ def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
 )
 def test_b_spline(degree: int, control_points: np.ndarray, knots: np.ndarray, n_interpolation: int):
     if control_points is None:
-        n_control_point = np.random.randint(3, 100)
+        n_control_point = np.random.randint(5, 100)
         control_points = np.zeros((n_control_point, 2))
         for i in range(1, n_control_point):
             control_points[i, 0] = control_points[i - 1, 0] + np.random.uniform(0, 1)
@@ -186,6 +186,10 @@ def test_b_spline(degree: int, control_points: np.ndarray, knots: np.ndarray, n_
     t2 = time.time()
     if knots is None:
         knots = np.linspace(0, 1, len(control_points) + degree + 1)
+
+    if len(control_points) < degree + 1:
+        assert len(knots) == 2 * degree + 2, "Test failed: error handling for insufficient number of knots."
+
     bspline = SciBSpline(knots, control_points, degree)
     us = np.linspace(knots[degree], knots[-degree - 1], n_interpolation, endpoint=False)
     curve = np.array([list(bspline(u)) for u in us])
