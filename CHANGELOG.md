@@ -4,11 +4,17 @@
 
 ### Added
 
+- Add carla sensor base class
+
 ### Changed
 
 - Move `test` to `tests` in the root directory.
+- Improve map rendering speed.
 
 ### Fixed
+
+- Fix `type_node is none` bug
+- Fix bugs in test_b_spline.py.
 
 ### Deprecated
 

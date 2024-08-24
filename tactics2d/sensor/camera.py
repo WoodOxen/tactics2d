@@ -2,7 +2,7 @@
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: camera.py
 # @Description: This file implements a pseudo camera with top-down view RGB semantic segmentation image.
-# @Author: Yueyuan Li
+# @Author: Tactics2D Team
 # @Version: 1.0.0
 
 from typing import Tuple, Union
@@ -57,7 +57,6 @@ class TopDownCamera(SensorBase):
 
         self.map_surface = pygame.Surface(self.window_size)
         self.map_rendered = False
-
 
     def _update_transform_matrix(self):
         if None in [self._position, self._heading]:
@@ -203,7 +202,7 @@ class TopDownCamera(SensorBase):
 
     def _render_map(self):
         """Render the map elements on the map surface."""
-        self.map_surface.fill(pygame.Color(COLOR_PALETTE["white"]))  # 使用白色填充背景
+        self.map_surface.fill(pygame.Color(COLOR_PALETTE["white"]))
         self._render_areas()
         self._render_lanes()
         self._render_roadlines()
@@ -228,7 +227,6 @@ class TopDownCamera(SensorBase):
         self._position = position
         self._heading = heading
         self._update_transform_matrix()
-
 
         if None in [self._position, self._heading]:
             if not self.map_rendered:

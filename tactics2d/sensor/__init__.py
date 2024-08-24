@@ -6,9 +6,9 @@
 # @Version: 1.0.0
 
 from .camera import TopDownCamera
+from .carla_sensor_base import CarlaSensorBase
 from .lidar import SingleLineLidar
 from .render_manager import RenderManager
 from .sensor_base import SensorBase
-from .carla_sensor_base import CarlaSensorBase
 
 __all__ = ["SensorBase", "TopDownCamera", "SingleLineLidar", "RenderManager", "CarlaSensorBase"]
