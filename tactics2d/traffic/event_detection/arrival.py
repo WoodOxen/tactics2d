@@ -6,8 +6,9 @@
 # @Version: 1.0.0
 
 
-from tactics2d.map.element import Area
 from shapely.geometry import Polygon
+
+from tactics2d.map.element import Area
 
 from .event_base import EventBase
 
