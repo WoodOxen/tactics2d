@@ -307,7 +307,7 @@ def test_point_mass(speed_range, accel_range, interval, delta_t):
     logging.info("The average fps for Euler's method is {:.2f} Hz.".format(cnt / (t3 + 1e-6 - t2)))
 
 
-@pytest.mark.parametrize("interval, delta_t", [(9, 5), (50, 3)])
+@pytest.mark.parametrize("interval, delta_t", [(9, 5), (50, 3), (100, 5)])
 def test_single_track_dynamics(interval, delta_t):
     vehicle = Vehicle(0)
     vehicle.load_from_template("medium_car")
