@@ -39,8 +39,11 @@ jobs:
           mkdir ./tests/runtime
           pytest tests --cov=tactics2d --cov-report=xml
       - name: Upload coverage reports to Codecov (Ubuntu)
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         if: matrix.os == 'ubuntu-20.04' || matrix.os == 'ubuntu-22.04'
+        with:
+          token: ${{ secrets.CODECOV }}
+          verbose: true
 
   test-modules-on-Ubuntu1804:
     runs-on: ubuntu-latest
