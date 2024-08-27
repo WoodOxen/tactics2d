@@ -33,6 +33,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r tests/requirements.txt
+          pip install -v .
       - name: Pytest
         run: |
           mkdir ./tests/runtime
@@ -78,4 +79,5 @@ jobs:
               python${{ matrix.python-version }} -m pip install --upgrade pip && \
               if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && \
               if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi && \
+              pip install -v . && \
               python${{ matrix.python-version }} -m pytest tests'
