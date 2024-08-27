@@ -10,6 +10,7 @@
 
 - Move `test` to `tests` in the root directory.
 - Improve map rendering speed.
+- Improve the running efficiency of Bezier and b_spline interpolators by adding c++ implementation.
 
 ### Fixed
 

@@ -2,12 +2,13 @@
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: b_spline.py
 # @Description: This file implements a B-spline curve interpolator.
-# @Author: Yueyuan Li
+# @Author: Tactics2D Team
 # @Version: 1.0.0
 
 import numpy as np
-
 from cpp_function import BSpline as cpp_BSpline
+
+
 class BSpline:
     """This class implements a B-spline curve interpolator.
 
@@ -111,5 +112,7 @@ class BSpline:
         #     curve_point = np.sum(np.multiply(basis_functions, control_points), axis=0)
         #     curve_points.append(curve_point)
 
-        curve_points = cpp_BSpline.get_curve(control_points, knot_vectors, self.degree, n_interpolation)
+        curve_points = cpp_BSpline.get_curve(
+            control_points, knot_vectors, self.degree, n_interpolation
+        )
         return np.array(curve_points)

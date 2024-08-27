@@ -2,7 +2,7 @@
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: vector.py
 # @Description: This file implements some frequently operations on vector.
-# @Author: Yueyuan Li
+# @Author: Tactics2D Team
 # @Version: 1.0.0
 
 import numpy as np

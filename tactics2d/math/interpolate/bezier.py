@@ -2,11 +2,12 @@
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: bezier.py
 # @Description: This file implements a Bezier curve interpolator.
-# @Author: Yueyuan Li
+# @Author: Tactics2D Team
 # @Version: 1.0.0
 
 import numpy as np
 from cpp_function import Bezier as cpp_Bezier
+
 
 class Bezier:
     """This class implement a Bezier curve interpolator.

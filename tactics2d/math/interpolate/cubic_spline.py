@@ -2,13 +2,14 @@
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: cubic_spline.py
 # @Description: This file implements a cubic spline interpolator.
-# @Author: Yueyuan Li
+# @Author: Tactics2D Team
 # @Version: 1.0.0
 
 from enum import Enum
 
 import numpy as np
 from cpp_function import CubicSpline as cpp_CubicSpline
+
 
 class CubicSpline:
     """This class implement a cubic spline interpolator.
@@ -51,6 +52,7 @@ class CubicSpline:
             self.cpp_cubic_spline = cpp_CubicSpline(cpp_CubicSpline.BoundaryType.Clamped)
         elif boundary_type == CubicSpline.BoundaryType.NotAKnot:
             self.cpp_cubic_spline = cpp_CubicSpline(cpp_CubicSpline.BoundaryType.NotAKnot)
+
     def _check_validity(self, control_points: np.ndarray):
         if len(control_points.shape) != 2 or control_points.shape[1] != 2:
             raise ValueError("The shape of control_points is expected to be (n, 2).")
@@ -153,6 +155,6 @@ class CubicSpline:
         #     curve_points += list(zip(x, y))
         #
         # curve_points.append(control_points[-1])
-        #TODO: cpp_cubic_spline requires further optimization to improve running speed
+        # TODO: cpp_cubic_spline requires further optimization to improve running speed
         curve_points = self.cpp_cubic_spline.get_curve(control_points, (0, 0), n_interpolation)
         return np.array(curve_points)

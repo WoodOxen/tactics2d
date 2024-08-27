@@ -2,7 +2,7 @@
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: circle.py
 # @Description: This file implements some frequently operations on circle.
-# @Author: Yueyuan Li
+# @Author: Tactics2D Team
 # @Version: 1.0.0
 
 from enum import Enum
@@ -10,6 +10,7 @@ from typing import Tuple, Union
 
 import numpy as np
 from cpp_function import Circle as cpp_circle
+
 
 class Circle:
     """This class implement some frequently operations on circle.
