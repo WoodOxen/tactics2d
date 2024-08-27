@@ -8,7 +8,7 @@
 from enum import Enum
 
 import numpy as np
-
+from cpp_function import CubicSpline as cpp_CubicSpline
 
 class CubicSpline:
     """This class implement a cubic spline interpolator.
@@ -45,7 +45,12 @@ class CubicSpline:
             raise ValueError(
                 "The boundary type is not valid. Please choose from 1 (CubicSpline.BoundaryType.Natural), 2 (CubicSpline.BoundaryType.Clamped), and 3 (CubicSpline.BoundaryType.NotAKnot)."
             )
-
+        if self.boundary_type == CubicSpline.BoundaryType.Natural:
+            self.cpp_cubic_spline = cpp_CubicSpline(cpp_CubicSpline.BoundaryType.Natural)
+        elif boundary_type == CubicSpline.BoundaryType.Clamped:
+            self.cpp_cubic_spline = cpp_CubicSpline(cpp_CubicSpline.BoundaryType.Clamped)
+        elif boundary_type == CubicSpline.BoundaryType.NotAKnot:
+            self.cpp_cubic_spline = cpp_CubicSpline(cpp_CubicSpline.BoundaryType.NotAKnot)
     def _check_validity(self, control_points: np.ndarray):
         if len(control_points.shape) != 2 or control_points.shape[1] != 2:
             raise ValueError("The shape of control_points is expected to be (n, 2).")
@@ -132,21 +137,22 @@ class CubicSpline:
             curve_points (np.ndarray): The interpolation points of the curve. The shape is (n_interpolation * n + 1, 2).
         """
         self._check_validity(control_points)
-        a, b, c, d = self.get_parameters(control_points, xx)
-        n = control_points.shape[0] - 1
-
-        curve_points = []
-
-        for i in range(n):
-            x = np.linspace(control_points[i, 0], control_points[i + 1, 0], n_interpolation)
-            y = (
-                a[i]
-                + b[i] * (x - control_points[i, 0])
-                + c[i] * (x - control_points[i, 0]) ** 2
-                + d[i] * (x - control_points[i, 0]) ** 3
-            )
-            curve_points += list(zip(x, y))
-
-        curve_points.append(control_points[-1])
-
+        # a, b, c, d = self.get_parameters(control_points, xx)
+        # n = control_points.shape[0] - 1
+        #
+        # curve_points = []
+        #
+        # for i in range(n):
+        #     x = np.linspace(control_points[i, 0], control_points[i + 1, 0], n_interpolation)
+        #     y = (
+        #         a[i]
+        #         + b[i] * (x - control_points[i, 0])
+        #         + c[i] * (x - control_points[i, 0]) ** 2
+        #         + d[i] * (x - control_points[i, 0]) ** 3
+        #     )
+        #     curve_points += list(zip(x, y))
+        #
+        # curve_points.append(control_points[-1])
+        #TODO: cpp_cubic_spline requires further optimization to improve running speed
+        curve_points = self.cpp_cubic_spline.get_curve(control_points, (0, 0), n_interpolation)
         return np.array(curve_points)

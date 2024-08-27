@@ -7,7 +7,7 @@
 
 import numpy as np
 
-
+from cpp_function import BSpline as cpp_BSpline
 class BSpline:
     """This class implements a B-spline curve interpolator.
 
@@ -94,21 +94,22 @@ class BSpline:
 
         self._check_validity(control_points, knot_vectors)
 
-        curve_points = []
+        # curve_points = []
+        #
+        # us = np.linspace(
+        #     knot_vectors[self.degree],
+        #     knot_vectors[-self.degree - 1],
+        #     n_interpolation,
+        #     endpoint=False,
+        # )
+        # for u in us:
+        #     basis_functions = np.zeros((n + 1, 1))
+        #     for i in range(n + 1):
+        #         N_i_p = self.cox_deBoor(knot_vectors[i : i + self.degree + 2], self.degree, u)
+        #         basis_functions[i] = N_i_p
+        #
+        #     curve_point = np.sum(np.multiply(basis_functions, control_points), axis=0)
+        #     curve_points.append(curve_point)
 
-        us = np.linspace(
-            knot_vectors[self.degree],
-            knot_vectors[-self.degree - 1],
-            n_interpolation,
-            endpoint=False,
-        )
-        for u in us:
-            basis_functions = np.zeros((n + 1, 1))
-            for i in range(n + 1):
-                N_i_p = self.cox_deBoor(knot_vectors[i : i + self.degree + 2], self.degree, u)
-                basis_functions[i] = N_i_p
-
-            curve_point = np.sum(np.multiply(basis_functions, control_points), axis=0)
-            curve_points.append(curve_point)
-
+        curve_points = cpp_BSpline.get_curve(control_points, knot_vectors, self.degree, n_interpolation)
         return np.array(curve_points)
