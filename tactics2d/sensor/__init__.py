@@ -5,11 +5,12 @@
 # @Author: Tactics2D Team
 # @Version: 1.0.0
 
+# isort: off
 from .camera import TopDownCamera
+from .sensor_base import SensorBase
 from .carla_sensor_base import CarlaSensorBase
 from .lidar import SingleLineLidar
 from .render_manager import RenderManager
-from .sensor_base import SensorBase
 
 __all__ = [
     "SensorBase",
@@ -19,3 +20,4 @@ __all__ = [
     "SensorBase",
     "CarlaSensorBase",
 ]
+# isort: on
