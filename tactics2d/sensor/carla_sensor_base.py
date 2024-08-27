@@ -2,9 +2,10 @@
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: camera.py
 # @Description: This file implements a pseudo camera with top-down view RGB semantic segmentation image.
-# @Author: Yueyuan Li
+# @Author: Tactics2D Team
 # @Version: 1.0.0
 
+from abc import abstractmethod
 from typing import Tuple, Union
 
 import numpy as np
@@ -16,7 +17,6 @@ from tactics2d.map.element import Area, Lane, Map, RoadLine
 from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
 
 from .render_template import COLOR_PALETTE, DEFAULT_COLOR
-from .sensor_base import SensorBase
 
 
 class CarlaSensorBase(SensorBase):
@@ -55,7 +55,7 @@ class CarlaSensorBase(SensorBase):
         """
         super().__init__(id_, map_, perception_range, window_size, off_screen)
 
-
+    @abstractmethod
     def update(
         self,
         participants,
@@ -73,7 +73,6 @@ class CarlaSensorBase(SensorBase):
             position (Point, optional): The position of the sensor.
             heading (float, optional): The heading of the sensor.
         """
-        pass
 
     def get_observation(self) -> np.ndarray:
         """This function is used to get the observation of the camera from the viewpoint.

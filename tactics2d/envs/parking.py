@@ -213,9 +213,11 @@ class ParkingEnv(gym.Env):
         state_infos["target_heading"] = self.scenario_manager.target_heading
         state_infos["traffic_status"] = traffic_status
         state_infos["scenario_status"] = scenario_status
-        (state_infos["diff_position"], state_infos["diff_angle"], state_infos["diff_heading"]) = (
-            self._get_relative_pose(state)
-        )
+        (
+            state_infos["diff_position"],
+            state_infos["diff_angle"],
+            state_infos["diff_heading"],
+        ) = self._get_relative_pose(state)
         return state_infos
 
     def step(self, action: Union[np.ndarray, int]):
