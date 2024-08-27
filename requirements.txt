@@ -14,3 +14,4 @@ scipy>=1.7.3
 shapely>=2.0.2
 tabulate>=0.9.0
 tensorflow>=2.11.0
+pybind11>=2.10.0

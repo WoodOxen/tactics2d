@@ -2,10 +2,11 @@
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: bezier.py
 # @Description: This file implements a Bezier curve interpolator.
-# @Author: Yueyuan Li
+# @Author: Tactics2D Team
 # @Version: 1.0.0
 
 import numpy as np
+from cpp_function import Bezier as cpp_Bezier
 
 
 class Bezier:
@@ -62,15 +63,16 @@ class Bezier:
         """
         self._check_validity(control_points)
 
-        curve_points = []
+        # curve_points = []
+        #
+        # interpolates = np.linspace(control_points[:-1], control_points[1:], n_interpolation)
+        # if self.order == 1:
+        #     return np.squeeze(interpolates)
+        #
+        # for n in range(n_interpolation):
+        #     t = n / (n_interpolation - 1)
+        #     point = self.de_casteljau(interpolates[n], t, self.order - 1)
+        #     curve_points.append(point)
 
-        interpolates = np.linspace(control_points[:-1], control_points[1:], n_interpolation)
-        if self.order == 1:
-            return np.squeeze(interpolates)
-
-        for n in range(n_interpolation):
-            t = n / (n_interpolation - 1)
-            point = self.de_casteljau(interpolates[n], t, self.order - 1)
-            curve_points.append(point)
-
+        curve_points = cpp_Bezier.get_curve(control_points, n_interpolation)
         return np.array(curve_points)
