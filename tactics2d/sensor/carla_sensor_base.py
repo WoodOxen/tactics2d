@@ -10,13 +10,11 @@ from typing import Tuple, Union
 
 import numpy as np
 import pygame
-from shapely.affinity import affine_transform
 from shapely.geometry import Point
 
-from tactics2d.map.element import Area, Lane, Map, RoadLine
-from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
+from tactics2d.map.element import Map
 
-from .render_template import COLOR_PALETTE, DEFAULT_COLOR
+from .sensor_base import SensorBase
 
 
 class CarlaSensorBase(SensorBase):
