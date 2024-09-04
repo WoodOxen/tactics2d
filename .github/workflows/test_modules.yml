@@ -32,6 +32,7 @@ jobs:
         run: sudo apt install -y python3-dev build-essential cmake
       - name: Install dependencies
         run: |
+          python -c "import os; print(os.name)"
           python -m pip install --upgrade pip
           pip install -r tests/requirements.txt
           pip install -v .
