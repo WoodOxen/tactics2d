@@ -27,7 +27,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-      - name: Install development tools
+      # - name: Install development tools
         # run: apt install -y python3-dev build-essential cmake
       - name: Install dependencies
         run: |
