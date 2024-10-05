@@ -2,10 +2,11 @@
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: b_spline.py
 # @Description: This file implements a B-spline curve interpolator.
-# @Author: Yueyuan Li
+# @Author: Tactics2D Team
 # @Version: 1.0.0
 
 import numpy as np
+from cpp_function import BSpline as cpp_BSpline
 
 
 class BSpline:
@@ -94,21 +95,24 @@ class BSpline:
 
         self._check_validity(control_points, knot_vectors)
 
-        curve_points = []
+        # curve_points = []
+        #
+        # us = np.linspace(
+        #     knot_vectors[self.degree],
+        #     knot_vectors[-self.degree - 1],
+        #     n_interpolation,
+        #     endpoint=False,
+        # )
+        # for u in us:
+        #     basis_functions = np.zeros((n + 1, 1))
+        #     for i in range(n + 1):
+        #         N_i_p = self.cox_deBoor(knot_vectors[i : i + self.degree + 2], self.degree, u)
+        #         basis_functions[i] = N_i_p
+        #
+        #     curve_point = np.sum(np.multiply(basis_functions, control_points), axis=0)
+        #     curve_points.append(curve_point)
 
-        us = np.linspace(
-            knot_vectors[self.degree],
-            knot_vectors[-self.degree - 1],
-            n_interpolation,
-            endpoint=False,
+        curve_points = cpp_BSpline.get_curve(
+            control_points, knot_vectors, self.degree, n_interpolation
         )
-        for u in us:
-            basis_functions = np.zeros((n + 1, 1))
-            for i in range(n + 1):
-                N_i_p = self.cox_deBoor(knot_vectors[i : i + self.degree + 2], self.degree, u)
-                basis_functions[i] = N_i_p
-
-            curve_point = np.sum(np.multiply(basis_functions, control_points), axis=0)
-            curve_points.append(curve_point)
-
         return np.array(curve_points)

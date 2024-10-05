@@ -4,11 +4,18 @@
 
 ### Added
 
+- Add carla sensor base class
+
 ### Changed
 
 - Move `test` to `tests` in the root directory.
+- Improve map rendering speed.
+- Improve the running efficiency of Bezier and b_spline interpolators by adding c++ implementation.
 
 ### Fixed
+
+- Fix `type_node is none` bug
+- Fix bugs in test_b_spline.py.
 
 ### Deprecated
 

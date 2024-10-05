@@ -2,7 +2,7 @@
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: parse_xodr.py
 # @Description: This file defines a class for parsing the OpenDRIVE map format.
-# @Author: Yueyuan Li
+# @Author: Tactics2D Team
 # @Version: 1.0.0
 
 
@@ -523,6 +523,8 @@ class XODRParser:
 
                 ref_line = center_line
                 for lane_node in lane_nodes:
+                    if type_node is None:
+                        continue
                     lane, ref_line = self.load_lane(ref_line, lane_node, type_node)
                     lanes.append(lane)
                     roadlines.append(ref_line)
@@ -533,6 +535,8 @@ class XODRParser:
                 )
                 ref_line = center_line
                 for lane_node in lane_nodes:
+                    if type_node is None:
+                        continue
                     lane, ref_line = self.load_lane(ref_line, lane_node, type_node)
                     lanes.append(lane)
                     roadlines.append(ref_line)

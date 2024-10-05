@@ -70,7 +70,7 @@ pip install tactics2d
 
 #### 1.2 Install from Github
 
-You can also install `tactics2d` from from its source on GitHub. This way is recommended if you want to run the sample code or contribute to the development of `tactics2d`.
+You can also install `tactics2d` from from its source on GitHub. This way is recommended if you want to run the sample code or contribute to the development of `tactics2d`. Please note that you should have GCC installed on your operating system before installing tactics2d.
 
 ```shell
 # clone the repository with submodules but ignore the large files (mainly the NuPlan's map data)

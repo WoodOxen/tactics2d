@@ -2,13 +2,14 @@
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: circle.py
 # @Description: This file implements some frequently operations on circle.
-# @Author: Yueyuan Li
+# @Author: Tactics2D Team
 # @Version: 1.0.0
 
 from enum import Enum
 from typing import Tuple, Union
 
 import numpy as np
+from cpp_function import Circle as cpp_circle
 
 
 class Circle:
@@ -112,9 +113,13 @@ class Circle:
             NotImplementedError: The input method id is not an available choice.
         """
         if method == Circle.ConstructBy.ThreePoints:
-            return Circle.get_circle_by_three_points(*args)
+            # return Circle.get_circle_by_three_points(*args)
+            center, radius = cpp_circle.get_circle_by_three_points(*args)
+            return np.array(center), radius
         elif method == Circle.ConstructBy.TangentVector:
-            return Circle.get_circle_by_tangent_vector(*args)
+            # return Circle.get_circle_by_tangent_vector(*args)
+            center, radius = cpp_circle.get_circle_by_tangent_vector(*args)
+            return np.array(center), radius
 
         raise NotImplementedError
 
@@ -150,4 +155,7 @@ class Circle:
             )
 
         arc_points = center_point + np.array([np.cos(angles), np.sin(angles)]).T * radius
+
+        # TODO:Frequent conversions to numpy arrays can slow down the runtime.
+        # arc_points = np.array(cpp_circle.get_arc(center_point, radius, delta_angle, start_angle, clockwise, step_size))
         return arc_points

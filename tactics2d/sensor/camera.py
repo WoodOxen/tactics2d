@@ -2,7 +2,7 @@
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: camera.py
 # @Description: This file implements a pseudo camera with top-down view RGB semantic segmentation image.
-# @Author: Yueyuan Li
+# @Author: Tactics2D Team
 # @Version: 1.0.0
 
 from typing import Tuple, Union
@@ -54,6 +54,9 @@ class TopDownCamera(SensorBase):
             off_screen (bool, optional): Whether to render the camera off screen.
         """
         super().__init__(id_, map_, perception_range, window_size, off_screen)
+
+        self.map_surface = pygame.Surface(self.window_size)
+        self.map_rendered = False
 
     def _update_transform_matrix(self):
         if None in [self._position, self._heading]:
@@ -121,10 +124,10 @@ class TopDownCamera(SensorBase):
             outer_points = list(polygon.exterior.coords)
             inner_list = list(polygon.interiors)
 
-            pygame.draw.polygon(self._surface, color, outer_points)
+            pygame.draw.polygon(self.map_surface, color, outer_points)
             for inner_points in inner_list:
                 pygame.draw.polygon(
-                    self._surface, pygame.Color(DEFAULT_COLOR["hole"]), inner_points
+                    self.map_surface, pygame.Color(DEFAULT_COLOR["hole"]), inner_points
                 )
 
     def _render_lanes(self):
@@ -136,7 +139,7 @@ class TopDownCamera(SensorBase):
             color = self._get_color(lane)
             points = list(affine_transform(lane.geometry, self.transform_matrix).coords)
 
-            pygame.draw.polygon(self._surface, color, points)
+            pygame.draw.polygon(self.map_surface, color, points)
 
     def _render_roadlines(self):
         for roadline in self.map_.roadlines.values():
@@ -152,7 +155,7 @@ class TopDownCamera(SensorBase):
             else:
                 width = max(1, 0.1 * self.scale)
 
-            pygame.draw.aalines(self._surface, color, False, points, width)
+            pygame.draw.aalines(self.map_surface, color, False, points, width)
 
     def _render_vehicle(self, vehicle: Vehicle, frame: int = None):
         color = self._get_color(vehicle)
@@ -197,6 +200,13 @@ class TopDownCamera(SensorBase):
             elif isinstance(participant, Cyclist):
                 self._render_cyclist(participant, frame)
 
+    def _render_map(self):
+        """Render the map elements on the map surface."""
+        self.map_surface.fill(pygame.Color(COLOR_PALETTE["white"]))
+        self._render_areas()
+        self._render_lanes()
+        self._render_roadlines()
+
     def update(
         self,
         participants,
@@ -218,10 +228,15 @@ class TopDownCamera(SensorBase):
         self._heading = heading
         self._update_transform_matrix()
 
+        if None in [self._position, self._heading]:
+            if not self.map_rendered:
+                self._render_map()
+                self.map_rendered = True
+        else:
+            self._render_map()
+
         self._surface.fill(pygame.Color(COLOR_PALETTE["white"]))
-        self._render_areas()
-        self._render_lanes()
-        self._render_roadlines()
+        self._surface.blit(self.map_surface, (0, 0))
         self._render_participants(participants, participant_ids, frame)
 
     def get_observation(self) -> np.ndarray:
