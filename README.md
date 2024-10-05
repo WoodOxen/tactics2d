@@ -112,27 +112,101 @@ You can put the downloaded files at whatever location you like. In the parser, y
 
 ### Intersection cases (InD, Argoverse, INTERACTION, NuPlan, WOMD)
 
-| InD | Argoverse |
-| -- | -- |
-| ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/inD_loc_4.gif) | ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/argoverse_sample.gif) |
+<table><tr><th valign="top" width="50%">
+InD
+</th>
+<th valign="top" width="50%">
+Argoverse
+</th>
+</tr>
 
-| INTERACTION | WOMD |
-| -- | -- |
-| ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_USA_Intersection_GL.gif) | ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/womd_sample.gif) |
+<tr><td valign="center" width="50%">
+<img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/inD_loc_4.gif" align="center" style="width: 100%">
+</td>
+<td valign="top" width="50%">
+<img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/argoverse_sample.gif" align="center" style="width: 100%">
+</td>
+</tr>
+
+<tr><th valign="top" width="50%">
+INTERACTION
+</th>
+<th valign="top" width="50%">
+Waymo Open Motion Dataset (WOMD)
+</th>
+</tr>
+
+<tr><td valign="center" width="50%">
+<img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_USA_Intersection_GL.gif" align="center" style="width: 100%">
+</td>
+<td valign="top" width="50%">
+<img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/womd_sample.gif" align="center" style="width: 100%">
+</td>
+</tr>
+</table>
 
 ### Roundabout cases (RounD, INTERACTION, )
 
-| RounD | INTERACTION |
-| -- | -- |
-| ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/rounD_loc_0.gif) | ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_DEU_Roundabout_OF.gif) |
+<table><tr><th valign="top" width="50%">
+RounD
+</th>
+<th valign="top" width="50%">
+INTERACTION
+</th>
+</tr>
+
+<tr><td valign="center" width="50%">
+<img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/rounD_loc_0.gif" align="center" style="width: 100%">
+</td>
+<td valign="top" width="50%">
+<img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_DEU_Roundabout_OF.gif" align="center" style="width: 100%">
+</td>
+</tr>
+</table>
 
 ### Parking cases (DLP, Self-generated)
 
-| DLP | Self-generated |
-| -- | -- |
-| ![](https://github.com/MotacillaAlba/image-storage/blob/main/img/dlp_sample.gif?raw=true) | ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/parking_sample.gif) | |
+<table><tr><th valign="top" width="50%">
+DLP
+</th>
+<th valign="top" width="50%">
+Auto-generated
+</th>
+</tr>
+
+<tr><td valign="center" width="50%">
+<img src="https://github.com/MotacillaAlba/image-storage/blob/main/img/dlp_sample.gif?raw=true" align="center" style="width: 100%">
+</td>
+<td valign="top" width="50%">
+<img src="" align="center" style="width: 100%">
+</td>
+</tr>
+</table>
 
 ### Racing cases (Self-generated)
+
+## Acknowledgement
+
+### Core Development Team
+
+This project is developed and maintained by the following individuals:
+
+SCP-CN-001, MotacillaAlba, jiamiya, ...
+
+### Contributors
+
+This project has benefited from the contributions of the following individuals:
+
+Merealtea, zhuanghany11, liyuhang699, shuo-Liu, AnthonyWithLi, ...
+
+### Third-party Libraries
+
+`tactics2d` has referred to the following third-party libraries to implement some of its functionalities:
+
+1. Interactive Behavior Models
+
+     - [InterSim](https://github.com/Tsinghua-MARS-Lab/InterSim)
+     - [LimSim](https://github.com/PJLab-ADG/LimSim)
 
 ## Citation
 
