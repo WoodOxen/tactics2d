@@ -152,6 +152,9 @@ class WOMDParser:
                 height += state_.height
                 cnt += 1
 
+            if cnt == 0:
+                continue
+
             participant = self._CLASS_MAPPING[track.object_type](
                 id_=track.id,
                 type_=self._TYPE_MAPPING[track.object_type],
@@ -167,22 +170,23 @@ class WOMDParser:
         return participants, stamps
 
     def _join_lane_boundary(self, ids, map_):
-        points = []
+        points = None
         for id_ in ids:
             line = map_.roadlines[id_].shape
-            if len(points) == 0:
+            line = np.array(line)
+            if points is None:
                 points = line
             else:
-                if points[-1] == line[0]:
-                    points.extend(line[1:])
-                elif points[-1] == line[-1]:
-                    points.extend(line[::-1][1:])
+                if points[-1][0] == line[0][0] and points[-1][1] == line[0][1]:
+                    points = np.concatenate((points, line[1:]))
+                elif points[-1][0] == line[-1][0] and points[-1][1] == line[-1][1]:
+                    points = np.concatenate((points, line[::-1][1:]))
                 elif np.linalg.norm(points[-1] - line[0]) < np.linalg.norm(points[-1] - line[-1]):
-                    points.extend(line[1:])
+                    points = np.concatenate((points, line[1:]))
                 else:
-                    points.extend(line[::-1][1:])
+                    points = np.concatenate((points, line[::-1][1:]))
 
-        return LineString(points)
+        return np.array(points) if points is not None else None
 
     def _parse_map_features(self, map_feature, map_: Map):
         if map_feature.HasField("lane"):
@@ -201,32 +205,59 @@ class WOMDParser:
                 line_ids.add(id_)
                 right_side_ids.add(id_)
 
-            lane = Lane(
-                id_="%05d" % map_feature.id,
-                left_side=self._join_lane_boundary(left_side_ids, map_),
-                right_side=self._join_lane_boundary(right_side_ids, map_),
-                subtype=self._LANE_TYPE_MAPPING[lane.type],
-                speed_limit=lane.speed_limit_mph,
-                speed_limit_unit="mi/h",
-            )
+            # find the head and tail of the lane boundaries
+            left_side = self._join_lane_boundary(left_side_ids, map_)
+            right_side = self._join_lane_boundary(right_side_ids, map_)
 
-            if getattr(lane, "entry_lanes"):
-                for entry_lane in lane.entry_lanes:
-                    lane.add_related_lane("%05d" % entry_lane, LaneRelationship.PREDECESSOR)
-            if getattr(lane, "exit_lanes"):
-                for exit_lane in lane.exit_lanes:
-                    lane.add_related_lane("%05d" % exit_lane, LaneRelationship.SUCCESSOR)
-            if getattr(lane, "left_neighbors"):
-                for left_neighbor in lane.left_neighbors:
-                    lane.add_related_lane("%05d" % left_neighbor, LaneRelationship.LEFT_NEIGHBOR)
-            if getattr(lane, "right_neighbors"):
-                for right_neighbor in lane.right_neighbors:
-                    lane.add_related_lane("%05d" % right_neighbor, LaneRelationship.RIGHT_NEIGHBOR)
+            if left_side is not None and right_side is not None:
+                if len(left_side) > 1 or len(right_side) > 1:
+                    # check if the heads of sides are intersected to the tails of sides
+                    if LineString([left_side[0], right_side[0]]).intersects(
+                        LineString([left_side[-1], right_side[-1]])
+                    ):
+                        # check if the head of left side is to the left of the right side
+                        vec_right = np.array([right_side[0], right_side[-1]])
+                        vec_left = np.array([left_side[0], left_side[-1]])
+                        if np.cross(vec_right[1] - vec_right[0], vec_left[1] - vec_right[0]) > 0:
+                            right_side = list(reversed(right_side))
+                        else:
+                            left_side = list(reversed(left_side))
+
+                    left_side = LineString(left_side)
+                    right_side = LineString(right_side)
+
+                    lane = Lane(
+                        id_="%05d" % map_feature.id,
+                        left_side=left_side,
+                        right_side=right_side,
+                        subtype=self._LANE_TYPE_MAPPING[lane.type],
+                        speed_limit=lane.speed_limit_mph,
+                        speed_limit_unit="mi/h",
+                    )
+
+                    if hasattr(lane, "entry_lanes"):
+                        for entry_lane in lane.entry_lanes:
+                            lane.add_related_lane("%05d" % entry_lane, LaneRelationship.PREDECESSOR)
+                    if hasattr(lane, "exit_lanes"):
+                        for exit_lane in lane.exit_lanes:
+                            lane.add_related_lane("%05d" % exit_lane, LaneRelationship.SUCCESSOR)
+                    if hasattr(lane, "left_neighbors"):
+                        for left_neighbor in lane.left_neighbors:
+                            lane.add_related_lane(
+                                "%05d" % left_neighbor, LaneRelationship.LEFT_NEIGHBOR
+                            )
+                    if hasattr(lane, "right_neighbors"):
+                        for right_neighbor in lane.right_neighbors:
+                            lane.add_related_lane(
+                                "%05d" % right_neighbor, LaneRelationship.RIGHT_NEIGHBOR
+                            )
+
+                    map_.add_lane(lane)
 
         elif map_feature.HasField("road_line"):
             type_, subtype, color = self._ROADLINE_TYPE_MAPPING[map_feature.road_line.type]
             points = [[point.x, point.y] for point in map_feature.road_line.polyline]
-            if len(points) > 2:
+            if len(points) > 1:
                 roadline = RoadLine(
                     id_="%05d" % map_feature.id,
                     geometry=LineString(points),
@@ -237,21 +268,23 @@ class WOMDParser:
                 map_.add_roadline(roadline)
 
         elif map_feature.HasField("road_edge"):
-            roadline = RoadLine(
-                id_="%05d" % map_feature.id,
-                geometry=LineString(
-                    [[point.x, point.y] for point in map_feature.road_edge.polyline]
-                ),
-                type_="road_boarder",
-            )
-            map_.add_roadline(roadline)
+            points = [[point.x, point.y] for point in map_feature.road_edge.polyline]
+            if len(points) > 1:
+                roadline = RoadLine(
+                    id_="%05d" % map_feature.id,
+                    geometry=LineString(
+                        [[point.x, point.y] for point in map_feature.road_edge.polyline]
+                    ),
+                    type_="road_boarder",
+                )
+                map_.add_roadline(roadline)
 
         elif map_feature.HasField("stop_sign"):
             stop_sign = Regulatory(
                 id_="%05d" % map_feature.id,
-                way_ids={"%05d" % way_id for way_id in map_feature.stop_sign.lane},
                 subtype="stop_sign",
                 position=Point(map_feature.stop_sign.position.x, map_feature.stop_sign.position.y),
+                ways=[lane_id for lane_id in map_feature.stop_sign.lane],
             )
             map_.add_regulatory(stop_sign)
 
@@ -323,13 +356,7 @@ class WOMDParser:
             if scenario_id == scenario.scenario_id:
                 map_ = Map(name="womd_" + scenario.scenario_id)
                 for map_feature in scenario.map_features:
-                    if map_feature.HasField("road_line") or map_feature.HasField("road_edge"):
-                        self._parse_map_features(map_feature, map_)
-                for map_feature in scenario.map_features:
-                    if not map_feature.HasField("road_line") and not map_feature.HasField(
-                        "road_edge"
-                    ):
-                        self._parse_dynamic_map_features(map_feature, map_)
+                    self._parse_map_features(map_feature, map_)
                 for dynamic_map_state in scenario.dynamic_map_states:
                     self._parse_dynamic_map_features(dynamic_map_state, map_)
 

@@ -240,9 +240,6 @@ class ScenarioDisplay:
         ax.set(**ax_kwargs)
         ax.set_axis_off()
 
-        if "womd" in map_.name:
-            fig.set_facecolor(COLOR_PALETTE["black"])
-
         self.display_map(map_, ax)
         ax.plot()
 

@@ -10,7 +10,6 @@
 [![Downloads](https://img.shields.io/pypi/dm/tactics2d)](https://pypi.org/project/tactics2d/)
 [![Discord](https://img.shields.io/discord/1209363816912126003)](https://discordapp.com/widget?id=1209363816912126003&theme=system)
 
-![python-version](https://camo.githubusercontent.com/2b53588bcdf5ca9bcfc10921eb80d43a1e2d52e5a4ede24273800a5074a0916d/68747470733a2f2f696d672e736869656c64732e696f2f707970692f707976657273696f6e732f67796d6e617369756d2e737667)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Github license](https://img.shields.io/github/license/WoodOxen/tactics2d)](https://github.com/WoodOxen/tactics2d/blob/dev/LICENSE)
 
@@ -77,7 +76,7 @@ You can also install `tactics2d` from from its source on GitHub. This way is rec
 # please download NuPlan's map data from its official website and put it in the `tactics2d/data/map/NuPlan` directory
 git clone --recurse-submodules git@github.com:WoodOxen/tactics2d.git
 cd tactics2d
-pip install -v .
+python setup.py install
 ```
 
 If no errors occurs, you should have installed `tactics2d` successfully.
