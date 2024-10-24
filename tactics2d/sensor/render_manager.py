@@ -239,6 +239,11 @@ class RenderManager:
 
         self._clock.tick(self.fps)
 
+        # Handle pygame events to keep the window responsive
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return
         blit_sequence = []
         for id_, layout_info in self._layouts.items():
             surface = pygame.transform.scale_by(self._sensors[id_].surface, layout_info[0])
