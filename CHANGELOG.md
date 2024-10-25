@@ -16,6 +16,7 @@
 
 - Fix `type_node is none` bug
 - Fix bugs in test_b_spline.py.
+- Fix pygame window unresponsive where events aren't handled
 
 ### Deprecated
 
