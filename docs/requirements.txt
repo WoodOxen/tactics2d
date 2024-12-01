@@ -2,5 +2,5 @@ griffe==1.3.2
 mkdocs==1.6.1
 mkdocs-glightbox==0.4.0
 mkdocs-jupyter==0.25.0
-mkdocs-material == 9.5.39
+mkdocs-material == 9.5.46
 mkdocstrings-python == 1.11.1
