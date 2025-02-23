@@ -44,7 +44,7 @@ jobs:
         uses: codecov/codecov-action@v4
         if: matrix.os == 'ubuntu-20.04' || matrix.os == 'ubuntu-22.04'
         with:
-          token: ${{ secrets.CODECOV }}
+          token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
 
   test-modules-on-Ubuntu1804:
