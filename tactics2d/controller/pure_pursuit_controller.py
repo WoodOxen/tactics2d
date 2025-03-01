@@ -61,22 +61,14 @@ class PurePursuitController:
         self.max_accel = self.max_accel_interpolator(style_id)
         self.min_accel = self.min_accel_interpolator(style_id)
 
-    def lateral_control(self, ego_state: State, wheel_base: float):
-        position = np.array(ego_state.location)
-
-        # TODO: Convert the vehicle location from global coordinates to local coordinates
-        # proj_point, proj_s, _ ,_= veh.plan_traj_glb.frenet_projection(position)
-
-        # f_x = interp1d(veh.plan_traj_glb.s, veh.plan_traj_glb.x, kind='linear', fill_value="extrapolate")
-        # f_y = interp1d(veh.plan_traj_glb.s, veh.plan_traj_glb.y, kind='linear', fill_value="extrapolate")
-
-        ref_point_s = proj_s + self.pre_aiming_distance
-        ref_point_x = f_x(ref_point_s)
-        ref_point_y = f_y(ref_point_s)
-
-        pre_aiming_angle = np.arctan2(ref_point_y - ego_state.y, ref_point_x - ego_state.x)
+    def lateral_control(self, ego_state: State, reference_point, wheel_base: float):
+        pre_aiming_angle = np.arctan2(
+            reference_point.y - ego_state.y, reference_point.x - ego_state.x
+        )
         # print("preview_angle_",preview_angle_)
-        distance = np.linalg.norm((ref_point_y - ego_state.y, ref_point_x - ego_state.x))
+        distance = np.linalg.norm(
+            (reference_point.y - ego_state.y, reference_point.x - ego_state.x)
+        )
         # print("dis",dis_2_pp)
         steer = np.arctan(
             2.0 * wheel_base * np.sin(pre_aiming_angle - ego_state.heading) / distance
@@ -84,13 +76,11 @@ class PurePursuitController:
 
         return steer
 
-    def step(self, ego_state: State):
-        accel = self.longitudinal_control.step()
-        steer = self.lateral_control()
-
-        self.pre_aiming_distance = self.pre_aiming_interval * ego_state.speed
-        self.pre_aiming_distance = np.max([self.pre_aiming_distance, 5.0])
+    def step(self, ego_state: State, reference_point, wheel_base: float = 2.637):
+        # TODO: set an automatic reference point catcher
+        # self.pre_aiming_distance = self.pre_aiming_interval * ego_state.speed
+        # self.pre_aiming_distance = np.max([self.pre_aiming_distance, 5.0])
 
         accel, _ = self.longitudinal_control.step(ego_state)
-        steer = self.lateral_control
+        steer = self.lateral_control(ego_state, reference_point, wheel_base)
         return accel, steer
