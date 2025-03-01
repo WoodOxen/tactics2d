@@ -6,6 +6,7 @@ tactics2d/data
 tests/runtime
 **/wandb/*
 **/logs/*
+homework/
 
 #  vscode
 *.code-workspace
