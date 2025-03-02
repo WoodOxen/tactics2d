@@ -12,76 +12,75 @@ from tactics2d.participant.trajectory.state import State
 
 
 class AccelerationController:
-    """ """
+    """This class defines a controller that outputs acceleration command of the vehicle. The acceleration is calculated based on the proportional controlled.
 
-    def __init__(
-        self,
-        kp: float = 3.5,
-        speed_factor: float = 1.0,
-        accel_change_rate: float = 3.0,
-        max_accel: float = 1.5,
-        min_accel: float = -4.0,
-        interval: int = 200,
-        delta_t: int = 5,
-    ):
-        """
-        Args:
-            interval (int, optional): The time interval between the current state and the new state. The unit is millisecond.
-            delta_t (int, optional): The discrete time step for the simulation. The unit is millisecond.
-        """
-        self.kp = kp
-        self.speed_factor = speed_factor
-        self.accel_change_rate = accel_change_rate
-        self.max_accel = max_accel
-        self.min_accel = min_accel
-        self.interval = interval
-        self.delta_t = delta_t
+    Attributes:
+        kp (float): The proportional gain for speed error adjustment. The default value is 3.5. It can be adjusted by `update_driving_style`.
+        speed_factor (float): The factor to adjust the target speed based on the driving style. The default value is 1.0. It can be adjusted by `update_driving_style`.
+        accel_change_rate (float): The limitation to how quickly the acceleration can change over time to ensure smooth transitions. The unit is $m^2$/s. The default value is 3.0. It can be adjusted by `update_driving_style`.
+        max_accel (float): The upper limit of the acceleration. The unit is $m^2$/s. The default value is 1.5. It can be adjusted by `update_driving_style`.
+        min_accel (float): The lower limit of the acceleration. When negative, it describes the upper limit of the deceleration.The unit is $m^2$/s. The default value is -4.0. It can be adjusted by `update_driving_style`.
+        interval (float, optional): The time interval between the current command and the next. The unit is second. The default value is 2.0. It can be adjusted by `update_driving_style`.
+        delta_t (float, optional): The discrete time step for the simulation. The unit is millisecond. The default value is 0.05.
+    """
 
-        self.kp_interpolator = interp1d(
+    kp = 3.5
+    speed_factor = 1.0
+    target_speed = 5.0
+    accel_change_rate = 3.0
+    max_accel = 1.5
+    min_accel = -4.0
+    interval = 2.0
+    delta_t = 0.05
+
+    def __init__(self):
+        self._kp_interpolator = interp1d(
             [-1.0, 1.0], [4.5, 2.5], kind="linear", bounds_error=False, fill_value=(4.5, 2.5)
         )
-        self.speed_factor_interpolator = interp1d(
+        self._speed_factor_interpolator = interp1d(
             [-1.0, 1.0], [0.8, 1.2], kind="linear", bounds_error=False, fill_value=(0.8, 1.2)
         )
-        self.accel_change_rate_interpolator = interp1d(
+        self._accel_change_rate_interpolator = interp1d(
             [-1.0, 1.0], [3.0, 6.0], kind="linear", bounds_error=False, fill_value=(5.0, 6.0)
         )
-        self.max_accel_interpolator = interp1d(
+        self._max_accel_interpolator = interp1d(
             [-1.0, 1.0], [1.5, 2.5], kind="linear", bounds_error=False, fill_value=(1.5, 2.5)
         )
-        self.min_accel_interpolator = interp1d(
+        self._min_accel_interpolator = interp1d(
             [-1.0, 1.0], [-3.0, -5.0], kind="linear", bounds_error=False, fill_value=(-3.0, -5.0)
         )
-        self.interval_interpolator = interp1d(
+        self._interval_interpolator = interp1d(
             [-1.0, 1.0], [3.5, 1.5], kind="linear", bounds_error=False, fill_value=(3.5, 1.5)
         )
 
     def update_driving_style(self, style_id: int):
-        self.kp = self.kp_interpolator(style_id)
-        self.speed_factor = self.speed_factor_interpolator(style_id)
-        self.accel_change_rate = self.accel_change_rate_interpolator(style_id)
-        self.max_accel = self.max_accel_interpolator(style_id)
-        self.min_accel = self.min_accel_interpolator(style_id)
-        self.interval = self.interval_interpolator(style_id)
+        """This method allows to adopt the controller's behavior by adjusting the internal parameters.
 
-    def cruise_control(self, ego_state: State):
-        dt = float(self.delta_t) / 1000
+        Args:
+            style_id (int): The index to seek for a new driving style.
+        """
+        self.kp = self._kp_interpolator(style_id)
+        self.speed_factor = self._speed_factor_interpolator(style_id)
+        self.accel_change_rate = self._accel_change_rate_interpolator(style_id)
+        self.max_accel = self._max_accel_interpolator(style_id)
+        self.min_accel = self._min_accel_interpolator(style_id)
+        self.interval = self._interval_interpolator(style_id)
+
+    def _cruise_control(self, ego_state: State) -> float:
         speed = ego_state.speed
         accel_last = ego_state.accel
 
         accel = (self.target_speed - speed) / self.kp
         accel = np.clip(
             accel,
-            accel_last - self.accel_change_rate * dt,
-            accel_last + self.accel_change_rate * dt,
+            accel_last - self.accel_change_rate * self.delta_t,
+            accel_last + self.accel_change_rate * self.delta_t,
         )
         accel = np.clip(accel, self.min_accel, self.max_accel)
 
         return accel
 
-    def adaptive_cruise_control(self, ego_state: State, front_state: State):
-        dt = float(self.delta_t) / 1000
-
+    def _adaptive_cruise_control(self, ego_state: State, front_state: State) -> float:
         distance_front = np.hypot(ego_state.x - front_state.x, ego_state.y - front_state.y)
         distance_target = ego_state.speed * self.interval + 5.0
         distance_target = np.clip(distance_target, 7.0, 80.0)
@@ -94,22 +93,31 @@ class AccelerationController:
         accel_last = ego_state.accel
         accel = np.clip(
             accel,
-            accel_last - self.accel_change_rate * dt,
-            accel_last + self.accel_change_rate * dt,
+            accel_last - self.accel_change_rate * self.delta_t,
+            accel_last + self.accel_change_rate * self.delta_t,
         )
         accel = np.clip(accel, self.min_accel, self.max_accel)
 
         return accel
 
     def step(self, ego_state: State):
-        # TODO: Currently we cannot detect the front vehicle, add this later
-        front_state = None
-        front_target_state = None
+        """This method outputs the acceleration and steering command based on the current state of the ego vehicle.
 
-        accel_cc = self.cruise_control(ego_state)
+        Args:
+            ego_state (State): The current state of the vehicle.
+
+        Returns:
+            steer (float): The steering command for the ego vehicle. It is always zero for the acceleration controller.
+            accel (float): The acceleration command for the ego vehicle.
+        """
+        # TODO: Currently we cannot detect the front vehicle, add this later
+        # front_state = None
+        # front_target_state = None
+
+        accel_cc = self._cruise_control(ego_state)
         # accel_acc_current = self.adaptive_cruise_control(ego_state, front_state)
         # accel_acc_target = self.adaptive_cruise_control(ego_veh, front_target_state)
 
         # accel = np.min([accel_cc, accel_acc_cur, accel_acc_tar])
         accel = accel_cc
-        return accel, 0.0
+        return 0.0, accel

@@ -24,8 +24,9 @@ from tactics2d.sensor import RenderManager, TopDownCamera
 from tactics2d.traffic import ScenarioManager, ScenarioStatus, TrafficStatus
 from tactics2d.traffic.event_detection import NoAction, OffLane, OutBound, TimeExceed
 
-MAX_STEER = 0.75
+MAX_STEER = 1.0
 MAX_ACCEL = 2.0
+MIN_ACCEL = -4.0
 
 
 class RacingEnv(gym.Env):
@@ -73,6 +74,7 @@ class RacingEnv(gym.Env):
     _max_fps = 200
     _max_steer = MAX_STEER
     _max_accel = MAX_ACCEL
+    _min_accel = MIN_ACCEL
     _discrete_actions = {1: (0, 0), 2: (-0.5, 0), 3: (0.5, 0), 4: (0, 1), 5: (0, -1)}
 
     def __init__(
@@ -110,7 +112,7 @@ class RacingEnv(gym.Env):
 
         if self.continuous:
             self.action_space = spaces.Box(
-                np.array([-self._max_steer, -self._max_accel]),
+                np.array([-self._max_steer, self._min_accel]),
                 np.array([self._max_steer, self._max_accel]),
                 dtype=np.float32,
             )
@@ -141,11 +143,11 @@ class RacingEnv(gym.Env):
 
         return reward
 
-    def step(self, action: Union[np.ndarray, int]):
+    def step(self, action: Union[tuple, int]):
         """This function takes a step in the environment.
 
         Args:
-            action (Union[np.array, int]): The action command for the agent vehicle.
+            action (Union[tuple, int]): The action command for the agent vehicle. If the action space is continuous, the input should be a tuple, whose first element controls the steering value and the second controls the acceleration. If the action space is discrete, the input should be an index that points to a pre-defined control command.
 
         Raises:
             InvalidAction: If the action is not in the action space.
@@ -203,6 +205,7 @@ class RacingEnv(gym.Env):
     class _RacingScenarioManager(ScenarioManager):
         _max_steer = MAX_STEER
         _max_accel = MAX_ACCEL
+        _min_accel = MIN_ACCEL
         _window_size = (500, 500)
         _state_size = (200, 200)
 
@@ -222,7 +225,7 @@ class RacingEnv(gym.Env):
                 lr=self.agent.length / 2 - self.agent.rear_overhang,
                 steer_range=(-self._max_steer, self._max_steer),
                 speed_range=self.agent.speed_range,
-                accel_range=(-self._max_accel, self._max_accel),
+                accel_range=(self._min_accel, self._max_accel),
                 interval=self.step_size,
             )
             self.participants = {self.agent.id_: self.agent}
