@@ -34,7 +34,7 @@ class RacingEnv(gym.Env):
 
     ## Observation
 
-    `RacingEnv` provides a top-down semantic segmentation image of agent and its surrounding. The observation is represented as a
+    `RacingEnv` provides a top-down semantic segmentation image of agent and its surrounding. The observation is represented as an np.ndarray.
 
     ## Action
 

@@ -38,9 +38,9 @@ class RacingTrackGenerator:
     """
 
     _n_checkpoint = (10, 20)  # the number of turns is ranging in 10-20
-    _track_width = 15  # the width of the track is varying around 15m
+    _track_width = 5  # the width of the track is varying around 5m
     _track_rad = 800  # the maximum curvature radius
-    _curve_rad = (50, 150)  # the curvature radius is ranging in 10-150m
+    _curve_rad = (50, 150)  # the curvature radius is ranging in 50-150m
     _tile_length = 10  # the length of each tile
 
     def __init__(self, bezier_order=2, bezier_interpolation=50):

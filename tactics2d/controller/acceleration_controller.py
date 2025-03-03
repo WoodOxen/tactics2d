@@ -26,14 +26,15 @@ class AccelerationController:
 
     kp = 3.5
     speed_factor = 1.0
-    target_speed = 5.0
     accel_change_rate = 3.0
     max_accel = 1.5
     min_accel = -4.0
     interval = 2.0
     delta_t = 0.05
 
-    def __init__(self):
+    def __init__(self, target_speed: float = 5.0):
+        self.target_speed = target_speed
+
         self._kp_interpolator = interp1d(
             [-1.0, 1.0], [4.5, 2.5], kind="linear", bounds_error=False, fill_value=(4.5, 2.5)
         )

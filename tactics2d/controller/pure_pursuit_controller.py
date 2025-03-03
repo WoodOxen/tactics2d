@@ -31,7 +31,9 @@ class PurePursuitController:
     min_accel = -4.0
     interval = 1.0
 
-    def __init__(self):
+    def __init__(self, min_pre_aiming_distance: float = 10.0, target_speed: float = 5.0):
+        self.min_pre_aiming_distance = min_pre_aiming_distance
+
         self._kp_interpolator = interp1d(
             [-1.0, 1.0], [4.5, 2.5], kind="linear", bounds_error=False, fill_value=(4.5, 2.5)
         )
@@ -48,7 +50,7 @@ class PurePursuitController:
             [-1.0, 1.0], [2.0, 1.0], kind="linear", bounds_error=False, fill_value=(4.0, 2.0)
         )
 
-        self._longitudinal_control = AccelerationController()
+        self._longitudinal_control = AccelerationController(target_speed)
 
     def update_driving_style(self, style_id: int):
         """This method allows to adopt the controller's behavior by adjusting the internal parameters.
@@ -92,13 +94,9 @@ class PurePursuitController:
             accel (float): The acceleration command for the ego vehicle.
         """
         # TODO: set an automatic reference point catcher
-        # self.pre_aiming_distance = self.pre_aiming_interval * ego_state.speed
-        # self.pre_aiming_distance = np.max([self.pre_aiming_distance, 5.0])
         pre_aiming_distance = ego_state.speed * self.interval
-        pre_aiming_distance = np.max([pre_aiming_distance, 5.0])
+        pre_aiming_distance = np.max([pre_aiming_distance, self.min_pre_aiming_distance])
         pre_aiming_point = waypoints.interpolate(pre_aiming_distance)
-
-        # print(pre_aiming_point, pre_aiming_point.coords)
 
         _, accel = self._longitudinal_control.step(ego_state)
         steering = self._lateral_control(ego_state, pre_aiming_point, wheel_base)
