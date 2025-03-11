@@ -14,6 +14,8 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Github license](https://img.shields.io/github/license/WoodOxen/tactics2d)](https://github.com/WoodOxen/tactics2d/blob/dev/LICENSE)
 
+EN | [CN](README.CN.md)
+
 ## About
 
 `tactics2d` is an open-source Python library that provides diverse and challenging traffic scenarios for the development and evaluation of reinforcement learning-based decision-making models in autonomous driving. `tactics2d` stands out with the following key features:
@@ -106,9 +108,20 @@ You can put the downloaded files at whatever location you like. In the parser, y
 
 ### Highway cases (HighD, ExiD)
 
-![HighD Location 3](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/highD_loc_3.gif)
-
-![ExiD Location 6](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/exiD_loc_6.gif)
+<table>
+  <tr>
+    <th>HighD (Location 3)</th>
+    <th>ExiD (Location 6)</th>
+  </tr>
+  <tr>
+    <td valign="top" width="50%">
+    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/highD_loc_3.gif" align="left" style="width: 100%" />
+    </td>
+    <td valign="top" width="50%">
+    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/exiD_loc_6.gif" align="left" style="width: 100%" />
+    </td>
+  </tr>
+</table>
 
 ### Intersection cases (InD, Argoverse, INTERACTION, NuPlan, WOMD)
 
@@ -130,7 +143,7 @@ You can put the downloaded files at whatever location you like. In the parser, y
 
 | DLP | Self-generated |
 | -- | -- |
-| ![](https://github.com/MotacillaAlba/image-storage/blob/main/img/dlp_sample.gif?raw=true) | ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/parking_sample.gif) | |
+| ![](https://github.com/MotacillaAlba/image-storage/blob/main/img/dlp_sample.gif?raw=true) | ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/parking_sample.gif) |
 
 ### Racing cases (Self-generated)
 
