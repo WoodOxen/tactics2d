@@ -16,12 +16,12 @@
 
 EN | [CN](README.CN.md)
 
+## About
+
 > [!note]
 > This is the official codebase for Course AU7043 in Shanghai Jiao Tong University.
-> 
+>
 > **For those who are taking this course, please download this repository by `git pull` command!**
-
-## About
 
 `tactics2d` is an open-source Python library that provides diverse and challenging traffic scenarios for the development and evaluation of reinforcement learning-based decision-making models in autonomous driving. `tactics2d` stands out with the following key features:
 
@@ -65,6 +65,7 @@ We strongly recommend using `conda` to manage the Python environment. If you don
 ```bash
 # create a new conda environment
 conda create -n tactics2d python=3.9
+conda activate tactics2d
 ```
 
 #### 1.1 Install from PyPI
@@ -124,8 +125,6 @@ pip install pytest
 pytest tests/[test_file_name]::[test_function_name]
 ```
 
-Please refers to the [documentation](https://tactics2d.readthedocs.io/en/latest/) for more information.
-
 ## Demo
 
 `tactics2d` supports the parsing of various real-world trajectory datasets, including Argoverse, Dragon Lake Parking (DLP), INTERACTION, LevelX Series (highD, inD, rounD, ExiD), NuPlan, and Waymo Open Motion Dataset (WOMD). For more demos, please refer to the [documentation](https://tactics2d.readthedocs.io/en/latest/dataset-support/).
@@ -179,7 +178,7 @@ Please refers to the [documentation](https://tactics2d.readthedocs.io/en/latest/
   </tr>
 </table>
 
-### Roundabout cases (RounD, INTERACTION)
+### Roundabout cases
 
 <table>
   <tr>
@@ -196,15 +195,19 @@ Please refers to the [documentation](https://tactics2d.readthedocs.io/en/latest/
   </tr>
 </table>
 
-### Parking cases (DLP, Self-generated)
+### Parking cases
 
 <table>
   <tr>
     <th>DLP</th>
+    <th>Self-generated</th>
   </tr>
   <tr>
-    <td valign="top" width="100%">
+    <td valign="top" width="70%">
     <img src="docs/assets/replay_dataset/DLP_sample.gif" align="left" style="width: 100%" />
+    </td>
+    <td valign="top" width="20%">
+    <img src="" align="left" style="width: 100%" />
     </td>
   </tr>
 </table>
