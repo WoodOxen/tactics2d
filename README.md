@@ -106,7 +106,17 @@ You can put the downloaded files at whatever location you like. In the parser, y
 
 `tactics2d` supports the parsing of various real-world trajectory datasets, including Argoverse, Dragon Lake Parking (DLP), INTERACTION, LevelX Series (highD, inD, rounD, ExiD), NuPlan, and Waymo Open Motion Dataset (WOMD). For more demos, please refer to the [documentation](https://tactics2d.readthedocs.io/en/latest/dataset-support/).
 
-### Highway cases (HighD, ExiD)
+### Highway cases
+
+<figure style="width:300px; text-align:center;">
+  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/highD_loc_3.gif" alt="HighD (Location 3)" style="width:100%;">
+  <figcaption>HighD (Location 3)</figcaption>
+</figure>
+
+<figure style="width:300px; text-align:center;">
+  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/exiD_loc_6.gif" alt="ExiD (Location 6)" style="width:100%;">
+  <figcaption>ExiD (Location 6)</figcaption>
+</figure>
 
 <table>
   <tr>
@@ -123,7 +133,23 @@ You can put the downloaded files at whatever location you like. In the parser, y
   </tr>
 </table>
 
-### Intersection cases (InD, Argoverse, INTERACTION, NuPlan, WOMD)
+### Intersection cases
+
+<table>
+  <tr>
+    <th>InD (Location 4)</th>
+    <th>Argoverse</th>
+  </tr>
+  <tr>
+    <td valign="top" width="50%">
+    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/argoverse_sample.gif" align="left" style="width: 100%" />
+    </td>
+    <td valign="top" width="50%">
+    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/argoverse_sample.gif" align="left" style="width: 100%" />
+    </td>
+  </tr>
+</table>
+
 
 | InD | Argoverse |
 | -- | -- |
