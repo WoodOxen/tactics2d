@@ -115,10 +115,10 @@ You can put the downloaded files at whatever location you like. In the parser, y
   </tr>
   <tr>
     <td valign="top" width="50%">
-    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/highD_loc_3.gif" align="left" style="width: 100%" />
+    <img src="docs/assets/replay_dataset/highD_loc_3.gif" align="left" style="width: 100%" />
     </td>
     <td valign="top" width="50%">
-    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/exiD_loc_6.gif" align="left" style="width: 100%" />
+    <img src="docs/assets/replay_dataset/exiD_loc_6.gif" align="left" style="width: 100%" />
     </td>
   </tr>
 </table>
@@ -192,10 +192,11 @@ You can put the downloaded files at whatever location you like. In the parser, y
 If you find `tactics2d` useful, please cite this in your publication.
 
 ```bibtex
-@article{li2023tactics2d,
-  title={Tactics2D: A Reinforcement Learning Environment Library with Generative Scenarios for Driving Decision-making},
-  author={Li, Yueyuan and Zhang, Songan and Jiang, Mingyang and Chen, Xingyuan and Yang, Ming},
-  journal={arXiv preprint arXiv:2311.11058},
-  year={2023}
+@article{li2024tactics2d,
+  title={Tactics2D: A Highly Modular and Extensible Simulator for Driving Decision-Making},
+  author={Li, Yueyuan and Zhang, Songan and Jiang, Mingyang and Chen, Xingyuan and Yang, Jing and Qian, Yeqiang and Wang, Chunxiang and Yang, Ming},
+  journal={IEEE Transactions on Intelligent Vehicles},
+  year={2024},
+  publisher={IEEE}
 }
 ```
