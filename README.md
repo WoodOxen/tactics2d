@@ -16,6 +16,10 @@
 
 EN | [CN](README.CN.md)
 
+> [!note]
+> This is the official codebase for Course AU7043 in Shanghai Jiao Tong University.
+> **For those who are taking this course, please download this repository by `git pull` command!**
+
 ## About
 
 `tactics2d` is an open-source Python library that provides diverse and challenging traffic scenarios for the development and evaluation of reinforcement learning-based decision-making models in autonomous driving. `tactics2d` stands out with the following key features:
@@ -57,7 +61,7 @@ We have conducted testing for the execution and construction of `tactics2d` on t
 
 We strongly recommend using `conda` to manage the Python environment. If you don't have `conda` installed, you can download it from [here](https://docs.conda.io/en/latest/miniconda.html).
 
-```shell
+```bash
 # create a new conda environment
 conda create -n tactics2d python=3.9
 ```
@@ -66,7 +70,7 @@ conda create -n tactics2d python=3.9
 
 You can simply install `tactics2d` from PyPI with the following command.
 
-```shell
+```bash
 pip install tactics2d
 ```
 
@@ -74,7 +78,7 @@ pip install tactics2d
 
 You can also install `tactics2d` from from its source on GitHub. This way is recommended if you want to run the sample code or contribute to the development of `tactics2d`. Please note that you should have GCC installed on your operating system before installing tactics2d.
 
-```shell
+```bash
 # clone the repository with submodules but ignore the large files (mainly the NuPlan's map data)
 # please download NuPlan's map data from its official website and put it in the `tactics2d/data/map/NuPlan` directory
 git clone --recurse-submodules git@github.com:WoodOxen/tactics2d.git
@@ -101,6 +105,25 @@ According to the licenses of the trajectory datasets, we cannot distribute the o
 You can put the downloaded files at whatever location you like. In the parser, you can specify the path to the dataset.
 
 ### 3. Run the Tutorial
+
+After the installation, you can run the [tutorial jupyter notebooks](docs/tutorial) to get started with `tactics2d`.
+
+To run [train_parking_demo.ipynb](docs/tutorial/train_parking_demo.ipynb), which is a simplified version of our work in this [paper](https://github.com/jiamiya/HOPE), you need to pull an extra module `rllib`:
+
+```bash
+git submodule update --init --recursive
+```
+
+### 4. For More Samples
+
+We have built a complete CI pipeline for `tactics2d`. The samples under [tests](tests) are good samples for you to get familiar with the interfaces. To run the samples, you can use the following command:
+
+```bash
+pip install pytest
+pytest tests/[test_file_name]::[test_function_name]
+```
+
+Please refers to the [documentation](https://tactics2d.readthedocs.io/en/latest/) for more information.
 
 ## Demo
 
@@ -147,28 +170,27 @@ You can put the downloaded files at whatever location you like. In the parser, y
   </tr>
   <tr>
     <td valign="top" width="50%">
-    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_USA_Intersection_GL.gif" align="left" style="width: 100%" />
+    <img src="docs/assets/replay_dataset/DR_USA_Intersection_GL.gif" align="left" style="width: 100%" />
     </td>
     <td valign="top" width="50%">
-    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/womd_sample.gif" align="left" style="width: 70%" />
+    <img src="docs/assets/replay_dataset/womd_sample.gif" align="left" style="width: 70%" />
     </td>
   </tr>
 </table>
-
 
 ### Roundabout cases (RounD, INTERACTION)
 
 <table>
   <tr>
-    <th>RounD</th>
+    <th>RounD (Location 0)</th>
     <th>INTERACTION</th>
   </tr>
   <tr>
     <td valign="top" width="50%">
-    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/rounD_loc_0.gif" align="left" style="width: 100%" />
+    <img src="docs/assets/replay_dataset/rounD_loc_0.gif" align="left" style="width: 100%" />
     </td>
     <td valign="top" width="50%">
-    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_DEU_Roundabout_OF.gif" align="left" style="width: 100%" />
+    <img src="docs/assets/replay_dataset/DR_DEU_Roundabout_OF.gif" align="left" style="width: 100%" />
     </td>
   </tr>
 </table>
@@ -177,11 +199,11 @@ You can put the downloaded files at whatever location you like. In the parser, y
 
 <table>
   <tr>
-    <th>RounD</th>
+    <th>DLP</th>
   </tr>
   <tr>
     <td valign="top" width="100%">
-    <img src="https://github.com/MotacillaAlba/image-storage/blob/main/img/dlp_sample.gif?raw=true" align="left" style="width: 100%" />
+    <img src="docs/assets/replay_dataset/DLP_sample.gif" align="left" style="width: 100%" />
   </tr>
 </table>
 
@@ -200,3 +222,11 @@ If you find `tactics2d` useful, please cite this in your publication.
   publisher={IEEE}
 }
 ```
+
+## Works Based on Tactics2D
+
+You are welcome to raise pull request and update your publication based on Tactics2D.
+
+Jiang, Mingyang\*, Li, Yueyuan\*, Zhang, Songan, et al. "[HOPE: A Reinforcement Learning-based Hybrid Policy Path Planner for Diverse Parking Scenarios](https://arxiv.org/abs/2405.20579)." *IEEE Transactions on Intelligent Transportation Systems* (2025). (\*Co-first author)
+
+[Code](https://github.com/jiamiya/HOPE) | [Demo](https://www.youtube.com/watch?v=62w9qhjIuRI)
