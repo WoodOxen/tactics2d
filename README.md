@@ -108,16 +108,6 @@ You can put the downloaded files at whatever location you like. In the parser, y
 
 ### Highway cases
 
-<figure style="width:300px; text-align:center;">
-  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/highD_loc_3.gif" alt="HighD (Location 3)" style="width:100%;">
-  <figcaption>HighD (Location 3)</figcaption>
-</figure>
-
-<figure style="width:300px; text-align:center;">
-  <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/exiD_loc_6.gif" alt="ExiD (Location 6)" style="width:100%;">
-  <figcaption>ExiD (Location 6)</figcaption>
-</figure>
-
 <table>
   <tr>
     <th>HighD (Location 3)</th>
@@ -142,7 +132,7 @@ You can put the downloaded files at whatever location you like. In the parser, y
   </tr>
   <tr>
     <td valign="top" width="50%">
-    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/argoverse_sample.gif" align="left" style="width: 100%" />
+    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/inD_loc_4.gif" align="left" style="width: 95%" />
     </td>
     <td valign="top" width="50%">
     <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/argoverse_sample.gif" align="left" style="width: 100%" />
@@ -150,26 +140,50 @@ You can put the downloaded files at whatever location you like. In the parser, y
   </tr>
 </table>
 
+<table>
+  <tr>
+    <th>INTERACTION</th>
+    <th>WOMD</th>
+  </tr>
+  <tr>
+    <td valign="top" width="50%">
+    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_USA_Intersection_GL.gif" align="left" style="width: 100%" />
+    </td>
+    <td valign="top" width="50%">
+    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/womd_sample.gif" align="left" style="width: 70%" />
+    </td>
+  </tr>
+</table>
 
-| InD | Argoverse |
-| -- | -- |
-| ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/inD_loc_4.gif) | ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/argoverse_sample.gif) |
 
-| INTERACTION | WOMD |
-| -- | -- |
-| ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_USA_Intersection_GL.gif) | ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/womd_sample.gif) |
+### Roundabout cases (RounD, INTERACTION)
 
-### Roundabout cases (RounD, INTERACTION, )
-
-| RounD | INTERACTION |
-| -- | -- |
-| ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/rounD_loc_0.gif) | ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_DEU_Roundabout_OF.gif) |
+<table>
+  <tr>
+    <th>RounD</th>
+    <th>INTERACTION</th>
+  </tr>
+  <tr>
+    <td valign="top" width="50%">
+    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/rounD_loc_0.gif" align="left" style="width: 100%" />
+    </td>
+    <td valign="top" width="50%">
+    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_DEU_Roundabout_OF.gif" align="left" style="width: 100%" />
+    </td>
+  </tr>
+</table>
 
 ### Parking cases (DLP, Self-generated)
 
-| DLP | Self-generated |
-| -- | -- |
-| ![](https://github.com/MotacillaAlba/image-storage/blob/main/img/dlp_sample.gif?raw=true) | ![](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/parking_sample.gif) |
+<table>
+  <tr>
+    <th>RounD</th>
+  </tr>
+  <tr>
+    <td valign="top" width="100%">
+    <img src="https://github.com/MotacillaAlba/image-storage/blob/main/img/dlp_sample.gif?raw=true" align="left" style="width: 100%" />
+  </tr>
+</table>
 
 ### Racing cases (Self-generated)
 
