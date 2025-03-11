@@ -18,6 +18,7 @@ EN | [CN](README.CN.md)
 
 > [!note]
 > This is the official codebase for Course AU7043 in Shanghai Jiao Tong University.
+> 
 > **For those who are taking this course, please download this repository by `git pull` command!**
 
 ## About
@@ -204,6 +205,7 @@ Please refers to the [documentation](https://tactics2d.readthedocs.io/en/latest/
   <tr>
     <td valign="top" width="100%">
     <img src="docs/assets/replay_dataset/DLP_sample.gif" align="left" style="width: 100%" />
+    </td>
   </tr>
 </table>
 
@@ -227,6 +229,4 @@ If you find `tactics2d` useful, please cite this in your publication.
 
 You are welcome to raise pull request and update your publication based on Tactics2D.
 
-Jiang, Mingyang\*, Li, Yueyuan\*, Zhang, Songan, et al. "[HOPE: A Reinforcement Learning-based Hybrid Policy Path Planner for Diverse Parking Scenarios](https://arxiv.org/abs/2405.20579)." *IEEE Transactions on Intelligent Transportation Systems* (2025). (\*Co-first author)
-
-[Code](https://github.com/jiamiya/HOPE) | [Demo](https://www.youtube.com/watch?v=62w9qhjIuRI)
+Jiang, Mingyang\*, Li, Yueyuan\*, Zhang, Songan, et al. "[HOPE: A Reinforcement Learning-based Hybrid Policy Path Planner for Diverse Parking Scenarios](https://arxiv.org/abs/2405.20579)." *IEEE Transactions on Intelligent Transportation Systems* (2025). (\*Co-first author) | [Code](https://github.com/jiamiya/HOPE) | [Demo](https://www.youtube.com/watch?v=62w9qhjIuRI)
