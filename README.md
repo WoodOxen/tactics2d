@@ -132,10 +132,10 @@ You can put the downloaded files at whatever location you like. In the parser, y
   </tr>
   <tr>
     <td valign="top" width="50%">
-    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/inD_loc_4.gif" align="left" style="width: 95%" />
+    <img src="docs/assets/replay_dataset/inD_loc_4.gif" align="left" style="width: 95%" />
     </td>
     <td valign="top" width="50%">
-    <img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/argoverse_sample.gif" align="left" style="width: 100%" />
+    <img src="docs/assets/replay_dataset/argoverse_sample.gif" align="left" style="width: 100%" />
     </td>
   </tr>
 </table>
