@@ -442,21 +442,26 @@ class OSMParser:
 
     def parse(
         self,
-        xml_root: ET.Element,
-        project_rule: dict = None,
-        gps_origin: tuple = None,
+        file_path: str,
         configs: dict = None,
     ) -> Map:
         """This function parses the OpenStreetMap format map.
 
         Args:
-            xml_root (ET.Element): The root of the XML tree.
-            project_rule (dict): The projection rule of the map.
-            gps_origin (tuple): The origin of the GPS coordinates.
+            file_path (str): The absolute path of the `.osm` file.
             configs (dict): The configurations of the map.
         """
+        xml_root = ET.parse(file_path).getroot()
+
+        if configs is not None:
+            project_rule = configs.get("project_rule", None)
+            gps_origin = configs.get("gps_origin", None)
+        else:
+            project_rule = None
+            gps_origin = None
+
         projector = Proj(**project_rule) if project_rule else None
-        gps_origin = gps_origin if gps_origin else None
+
         to_project = not None in [projector, gps_origin]
 
         if to_project:

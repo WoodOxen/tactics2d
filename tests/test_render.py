@@ -27,6 +27,7 @@ from shapely.geometry import Point
 from tactics2d.dataset_parser import InteractionParser
 from tactics2d.map.parser import OSMParser
 from tactics2d.sensor import RenderManager, SingleLineLidar, TopDownCamera
+from tactics2d.utils.get_absolute_path import get_absolute_path
 
 
 @pytest.mark.render
@@ -42,11 +43,8 @@ def test_camera(follow_view: bool):
         configs = json.load(f)
 
     map_parser = OSMParser(lanelet2=True)
-    map_root = ET.parse(map_path).getroot()
     map_ = map_parser.parse(
-        map_root,
-        configs["DR_DEU_Roundabout_OF"]["project_rule"],
-        configs["DR_DEU_Roundabout_OF"]["gps_origin"],
+        get_absolute_path(map_path),
         configs["DR_DEU_Roundabout_OF"],
     )
 
@@ -92,11 +90,8 @@ def test_lidar(perception_range):
         configs = json.load(f)
 
     map_parser = OSMParser(lanelet2=True)
-    map_root = ET.parse(map_path).getroot()
     map_ = map_parser.parse(
-        map_root,
-        configs["DR_DEU_Roundabout_OF"]["project_rule"],
-        configs["DR_DEU_Roundabout_OF"]["gps_origin"],
+        get_absolute_path(map_path),
         configs["DR_DEU_Roundabout_OF"],
     )
 
@@ -142,11 +137,8 @@ def test_render_manager(layout_style, off_screen):
         configs = json.load(f)
 
     map_parser = OSMParser(lanelet2=True)
-    map_root = ET.parse(map_path).getroot()
     map_ = map_parser.parse(
-        map_root,
-        configs["DR_DEU_Roundabout_OF"]["project_rule"],
-        configs["DR_DEU_Roundabout_OF"]["gps_origin"],
+        get_absolute_path(map_path),
         configs["DR_DEU_Roundabout_OF"],
     )
 

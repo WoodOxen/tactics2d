@@ -573,16 +573,16 @@ class XODRParser:
 
         return junction
 
-    def parse(self, xml_root: ET.Element):
+    def parse(self, file_path: str):
         """This function parses the OpenDRIVE format map. To ensure that all road elements have an unique id, the function automatically reassign the id of the road elements.
 
         Args:
-            xml_root (ET.Element): The root of the XML tree.
+            file_path (str): The absolute path of the `.xodr` file.
 
         Returns:
             map_ (Map): The parsed map.
         """
-
+        xml_root = ET.parse(file_path).getroot()
         header_node = xml_root.find("header")
         if header_node is not None:
             header_info, projector = self.load_header(header_node)

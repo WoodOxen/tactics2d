@@ -24,7 +24,7 @@ from tactics2d.sensor import RenderManager, TopDownCamera
 from tactics2d.traffic import ScenarioManager, ScenarioStatus, TrafficStatus
 from tactics2d.traffic.event_detection import NoAction, OffLane, OutBound, TimeExceed
 
-MAX_STEER = 1.0
+MAX_STEER = 0.5
 MAX_ACCEL = 2.0
 MIN_ACCEL = -4.0
 
@@ -41,14 +41,9 @@ class RacingEnv(gym.Env):
     `RacingEnv` accepts either a continuous or a discrete action command for the agent vehicle.
 
     - The continuous action is a 2D numpy array with the shape of (2,) representing the steering angle and the acceleration.
-    - The discrete action is an integer from 1 to 5, representing the following actions:
-        1. Do nothing: (0, 0)
-        2. Turn left: (-0.5, 0)
-        3. Turn right: (0.5, 0)
-        4. Move forward: (0, 1)
-        5. Move backward: (0, -1)
+    - The discrete action is an integer range in [0, 142] that points to a 2D numpy array with the shape of (2,) representing the steering angle and the acceleration. The steering ranges in [-0.5, 0.5, 0.1]. The acceleration ranges in [-2.0, 4.0, 0.5].
 
-    The first element of the action tuple is the steering angle, which should be in the range of [-0.75, 0.75]. Its unit is radian. The second element of the action tuple is the acceleration, which should be in the range of [-2.0, 2.0]. Its unit is m/s$^2$.
+    The first element of the action tuple is the steering angle, which should be in the range of [-0.5, 0.5]. Its unit is radian. The second element of the action tuple is the acceleration, which should be in the range of [-2.0, 4.0]. Its unit is m/s$^2$.
 
     ## Status and Reward
 
@@ -75,7 +70,6 @@ class RacingEnv(gym.Env):
     _max_steer = MAX_STEER
     _max_accel = MAX_ACCEL
     _min_accel = MIN_ACCEL
-    _discrete_actions = {1: (0, 0), 2: (-0.5, 0), 3: (0.5, 0), 4: (0, 1), 5: (0, -1)}
 
     def __init__(
         self,
@@ -117,7 +111,11 @@ class RacingEnv(gym.Env):
                 dtype=np.float32,
             )
         else:
-            self.action_space = spaces.Discrete(5)
+            x = np.linspace(-self._max_steer, self._max_steer, 11)
+            y = np.linspace(self._min_accel, self._max_accel, 13)
+            xx, yy = np.meshgrid(x, y)
+            self._discrete_action = np.vstack([xx.ravel(), yy.ravel()]).T
+            self.action_space = spaces.Discrete(len(self._discrete_action))
 
         self.scenario_manager = self._RacingScenarioManager(
             self.max_step, 100, self.render_fps, off_screen=self.render_mode != "human"

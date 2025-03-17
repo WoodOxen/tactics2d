@@ -4,13 +4,16 @@
 
 ### Added
 
-- Add carla sensor base class
+- Add carla sensor base class.
+- Add a new tutorial for pure pursuit controller in racing environment.
+- Add controller class for pure pursuit controller.
 
 ### Changed
 
 - Move `test` to `tests` in the root directory.
 - Improve map rendering speed.
 - Improve the running efficiency of Bezier and b_spline interpolators by adding c++ implementation.
+- Change the interface of `tactics2d.map.parser.OSMParser` and `tactics2d.map.parser.XODRParser`.
 
 ### Fixed
 

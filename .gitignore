@@ -2,11 +2,11 @@
 .DS_Store
 .scannerwork
 *.lcov
-tactics2d/data
-tests/runtime
+**/data/*
 **/wandb/*
 **/logs/*
 homework/
+tests/runtime
 
 #  vscode
 *.code-workspace
