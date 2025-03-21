@@ -20,7 +20,7 @@ class NGSIMParser:
     TODO: The support of NGSIM dataset is planned to be added before version 1.1.0.
     """
 
-    def extract_meta_data(self, file: str, folder: str, save_to: str = None):
+    def extract_meta_data(self, file: str, folder: str):
         df_track_chunk = pd.read_csv(os.path.join(folder, file), iterator=True, chunksize=10000)
 
         meta_data_dict = dict()
@@ -70,8 +70,8 @@ class NGSIMParser:
         meta_data_df.index.name = "Vehicle_ID"
         meta_data_df.index = meta_data_df.index.astype(int)
 
-        if save_to is not None:
-            meta_data_df.to_csv(save_to)
+        file_meta = file.split(".")[0] + "-meta" + "." + file.split(".")[1]
+        meta_data_df.to_csv(os.path.join(folder, file_meta))
 
     def parse_trajectory(
         self, file: str, folder: str, stamp_range: Tuple[int, int] = None, ids: list = None

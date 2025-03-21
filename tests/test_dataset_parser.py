@@ -134,15 +134,21 @@ def test_dlp_parser(file_id: int, stamp_range: tuple, expected: int):
 
 @pytest.mark.dataset_parser
 @pytest.mark.parametrize(
-    "file, stamp_range",
+    "file, stamp_range, ids",
     [
-        ("trajectories-0750am-0805am.csv", None),
+        ("trajectories-0750am-0805am.csv", None, None),
+        ("trajectories-0750am-0805am.csv", None, [2]),
+        ("trajectories-0750am-0805am.csv", None, [2, 4]),
     ],
 )
-def test_ngsim_parser(file, stamp_range):
+def test_ngsim_parser(file, stamp_range, ids):
     folder = "./tactics2d/data/trajectory_sample/NGSIM"
     parser = NGSIMParser()
-    _, _ = parser.parse_trajectory(file, folder, stamp_range)
+    participants, _ = parser.parse_trajectory(file, folder, stamp_range, ids)
+    if ids is not None:
+        assert len(ids) == len(participants)
+
+    parser.extract_meta_data(file, folder)
 
 
 @pytest.mark.dataset_parser

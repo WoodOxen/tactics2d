@@ -5,8 +5,7 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from .car_following import CarFollowingEnv
 from .parking import ParkingEnv
 from .racing import RacingEnv
 
-__all__ = ["CarFollowingEnv", "RacingEnv", "ParkingEnv"]
+__all__ = ["RacingEnv", "ParkingEnv"]

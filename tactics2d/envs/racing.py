@@ -141,6 +141,10 @@ class RacingEnv(gym.Env):
 
         return reward
 
+    def get_ego_state(self) -> State:
+        """This function returns the current state of the ego vehicle."""
+        return self.scenario_manager.agent.trajectory.last_state
+
     def step(self, action: Union[tuple, int]):
         """This function takes a step in the environment.
 

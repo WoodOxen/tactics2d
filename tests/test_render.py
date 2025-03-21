@@ -27,7 +27,7 @@ from shapely.geometry import Point
 from tactics2d.dataset_parser import InteractionParser
 from tactics2d.map.parser import OSMParser
 from tactics2d.sensor import RenderManager, SingleLineLidar, TopDownCamera
-from tactics2d.utils.get_absolute_path import get_absolute_path
+from tactics2d.utils.common import get_absolute_path
 
 
 @pytest.mark.render

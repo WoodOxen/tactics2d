@@ -20,7 +20,7 @@ import pytest
 
 from tactics2d.map.parser import OSMParser, XODRParser
 from tactics2d.traffic import ScenarioDisplay
-from tactics2d.utils.get_absolute_path import get_absolute_path
+from tactics2d.utils.common import get_absolute_path
 
 
 @pytest.mark.map_parser
