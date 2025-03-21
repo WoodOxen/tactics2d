@@ -24,6 +24,7 @@ from tactics2d.dataset_parser import (
     DLPParser,
     InteractionParser,
     LevelXParser,
+    NGSIMParser,
     NuPlanParser,
     WOMDParser,
 )
@@ -129,6 +130,19 @@ def test_dlp_parser(file_id: int, stamp_range: tuple, expected: int):
 
     assert (len(participants)) == expected
     logging.info(f"The time needed to parse a DLP scenario: {t2 - t1}s")
+
+
+@pytest.mark.dataset_parser
+@pytest.mark.parametrize(
+    "file, stamp_range",
+    [
+        ("trajectories-0750am-0805am.csv", None),
+    ],
+)
+def test_ngsim_parser(file, stamp_range):
+    folder = "./tactics2d/data/trajectory_sample/NGSIM"
+    parser = NGSIMParser()
+    _, _ = parser.parse_trajectory(file, folder, stamp_range)
 
 
 @pytest.mark.dataset_parser
