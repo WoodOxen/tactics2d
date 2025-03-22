@@ -13,16 +13,46 @@ import numpy as np
 import pandas as pd
 from gymnasium import spaces
 from gymnasium.error import InvalidAction
+from pyproj import Proj
 
+from tactics2d.dataset_parser import NGSIMParser
+from tactics2d.map.element import Map
+from tactics2d.map.parser import GISParser
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State
 from tactics2d.physics import SingleTrackKinematics
-from tactics2d.sensor import RenderManager
+from tactics2d.sensor import RenderManager, TopDownCamera
 from tactics2d.traffic import ScenarioManager, ScenarioStatus, TrafficStatus
+from tactics2d.utils.common import get_absolute_path
 
 MAX_STEER = 0.5
 MAX_ACCEL = 2.0
 MIN_ACCEL = -4.0
+
+NGSIM_TREE = {
+    "./data/NGSIM/I-80-Emeryville-CA": {
+        "gis-files": ["emeryville.shp"],
+        "epsg": 2229,
+        "bounds": [-118.359, -118.365, 34.139, 34.135],  # west, east, north, south
+        "trajectories": ["trajectories-0500-0515.csv", "trajectories-0515-0530.csv"],
+    },
+    "./data/NGSIM/US-101-LosAngeles-CA": {
+        "gis-files": ["US-101.shp"],
+        "epsg": 2227,
+        "bounds": [-122.2987, -122.2962, 37.8466, 37.8385],
+        "trajectories": [
+            "trajectories-0750am-0805am.csv",
+            "trajectories-0805am-0820am.csv",
+            "trajectories-0820am-0835am.csv",
+        ],
+    },
+    "./data/NGSIM/Lankershim-Boulevard-LosAngeles-CA": {
+        "gis-files": ["LA-UniversalCity.shp"],
+        "epsg": 2229,
+        "bounds": [-118.363, -118.360, 34.143, 34.137],
+        "trajectories": ["trajectories.csv"],
+    },
+}
 
 
 class CarFollowingEnv(gym.Env):
@@ -53,10 +83,22 @@ class CarFollowingEnv(gym.Env):
         self,
         dataset: str = "ngsim",
         render_mode: str = "human",
-        render_fps: int = 60,
+        render_fps: int = 10,
         max_step: int = int(1e3),
         continuous: bool = True,
     ):
+        """Initialize the racing environment.
+
+        Args:
+            dataset (str, optional): The dataset providing the target vehicle for following. The available choices are ["ngsim", "highd"]. Defaults to "ngsim".
+            render_mode (str, optional): The mode of the rendering. It can be "human" or "rgb_array". Defaults to "human".
+            render_fps (int, optional): The frame rate of the rendering. Defaults to 10 Hz.
+            max_step (int, optional): The maximum time step of the scenario. Defaults to 1000.
+            continuous (bool, optional): Whether to use continuous action space. Defaults to True.
+
+        Raises:
+            NotImplementedError: If the render mode is not supported.
+        """
         super().__init__()
 
         if dataset.lower() not in ["ngsim", "highd"]:
@@ -101,7 +143,29 @@ class CarFollowingEnv(gym.Env):
         """This function returns the current state of the ego vehicle."""
         return self.scenario_manager.agent.trajectory.last_state
 
-    def step(self):
+    def get_target_state(self) -> State:
+        frame = self.scenario_manager.agent.trajectory.last_state.frame
+        return self.scenario_manager.participants[1].trajectory.get_state(frame)
+
+    def step(self, action):
+        """This function takes a step in the environment.
+
+        Args:
+            action (Union[tuple, int]): The action command for the agent vehicle. If the action space is continuous, the input should be a tuple, whose first element controls the steering value and the second controls the acceleration. If the action space is discrete, the input should be an index that points to a pre-defined control command.
+
+        Raises:
+            InvalidAction: If the action is not in the action space."
+
+        Returns:
+            observation (np.array): The BEV image observation of the environment.
+        """
+        if not self.action_space.contains(action):
+            raise InvalidAction(f"Action {action} is not in the action space.")
+        action = action if self.continuous else self._discrete_action[action]
+
+        steering, accel = action
+        observation = self.scenario_manager.update(steering, accel)
+
         return
 
     def render(self):
@@ -114,21 +178,28 @@ class CarFollowingEnv(gym.Env):
         observations = self.scenario_manager.get_observation()
         observation = observations[0]
 
+        infos = {}
+
+        return observation, infos
+
     class _CarFollowingScenarioManager(ScenarioManager):
         _max_steer = MAX_STEER
         _max_accel = MAX_ACCEL
-        _window_size = (500, 500)
-        _state_size = (200, 200)
+        _min_accel = MIN_ACCEL
+        _window_size = (1000, 1000)
+        _state_size = (1000, 1000)
 
         def __init__(
             self,
             dataset: str,
             max_step: int = None,
             step_size: int = None,
-            render_fps: int = 60,
+            render_fps: int = None,
             off_screen: bool = False,
         ):
             super().__init__(max_step, step_size, render_fps, off_screen)
+
+            self.dataset = dataset
 
             self.agent = Vehicle(id_=0)
             self.agent.load_from_template("medium_car")
@@ -136,34 +207,165 @@ class CarFollowingEnv(gym.Env):
                 lf=self.agent.length / 2 - self.agent.front_overhang,
                 lr=self.agent.length / 2 - self.agent.rear_overhang,
                 steer_range=(-self._max_steer, self._max_steer),
-                speed_range=(-0.5, 0.5),
-                accel_range=(-self._max_accel, self._max_accel),
+                speed_range=self.agent.speed_range,
+                accel_range=(self._min_accel, self._max_accel),
                 interval=self.step_size,
             )
 
-            if dataset == "ngsim":
-                self.heading_vehicle, self.map_ = self.load_from_ngsim()
-            elif dataset == "highd":
-                self.heading_vehicle, self.map_ = self.load_from_highd()
+            # Only two participants:
+            # - 0: ego vehicle
+            # - 1: target vehicle
+            self.participants = {self.agent.id_: self.agent}
+
+            self.map_ = Map(name="car-following")
+
+            if self.dataset == "ngsim":
+                self.target_vehicle_index = pd.read_csv(
+                    get_absolute_path("./data/NGSIM/target-vehicle-index.csv")
+                )
+                self.trajectory_parser = NGSIMParser()
+                self.map_parser = GISParser()
+            elif self.dataset == "highd":
+                pass
 
             self.render_manager = RenderManager(
                 fps=self.render_fps, windows_size=self._window_size, off_screen=self.off_screen
             )
 
-        def _select_target_vehicle_ngsim(self):
-            return
+        def _load_from_ngsim(self):
+            target_vehicle_index = self.target_vehicle_index.sample(1).to_dict(orient="records")[0]
 
-        def _select_target_vehicle_highd(self):
-            return
+            logging.info(
+                "Loading vehicle %d from %s"
+                % (target_vehicle_index["Vehicle_ID"], target_vehicle_index["File"])
+            )
+            logging.info(
+                "Using state of vehicle %d at frame %d to initialize the agent."
+                % (target_vehicle_index["Following"], target_vehicle_index["Start_Following"])
+            )
 
-        def _reset_agent(self):
-            self.agent.reset(state)
+            # Parse the map
+            # map_folder = target_vehicle_index["Folder"]
+            # west, east, north, south = NGSIM_TREE[map_folder]["bounds"]
+            # central_lon = (west + east) / 2
+            # zone_number = int((central_lon + 180) / 6) + 1
+            # is_northern = (south + north) / 2 >= 0
+
+            # utm_proj = Proj(proj='utm', zone=zone_number, ellps="WGS84", south=not is_northern)
+
+            # self.map_ = self.map_parser.parse(
+            #     [get_absolute_path(map_folder) + "/gis-files/"+ gis_file for gis_file in NGSIM_TREE[map_folder]["gis-files"]],
+            #     projector=utm_proj
+            # )
+
+            # Parse the trajectory file
+            # TODO: Bottleneck in loading csv file
+
+            participants, actual_time_stamp = self.trajectory_parser.parse_trajectory(
+                target_vehicle_index["File"],
+                get_absolute_path(target_vehicle_index["Folder"]),
+                stamp_range=(target_vehicle_index["Start_Following"], np.inf),
+                ids=[target_vehicle_index["Vehicle_ID"], target_vehicle_index["Following"]],
+            )
+
+            self.participants[1] = participants[target_vehicle_index["Vehicle_ID"]]
+
+            # estimate the heading of the target vehicle, not accurate, only for visualizing
+            n_positive = 0
+            n_negative = 0
+
+            for frame in np.arange(
+                self.participants[1].trajectory.first_frame,
+                self.participants[1].trajectory.last_frame,
+                self.step_size,
+            ):
+                current_state = self.participants[1].trajectory.get_state(frame)
+                next_state = self.participants[1].trajectory.get_state(frame + self.step_size)
+                estimated_heading = np.arctan(
+                    (next_state.y - current_state.y) / (next_state.x - current_state.x + 1e-6)
+                )
+                if estimated_heading > 0:
+                    n_positive += 1
+                else:
+                    n_negative += 1
+
+                self.participants[1].trajectory.get_state(frame).set_heading(estimated_heading)
+
+            self.participants[1].trajectory.get_state(
+                self.participants[1].trajectory.last_frame
+            ).set_heading(
+                self.participants[1]
+                .trajectory.get_state(self.participants[1].trajectory.last_frame - self.step_size)
+                .heading
+            )
+
+            if n_positive > 0 and n_negative > 0:
+                sign = 1.0 if n_positive > n_negative else -1.0
+                for frame in np.arange(
+                    self.participants[1].trajectory.first_frame,
+                    self.participants[1].trajectory.last_frame + self.step_size,
+                    self.step_size,
+                ):
+                    heading = self.participants[1].trajectory.get_state(frame).heading
+                    self.participants[1].trajectory.get_state(frame).set_heading(
+                        sign * np.abs(heading)
+                    )
+
+            self.compensation_step = self.participants[1].trajectory.first_frame
+
+            ego_state = participants[target_vehicle_index["Following"]].trajectory.get_state(
+                self.compensation_step
+            )
+
+            ego_state.set_heading(
+                self.participants[1]
+                .trajectory.get_state(self.participants[1].trajectory.first_frame)
+                .heading
+            )
+
+            self.agent.reset(ego_state)
+
+            logging.info(
+                "The ego vehicle starts at ({:.3f}, {:.3f}), heading to {:.3f} rad.".format(
+                    ego_state.x, ego_state.y, estimated_heading
+                )
+            )
 
         def update(self, steering: float, accel: float):
-            self.cnt_step += 1
+            self.cnt_step += self.step_size
+            current_state = self.agent.current_state
+            next_state, _, _ = self.agent.physics_model.step(current_state, accel, steering)
+            self.agent.add_state(next_state)
+
+            self.render_manager.update(
+                self.participants, [0, 1], self.cnt_step + self.compensation_step
+            )
+
+            return self.get_observation()
+
+        def check_status(self):
+            return
 
         def render(self):
             self.render_manager.render()
 
         def reset(self):
             self.cnt_step = 0
+            self.compensation_step = 0
+            self.map_.reset()
+
+            if self.dataset == "ngsim":
+                self._load_from_ngsim()
+
+            self.render_manager.reset()
+
+            # reset the sensors
+            camera = TopDownCamera(
+                id_=0,
+                map_=self.map_,
+                perception_range=(75, 75, 100, 50),
+                window_size=self._state_size,
+                off_screen=self.off_screen,
+            )
+            self.render_manager.add_sensor(camera)
+            self.render_manager.bind(0, 0)

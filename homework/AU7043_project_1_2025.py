@@ -5,36 +5,44 @@
 # @Author: Tactics2D Team
 # @Version:
 
-import tactics2d
+import sys
 
-from .car_following import CarFollowingEnv
+sys.path.append(".")
 
-NGSIM_PATH = {
-    "folder": "./data/NGSIM",
-    "I-80-Emeryville-CA": {
-        "trajectories": ["trajectories-0500-0515.csv", "trajectories-0515-0530.csv"]
-    },
-    "Lankershim-Boulevard-LosAngeles-CA": {"trajectories": ["trajectories.csv"]},
-    "US-101-LosAngeles-CA": {
-        "trajectories": [
-            "trajectories-0750am-0805am.csv",
-            "trajectories-0805am-0820am.csv",
-            "trajectories-0820am-0835am.csv",
-        ]
-    },
-}
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
+import numpy as np
+from car_following import CarFollowingEnv
 
 
 class MyCarFollowingModel:
     def __init__(self):
-        super().__init__()
+        # you can define the default parameters here
+        pass
 
-    def step(self):
-        return
+    def step(self):  # customize the input for your car following model
+        steering = 0
+        accel = 0.1
+        # steering = np.random.uniform(low=-0.5, high=0.5)
+        # accel = np.random.uniform(low=-4, high=2)
+        return steering, accel
 
 
 def main():
     env = CarFollowingEnv(dataset="ngsim", render_mode="human")
+    observation, _ = env.reset()
+
+    car_following_model = MyCarFollowingModel()
+
+    for step in range(200):
+        env.render()
+        ego_state = env.get_ego_state()
+        target_vehicle_state = env.get_target_state()
+
+        action = car_following_model.step()
+        observation = env.step(action)
 
 
 if __name__ == "__main__":

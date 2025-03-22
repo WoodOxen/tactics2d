@@ -81,10 +81,10 @@ class RacingEnv(gym.Env):
         """Initialize the racing environment.
 
         Args:
-            render_mode (str, optional): The mode of the rendering. It can be "human" or "rgb_array".
+            render_mode (str, optional): The mode of the rendering. It can be "human" or "rgb_array". Defaults to "human".
             render_fps (int, optional): The frame rate of the rendering.
-            max_step (int, optional): The maximum time step of the scenario.
-            continuous (bool, optional): Whether to use continuous action space.
+            max_step (int, optional): The maximum time step of the scenario. Defaults to 100000.
+            continuous (bool, optional): Whether to use continuous action space. Defaults to True.
 
         Raises:
             NotImplementedError: If the render mode is not supported.

@@ -12,48 +12,69 @@ import geopandas as gpd
 from pyproj import Proj
 from shapely.geometry import LineString, MultiLineString, MultiPolygon, Point, Polygon
 
-# from collections import Union, List
+from tactics2d.map.element import Area, Lane, Map, Node, Regulatory, RoadLine
 
-# from tactics2d.map.element import Area, Lane, Map, Node, Regulatory, RoadLine
+# from collections import Union, List
 
 
 class GISParser:
-    def load_roadline(self, gdf_row):
-        geometry = LineString(gdf_row.geometry)
+    def __init__(self):
+        self.projector = None
+
+    def _project(self, geometry):
         coords = list(geometry.coords)
-        # projector = Proj(proj="utm", ellps="WGS84", zone=1, datum="WGS84")
-        projector = Proj(
-            "+proj=lcc +lat_0=34.139 +lat_1=34.135 +lon_0=-118.359 +lon_1=-118.365 +x_0=0 +y_0=0  +datum=NAD83 +units=m +no_defs"
+
+        if self.projector is not None:
+            coords = [self.projector(coord[0], coord[1], inverse=True) for coord in coords]
+
+        print(coords)
+        return coords
+
+    def load_roadline(self, gdf_row, id_):
+        geometry = LineString(gdf_row.geometry)
+        coords = self._project(geometry)
+
+        roadline = RoadLine(
+            str(id_),
+            geometry=LineString(coords),
+            color=None if gdf_row.LINEWIDTH == 0.0 else "black",
+            # width=gdf_row.LINEWIDTH
+            width=1.0,
         )
 
-        print(coords[0], projector(coords[0][0], coords[0][1], inverse=True))
+        id_ += 1
+        return roadline, id_
 
-        return
+    def load_lane(self, gdf_row, id_):
+        geometries = MultiLineString(gdf_row.geometry).geoms
+        roadlines = []
 
-    def load_lane(self, gdf_row):
-        return
+        for geometry in geometries:
+            coords = self._project(geometry)
+            roadline = RoadLine(
+                str(id_),
+                LineString(coords),
+                color=None if gdf_row.LINEWIDTH == 0.0 else "black",
+                # width=gdf_row.LINEWIDTH
+                width=1.0,
+            )
+            roadlines.append(roadline)
+
+            id_ += 1
+
+        return roadlines, None, id_
 
     def load_area(self, gef_row):
         return
 
-    def parse_gdf(self, gdf: gpd.GeoDataFrame, map_):
-        for i, row in gdf.iterrows():
-            if isinstance(row.geometry, Point):
-                pass
-            elif isinstance(row.geometry, LineString):
-                self.load_roadline(row)
-            elif isinstance(row.geometry, MultiLineString):
-                self.load_lane(row)
-            break
-
-        print(gdf.head())
-
-    def parse(self, file_path):
+    def parse(self, file_path, projector: Proj = None):
         """_summary_
 
         Args:
             file_path (str): The absolute path of a `.shp` file or a list of `.shp` files.
         """
+        self.projector = projector
+
         gdfs = []
         if isinstance(file_path, str):
             gdf = gpd.read_file(file_path)
@@ -61,22 +82,24 @@ class GISParser:
         else:
             for f in file_path:
                 gdf = gpd.read_file(f)
+                print(gdf["LINEWIDTH"].unique())
+                print(gdf["COLOR"].unique())
                 gdfs.append(gdf)
 
-        # map_ = Map()
-
-        print(gdfs[0].head())
-        print(gdfs[0].crs)
-        print(gdfs[0].geom_type.unique())
+        map_ = Map()
+        id_ = 0
 
         for gdf in gdfs:
-            self.parse_gdf(gdf, None)
+            for i, row in gdf.iterrows():
+                # TODO: handle Points in the future
+                if isinstance(row.geometry, Point):
+                    pass
+                elif isinstance(row.geometry, LineString):
+                    roadline, id_ = self.load_roadline(row, id_)
+                    map_.add_roadline(roadline)
+                elif isinstance(row.geometry, MultiLineString):
+                    roadlines, lane, id_ = self.load_lane(row, id_)
+                    for roadline in roadlines:
+                        map_.add_roadline(roadline)
 
-
-# EPSG:26945
-
-if __name__ == "__main__":
-    parser = GISParser()
-    parser.parse(
-        "/home/rowena/Documents/Tactics2D/tactics2d/data/NGSIM/US-101-LosAngeles-CA/gis-files/US-101.shp"
-    )
+        return map_

@@ -120,8 +120,8 @@ class NGSIMParser:
                 if id_ not in participants:
                     participants[id_] = Vehicle(
                         id_=info["Vehicle_ID"],
-                        length=info["v_Length"],
-                        width=info["v_Width"],
+                        length=info["v_Length"] * 0.3048,  # feet -> meter
+                        width=info["v_Width"] * 0.3048,  # feet -> meter
                         trajectory=Trajectory(id_=id_, fps=10),
                     )
 
@@ -129,8 +129,8 @@ class NGSIMParser:
                     frame=info["Frame_ID"] * 100,  # 10 Hz, ms
                     x=info["Local_X"],
                     y=info["Local_Y"],
-                    speed=info["v_Vel"],
-                    accel=info["v_Acc"],
+                    speed=info["v_Vel"] * 0.3048,  # feet/s -> meter/s
+                    accel=info["v_Acc"] * 0.3048,  # feet/s^2 -> meter/s^2
                 )
 
                 participants[id_].trajectory.add_state(state)
