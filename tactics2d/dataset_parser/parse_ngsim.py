@@ -127,8 +127,8 @@ class NGSIMParser:
 
                 state = State(
                     frame=info["Frame_ID"] * 100,  # 10 Hz, ms
-                    x=info["Local_X"],
-                    y=info["Local_Y"],
+                    x=info["Local_X"] * 0.3048,  # feet -> meter
+                    y=info["Local_Y"] * 0.3048,  # feet -> meter
                     speed=info["v_Vel"] * 0.3048,  # feet/s -> meter/s
                     accel=info["v_Acc"] * 0.3048,  # feet/s^2 -> meter/s^2
                 )
