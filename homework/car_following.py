@@ -265,59 +265,49 @@ class CarFollowingEnv(gym.Env):
             )
 
             self.participants[1] = participants[target_vehicle_index["Vehicle_ID"]]
+            self.participants[1].color = "light-purple"
 
             # estimate the heading of the target vehicle, not accurate, only for visualizing
-            n_positive = 0
-            n_negative = 0
+            first_frame = self.participants[1].trajectory.first_frame
+            last_frame = self.participants[1].trajectory.last_frame
+            self.compensation_step = first_frame
 
-            for frame in np.arange(
-                self.participants[1].trajectory.first_frame,
-                self.participants[1].trajectory.last_frame,
-                self.step_size,
-            ):
+            for frame in np.arange(first_frame, last_frame, self.step_size):
                 current_state = self.participants[1].trajectory.get_state(frame)
                 next_state = self.participants[1].trajectory.get_state(frame + self.step_size)
                 estimated_heading = np.arctan(
                     (next_state.y - current_state.y) / (next_state.x - current_state.x + 1e-6)
                 )
-                if estimated_heading > 0:
-                    n_positive += 1
-                else:
-                    n_negative += 1
 
                 self.participants[1].trajectory.get_state(frame).set_heading(estimated_heading)
 
-            self.participants[1].trajectory.get_state(
-                self.participants[1].trajectory.last_frame
-            ).set_heading(
-                self.participants[1]
-                .trajectory.get_state(self.participants[1].trajectory.last_frame - self.step_size)
-                .heading
+            self.participants[1].trajectory.get_state(last_frame).set_heading(
+                self.participants[1].trajectory.get_state(last_frame - self.step_size).heading
             )
 
-            if n_positive > 0 and n_negative > 0:
-                sign = 1.0 if n_positive > n_negative else -1.0
-                for frame in np.arange(
-                    self.participants[1].trajectory.first_frame,
-                    self.participants[1].trajectory.last_frame + self.step_size,
-                    self.step_size,
-                ):
-                    heading = self.participants[1].trajectory.get_state(frame).heading
-                    self.participants[1].trajectory.get_state(frame).set_heading(
-                        sign * np.abs(heading)
-                    )
+            general_heading = np.arctan(
+                (
+                    self.participants[1].trajectory.get_state(first_frame + 100 * self.step_size).y
+                    - self.participants[1].trajectory.get_state(first_frame).y
+                )
+                / (
+                    self.participants[1].trajectory.get_state(first_frame + 100 * self.step_size).x
+                    - self.participants[1].trajectory.get_state(first_frame).x
+                    + 1e-6
+                )
+            )
 
-            self.compensation_step = self.participants[1].trajectory.first_frame
+            sign = 1.0 if general_heading > 0 else -1.0
+
+            for frame in np.arange(first_frame, last_frame + self.step_size, self.step_size):
+                heading = self.participants[1].trajectory.get_state(frame).heading
+                self.participants[1].trajectory.get_state(frame).set_heading(np.abs(heading) * sign)
 
             ego_state = participants[target_vehicle_index["Following"]].trajectory.get_state(
-                self.compensation_step
+                first_frame
             )
 
-            ego_state.set_heading(
-                self.participants[1]
-                .trajectory.get_state(self.participants[1].trajectory.first_frame)
-                .heading
-            )
+            ego_state.set_heading(self.participants[1].trajectory.get_state(first_frame).heading)
 
             self.agent.reset(ego_state)
 
