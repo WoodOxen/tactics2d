@@ -154,14 +154,19 @@ class LevelXParser:
         return actual_stamp_range
 
     def parse_trajectory(
-        self, file: Union[int, str], folder: str, stamp_range: Tuple[int, int] = None
+        self,
+        file: Union[int, str],
+        folder: str,
+        stamp_range: Tuple[int, int] = None,
+        ids: list = None,
     ) -> Tuple[dict, Tuple[int, int]]:
         """This function parses the trajectory data of LevelX-series datasets. The states were collected at 25Hz.
 
         Args:
             file (int): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: `%02d_tracks.csv % file` and `%02d_tracksMeta.csv % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
             folder (str): The path to the folder containing the trajectory data.
-            stamp_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data.
+            stamp_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+            ids (list): The list of trajectory ids that needs to parse. If this value is not specified, the parser will parse all the trajectories within the time range. Defaults to None.
 
         Returns:
             participants (dict): A dictionary of participants. The keys are the ids of the participants. The values are the participants.
@@ -175,6 +180,9 @@ class LevelXParser:
         actual_stamp_range = (np.inf, -np.inf)
 
         file_id = self._get_file_id(file)
+
+        if ids is not None:
+            ids = {int(x) for x in ids}
 
         df_track_chunk = pd.read_csv(
             os.path.join(folder, "%02d_tracks.csv" % file_id), iterator=True, chunksize=10000
@@ -255,6 +263,10 @@ class LevelXParser:
                 )
 
                 trajectory_id = int(state_info[self.id_key])
+
+                if ids is not None and trajectory_id not in ids:
+                    continue
+
                 if trajectory_id not in trajectories:
                     trajectories[trajectory_id] = Trajectory(id_=trajectory_id, fps=25.0)
 
