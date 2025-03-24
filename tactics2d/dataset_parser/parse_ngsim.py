@@ -101,7 +101,7 @@ class NGSIMParser:
         df_track_chunk = pd.read_csv(os.path.join(folder, file), iterator=True, chunksize=10000)
 
         for chunk in df_track_chunk:
-            for _, info in chunk.iterrows():
+            for idx, info in chunk.iterrows():
                 time_stamp = info["Frame_ID"]
 
                 if time_stamp < stamp_range[0] or time_stamp > stamp_range[1]:
@@ -127,8 +127,8 @@ class NGSIMParser:
 
                 state = State(
                     frame=info["Frame_ID"] * 100,  # 10 Hz, ms
-                    x=info["Local_X"] * 0.3048,  # feet -> meter
-                    y=info["Local_Y"] * 0.3048,  # feet -> meter
+                    x=info["Global_X"] * 0.3048,  # feet -> meter
+                    y=info["Global_Y"] * 0.3048,  # feet -> meter
                     speed=info["v_Vel"] * 0.3048,  # feet/s -> meter/s
                     accel=info["v_Acc"] * 0.3048,  # feet/s^2 -> meter/s^2
                 )

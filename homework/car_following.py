@@ -245,18 +245,14 @@ class CarFollowingEnv(gym.Env):
             )
 
             # Parse the map
-            # map_folder = target_vehicle_index["Folder"]
-            # west, east, north, south = NGSIM_TREE[map_folder]["bounds"]
-            # central_lon = (west + east) / 2
-            # zone_number = int((central_lon + 180) / 6) + 1
-            # is_northern = (south + north) / 2 >= 0
+            map_folder = target_vehicle_index["Folder"]
 
-            # utm_proj = Proj(proj='utm', zone=zone_number, ellps="WGS84", south=not is_northern)
-
-            # self.map_ = self.map_parser.parse(
-            #     [get_absolute_path(map_folder) + "/gis-files/"+ gis_file for gis_file in NGSIM_TREE[map_folder]["gis-files"]],
-            #     projector=utm_proj
-            # )
+            self.map_ = self.map_parser.parse(
+                [
+                    get_absolute_path(map_folder) + "/gis-files/" + gis_file
+                    for gis_file in NGSIM_TREE[map_folder]["gis-files"]
+                ],
+            )
 
             # Parse the trajectory file
             # TODO: Bottleneck in loading csv file

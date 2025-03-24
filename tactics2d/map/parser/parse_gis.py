@@ -24,10 +24,10 @@ class GISParser:
     def _project(self, geometry):
         coords = list(geometry.coords)
 
-        if self.projector is not None:
-            coords = [self.projector(coord[0], coord[1], inverse=True) for coord in coords]
+        # TODO: Currently the projector is handling the NGSIM dataset with dirty trick, convert feet to meter only
+        # if self.projector is not None:
+        coords = [[coord[0] * 0.3048, coord[1] * 0.3048] for coord in coords]
 
-        print(coords)
         return coords
 
     def load_roadline(self, gdf_row, id_):
@@ -37,8 +37,9 @@ class GISParser:
         roadline = RoadLine(
             str(id_),
             geometry=LineString(coords),
-            color=None if gdf_row.LINEWIDTH == 0.0 else "black",
-            # width=gdf_row.LINEWIDTH
+            # color=None if gdf_row.LINEWIDTH == 0.0 else "black",
+            color="black",
+            # width=gdf_row.LINEWIDTH,
             width=1.0,
         )
 
@@ -54,7 +55,8 @@ class GISParser:
             roadline = RoadLine(
                 str(id_),
                 LineString(coords),
-                color=None if gdf_row.LINEWIDTH == 0.0 else "black",
+                # color=None if gdf_row.LINEWIDTH == 0.0 else "black",
+                color="black",
                 # width=gdf_row.LINEWIDTH
                 width=1.0,
             )
@@ -82,8 +84,6 @@ class GISParser:
         else:
             for f in file_path:
                 gdf = gpd.read_file(f)
-                print(gdf["LINEWIDTH"].unique())
-                print(gdf["COLOR"].unique())
                 gdfs.append(gdf)
 
         map_ = Map()
