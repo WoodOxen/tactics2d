@@ -13,7 +13,6 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-import numpy as np
 from car_following import CarFollowingEnv
 
 
