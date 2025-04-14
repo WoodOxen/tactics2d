@@ -6,6 +6,8 @@
 # @Version:
 
 import logging
+import pickle
+import os
 
 import gymnasium as gym
 import numpy as np
@@ -310,7 +312,7 @@ class LaneChangingEnv(gym.Env):
                 (ego_locaction[0] - self.destination[0]) ** 2
                 + (ego_locaction[1] - self.destination[1]) ** 2
             )
-            if distance < 8:
+            if distance < 10:
                 self.status = ScenarioStatus.COMPLETED
                 return
 
@@ -335,14 +337,27 @@ class LaneChangingEnv(gym.Env):
             self.status = ScenarioStatus.NORMAL
 
             idx = np.random.randint(0, len(ego_candidates))
+            # idx = 44 # you can change and fix the index to test a specific scenario
             self.ego_id = ego_candidates[idx][0]
             self.compensation_step = ego_candidates[idx][1] * self.step_size
-
-            self.participants, _ = self.dataset_parser.parse_trajectory(
-                "11_tracks.csv",
-                "../data/highD",
-                (ego_candidates[idx][1] * self.step_size, ego_candidates[idx][2] * self.step_size),
-            )
+            print('start parsing')
+            # we save the participants to a pickle file for quicker loading
+            # if exits, load the participants from the pickle file directly instead of parsing the csv file
+            if os.path.exists("../data/highD_participants_ego_id_" + str(idx) + '_' + str(self.ego_id)):
+                with open("../data/highD_participants_ego_id_" + str(idx) + '_' + str(self.ego_id), "rb") as f:
+                    self.participants = pickle.load(f)
+                print('load participants from pickle file: ',f.name)
+            else:
+                self.participants, _ = self.dataset_parser.parse_trajectory(
+                    "11_tracks.csv",
+                    "../data/highD",
+                    (ego_candidates[idx][1] * self.step_size, ego_candidates[idx][2] * self.step_size),
+                )
+                # save the participants to a pickle file for quicker loading
+                with open("../data/highD_participants_ego_id_" + str(idx) + '_' + str(self.ego_id), "wb") as f:
+                    pickle.dump(self.participants, f)
+                print('save participants to pickle file: ',f.name)
+            print('finish parsing')
 
             if not self.ego_id in self.participants.keys():
                 raise RuntimeError(
