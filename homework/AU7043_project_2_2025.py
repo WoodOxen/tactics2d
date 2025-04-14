@@ -54,7 +54,9 @@ def main(level="easy"):
         logging.debug(infos["status"].name)
 
         if infos["status"].name not in ["NORMAL", "COMPLETED"]:
-            raise RuntimeError(f"Simulation failed with status: {infos['status'].name}")
+            raise RuntimeError(
+                f"Simulation failed with status: {infos['status'].name} at step {step}."
+            )
         elif infos["status"].name == "COMPLETED":
             logging.info(f"Simulation completed successfully at step {step}.")
             break
