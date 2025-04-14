@@ -214,6 +214,7 @@ class RenderManager:
 
         Args:
             participants (dict): The dictionary of all participants. The render manager will detect which of them is alive.
+            participant_ids (list): The list of all participant ids.
             frame (int): Update the sensors to the given frame. If None, the sensors will update to the current frame. The default unit is millisecond.
         """
         to_remove = []

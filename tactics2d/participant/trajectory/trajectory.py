@@ -84,6 +84,17 @@ class Trajectory:
     def average_speed(self):
         return np.mean([state.speed for state in self._history_states.values()])
 
+    def has_state(self, frame: int) -> bool:
+        """This function checks if the trajectory has a state at the requested frame.
+
+        Args:
+            frame (int, optional): The time stamp of the requested state. The unit is millisecond (ms).
+
+        Returns:
+            bool: True if the trajectory has a state at the requested frame, False otherwise.
+        """
+        return frame in self._history_states
+
     def get_state(self, frame: int = None) -> State:
         """This function get the object's state at the requested frame.
 

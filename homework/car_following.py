@@ -166,7 +166,7 @@ class CarFollowingEnv(gym.Env):
         steering, accel = action
         observation = self.scenario_manager.update(steering, accel)
 
-        return
+        return observation
 
     def render(self):
         if self.render_mode == "human":
