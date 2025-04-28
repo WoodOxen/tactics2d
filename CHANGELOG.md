@@ -7,6 +7,8 @@
 - Add carla sensor base class.
 - Add a new tutorial for pure pursuit controller in racing environment.
 - Add controller class for pure pursuit controller.
+- Add data parser for NGSIM.
+- Add Chinese README.
 
 ### Changed
 
