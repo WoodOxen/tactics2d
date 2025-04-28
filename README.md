@@ -20,8 +20,6 @@ EN | [CN](README.CN.md)
 
 > [!note]
 > This is the official codebase for Course AU7043 in Shanghai Jiao Tong University.
->
-> **For those who are taking this course, please download this repository by `git pull` command!**
 
 `tactics2d` is an open-source Python library that provides diverse and challenging traffic scenarios for the development and evaluation of reinforcement learning-based decision-making models in autonomous driving. `tactics2d` stands out with the following key features:
 
