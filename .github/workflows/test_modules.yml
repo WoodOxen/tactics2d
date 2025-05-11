@@ -4,12 +4,15 @@ on:
   - pull_request
   - workflow_dispatch
 
+permissions:
+  contents: read
+
 jobs:
   test-modules:
     strategy:
       matrix:
         # os: [ubuntu-20.04, ubuntu-22.04, windows-latest, macos-13]
-        os: [ubuntu-20.04, ubuntu-22.04, macos-13]
+        os: [ubuntu-22.04, ubuntu-24.04, macos-13]
         python-version: ['3.8', '3.9', '3.10', '3.11']
     runs-on: ${{ matrix.os }}
     steps:
@@ -79,6 +82,44 @@ jobs:
               apt-get update && \
               apt-get update -y && \
               apt-get install -y python${{ matrix.python-version }} python3-pip python${{ matrix.python-version }}-dev build-essential cmake && \
+              cd /tactics2d && \
+              python${{ matrix.python-version }} --version && \
+              python${{ matrix.python-version }} -m pip install --upgrade pip && \
+              if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi && \
+              pip install -v . && \
+              python${{ matrix.python-version }} -m pytest tests'
+  test-modules-on-Ubuntu2004:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.9']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Check out private repository WoodOxen/trajectory_data_analysis
+        uses: actions/checkout@v4
+        with:
+          repository: WoodOxen/trajectory_data_analysis
+          token: ${{ secrets.TRAJ_DATA_SCP }}
+          path: tactics2d/data
+      - name: Make runtime directory
+        run: |
+          mkdir ./tests/runtime/
+          echo $GITHUB_WORKSPACE
+      - name: Run pytest in docker
+        run: |
+          docker pull ubuntu:20.04
+          docker run \
+            -v $GITHUB_WORKSPACE:/tactics2d \
+            ubuntu:20.04 \
+            /bin/bash -c 'apt-get update && \
+              apt-get install -y software-properties-common && \
+              add-apt-repository -y ppa:deadsnakes/ppa && \
+              apt-get update && \
+              apt-get update -y && \
+              apt-get install -y python${{ matrix.python-version }} python3-pip python3-distutils python${{ matrix.python-version }}-dev build-essential cmake && \
               cd /tactics2d && \
               python${{ matrix.python-version }} --version && \
               python${{ matrix.python-version }} -m pip install --upgrade pip && \
