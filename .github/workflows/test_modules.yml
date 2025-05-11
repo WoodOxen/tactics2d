@@ -4,6 +4,9 @@ on:
   - pull_request
   - workflow_dispatch
 
+permissions:
+  contents: read
+
 jobs:
   test-modules:
     strategy:
@@ -116,7 +119,7 @@ jobs:
               add-apt-repository -y ppa:deadsnakes/ppa && \
               apt-get update && \
               apt-get update -y && \
-              apt-get install -y python${{ matrix.python-version }} python3-pip python${{ matrix.python-version }}-dev build-essential cmake && \
+              apt-get install -y python${{ matrix.python-version }} python3-pip python3-distutils python${{ matrix.python-version }}-dev build-essential cmake && \
               cd /tactics2d && \
               python${{ matrix.python-version }} --version && \
               python${{ matrix.python-version }} -m pip install --upgrade pip && \
