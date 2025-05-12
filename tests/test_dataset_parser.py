@@ -20,7 +20,7 @@ from zipfile import ZipFile
 import pytest
 
 from tactics2d.dataset_parser import (
-    ArgoverseParser,
+    Argoverse2Parser,
     DLPParser,
     InteractionParser,
     LevelXParser,
@@ -39,10 +39,10 @@ from tactics2d.dataset_parser import (
         ("val/00a0ec58-1fb9-4a2b-bfd7-f4e5da7a9eff", 73),
     ],
 )
-def test_argoverse_parser(sub_folder, expected):
+def test_argoverse2_parser(sub_folder, expected):
     dataset_folder = "./tactics2d/data/trajectory_sample/Argoverse"
     folder = os.path.join(dataset_folder, sub_folder)
-    dataset_parser = ArgoverseParser()
+    dataset_parser = Argoverse2Parser()
     files = os.listdir(folder)
     map_file = [file for file in files if ".json" in file][0]
     trajectory_files = [file for file in files if ".parquet" in file][0]
@@ -66,7 +66,7 @@ def test_argoverse_parser(sub_folder, expected):
         ("rounD", "00", (-float("inf"), float("inf")), 348),
         ("exiD", "01_tracks.csv", None, 871),
         ("uniD", "00_tracksMeta.csv", None, 362),
-        ("highD", "01_recordkingMeta.csv", (0, 10000), 20),
+        ("highD", "01_recordingMeta.csv", (0, 10000), 20),
         ("inD", 0, (0, 10000), 10),
         ("rounD", 0, (0, 10000), 12),
         ("exiD", 1, (0, 10000), 38),
@@ -144,9 +144,14 @@ def test_dlp_parser(file_id: int, stamp_range: tuple, expected: int):
 def test_ngsim_parser(file, stamp_range, ids):
     folder = "./tactics2d/data/trajectory_sample/NGSIM"
     parser = NGSIMParser()
+
+    t1 = time.time()
     participants, _ = parser.parse_trajectory(file, folder, stamp_range, ids)
+    t2 = time.time()
+
     if ids is not None:
         assert len(ids) == len(participants)
+    logging.info(f"The time needed to parse a NGSIM file: {t2 - t1}s.")
 
     parser.extract_meta_data(file, folder)
 

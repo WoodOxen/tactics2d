@@ -12,6 +12,7 @@
 
 ### Changed
 
+- Boost LevelX datasets (highD, inD, rounD, exiD, uniD) by polars, 10 times faster than before.
 - Move `test` to `tests` in the root directory.
 - Improve map rendering speed.
 - Improve the running efficiency of Bezier and b_spline interpolators by adding c++ implementation.

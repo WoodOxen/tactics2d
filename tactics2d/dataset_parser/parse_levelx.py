@@ -3,7 +3,7 @@
 # @File: parse_levelx.py
 # @Description: This file implements a parser for highD, inD, rounD, exiD, uniD datasets.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8
 
 import math
 import os
@@ -12,14 +12,11 @@ from typing import Tuple, Union
 
 import numpy as np
 import pandas as pd
-
-# import xml.etree.ElementTree as ET
+import polars as pl
 from pyproj import Proj
 
 from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
-
-# from tactics2d.map.parser import Lanelet2Parser
 
 
 class LevelXParser:
@@ -37,7 +34,7 @@ class LevelXParser:
         Bock, Julian, et al. "Highly accurate scenario and reference data for automated driving." ATZ worldwide 123.5 (2021): 50-55.
     """
 
-    _REGISTERED_DATASET = ["highD", "inD", "rounD", "exiD", "uniD"]
+    _REGISTERED_DATASET = ["highd", "ind", "round", "exid", "unid"]
 
     _TYPE_MAPPING = {
         "car": "car",
@@ -78,21 +75,46 @@ class LevelXParser:
         6: [-0.00024051251, 0.0000336538],
     }
 
-    def __init__(self, dataset: str = ""):
+    _EXID_SPECIAL_COLS = [
+        "latLaneCenterOffset",
+        "laneWidth",
+        "laneletId",
+        "laneChange",
+        "lonLaneletPos",
+        "laneletLength",
+        "leadDHW",
+        "leadDV",
+        "leadTHW",
+        "leadTTC",
+        "leadId",
+        "rearId",
+        "leftLeadId",
+        "leftRearId",
+        "leftAlongsideId",
+        "rightLeadId",
+        "rightRearId",
+        "rightAlongsideId",
+        "odrRoadId",
+        "odrSectionNo",
+        "odrLaneId",
+    ]
+
+    def __init__(self, dataset: str):
         """Initialize the parser.
 
         Args:
-            dataset (str, optional): The dataset you want to parse. The available choices are: highD, inD, rounD, exiD, uniD.
+            dataset (str): The dataset you want to parse. The available choices are: highD, inD, rounD, exiD, uniD, ignorant of letter case.
         """
-        if dataset not in self._REGISTERED_DATASET:
+        self.dataset = dataset.lower()
+
+        if self.dataset not in self._REGISTERED_DATASET:
             raise KeyError(
                 f"{dataset} is not an available LevelX-series dataset. The available datasets are {self._REGISTERED_DATASET}."
             )
 
-        self.dataset = dataset
-        self.id_key = "id" if self.dataset == "highD" else "trackId"
-        self.key_length = "width" if self.dataset == "highD" else "length"
-        self.key_width = "height" if self.dataset == "highD" else "width"
+        self.id_key = "id" if self.dataset == "highd" else "trackId"
+        self.key_length = "width" if self.dataset == "highd" else "length"
+        self.key_width = "height" if self.dataset == "highd" else "width"
         self.highd_projector = Proj(proj="utm", ellps="WGS84", zone=31, datum="WGS84")
         self.highd_origin = [0.01, 0]
 
@@ -177,22 +199,26 @@ class LevelXParser:
 
         # load the vehicles that have frame in the arbitrary range
         participants = dict()
-        actual_stamp_range = (np.inf, -np.inf)
 
         file_id = self._get_file_id(file)
 
         if ids is not None:
             ids = {int(x) for x in ids}
 
-        df_track_chunk = pd.read_csv(
-            os.path.join(folder, "%02d_tracks.csv" % file_id), iterator=True, chunksize=10000
+        schema_overrides = (
+            None
+            if self.dataset != "exid"
+            else {name: pl.String for name in self._EXID_SPECIAL_COLS}
+        )
+        df_track = pl.read_csv(
+            os.path.join(folder, "%02d_tracks.csv" % file_id), schema_overrides=schema_overrides
         )
         df_track_meta = pd.read_csv(os.path.join(folder, "%02d_tracksMeta.csv" % file_id))
         df_meta = pd.read_csv(os.path.join(folder, "%02d_recordingMeta.csv" % file_id))
 
         # highD is record in a special way and needs to be calibrated
         # first get the calibration parameters
-        if self.dataset == "highD":
+        if self.dataset == "highd":
             k, b = self._get_calibrate_params(df_meta)
 
         for _, participant_info in df_track_meta.iterrows():
@@ -217,70 +243,88 @@ class LevelXParser:
 
         participant_ids = set(participants.keys())
 
-        # parse the corresponding trajectory to each participant and bind them
+        # Filter trajectories following requirements
+        df_track_filtered = df_track.filter(pl.col(self.id_key).is_in(participant_ids))
+        df_track_filtered = df_track_filtered.with_columns(
+            (pl.col("frame") * 40).alias("time_stamp")
+        )
+        df_track_filtered = df_track_filtered.filter(
+            (pl.col("time_stamp") >= stamp_range[0]) & (pl.col("time_stamp") <= stamp_range[1])
+        )
+
+        if self.dataset == "highd":
+            # This heading is for Tactics2D, using the common coordinate system.
+            df_track_filtered = df_track_filtered.with_columns(
+                pl.arctan2(pl.col("yVelocity").neg(), pl.col("xVelocity"))
+                .round(5)
+                .alias("heading_")
+            )
+        else:
+            df_track_filtered = df_track_filtered.with_columns(
+                (pl.col("heading") * 2 * pl.lit(np.pi) / 360).alias("heading_")
+            )
+
+        # Calibrate the coordinates of highD
+        if self.dataset == "highd":
+            # This theta is only for computing the center of bounding box.
+            # theta is in [-pi/2, pi/2], because the x, y always denotes the upper left corner, and the coordinate system of highD is downward.
+            df_track_filtered = df_track_filtered.with_columns(
+                pl.arctan(pl.col("yVelocity"), pl.col("xVelocity")).round(5).alias("theta")
+            )
+            df_track_filtered = df_track_filtered.with_columns(
+                (
+                    pl.col("x")
+                    + (pl.col(self.key_length) * pl.col("theta").cos()) / 2
+                    - (pl.col(self.key_width) * pl.col("theta").sin()) / 2
+                ).alias("xCenter"),
+                (
+                    pl.col("y")
+                    + (pl.col(self.key_length) * pl.col("theta").sin()) / 2
+                    + (pl.col(self.key_width) * pl.col("theta").cos()) / 2
+                ).alias("yCenter"),
+            )
+            df_track_filtered = df_track_filtered.with_columns(
+                (pl.col("yCenter") * k + b).alias("yCenter")
+            )
+
+        actual_stamp_range = (
+            df_track_filtered.select(pl.col("time_stamp").min()).to_numpy()[0][0],
+            df_track_filtered.select(pl.col("time_stamp").max()).to_numpy()[0][0],
+        )
+
+        grouped = df_track_filtered.group_by(self.id_key)
         trajectories = dict()
 
-        for chunk in df_track_chunk:
-            chunk_ids = set(pd.unique(chunk[self.id_key]))
-            if len(chunk_ids.union(participant_ids)) == 0:
-                continue
+        for trajectory_id, group in grouped:
+            trajectory_id = int(trajectory_id[0])
+            if trajectory_id not in trajectories:
+                trajectories[trajectory_id] = Trajectory(id_=trajectory_id, fps=25.0)
 
-            if self.dataset == "highD":
-                chunk["heading_"] = np.round(np.arctan2(-chunk["yVelocity"], chunk["xVelocity"]), 5)
-            else:
-                chunk["heading_"] = chunk["heading"] * 2 * math.pi / 360
+            states = []
 
-            chunk["time_stamp"] = chunk["frame"] * 40
+            time_stamp_idx = group.columns.index("time_stamp")
+            x_center_idx = group.columns.index("xCenter")
+            y_center_idx = group.columns.index("yCenter")
+            heading_idx = group.columns.index("heading_")
+            vx_idx = group.columns.index("xVelocity")
+            vy_idx = group.columns.index("yVelocity")
+            ax_idx = group.columns.index("xAcceleration")
+            ay_idx = group.columns.index("yAcceleration")
 
-            # calibrate the coordinates of highD
-            if self.dataset == "highD":
-                headings = np.round(
-                    np.arctan(chunk["yVelocity"].copy(), chunk["xVelocity"].copy()), 5
-                )
-                xCenter = (
-                    chunk["x"]
-                    + chunk[self.key_length] * np.cos(headings) / 2
-                    - chunk[self.key_width] * np.sin(headings) / 2
-                )
-                yCenter = (
-                    chunk["y"]
-                    + chunk[self.key_length] * np.sin(headings) / 2
-                    + chunk[self.key_width] * np.cos(headings) / 2
-                )
-
-                chunk["xCenter"] = xCenter
-                chunk["yCenter"] = k * yCenter + b
-
-            for _, state_info in chunk.iterrows():
-                time_stamp = state_info["time_stamp"]
-
-                if time_stamp < stamp_range[0] or time_stamp > stamp_range[1]:
-                    continue
-
-                actual_stamp_range = (
-                    min(actual_stamp_range[0], time_stamp),
-                    max(actual_stamp_range[1], time_stamp),
-                )
-
-                trajectory_id = int(state_info[self.id_key])
-
-                if ids is not None and trajectory_id not in ids:
-                    continue
-
-                if trajectory_id not in trajectories:
-                    trajectories[trajectory_id] = Trajectory(id_=trajectory_id, fps=25.0)
-
+            for state_info in group.rows():
                 state = State(
-                    time_stamp,
-                    x=state_info["xCenter"],
-                    y=state_info["yCenter"],
-                    heading=state_info["heading_"],
-                    vx=state_info["xVelocity"],
-                    vy=state_info["yVelocity"],
-                    ax=state_info["xAcceleration"],
-                    ay=state_info["yAcceleration"],
+                    state_info[time_stamp_idx],
+                    x=state_info[x_center_idx],
+                    y=state_info[y_center_idx],
+                    heading=state_info[heading_idx],
+                    vx=state_info[vx_idx],
+                    vy=state_info[vy_idx],
+                    ax=state_info[ax_idx],
+                    ay=state_info[ay_idx],
                 )
+                states.append(state)
 
+            for state in states:
                 trajectories[trajectory_id].add_state(state)
 
         for participant_id in participants.keys():
@@ -291,5 +335,3 @@ class LevelXParser:
     def parse_map(self, **kwargs):
         """TODO: provide an API similar to other parsers to parse the map data. At present the map data are self-built and can be parsed by the Lanelet2Parser."""
         return
-
-    # map_ = Lanelet2Parser.parse()
