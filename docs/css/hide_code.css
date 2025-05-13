@@ -1,8 +1,21 @@
 .show-code-button {
-  background-color: #eee;
+  background-color: #f8f8f8;
   border: 1px solid #ccc;
-  padding: 4px 8px;
-  font-size: 0.9em;
-  margin-bottom: 4px;
+  padding: 4px 10px;
+  font-size: 16px;
+  border-radius: 5px;
   cursor: pointer;
+  margin-bottom: 6px;
+  margin-left: 4px;
+
+  /* 提高可读性 */
+  color: #333;
+  font-family: inherit;
+  box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+}
+
+.jp-Cell-inputWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
