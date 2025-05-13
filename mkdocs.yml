@@ -12,20 +12,17 @@ nav:
   - Home: "index.md"
   - Release Notes: "release_notes.md"
   - Installation: "installation.md"
-  - Tutorial:
-    - Visualize Interpolation: "./tutorial/interpolator_visualization.ipynb"
-    - Visualize Datasets: "./tutorial/dataset_visualization.ipynb"
-    - Train an Agent in Parking Environment: "./tutorial/train_parking_demo.ipynb"
-  - Dataset Support: "./dataset-support/dataset-support.md"
+  - Dataset Support:
+    - highD: "dataset_support/highd.ipynb"
   - Python API:
-      - tactics2d.dataset_parser: "api/dataset_parser.md"
-      - tactics2d.envs: "api/envs.md"
-      - tactics2d.map: "api/map.md"
-      - tactics2d.math: "api/math.md"
-      - tactics2d.participant: "api/participant.md"
-      - tactics2d.physics: "api/physics.md"
-      - tactics2d.sensor: "api/sensor.md"
-      - tactics2d.traffic: "api/traffic.md"
+    - tactics2d.dataset_parser: "api/dataset_parser.md"
+    - tactics2d.envs: "api/envs.md"
+    - tactics2d.map: "api/map.md"
+    - tactics2d.math: "api/math.md"
+    - tactics2d.participant: "api/participant.md"
+    - tactics2d.physics: "api/physics.md"
+    - tactics2d.sensor: "api/sensor.md"
+    - tactics2d.traffic: "api/traffic.md"
   - Community: "community.md"
   - Publications: "publication.md"
 
@@ -94,6 +91,9 @@ plugins:
       include_requirejs: true
       include_source: true
       kernel_name: python3
+      remove_tag_config:
+        remove_input_tags:
+          - hide_input
   - search
 
 markdown_extensions:
