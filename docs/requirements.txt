@@ -1,6 +1,6 @@
-griffe==1.3.2
+griffe>=1.3.2
 mkdocs==1.6.1
 mkdocs-glightbox==0.4.0
 mkdocs-jupyter==0.25.1
-mkdocs-material == 9.6.11
-mkdocstrings-python == 1.16.8
+mkdocs-material == 9.6.12
+mkdocstrings-python == 1.16.10
