@@ -91,9 +91,6 @@ plugins:
       include_requirejs: true
       include_source: true
       kernel_name: python3
-      remove_tag_config:
-        remove_input_tags:
-          - hide_input
   - search
 
 markdown_extensions:
