@@ -2,7 +2,8 @@ window.addEventListener("load", function () {
   const cells = document.querySelectorAll(".celltag_hide_input");
 
   cells.forEach((cell) => {
-    if (cell.dataset.hasButton === "true") return; // 防止重复添加
+    // 如果已经插入了按钮，跳过
+    if (cell.classList.contains("button-inserted")) return;
 
     const inputWrapper = cell.querySelector(".jp-Cell-inputWrapper");
     const inputArea = inputWrapper?.querySelector(".jp-InputArea.jp-Cell-inputArea");
@@ -21,7 +22,9 @@ window.addEventListener("load", function () {
       };
 
       inputWrapper.insertBefore(button, inputArea);
-      cell.dataset.hasButton = "true"; // 标记已添加按钮
+
+      // 标记处理过这个 cell
+      cell.classList.add("button-inserted");
     }
   });
 });
