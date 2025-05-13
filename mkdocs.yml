@@ -13,6 +13,7 @@ nav:
   - Release Notes: "release_notes.md"
   - Installation: "installation.md"
   - Dataset Support:
+    - overview: "dataset_support/index.md"
     - highD: "dataset_support/highd.ipynb"
   - Python API:
     - tactics2d.dataset_parser: "api/dataset_parser.md"
@@ -103,9 +104,11 @@ markdown_extensions:
 
 extra_javascript:
   - javascripts/katex.js
+  - javascripts/hide_code.js
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/katex.min.js
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/contrib/auto-render.min.js
 
 extra_css:
-  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/katex.min.css
   - css/extra_for_material.css
+  - css/hide_code.css
+  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/katex.min.css

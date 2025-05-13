@@ -1,0 +1,8 @@
+.show-code-button {
+  background-color: #eee;
+  border: 1px solid #ccc;
+  padding: 4px 8px;
+  font-size: 0.9em;
+  margin-bottom: 4px;
+  cursor: pointer;
+}
