@@ -1,27 +1,24 @@
-document.addEventListener("DOMContentLoaded", function () {
-  var cells = document.querySelectorAll('.celltag_hide_input');
+window.addEventListener("load", function () {
+  const cells = document.querySelectorAll(".celltag_hide_input");
 
-  cells.forEach(function (cell) {
-    var input = cell.querySelector('.jp-InputArea');
+  cells.forEach((cell) => {
+    const inputWrapper = cell.querySelector(".jp-Cell-inputWrapper");
+    const inputArea = inputWrapper?.querySelector(".jp-InputArea.jp-Cell-inputArea");
 
-    if (input) {
-      input.style.display = 'none';
+    if (inputWrapper && inputArea) {
+      inputArea.style.display = "none";
 
-      var button = document.createElement('button');
-      button.innerText = 'Show Code';
-      button.classList.add('show-code-button');
+      const button = document.createElement("button");
+      button.innerText = "Show Code";
+      button.className = "show-code-button";
 
-      button.onclick = function () {
-        if (input.style.display === 'none') {
-          input.style.display = '';
-          button.innerText = 'Hide Code';
-        } else {
-          input.style.display = 'none';
-          button.innerText = 'Show Code';
-        }
+      button.onclick = () => {
+        const isHidden = inputArea.style.display === "none";
+        inputArea.style.display = isHidden ? "" : "none";
+        button.innerText = isHidden ? "Hide Code" : "Show Code";
       };
 
-      cell.insertBefore(button, input);
+      inputWrapper.insertBefore(button, inputArea);
     }
   });
 });
