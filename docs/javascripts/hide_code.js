@@ -2,7 +2,6 @@ window.addEventListener("load", function () {
   const cells = document.querySelectorAll(".celltag_hide_input");
 
   cells.forEach((cell) => {
-    // 如果已经插入了按钮，跳过
     if (cell.classList.contains("button-inserted")) return;
 
     const inputWrapper = cell.querySelector(".jp-Cell-inputWrapper");
@@ -10,6 +9,12 @@ window.addEventListener("load", function () {
 
     if (inputWrapper && inputArea) {
       inputArea.style.display = "none";
+
+      // 包装按钮 div
+      const buttonWrapper = document.createElement("div");
+      buttonWrapper.style.width = "100%";
+      buttonWrapper.style.textAlign = "left"; // 或 center/right 根据你需求
+      buttonWrapper.style.margin = "4px 0";
 
       const button = document.createElement("button");
       button.innerText = "Show Code";
@@ -21,9 +26,9 @@ window.addEventListener("load", function () {
         button.innerText = isHidden ? "Hide Code" : "Show Code";
       };
 
-      inputWrapper.insertBefore(button, inputArea);
+      buttonWrapper.appendChild(button);
+      inputWrapper.parentNode.insertBefore(buttonWrapper, inputWrapper);
 
-      // 标记处理过这个 cell
       cell.classList.add("button-inserted");
     }
   });
