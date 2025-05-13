@@ -269,7 +269,7 @@ class LevelXParser:
             # This theta is only for computing the center of bounding box.
             # theta is in [-pi/2, pi/2], because the x, y always denotes the upper left corner, and the coordinate system of highD is downward.
             df_track_filtered = df_track_filtered.with_columns(
-                pl.arctan(pl.col("yVelocity"), pl.col("xVelocity")).round(5).alias("theta")
+                (pl.col("yVelocity") / pl.col("xVelocity")).arctan().round(5).alias("theta")
             )
             df_track_filtered = df_track_filtered.with_columns(
                 (
