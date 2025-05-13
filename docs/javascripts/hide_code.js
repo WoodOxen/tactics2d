@@ -1,5 +1,5 @@
 window.addEventListener("load", function () {
-  const cells = document.querySelectorAll(".celltag_hide_input");
+  const cells = document.querySelectorAll(".celltag_hide_input[id]");
 
   cells.forEach((cell) => {
     if (cell.classList.contains("button-inserted")) return;
