@@ -15,6 +15,7 @@ nav:
   - Dataset Support:
     - overview: "dataset_support/index.md"
     - highD: "dataset_support/highd.ipynb"
+    - inD: "dataset_support/ind.ipynb"
   - Python API:
     - tactics2d.dataset_parser: "api/dataset_parser.md"
     - tactics2d.envs: "api/envs.md"
