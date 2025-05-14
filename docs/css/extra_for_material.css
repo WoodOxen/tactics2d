@@ -228,13 +228,13 @@ summary {
 
 /******************* Hyperlink ***************************/
 a {
-	font-size: 16px;
+	font-size: inherit;
 	line-height: 1.2;
 	text-align: left;
 }
 
 em {
-	font-size: 16px;
+	font-size: inherit;
 	line-height: 1.2;
 	text-align: center;
 	font-style: italic;
