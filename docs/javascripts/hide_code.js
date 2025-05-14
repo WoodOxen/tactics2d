@@ -17,13 +17,13 @@ window.addEventListener("load", function () {
       buttonWrapper.style.margin = "4px 0";
 
       const button = document.createElement("button");
-      button.innerText = "Show Code";
+      button.innerText = "▶ Show Code";
       button.className = "show-code-button";
 
       button.onclick = () => {
         const isHidden = inputArea.style.display === "none";
         inputArea.style.display = isHidden ? "" : "none";
-        button.innerText = isHidden ? "Hide Code" : "Show Code";
+        button.innerText = isHidden ? "▼ Hide Code" : "▶ Show Code";
       };
 
       buttonWrapper.appendChild(button);
