@@ -98,8 +98,7 @@ markdown_extensions:
   - abbr
   - admonition
   - attr_list
-  - pymdownx.arithmatex:
-    generic: true
+  - pymdownx.arithmatex
   - pymdownx.details
   - pymdownx.superfences
   - pymdownx.emoji
