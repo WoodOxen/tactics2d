@@ -1,14 +1,19 @@
 .show-code-button {
-  padding: 4px 10px;
-  font-size: 10px;
-  background-color: #f3f4f6;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  display: block;
+  width: 100%;
+  padding: 6px 0;
+  font-size: 12px;
+  background-color: #f9fafb;
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
   cursor: pointer;
-  white-space: nowrap;
+  text-align: center;
+  font-family: inherit;
   transition: background-color 0.2s ease;
 }
 
 .show-code-button:hover {
-  background-color: #e0e0e0;
+  background-color: #f3f4f6;
 }
