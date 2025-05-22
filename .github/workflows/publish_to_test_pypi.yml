@@ -23,7 +23,7 @@ jobs:
           pip install setuptools wheel twine pybind11
       - name: Build Package
         run: |
-          python setup.py sdist bdist_wheel
+          python -m build --sdist --wheel
       - name: Upload to Test PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
