@@ -85,6 +85,7 @@ jobs:
             -v $GITHUB_WORKSPACE:/tactics2d \
             ${{ matrix.image }} \
             /bin/bash -c '
+              export DEBIAN_FRONTEND=noninteractive && \
               apt-get update && \
               apt-get install -y software-properties-common curl git && \
               if [[ "${{ matrix.image }}" == "ubuntu:18.04" ]]; then add-apt-repository -y ppa:deadsnakes/ppa; fi && \
