@@ -1,4 +1,4 @@
-name: Build and Publish to PyPI
+name: Publish to Test PyPI
 
 on:
   workflow_dispatch:
@@ -41,7 +41,7 @@ jobs:
           path: dist/
 
   publish:
-    name: Publish to PyPI
+    name: Publish to Test PyPI
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
@@ -60,7 +60,7 @@ jobs:
       - name: Publish to Test PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.TEST_PYPI_TOKEN }}
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
           packages-dir: final_dist/
           verbose: true
