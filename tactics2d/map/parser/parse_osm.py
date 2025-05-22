@@ -440,11 +440,7 @@ class OSMParser:
         regulatory_tags = self._get_lanelet2_tags(xml_node)
         return Regulatory(regulatory_id, relations, ways, **regulatory_tags)
 
-    def parse(
-        self,
-        file_path: str,
-        configs: dict = None,
-    ) -> Map:
+    def parse(self, file_path: str, configs: dict = None) -> Map:
         """This function parses the OpenStreetMap format map.
 
         Args:

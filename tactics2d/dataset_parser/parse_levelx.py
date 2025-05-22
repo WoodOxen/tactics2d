@@ -5,7 +5,6 @@
 # @Author: Yueyuan Li
 # @Version: 0.1.8
 
-import math
 import os
 import re
 from typing import Tuple, Union
@@ -30,8 +29,6 @@ class LevelXParser:
         Krajewski, Robert, et al. "The round dataset: A drone dataset of road user trajectories at roundabouts in germany." 2020 IEEE 23rd International Conference on Intelligent Transportation Systems (ITSC). IEEE, 2020.
 
         Moers, Tobias, et al. "The exiD dataset: A real-world trajectory dataset of highly interactive highway scenarios in Germany." 2022 IEEE Intelligent Vehicles Symposium (IV). IEEE, 2022.
-
-        Bock, Julian, et al. "Highly accurate scenario and reference data for automated driving." ATZ worldwide 123.5 (2021): 50-55.
     """
 
     _REGISTERED_DATASET = ["highd", "ind", "round", "exid", "unid"]
@@ -197,13 +194,13 @@ class LevelXParser:
         if stamp_range is None:
             stamp_range = (-np.inf, np.inf)
 
+        if ids is not None:
+            ids = {int(x) for x in ids}
+
         # load the vehicles that have frame in the arbitrary range
         participants = dict()
 
         file_id = self._get_file_id(file)
-
-        if ids is not None:
-            ids = {int(x) for x in ids}
 
         schema_overrides = (
             None
@@ -231,6 +228,9 @@ class LevelXParser:
             id_ = participant_info[self.id_key]
             class_ = self._CLASS_MAPPING[participant_info["class"]]
             type_ = self._TYPE_MAPPING[participant_info["class"]]
+
+            if ids is not None and id_ not in ids:
+                continue
 
             participant = class_(
                 id_=id_,
@@ -300,8 +300,6 @@ class LevelXParser:
             if trajectory_id not in trajectories:
                 trajectories[trajectory_id] = Trajectory(id_=trajectory_id, fps=25.0)
 
-            states = []
-
             time_stamp_idx = group.columns.index("time_stamp")
             x_center_idx = group.columns.index("xCenter")
             y_center_idx = group.columns.index("yCenter")
@@ -322,9 +320,7 @@ class LevelXParser:
                     ax=state_info[ax_idx],
                     ay=state_info[ay_idx],
                 )
-                states.append(state)
 
-            for state in states:
                 trajectories[trajectory_id].add_state(state)
 
         for participant_id in participants.keys():

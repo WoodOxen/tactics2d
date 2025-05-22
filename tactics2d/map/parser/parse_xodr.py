@@ -488,10 +488,7 @@ class XODRParser:
             if len(center_points) == 1:
                 center_points.append(center_points[0])
 
-            center_line = RoadLine(
-                id_=self.id_counter,
-                geometry=LineString(center_points),
-            )
+            center_line = RoadLine(id_=self.id_counter, geometry=LineString(center_points))
             self.id_counter += 1
 
             # Load road marks for lanesection

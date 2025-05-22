@@ -3,7 +3,7 @@
 # @File: test_dataset_parser.py
 # @Description: This file implements the test cases for the dataset parser.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8
 
 
 import sys
@@ -21,6 +21,7 @@ import pytest
 
 from tactics2d.dataset_parser import (
     Argoverse2Parser,
+    CitySimParser,
     DLPParser,
     InteractionParser,
     LevelXParser,
@@ -52,9 +53,28 @@ def test_argoverse2_parser(sub_folder, expected):
     t2 = time.time()
     _ = dataset_parser.parse_map(map_file, folder)
     t3 = time.time()
+
     assert len(participants) == expected
     logging.info(f"The time needed to parse an Argoverse trajectory file: {t2 - t1}s")
     logging.info(f"The time needed to parse an Argoverse map file: {t3 - t2}s")
+
+
+@pytest.mark.dataset_parser
+@pytest.mark.parametrize(
+    "ids, expected",
+    [(None, 136), ([1, 2, 3], 3)],
+)
+def test_citysim_parser(ids, expected):
+    folder = "./tactics2d/data/trajectory_sample/CitySim/Intersection B (Non-Signalized Intersection)/Trajectories"
+    file = "IntersectionB-01.csv"
+    dataset_parser = CitySimParser()
+
+    t1 = time.time()
+    participants, _ = dataset_parser.parse_trajectory(file, folder, ids=ids)
+    t2 = time.time()
+
+    assert len(participants) == expected
+    logging.info(f"The time needed to parse a CitySim trajectory file: {t2 - t1}s")
 
 
 @pytest.mark.dataset_parser

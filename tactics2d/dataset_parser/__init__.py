@@ -6,6 +6,7 @@
 # @Version: 1.0.0
 
 from .parse_argoverse2 import Argoverse2Parser
+from .parse_citysim import CitySimParser
 from .parse_dlp import DLPParser
 from .parse_interaction import InteractionParser
 from .parse_levelx import LevelXParser
@@ -15,6 +16,7 @@ from .parse_womd import WOMDParser
 
 __all__ = [
     "Argoverse2Parser",
+    "CitySimParser",
     "DLPParser",
     "InteractionParser",
     "LevelXParser",
