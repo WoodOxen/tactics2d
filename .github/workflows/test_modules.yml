@@ -73,6 +73,11 @@ jobs:
           token: ${{ secrets.TRAJ_DATA_SCP }}
           path: tactics2d/data
 
+      - name: Make runtime directory
+        run: |
+          mkdir ./tests/runtime/
+          echo $GITHUB_WORKSPACE
+
       - name: Run tests in Docker (${{ matrix.image }})
         run: |
           docker pull ${{ matrix.image }}
