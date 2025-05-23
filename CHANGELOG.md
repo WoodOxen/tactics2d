@@ -6,6 +6,8 @@
 
 ### Changed
 
+- Replace the dependency on tensorflow with tensorflow-cpu.
+
 ### Fixed
 
 ### Deprecated

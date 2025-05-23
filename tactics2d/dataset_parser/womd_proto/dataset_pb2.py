@@ -14,9 +14,9 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-import tactics2d.dataset_parser.womd_proto.pb2.label_pb2 as label__pb2
-import tactics2d.dataset_parser.womd_proto.pb2.map_pb2 as map__pb2
-import tactics2d.dataset_parser.womd_proto.pb2.vector_pb2 as vector__pb2
+import tactics2d.dataset_parser.womd_proto.label_pb2 as label__pb2
+import tactics2d.dataset_parser.womd_proto.map_pb2 as map__pb2
+import tactics2d.dataset_parser.womd_proto.vector_pb2 as vector__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="dataset.proto",

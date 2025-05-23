@@ -14,7 +14,7 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-import tactics2d.dataset_parser.womd_proto.pb2.dataset_pb2 as dataset__pb2
+import tactics2d.dataset_parser.womd_proto.dataset_pb2 as dataset__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="compressed_lidar.proto",

@@ -15,7 +15,7 @@ from google.protobuf.internal import enum_type_wrapper
 _sym_db = _symbol_database.Default()
 
 
-import tactics2d.dataset_parser.womd_proto.pb2.vector_pb2 as vector__pb2
+import tactics2d.dataset_parser.womd_proto.vector_pb2 as vector__pb2
 
 DESCRIPTOR = _descriptor.FileDescriptor(
     name="keypoint.proto",
