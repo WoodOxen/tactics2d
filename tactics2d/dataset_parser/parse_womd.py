@@ -3,7 +3,7 @@
 # @File: parse_womd.py
 # @Description: This file implements a parser for Waymo Open Motion Dataset v1.2.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.9
 
 import os
 from typing import List, Tuple, Union
@@ -12,14 +12,10 @@ import numpy as np
 import tensorflow as tf
 from shapely.geometry import LineString, Point, Polygon
 
-# if Version(google.protobuf.__version__) <= Version("3.20.3"):
-from tactics2d.dataset_parser.womd_proto import scenario_pbv2 as scenario_pb
+from tactics2d.dataset_parser.womd_proto import scenario_pb2
 from tactics2d.map.element import Area, Lane, LaneRelationship, Map, Regulatory, RoadLine
 from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
-
-# else:
-# from tactics2d.dataset_parser.womd_proto import scenario_pbv3 as scenario_pb
 
 
 class WOMDParser:
@@ -63,7 +59,7 @@ class WOMDParser:
 
         for data in dataset:
             proto_string = data.numpy()
-            scenario = scenario_pb.Scenario()
+            scenario = scenario_pb2.Scenario()
             scenario.ParseFromString(proto_string)
             id_list.append(scenario.scenario_id)
 
@@ -119,7 +115,7 @@ class WOMDParser:
             cnt += 1
 
         proto_string = data.numpy()
-        scenario = scenario_pb.Scenario()
+        scenario = scenario_pb2.Scenario()
         scenario.ParseFromString(proto_string)
 
         timestamps = scenario.timestamps_seconds
@@ -311,7 +307,7 @@ class WOMDParser:
 
         for data in dataset:
             proto_string = data.numpy()
-            scenario = scenario_pb.Scenario()
+            scenario = scenario_pb2.Scenario()
             scenario.ParseFromString(proto_string)
 
             if scenario_id is None:
