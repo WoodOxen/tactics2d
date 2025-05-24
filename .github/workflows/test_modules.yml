@@ -2,14 +2,16 @@ name: Test Modules
 
 on:
   - pull_request
-  - pull_request_target
   - workflow_dispatch
+
+permissions:
+  contents: read
 
 jobs:
   test-modules:
     strategy:
       matrix:
-        os: [ubuntu-20.04, ubuntu-22.04, windows-latest, macos-13]
+        os: ['ubuntu-22.04', 'ubuntu-24.04', 'macos-13', 'windows-latest']
         python-version: ['3.8', '3.9', '3.10', '3.11']
     runs-on: ${{ matrix.os }}
     steps:
@@ -17,70 +19,80 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
       - name: Check out private repository WoodOxen/trajectory_data_analysis
         uses: actions/checkout@v4
         with:
           repository: WoodOxen/trajectory_data_analysis
           token: ${{ secrets.TRAJ_DATA_SCP }}
           path: tactics2d/data
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-      - name: Install dependencies
+
+      - name: Install dependencies on all platforms
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
           pip install -r tests/requirements.txt
           pip install -v .
-      - name: Pytest
+
+      - name: Run Pytest
         run: |
-          mkdir ./tests/runtime
-          pytest tests --cov=tactics2d --cov-report=xml
-      - name: Upload coverage reports to Codecov (Ubuntu)
+          mkdir -p ./tests/runtime
+          pytest tests --cov=tests --cov-report=xml
+
+      - name: Upload coverage to Codecov (Ubuntu only)
+        if: runner.os == 'Linux'
         uses: codecov/codecov-action@v4
-        if: matrix.os == 'ubuntu-20.04' || matrix.os == 'ubuntu-22.04'
         with:
-          token: ${{ secrets.CODECOV }}
+          token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
 
-  test-modules-on-Ubuntu1804:
+  test-legacy-ubuntu:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.8']
+        image: ['ubuntu:18.04', 'ubuntu:20.04']
+        python-version: ['3.8', '3.9']
+        exclude:
+          - image: 'ubuntu:18.04'
+            python-version: '3.9'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
       - name: Check out private repository WoodOxen/trajectory_data_analysis
         uses: actions/checkout@v4
         with:
           repository: WoodOxen/trajectory_data_analysis
           token: ${{ secrets.TRAJ_DATA_SCP }}
           path: tactics2d/data
+
       - name: Make runtime directory
         run: |
           mkdir ./tests/runtime/
           echo $GITHUB_WORKSPACE
-      - name: Run pytest in docker
+
+      - name: Run tests in Docker (${{ matrix.image }})
         run: |
-          docker pull ubuntu:18.04
-          docker run \
+          docker pull ${{ matrix.image }}
+          docker run --rm \
             -v $GITHUB_WORKSPACE:/tactics2d \
-            ubuntu:18.04 \
-            /bin/bash -c 'apt-get update && \
-              apt-get install -y software-properties-common && \
-              add-apt-repository -y ppa:deadsnakes/ppa && \
+            ${{ matrix.image }} \
+            /bin/bash -c '
+              export DEBIAN_FRONTEND=noninteractive && \
               apt-get update && \
-              apt-get update -y && \
-              apt-get install -y python${{ matrix.python-version }} python3-pip && \
+              apt-get install -y software-properties-common curl git && \
+              if [[ "${{ matrix.image }}" == "ubuntu:18.04" ]]; then add-apt-repository -y ppa:deadsnakes/ppa; fi && \
+              apt-get update && \
+              apt-get install -y python${{ matrix.python-version }} python3-pip python${{ matrix.python-version }}-dev build-essential cmake && \
               cd /tactics2d && \
-              python${{ matrix.python-version }} --version && \
               python${{ matrix.python-version }} -m pip install --upgrade pip && \
-              if [ -f requirements.txt ]; then pip install -r requirements.txt; fi && \
-              if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi && \
+              pip install -r tests/requirements.txt && \
               pip install -v . && \
               python${{ matrix.python-version }} -m pytest tests'

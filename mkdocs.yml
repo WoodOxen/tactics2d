@@ -12,20 +12,23 @@ nav:
   - Home: "index.md"
   - Release Notes: "release_notes.md"
   - Installation: "installation.md"
-  - Tutorial:
-    - Visualize Interpolation: "./tutorial/interpolator_visualization.ipynb"
-    - Visualize Datasets: "./tutorial/dataset_visualization.ipynb"
-    - Train an Agent in Parking Environment: "./tutorial/train_parking_demo.ipynb"
-  - Dataset Support: "./dataset-support/dataset-support.md"
+  - Dataset Support:
+    - overview: "dataset_support/index.md"
+    - highD: "dataset_support/highd.ipynb"
+    - inD: "dataset_support/ind.ipynb"
+    - rounD: "dataset_support/round.ipynb"
+    - exiD: "dataset_support/exid.ipynb"
+    - uniD: "dataset_support/unid.ipynb"
+    - CitySim: "dataset_support/citysim.ipynb"
   - Python API:
-      - tactics2d.dataset_parser: "api/dataset_parser.md"
-      - tactics2d.envs: "api/envs.md"
-      - tactics2d.map: "api/map.md"
-      - tactics2d.math: "api/math.md"
-      - tactics2d.participant: "api/participant.md"
-      - tactics2d.physics: "api/physics.md"
-      - tactics2d.sensor: "api/sensor.md"
-      - tactics2d.traffic: "api/traffic.md"
+    - tactics2d.dataset_parser: "api/dataset_parser.md"
+    - tactics2d.envs: "api/envs.md"
+    - tactics2d.map: "api/map.md"
+    - tactics2d.math: "api/math.md"
+    - tactics2d.participant: "api/participant.md"
+    - tactics2d.physics: "api/physics.md"
+    - tactics2d.sensor: "api/sensor.md"
+    - tactics2d.traffic: "api/traffic.md"
   - Community: "community.md"
   - Publications: "publication.md"
 
@@ -100,15 +103,19 @@ markdown_extensions:
   - abbr
   - admonition
   - attr_list
+  - pymdownx.arithmatex
   - pymdownx.details
   - pymdownx.superfences
   - pymdownx.emoji
 
 extra_javascript:
   - javascripts/katex.js
+  - javascripts/hide_code.js
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/katex.min.js
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/contrib/auto-render.min.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 extra_css:
-  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/katex.min.css
   - css/extra_for_material.css
+  - css/hide_code.css
+  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/katex.min.css
