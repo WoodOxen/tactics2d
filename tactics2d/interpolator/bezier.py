@@ -1,7 +1,7 @@
 ##! python3
 # Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: bezier.py
-# @Description:
+# @Description: This file implements a Bezier curve interpolator.
 # @Author: Tactics2D Team
 # @Version: 0.1.9
 

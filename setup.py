@@ -16,6 +16,7 @@ ext_modules = [
         [
             "tactics2d/interpolator/cpp_interpolator/src/bezier.cpp",
             "tactics2d/interpolator/cpp_interpolator/src/b_spline.cpp",
+            "tactics2d/interpolator/cpp_interpolator/src/cubic_spline.cpp",
             "tactics2d/interpolator/cpp_interpolator/src/interpolator_bindings.cpp",
         ],
         include_dirs=include_dirs,

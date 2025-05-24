@@ -5,12 +5,13 @@ import time
 import numpy as np
 import pytest
 from scipy.interpolate import BSpline as SciBSpline
+from scipy.interpolate import CubicSpline as SciCubic
 from scipy.spatial.distance import directed_hausdorff
 
 sys.path.append(".")
 sys.path.append("..")
 
-from tactics2d.interpolator import Bezier, BSpline
+from tactics2d.interpolator import Bezier, BSpline, CubicSpline
 
 
 def compare_similarity(curve1: np.ndarray, curve2: np.ndarray, diff: float = 0.001) -> bool:
@@ -93,14 +94,11 @@ def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
 
     assert compare_similarity(my_curve, curve.T), "Bezier curve output mismatch."
 
-    my_time = t2 - t1
-    ref_time = max(t4 - t3, 1e-8)  # avoid zero-division
+    t_custom = t2 - t1
+    t_bezier = t4 - t3  # avoid zero-division
 
-    if my_time > ref_time:
-        logging.warning(
-            "Custom Bezier implementation is %.2fx slower than 'bezier' reference.",
-            my_time / ref_time,
-        )
+    if t_custom > t_bezier:
+        logging.warning(f"Our Bezier is ~{t_custom / (t_bezier + 1e-8):.2f}x slower than bezier's")
 
 
 @pytest.mark.math
@@ -204,3 +202,74 @@ def test_b_spline(degree, control_points, knots, n_interpolation):
     t_scipy = t4 - t3
     if t_custom > t_scipy:
         logging.warning(f"Our B-spline is ~{t_custom / (t_scipy + 1e-8):.2f}x slower than SciPy's")
+
+
+@pytest.mark.math
+@pytest.mark.parametrize(
+    "boundary_type, n, control_points, n_interpolation",
+    [
+        ("hello-world", 2, None, 100),
+        ("natural", 2, None, 100),
+        ("clamped", None, np.random.uniform(-10, 10, (3, 3)), 100),
+        ("not-a-knot", None, np.random.uniform(-10, 10, (3, 1)), 100),
+        ("natural", None, None, 10),
+        ("natural", None, None, 100),
+        ("clamped", None, None, 10),
+        ("clamped", None, None, 100),
+        ("not-a-knot", None, None, 10),
+        ("not-a-knot", None, None, 100),
+    ],
+)
+def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_interpolation: int):
+    if boundary_type == "natural":
+        cubic_spline = CubicSpline(CubicSpline.BoundaryType.Natural)
+    elif boundary_type == "clamped":
+        cubic_spline = CubicSpline(CubicSpline.BoundaryType.Clamped)
+    elif boundary_type == "not-a-knot":
+        cubic_spline = CubicSpline(CubicSpline.BoundaryType.NotAKnot)
+    else:
+        try:
+            cubic_spline = CubicSpline(boundary_type)
+        except ValueError:
+            return
+
+    if control_points is None:
+        n = np.random.randint(3, 1000) if n is None else n
+        control_points = np.zeros((n, 2))
+        for i in range(1, n):
+            control_points[i, 0] = control_points[i - 1, 0] + np.random.uniform(0, 1)
+            control_points[i, 1] = np.random.uniform(-1, 1)
+
+    t1 = time.time()
+    try:
+        curve = cubic_spline.get_curve(control_points, n_interpolation=n_interpolation)
+    except ValueError as err:
+        if len(control_points.shape) != 2 or control_points.shape[1] != 2:
+            assert (
+                err.args[0] == "Cubic interpolator: Control points should have shape (n, 2)."
+            ), "Test failed: error handling for invalid shape of control points."
+        elif len(control_points) < 3:
+            assert (
+                err.args[0] == "Cubic interpolator: Need at least 3 control points."
+            ), "Test failed: error handling for insufficient number of control points."
+        else:
+            raise err
+        return
+
+    t2 = time.time()
+
+    sci_cubic = SciCubic(control_points[:, 0], control_points[:, 1], bc_type=boundary_type)
+    t3 = time.time()
+    xs = np.linspace(control_points[:-1, 0], control_points[1:, 0], n_interpolation)
+    xs = np.concatenate(xs.T, axis=None)
+    ys = sci_cubic(xs)
+    t4 = time.time()
+
+    assert compare_similarity(
+        curve, np.array([xs, ys]).T
+    ), "The curve output of the Cubic Spline interpolator is incorrect."
+
+    t_custom = t2 - t1
+    t_scipy = t4 - t3
+    if t_custom > t_scipy:
+        logging.warning(f"Our Cubic is ~{t_custom / (t_scipy + 1e-8):.2f}x slower than SciPy's")

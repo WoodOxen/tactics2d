@@ -14,6 +14,7 @@
 
 ### TODO
 
+- `tactics2d.interpolator.cubic_spline`: Improve efficiency of CubicSpline by ThomasSolver.
 - `tactics2d.dataset_parser.NuPlanParser`: Identify the boundaries of a lane element.
 - `tactics2d.dataset_parser.WOMDParser`: Identify the boundaries of a lane element.
 - `tactics2d.dataset_parser.womd_proto`: Add compatibility to protobuf 3.x.x and 4.x.x.
