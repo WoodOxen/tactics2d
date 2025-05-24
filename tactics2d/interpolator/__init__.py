@@ -6,5 +6,6 @@
 # @Version:0.1.9
 
 from .b_spline import BSpline
+from .bezier import Bezier
 
-__all__ = ["BSpline"]
+__all__ = ["Bezier", "BSpline"]

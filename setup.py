@@ -14,6 +14,7 @@ ext_modules = [
     Pybind11Extension(
         "cpp_interpolator",
         [
+            "tactics2d/interpolator/cpp_interpolator/src/bezier.cpp",
             "tactics2d/interpolator/cpp_interpolator/src/b_spline.cpp",
             "tactics2d/interpolator/cpp_interpolator/src/interpolator_bindings.cpp",
         ],

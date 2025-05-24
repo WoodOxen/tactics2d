@@ -21,13 +21,10 @@ class BSpline:
 
         Args:
             degree (int): The degree of the B-spline curve. Usually denoted as p in the literature.
-
-        Raises:
-            ValueError: The degree of a B-spline curve must be non-negative.
         """
-        if degree < 0:
-            raise ValueError("BSpline interpolator: Degree must be non-negative.")
         self.degree = degree
+        if self.degree < 0:
+            raise ValueError("BSpline interpolator: Degree must be non-negative.")
 
     def _check_validity(self, control_points: np.ndarray, knot_vectors: np.ndarray):
         if control_points.ndim != 2 or control_points.shape[1] != 2:
