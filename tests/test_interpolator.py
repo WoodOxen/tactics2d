@@ -11,7 +11,7 @@ from scipy.spatial.distance import directed_hausdorff
 sys.path.append(".")
 sys.path.append("..")
 
-from tactics2d.interpolator import Bezier, BSpline, CubicSpline
+from tactics2d.interpolator import Bezier, BSpline, CubicSpline, Spiral
 
 
 def compare_similarity(curve1: np.ndarray, curve2: np.ndarray, diff: float = 0.001) -> bool:
@@ -273,3 +273,41 @@ def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_
     t_scipy = t4 - t3
     if t_custom > t_scipy:
         logging.warning(f"Our Cubic is ~{t_custom / (t_scipy + 1e-8):.2f}x slower than SciPy's")
+
+
+@pytest.mark.math
+@pytest.mark.parametrize(
+    "length, n_interpolation, gamma, start_curvature",
+    [
+        (5.0, 500, 0.1, 0.0),  # 正常螺旋
+        (10.0, 1000, 0.0, 0.1),  # 圆弧
+        (8.0, 800, 0.0, 0.0),  # 直线
+        (105.0, 10000, 0.05, 0.05),  # 长曲线
+        (2.0, 200, -0.1, 0.2),  # 负 gamma（反向螺旋）
+    ],
+)
+def test_spiral(length, n_interpolation, gamma, start_curvature):
+    spiral = Spiral()
+    start_point = np.array([0.0, 0.0])
+    heading = np.random.uniform(0, 2 * np.pi)
+
+    t1 = time.time()
+    curve = spiral.get_curve(length, start_point, heading, start_curvature, gamma)
+    t2 = time.time()
+
+    # Ensure correct number of points
+    assert len(curve) == n_interpolation, f"Expected {n_interpolation+1}, got {len(curve)}"
+
+    # Check that the start point matches
+    np.testing.assert_allclose(curve[0], start_point, atol=1e-6, err_msg="Start point mismatch")
+
+    # Check curve length
+    segment_lengths = np.linalg.norm(curve[1:] - curve[:-1], axis=1)
+    curve_length = segment_lengths.sum()
+    rel_error = abs(curve_length - length) / max(length, curve_length)
+    assert rel_error < 0.01, f"Length error too high: {rel_error:.4f}"
+
+    logging.info(
+        f"Spiral test (len={length}, gamma={gamma}) passed in {t2 - t1:.4f}s. "
+        f"Computed len={curve_length:.3f}, err={rel_error:.4%}"
+    )

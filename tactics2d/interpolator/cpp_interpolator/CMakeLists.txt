@@ -19,5 +19,7 @@ find_package(Python 3.8 REQUIRED COMPONENTS Interpreter Development)
 find_package(pybind11 2.10 REQUIRED CONFIG)
 pybind11_add_module(cpp_interpolator
     b_spline.cpp
+    bezier.cpp
+    cubic_spline.cpp
     interpolator_bindings.cpp
 )
