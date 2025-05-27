@@ -42,11 +42,13 @@ class RacingTrackGenerator:
     _track_rad = 800  # the maximum curvature radius
     _curve_rad = (50, 150)  # the curvature radius is ranging in 50-150m
     _tile_length = 10  # the length of each tile
+    _bezier_order = 2  # the order of the Bezier curve
+    _bezier_interpolation = 50  # the number of interpolation points for each Bezier curve
 
     def __init__(self, bezier_order=2, bezier_interpolation=50):
         """Initialize the attributes in the class."""
-        self.bezier_generator = Bezier(bezier_order)
-        self.bezier_interpolation = bezier_interpolation
+        self._bezier_order = bezier_order
+        self._bezier_interpolation = bezier_interpolation
 
     def _get_checkpoints(self) -> Tuple[List[np.ndarray], List[np.ndarray], bool]:
         n_checkpoint = np.random.randint(*self._n_checkpoint)
@@ -139,7 +141,7 @@ class RacingTrackGenerator:
         points = []
         # get the center line by Bezier curve generator
         for i in range(checkpoints.shape[1]):
-            new_points = self.bezier_generator.get_curve(
+            new_points = Bezier.get_curve(
                 np.array(
                     [
                         control_points[start_id - i - 1][1],
@@ -147,7 +149,8 @@ class RacingTrackGenerator:
                         control_points[start_id - i - 1][0],
                     ]
                 ),
-                self.bezier_interpolation,
+                self._bezier_interpolation,
+                self._bezier_order,
             )
             points.extend(new_points)
 
