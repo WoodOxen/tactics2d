@@ -83,7 +83,7 @@ class DLPParser:
         return participant
 
     @staticmethod
-    def _flatten_list_columns(df: pd.DataFrame, list_columns: list[str]) -> pd.DataFrame:
+    def _flatten_list_columns(df, list_columns) -> pd.DataFrame:
         for col in list_columns:
             expanded = pd.DataFrame(df[col].tolist(), index=df.index)
             expanded.columns = [f"{col}_{i}" for i in expanded.columns]
