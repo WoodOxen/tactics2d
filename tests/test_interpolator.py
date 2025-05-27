@@ -11,7 +11,7 @@ from scipy.spatial.distance import directed_hausdorff
 sys.path.append(".")
 sys.path.append("..")
 
-from tactics2d.interpolator import Bezier, BSpline, CubicSpline, Spiral
+from tactics2d.interpolator import Bezier, BSpline, CubicSpline, Dubins, ReedsShepp, Spiral
 
 
 def compare_similarity(curve1: np.ndarray, curve2: np.ndarray, diff: float = 0.001) -> bool:
@@ -28,77 +28,6 @@ def compare_similarity(curve1: np.ndarray, curve2: np.ndarray, diff: float = 0.0
     if ratio_len_diff >= diff or ratio_shape_diff >= diff:
         logging.warning(f"Hausdorff dist: {hausdorff_dist}, Length diff: {len_diff}")
     return ratio_len_diff < diff and ratio_shape_diff < diff
-
-
-@pytest.mark.math
-@pytest.mark.parametrize(
-    "order, control_points, n_interpolation",
-    [
-        (1, None, 100),
-        (2, None, 1000),
-        (3, np.random.uniform(1, 5, (5, 2)), 100),
-        (3, np.random.uniform(1, 5, (4, 3)), 100),
-        (4, None, 1000),
-        (4, np.random.uniform(1, 5, (4, 2)), 100),
-        (5, None, 1000),
-    ],
-)
-def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
-    if control_points is None:
-        control_points = np.zeros((order + 1, 2))
-        for i in range(1, order + 1):
-            control_points[i, 0] = control_points[i - 1, 0] + np.random.uniform(0, 1)
-            control_points[i, 1] = np.random.uniform(-1, 1)
-
-    # Test initialization
-    try:
-        my_bezier = Bezier(order)
-    except ValueError as err:
-        if order < 1:
-            assert (
-                err.args[0] == "Bezier interpolator: Order must be greater than or equal to one."
-            ), "Test failed: error handling for invalid order."
-        return
-
-    # Test curve generation
-    try:
-        t1 = time.time()
-        my_curve = my_bezier.get_curve(control_points, n_interpolation)
-        t2 = time.time()
-    except ValueError as err:
-        if len(control_points.shape) != 2 or control_points.shape[1] != 2:
-            assert (
-                err.args[0] == "Bezier interpolator: Control points should have shape (n, 2)."
-            ), "Test failed: error handling for invalid shape of control points."
-        elif len(control_points) != order + 1:
-            assert (
-                err.args[0]
-                == "Bezier interpolator: Number of control points must be equal to order plus one."
-            ), "Test failed: error handling for invalid number of control points."
-        else:
-            raise err
-        return
-
-    # Reference result (bezier package)
-    try:
-        import bezier
-    except ImportError:
-        logging.warning("Skipping reference test: 'bezier' package not installed.")
-        return
-
-    t3 = time.time()
-    curve = bezier.Curve(control_points.T, degree=order).evaluate_multi(
-        np.linspace(0.0, 1.0, n_interpolation)
-    )
-    t4 = time.time()
-
-    assert compare_similarity(my_curve, curve.T), "Bezier curve output mismatch."
-
-    t_custom = t2 - t1
-    t_bezier = t4 - t3  # avoid zero-division
-
-    if t_custom > t_bezier:
-        logging.warning(f"Our Bezier is ~{t_custom / (t_bezier + 1e-8):.2f}x slower than bezier's")
 
 
 @pytest.mark.math
@@ -150,39 +79,37 @@ def test_b_spline(degree, control_points, knots, n_interpolation):
             knots[i] = knots[i - 1] + np.random.randint(0, 3)
 
     # Construct B-spline instance
-    t1 = time.time()
-    try:
-        my_bspline = BSpline(degree)
-    except ValueError as err:
-        if degree < 1:
-            assert (
-                str(err) == "BSpline interpolator: Degree must be non-negative."
-            ), "Incorrect error message for invalid degree"
-        return
 
     # Call our BSpline implementation
     try:
-        my_curve = my_bspline.get_curve(control_points, knots, n_interpolation=n_interpolation)
+        t1 = time.time()
+        my_curve = BSpline.get_curve(control_points, knots, degree, n_interpolation)
+        t2 = time.time()
     except ValueError as err:
-        msg = str(err)
-        if control_points.shape[-1] != 2:
+        if degree < 0:
             assert (
-                msg == "BSpline interpolator: Control points should have shape (n, 2)."
+                err.args[0] == "Degree must be non-negative."
+            ), "Incorrect error message for invalid degree"
+
+        elif control_points.shape[-1] != 2:
+            assert (
+                err.args[0] == "Control points should have shape (n, 2)."
             ), "Unexpected error message for invalid control points shape"
+
         elif knots is not None and len(knots) != len(control_points) + degree + 1:
             expected = len(control_points) + degree + 1
             assert (
-                msg == f"BSpline interpolator: Expected {expected} knots, got {len(knots)}."
+                err.args[0] == f"Expected {expected} knots, got {len(knots)}."
             ), "Unexpected error message for invalid knot count"
+
         elif knots is not None and np.any(np.diff(knots) < 0):
             assert (
-                msg == "BSpline interpolator: Knot vector must be non-decreasing."
+                err.args[0] == "Knot vector must be non-decreasing."
             ), "Unexpected error for non-monotonic knots"
+
         else:
             raise
         return
-
-    t2 = time.time()
 
     # Create scipy BSpline for ground truth
     if knots is None:
@@ -206,6 +133,74 @@ def test_b_spline(degree, control_points, knots, n_interpolation):
 
 @pytest.mark.math
 @pytest.mark.parametrize(
+    "order, control_points, n_interpolation",
+    [
+        (1, None, 100),
+        (2, None, 1000),
+        (3, np.random.uniform(1, 5, (5, 2)), 100),
+        (3, np.random.uniform(1, 5, (4, 3)), 100),
+        (4, None, 1000),
+        (4, np.random.uniform(1, 5, (4, 2)), 100),
+        (5, None, 1000),
+    ],
+)
+def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
+    if control_points is None:
+        control_points = np.zeros((order + 1, 2))
+        for i in range(1, order + 1):
+            control_points[i, 0] = control_points[i - 1, 0] + np.random.uniform(0, 1)
+            control_points[i, 1] = np.random.uniform(-1, 1)
+
+    # Test curve generation
+    try:
+        t1 = time.time()
+        my_curve = Bezier.get_curve(control_points, n_interpolation, order)
+        t2 = time.time()
+
+    except ValueError as err:
+        if order < 1:
+            assert (
+                err.args[0] == "Order must be greater than or equal to one."
+            ), "Test failed: error handling for invalid order."
+
+        elif len(control_points.shape) != 2 or control_points.shape[1] != 2:
+            assert (
+                err.args[0] == "Control points should have shape (n, 2)."
+            ), "Test failed: error handling for invalid shape of control points."
+
+        elif len(control_points) != order + 1:
+            assert (
+                err.args[0] == "Number of control points must be equal to order plus one."
+            ), "Test failed: error handling for invalid number of control points."
+
+        else:
+            raise err
+        return
+
+    # Reference result (bezier package)
+    try:
+        import bezier
+    except ImportError:
+        logging.warning("Skipping reference test: 'bezier' package not installed.")
+        return
+
+    t3 = time.time()
+    curve = bezier.Curve(control_points.T, degree=order).evaluate_multi(
+        np.linspace(0.0, 1.0, n_interpolation)
+    )
+    t4 = time.time()
+
+    assert compare_similarity(my_curve, curve.T), "Bezier curve output mismatch."
+
+    t_custom = t2 - t1
+    t_bezier = t4 - t3  # avoid zero-division
+
+    if t_custom > t_bezier:
+        logging.warning(f"Our Bezier is ~{t_custom / (t_bezier + 1e-8):.2f}x slower than bezier's")
+
+
+@pytest.mark.math
+@pytest.mark.parametrize(
     "boundary_type, n, control_points, n_interpolation",
     [
         ("hello-world", 2, None, 100),
@@ -222,16 +217,13 @@ def test_b_spline(degree, control_points, knots, n_interpolation):
 )
 def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_interpolation: int):
     if boundary_type == "natural":
-        cubic_spline = CubicSpline(CubicSpline.BoundaryType.Natural)
+        my_cubic_spline = CubicSpline.BoundaryType.Natural
     elif boundary_type == "clamped":
-        cubic_spline = CubicSpline(CubicSpline.BoundaryType.Clamped)
+        my_cubic_spline = CubicSpline.BoundaryType.Clamped
     elif boundary_type == "not-a-knot":
-        cubic_spline = CubicSpline(CubicSpline.BoundaryType.NotAKnot)
+        my_cubic_spline = CubicSpline.BoundaryType.NotAKnot
     else:
-        try:
-            cubic_spline = CubicSpline(boundary_type)
-        except ValueError:
-            return
+        my_cubic_spline = boundary_type
 
     if control_points is None:
         n = np.random.randint(3, 1000) if n is None else n
@@ -240,23 +232,38 @@ def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_
             control_points[i, 0] = control_points[i - 1, 0] + np.random.uniform(0, 1)
             control_points[i, 1] = np.random.uniform(-1, 1)
 
-    t1 = time.time()
     try:
-        curve = cubic_spline.get_curve(control_points, n_interpolation=n_interpolation)
+        t1 = time.time()
+        curve = CubicSpline.get_curve(
+            control_points, n_interpolation=n_interpolation, boundary_type=my_cubic_spline
+        )
+        t2 = time.time()
+
     except ValueError as err:
-        if len(control_points.shape) != 2 or control_points.shape[1] != 2:
+        if boundary_type not in ["natural", "clamped", "not-a-knot"]:
             assert (
-                err.args[0] == "Cubic interpolator: Control points should have shape (n, 2)."
+                err.args[0]
+                == f"Invalid boundary type: {boundary_type}. Available options are: {', '.join(CubicSpline.BoundaryType.__members__.keys())} or an integer value from 1 to {len(CubicSpline.BoundaryType.__members__)}."
+            )
+
+        elif len(control_points.shape) != 2 or control_points.shape[1] != 2:
+            assert (
+                err.args[0] == "Control points should have shape (n, 2)."
             ), "Test failed: error handling for invalid shape of control points."
+
         elif len(control_points) < 3:
             assert (
-                err.args[0] == "Cubic interpolator: Need at least 3 control points."
+                err.args[0] == "Need at least 3 control points."
             ), "Test failed: error handling for insufficient number of control points."
+
+        elif np.any(np.diff(control_points[:, 0]) <= 0):
+            assert (
+                err.args[0] == "x-values must be strictly increasing."
+            ), "Test failed: error handling for non-increasing x-values."
+
         else:
             raise err
         return
-
-    t2 = time.time()
 
     sci_cubic = SciCubic(control_points[:, 0], control_points[:, 1], bc_type=boundary_type)
     t3 = time.time()
@@ -273,6 +280,74 @@ def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_
     t_scipy = t4 - t3
     if t_custom > t_scipy:
         logging.warning(f"Our Cubic is ~{t_custom / (t_scipy + 1e-8):.2f}x slower than SciPy's")
+
+
+@pytest.mark.math
+@pytest.mark.parametrize(
+    "radius, start_point, start_heading, end_point, end_heading, step_size",
+    [
+        (7.5, np.array([10, 10]), 1, np.array([-20, -10]), 2, 0.01),
+        (7.5, np.array([10, 10]), 1, np.array([-20, -10]), -1, 0.01),
+        (7.5, np.array([10, 10]), -1, np.array([-20, -10]), 2, 0.01),
+        (7.5, np.array([10, 10]), -1, np.array([-20, -10]), -1, 0.01),
+        (7.5, np.array([10, 10]), 4, np.array([15, 5]), 2, 0.01),
+        (7.5, np.array([10, 10]), 0.5, np.array([5, 5]), 2, 0.01),
+        (-7.5, np.array([10, 10]), 4, np.array([15, 5]), 2, 0.01),
+    ],
+)
+def test_dubins(radius, start_point, start_heading, end_point, end_heading, step_size):
+    # t1 = time.time()
+    try:
+        dubins = Dubins(radius)
+    except ValueError as err:
+        if radius <= 0:
+            assert (
+                err.args[0] == "The minimum turning radius must be positive."
+            ), "Test failed: error handling for invalid radius."
+        else:
+            raise err
+        return
+
+    path = dubins.get_curve(start_point, start_heading, end_point, end_heading, step_size)
+    curve = path.curve
+
+    curve_length = np.linalg.norm(curve[1:] - curve[:-1], axis=1).sum()
+    assert abs(path.length - curve_length) / min(path.length, curve_length) < 0.01
+
+
+@pytest.mark.math
+@pytest.mark.parametrize(
+    "radius, start_point, start_heading, end_point, end_heading, step_size",
+    [
+        (7.5, np.array([10, 10]), 1, np.array([-20, -10]), 2, 0.01),
+        (7.5, np.array([10, 10]), 1, np.array([-20, -10]), -1, 0.01),
+        (7.5, np.array([10, 10]), -1, np.array([-20, -10]), 2, 0.01),
+        (7.5, np.array([10, 10]), -1, np.array([-20, -10]), -1, 0.01),
+        (7.5, np.array([10, 10]), 4, np.array([15, 5]), 2, 0.01),
+        (7.5, np.array([10, 10]), 0.5, np.array([5, 5]), 2, 0.01),
+        (-7.5, np.array([10, 10]), 4, np.array([15, 5]), 2, 0.01),
+        (7.5, np.array([0, 0]), 0, np.array([0, 0]), np.pi, 0.01),  # Same point, flipped heading
+        # (7.5, np.array([0, 0]), 0, np.array([1e-5, 1e-5]), 0, 0.01),   # Near-zero displacement
+        (7.5, np.array([10, 10]), 7.0, np.array([-20, -10]), -3.0, 0.01),  # Out-of-range angles
+    ],
+)
+def test_reeds_shepp(radius, start_point, start_heading, end_point, end_heading, step_size):
+    try:
+        rs = ReedsShepp(radius)
+    except ValueError as err:
+        if radius <= 0:
+            assert (
+                err.args[0] == "The minimum turning radius must be positive."
+            ), "Test failed: error handling for invalid radius."
+        else:
+            raise err
+        return
+
+    path = rs.get_curve(start_point, start_heading, end_point, end_heading, step_size)
+    curve = path.curve
+
+    curve_length = np.linalg.norm(curve[1:] - curve[:-1], axis=1).sum()
+    assert abs(path.length - curve_length) / min(path.length, curve_length) < 0.01
 
 
 @pytest.mark.math

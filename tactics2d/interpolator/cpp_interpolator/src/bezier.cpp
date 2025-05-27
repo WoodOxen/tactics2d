@@ -1,4 +1,4 @@
-#include "bezier.h"
+#include "bezier.hpp"
 
 std::vector<std::array<double, 2>> Bezier::get_curve(
     const std::vector<std::array<double, 2>>& control_points, int n_interpolation) {

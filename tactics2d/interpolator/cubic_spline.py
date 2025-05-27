@@ -4,7 +4,9 @@
 # @Description: This file implements a cubic spline interpolator.
 # @Author: Tactics2D Team
 # @Version: 0.1.9
+
 from enum import Enum
+from typing import Union
 
 import numpy as np
 from cpp_interpolator import CubicSpline as cpp_CubicSpline
@@ -30,35 +32,12 @@ class CubicSpline:
         Clamped = 2
         NotAKnot = 3
 
-    def __init__(self, boundary_type: BoundaryType = BoundaryType.NotAKnot):
-        """Initialize the cubic spline interpolator.
-
-        Args:
-            boundary_type (BoundaryType, optional): Boundary condition type. Defaults to BoundaryType.NotAKnot. The available options are CubicSpline.BoundaryType.Natural, CubicSpline.BoundaryType.Clamped, and CubicSpline.BoundaryType.NotAKnot.
-        """
-        self.boundary_type = boundary_type
-        if self.boundary_type not in self.BoundaryType.__members__.values():
-            raise ValueError(
-                "The boundary type is not valid. Please choose from 1 (CubicSpline.BoundaryType.Natural), 2 (CubicSpline.BoundaryType.Clamped), and 3 (CubicSpline.BoundaryType.NotAKnot)."
-            )
-
-        if self.boundary_type == CubicSpline.BoundaryType.Natural:
-            self.cpp_cubic_spline = cpp_CubicSpline(cpp_CubicSpline.BoundaryType.Natural)
-        elif boundary_type == CubicSpline.BoundaryType.Clamped:
-            self.cpp_cubic_spline = cpp_CubicSpline(cpp_CubicSpline.BoundaryType.Clamped)
-        elif boundary_type == CubicSpline.BoundaryType.NotAKnot:
-            self.cpp_cubic_spline = cpp_CubicSpline(cpp_CubicSpline.BoundaryType.NotAKnot)
-
-    def _check_validity(self, control_points: np.ndarray):
-        if control_points.ndim != 2 or control_points.shape[1] != 2:
-            raise ValueError("Cubic interpolator: Control points should have shape (n, 2).")
-        if len(control_points) < 3:
-            raise ValueError("Cubic interpolator: Need at least 3 control points.")
-        if np.any(np.diff(control_points[:, 0]) <= 0):
-            raise ValueError("Cubic interpolator: x-values must be strictly increasing.")
-
+    @staticmethod
     def get_curve(
-        self, control_points: np.ndarray, xx: tuple = (0, 0), n_interpolation: int = 100
+        control_points: np.ndarray,
+        xx: tuple = (0, 0),
+        n_interpolation: int = 100,
+        boundary_type: Union[int, BoundaryType] = BoundaryType.NotAKnot,
     ) -> np.ndarray:
         """Get the interpolation points of a cubic spline curve.
 
@@ -66,10 +45,39 @@ class CubicSpline:
             control_points (np.ndarray): The control points of the curve. The shape is (n + 1, 2).
             xx (float): The first derivative of the curve at the first and the last control points. These conditions will be used when the boundary condition is "clamped". Defaults to (0, 0).
             n_interpolation (int): The number of interpolations between every two control points. Defaults to 100.
+            boundary_type (Union[int, BoundaryType]): The boundary condition type. It can be an integer value from 1 to 3 or a BoundaryType enum value. Defaults to NotAKnot.
 
         Returns:
             curve_points (np.ndarray): The interpolation points of the curve. The shape is (n_interpolation * n + 1, 2).
         """
-        self._check_validity(control_points)
-        curve_points = self.cpp_cubic_spline.get_curve(control_points.tolist(), xx, n_interpolation)
+
+        # Check the validity of the inputs
+        if isinstance(boundary_type, int):
+            try:
+                boundary_type = CubicSpline.BoundaryType(boundary_type)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid boundary type: {boundary_type}. Available options are: {', '.join(CubicSpline.BoundaryType.__members__.keys())} or an integer value from 1 to {len(CubicSpline.BoundaryType.__members__)}."
+                )
+        if boundary_type not in CubicSpline.BoundaryType.__members__.values():
+            raise ValueError(
+                f"Invalid boundary type: {boundary_type}. Available options are: {', '.join(CubicSpline.BoundaryType.__members__.keys())} or an integer value from 1 to {len(CubicSpline.BoundaryType.__members__)}."
+            )
+
+        if control_points.ndim != 2 or control_points.shape[1] != 2:
+            raise ValueError("Control points should have shape (n, 2).")
+
+        if len(control_points) < 3:
+            raise ValueError("Need at least 3 control points.")
+
+        if np.any(np.diff(control_points[:, 0]) <= 0):
+            raise ValueError("x-values must be strictly increasing.")
+
+        # Compute the cubic spline curve points using the C++ implementation
+        curve_points = cpp_CubicSpline.get_curve(
+            control_points.tolist(),
+            xx,
+            n_interpolation,
+            cpp_CubicSpline.BoundaryType(boundary_type.value),
+        )
         return np.array(curve_points)

@@ -1,25 +1,12 @@
-#include "cubic_spline.h"
+#include "cubic_spline.hpp"
 
 #include <algorithm>  // For std::swap
 #include <cmath>
 
 CubicSpline::SplineParameters CubicSpline::get_parameters(
     const std::vector<std::array<double, 2>>& control_points,
-    std::pair<double, double> xx) {
-    /*Get the parameters of the cubic functions
-
-    Args:
-        control_points (std::vector<std::array<double, 2>>): The control points of the
-    curve. The shape is (n + 1, 2). xx (std::pair<double, double>): The first derivative
-    of the curve at the first and the last control points. Defaults to (0, 0).
-
-    Returns:
-        a (std::vector<double>): The constant parameters of the cubic functions. The shape
-    is (n, 1). b (std::vector<double>): The linear parameters of the cubic functions. The
-    shape is (n, 1). c (std::vector<double>): The quadratic parameters of the cubic
-    functions. The shape is (n, 1). d (std::vector<double>): The cubic parameters of the
-    cubic functions. The shape is (n, 1).
-    */
+    std::pair<double, double> xx, BoundaryType boundary_type) {
+    // Get the parameters of the cubic functions
 
     size_t n = control_points.size() - 1;
 
@@ -45,17 +32,17 @@ CubicSpline::SplineParameters CubicSpline::get_parameters(
         B[i] = 6 * (b[i] - b[i - 1]);
     }
 
-    if (boundary_type_ == BoundaryType::Natural) {
+    if (boundary_type == BoundaryType::Natural) {
         A[0][0] = 1;
         A[n][n] = 1;
-    } else if (boundary_type_ == BoundaryType::Clamped) {
+    } else if (boundary_type == BoundaryType::Clamped) {
         A[0][0] = 2 * h[0];
         A[0][1] = h[0];
         A[n][n] = 2 * h[n - 1];
         A[n][n - 1] = h[n - 1];
         B[0] = 6 * (b[0] - xx.first);
         B[n] = 6 * (xx.second - b[n - 1]);
-    } else if (boundary_type_ == BoundaryType::NotAKnot) {
+    } else if (boundary_type == BoundaryType::NotAKnot) {
         A[0][0] = -h[1];
         A[0][1] = h[0] + h[1];
         A[0][2] = -h[0];
@@ -79,22 +66,10 @@ CubicSpline::SplineParameters CubicSpline::get_parameters(
 
 std::vector<std::array<double, 2>> CubicSpline::get_curve(
     const std::vector<std::array<double, 2>>& control_points,
-    std::pair<double, double> xx, int n_interpolation) {
-    /* Get the interpolation points of a cubic spline curve.
+    std::pair<double, double> xx, int n_interpolation, BoundaryType boundary_type) {
+    // Get the interpolation points of a cubic spline curve
 
-    Args:
-        control_points (std::vector<std::array<double, 2>>): The control points of the
-    curve. The shape is (n + 1, 2). xx (std::pair<double, double>): The first derivative
-    of the curve at the first and the last control points. These conditions will be used
-    when the boundary condition is "clamped". Defaults to (0, 0). n_interpolation (int):
-    The number of interpolations between every two control points. Defaults to 100.
-
-    Returns:
-        curve_points (std::vector<std::array<double, 2>>): The interpolation points of the
-    curve. The shape is (n_interpolation * n + 1, 2).
-    */
-
-    auto [a, b, c, d] = get_parameters(control_points, xx);
+    auto [a, b, c, d] = get_parameters(control_points, xx, boundary_type);
     size_t n = control_points.size() - 1;
 
     std::vector<std::array<double, 2>> curve_points;

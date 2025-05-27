@@ -1,10 +1,10 @@
-#include "b_spline.h"
+#include "b_spline.hpp"
 
 std::vector<double> BSpline::compute_knots(int n, int degree) {
     // Compute uniform knot vector of length (n + degree + 1)
     std::vector<double> knot_vectors(n + degree + 1);
     double denom = static_cast<double>(n + degree);
-    for (int i = 0; i < knot_vectors.size(); ++i) {
+    for (size_t i = 0; i < knot_vectors.size(); ++i) {
         knot_vectors[i] = static_cast<double>(i) / denom;
     }
     return knot_vectors;

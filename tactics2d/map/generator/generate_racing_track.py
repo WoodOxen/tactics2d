@@ -13,9 +13,9 @@ from typing import Dict, List, Tuple
 import numpy as np
 from shapely.geometry import LineString, Point
 
+from tactics2d.geometry import Circle
+from tactics2d.interpolator import Bezier
 from tactics2d.map.element import Lane, LaneRelationship, Map, RoadLine
-from tactics2d.math.geometry import Circle
-from tactics2d.math.interpolate import Bezier
 from tactics2d.participant.trajectory import State
 
 
@@ -73,7 +73,7 @@ class RacingTrackGenerator:
                 t2 = np.random.uniform(low=1 / 4, high=1 / 2)
                 pt1_ = (1 - t1) * pt2 + t1 * pt1
                 pt3_ = (1 - t2) * pt2 + t2 * pt3
-                _, radius = Circle.get_circle(Circle.ConstructBy.ThreePoints, pt1_, pt2, pt3_)
+                _, radius = Circle.get_circle(point1=pt1_, point2=pt2, point3=pt3_)
                 if radius < self._curve_rad[0]:
                     if rad[i] > rad[next_i]:
                         rad[next_i] += np.random.uniform(0.0, 10.0)

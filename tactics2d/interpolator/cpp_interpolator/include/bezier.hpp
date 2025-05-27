@@ -1,5 +1,5 @@
-#ifndef BEZIER_H
-#define BEZIER_H
+#ifndef BEZIER_HPP
+#define BEZIER_HPP
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -18,4 +18,4 @@ class Bezier {
         const std::vector<std::array<double, 2>>& control_points, int n_interpolation);
 };
 
-#endif  // BEZIER_H
+#endif  // BEZIER_HPP

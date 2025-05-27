@@ -1,5 +1,5 @@
-#ifndef BSPLINE_H
-#define BSPLINE_H
+#ifndef BSPLINE_HPP
+#define BSPLINE_HPP
 
 #include <pybind11/chrono.h>
 #include <pybind11/complex.h>
@@ -25,4 +25,4 @@ class BSpline {
                                  std::vector<std::vector<double>>& N);
 };
 
-#endif  // BSPLINE_H
+#endif  // BSPLINE_HPP
