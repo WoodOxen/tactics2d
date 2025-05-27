@@ -6,6 +6,15 @@
 
 ### Changed
 
+- Split `tactics2d.math` into `tactics2d.interpolator` and `tactics2d.geometry`.
+- Parameter changes in `tactics2d.geometry`:
+  - `Circle`: Remove `get_circle_by_three_points` and `get_circle_by_tangent_vector`. Keep their functionality in `Circle.get_circle(**kwargs)`.
+- Parameter changes in `tactics2d.interpolator`:
+  - `Bezier`: Change `get_curve` method to static method. Remove `order` parameter in `__init__` method. Add `order` parameter in `get_curve` method.
+  - `BSpline`: Change `get_curve` method to static method. Remove `degree` parameter in `__init__` method. Add `degree` parameter in `get_curve` method.
+  - `CubicSpline`: Change `get_curve` method to static method. Remove `boundary_type` parameter in `__init__` method. Add `boundary_type` parameter in `get_curve` method.
+  - `Spiral`: Rename `get_spiral` method to `get_curve`.
+
 ### Fixed
 
 ### Deprecated
@@ -14,6 +23,7 @@
 
 ### TODO
 
+- `tactics2d.interpolator.cubic_spline`: Improve efficiency of CubicSpline by ThomasSolver.
 - `tactics2d.dataset_parser.NuPlanParser`: Identify the boundaries of a lane element.
 - `tactics2d.dataset_parser.WOMDParser`: Identify the boundaries of a lane element.
 - `tactics2d.dataset_parser.womd_proto`: Add compatibility to protobuf 3.x.x and 4.x.x.

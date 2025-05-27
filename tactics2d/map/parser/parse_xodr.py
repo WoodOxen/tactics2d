@@ -16,9 +16,9 @@ from pyproj import CRS
 from shapely.affinity import affine_transform, rotate
 from shapely.geometry import LineString, Point, Polygon
 
+from tactics2d.geometry import Circle
+from tactics2d.interpolator import Spiral
 from tactics2d.map.element import Area, Connection, Junction, Lane, Map, Node, Regulatory, RoadLine
-from tactics2d.math.geometry import Circle
-from tactics2d.math.interpolate import Spiral
 
 
 class XODRParser:
@@ -103,7 +103,7 @@ class XODRParser:
             points = [(x_start, y_start)]
         else:
             gamma = (curv_end - curv_start) / length
-            points = Spiral.get_spiral(length, [x_start, y_start], heading, curv_start, gamma)
+            points = Spiral.get_curve(length, [x_start, y_start], heading, curv_start, gamma)
             points = [(x, y) for x, y in points]
         return points
 
@@ -114,8 +114,11 @@ class XODRParser:
         length = float(xml_node.attrib["length"])
         curvature = float(xml_node.find("arc").attrib["curvature"])
 
-        center, radius = Circle.get_circle_by_tangent_vector(
-            [x_start, y_start], heading, abs(1 / curvature), "L" if curvature > 0 else "R"
+        center, radius = Circle.get_circle(
+            tangent_point=[x_start, y_start],
+            tangent_heading=heading,
+            radius=abs(1 / curvature),
+            side="L" if curvature > 0 else "R",
         )
 
         n_interpolate = int(length / 0.1)
