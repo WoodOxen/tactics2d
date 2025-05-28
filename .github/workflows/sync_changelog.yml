@@ -1,0 +1,46 @@
+name: Sync Changelog on PR
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sync-changelog:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Copy CHANGELOG.md to docs/release_notes.md
+        run: |
+          mkdir -p docs
+          cp CHANGELOG.md docs/release_notes.md
+
+      - name: Commit and push if changed
+        id: commit_step
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet docs/release_notes.md; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            git add docs/release_notes.md
+            git commit -m ":memo: sync CHANGELOG.md to docs/release_notes.md"
+            git push origin HEAD:${{ github.head_ref }}
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on PR
+        if: steps.commit_step.outputs.changed == 'true'
+        run: |
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"body": "✅ `docs/release_notes.md` has auto-synced from `CHANGELOG.md`."}' \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"

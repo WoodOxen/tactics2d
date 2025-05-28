@@ -22,6 +22,9 @@ classifiers = [
 ]
 dynamic = ["dependencies"]
 
+[project.scripts]
+tactics2d = "tactics2d.cli:main"
+
 [project.urls]
 Documentation = "https://tactics2d.readthedocs.io/en/latest/"
 Repository = "https://github.com/WoodOxen/tactics2d"

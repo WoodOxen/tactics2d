@@ -29,6 +29,7 @@
 - `tactics2d.dataset_parser.womd_proto`: Add compatibility to protobuf 3.x.x and 4.x.x.
 - `tactics2d.map.parser.OSMParser`: Handle the tag `highway` in `load_way` for the original [OSM label style](https://wiki.openstreetmap.org/wiki/Key:lanes).
 - `tactics2d.dataset_parser`: Improve the efficiency.
+- Complete the CLI commands.
 
 ## [0.1.8] - 2025-05-22
 
