@@ -32,13 +32,13 @@ class Circle:
                 get_circle(tangent_point, tangent_heading, radius, side)
 
         Args:
-            - point1 (ArrayLike): The first point, either the center of the circle or a point on the circumference. The shape should be (2,).
-            - point2 (ArrayLike): The second point, a point on the circumference. The shape should be (2,).
-            - point3 (ArrayLike): The third point on the circumference. The shape should be (2,).
-            - tangent_point (ArrayLike): A point on the circumference where the tangent is applied. The shape should be (2,).
-            - tangent_heading (float): The heading of the tangent line at the tangent point, in radians.
-            - radius (float): The radius of the circle.
-            - side (Union[str, RelativeDirection]): The side of the tangent line to consider. Can be "L"/"R" or a RelativeDirection enum value (LEFT/RIGHT).
+            point1 (ArrayLike): The first point, either the center of the circle or a point on the circumference. The shape should be (2,).
+            point2 (ArrayLike): The second point, a point on the circumference. The shape should be (2,).
+            point3 (ArrayLike): The third point on the circumference. The shape should be (2,).
+            tangent_point (ArrayLike): A point on the circumference where the tangent is applied. The shape should be (2,).
+            tangent_heading (float): The heading of the tangent line at the tangent point, in radians.
+            radius (float): The radius of the circle.
+            side (Union[str, RelativeDirection]): The side of the tangent line to consider. Can be "L"/"R" or a RelativeDirection enum value (LEFT/RIGHT).
 
         Returns:
             Tuple[np.ndarray, float]: A tuple containing the center of the circle as a numpy array and the radius as a float. The center is an array of shape (2,)

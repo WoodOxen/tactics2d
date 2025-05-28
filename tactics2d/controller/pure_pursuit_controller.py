@@ -19,9 +19,9 @@ class PurePursuitController:
 
     Attributes:
         kp (float): The proportional gain for speed error adjustment. The default value is 3.5. It can be adjusted by `update_driving_style`.
-        accel_change_rate (float): The limitation to how quickly the acceleration can change over time to ensure smooth transitions. The unit is $m^2$/s. The default value is 3.0. It can be adjusted by `update_driving_style`.
-        max_accel (float): The upper limit of the acceleration. The unit is $m^2$/s. The default value is 1.5. It can be adjusted by `update_driving_style`.
-        min_accel (float): The lower limit of the acceleration. When negative, it describes the upper limit of the deceleration.The unit is $m^2$/s. The default value is -4.0. It can be adjusted by `update_driving_style`.
+        accel_change_rate (float): The limitation to how quickly the acceleration can change over time to ensure smooth transitions. The unit is m$^2$/s. The default value is 3.0. It can be adjusted by `update_driving_style`.
+        max_accel (float): The upper limit of the acceleration. The unit is m$^2$/s. The default value is 1.5. It can be adjusted by `update_driving_style`.
+        min_accel (float): The lower limit of the acceleration. When negative, it describes the upper limit of the deceleration.The unit is m$^2$/s. The default value is -4.0. It can be adjusted by `update_driving_style`.
         interval (float, optional): The time interval between the current command and the next. The unit is second. The default value is 1.0. It can be adjusted by `update_driving_style`.
     """
 

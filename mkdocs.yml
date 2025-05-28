@@ -13,7 +13,7 @@ nav:
   - Release Notes: "release_notes.md"
   - Installation: "installation.md"
   - Dataset Support:
-    - overview: "dataset_support/index.md"
+    - "dataset_support/index.md"
     - highD: "dataset_support/highd.ipynb"
     - inD: "dataset_support/ind.ipynb"
     - rounD: "dataset_support/round.ipynb"
@@ -21,6 +21,7 @@ nav:
     - uniD: "dataset_support/unid.ipynb"
     - CitySim: "dataset_support/citysim.ipynb"
   - Python API:
+    - tactics2d.controller: "api/controller.md"
     - tactics2d.dataset_parser: "api/dataset_parser.md"
     - tactics2d.envs: "api/envs.md"
     - tactics2d.geometry: "api/geometry.md"
@@ -74,14 +75,21 @@ theme:
         name: Switch to light mode
   font:
     text: "Roboto Slab"
-    code: "Ubuntu Mono"
+    code: "Cousine"
   features:
     - content.action.view
     - content.code.copy
     - content.code.prettify
     - navigation.expand
     - navigation.footer
+    - navigation.indexes
+    - navigation.integrate
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.top
+    - navigation.sections
     - search.suggest
+    - toc.follow
 
 plugins:
   - glightbox
@@ -93,18 +101,23 @@ plugins:
             show_source: false
             heading_level: 1
             show_root_heading: true
+            docstring_section_style: list
   - mkdocs-jupyter:
       execute: false
       include_requirejs: true
       include_source: true
       kernel_name: python3
-  - search
+  - search:
+      lang: en
 
 markdown_extensions:
   - abbr
   - admonition
   - attr_list
-  - pymdownx.arithmatex
+  - toc:
+      toc_depth: 3
+  - pymdownx.arithmatex:
+      generic: true
   - pymdownx.details
   - pymdownx.superfences
   - pymdownx.emoji
@@ -112,11 +125,10 @@ markdown_extensions:
 extra_javascript:
   - javascripts/katex.js
   - javascripts/hide_code.js
-  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/katex.min.js
-  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/contrib/auto-render.min.js
-  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+  - https://unpkg.com/katex@0/dist/katex.min.js
+  - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
 
 extra_css:
   - css/extra_for_material.css
   - css/hide_code.css
-  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/katex.min.css
+  - https://unpkg.com/katex@0/dist/katex.min.css

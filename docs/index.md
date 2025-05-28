@@ -43,7 +43,7 @@ Welcome to the official documentation of Python Library tactics2d!
 >
 > Corresponds to version 0.1.6.
 
-**Dataset Parser**
+#### Dataset Parser
 
 Support parsing maps and trajectories from the following datasets:
 
@@ -57,7 +57,7 @@ Support parsing maps and trajectories from the following datasets:
 - NuPlan
 - WOMD
 
-**Map Parser**
+#### Map Parser
 
 Support parsing maps in the following formats:
 
@@ -65,7 +65,7 @@ Support parsing maps in the following formats:
 - OpenStreetMap annotated in Lanelet2
 - OpenDRIVE (XODR)
 
-**Math Interpolation Algorithms**
+#### Math Interpolation Algorithms
 
 Support the following interpolation algorithms:
 
@@ -76,7 +76,7 @@ Support the following interpolation algorithms:
 - Dubins
 - Reeds Shepp
 
-**Traffic Participant**
+#### Traffic Participant
 
 The following traffic participants are implemented:
 
@@ -86,7 +86,7 @@ The following traffic participants are implemented:
 
 For each traffic participants, a set of parameters are available to configure the behavior.
 
-**Physics Model**
+#### Physics Model
 
 The following physics model of traffic participants are supported:
 
@@ -95,7 +95,7 @@ The following physics model of traffic participants are supported:
 - Point mass (Kinematic): recommended for pedestrians
 - Single-track drift model (Dynamic): recommended for vehicles
 
-**Road Element**
+#### Road Element
 
 The following road elements are implemented:
 
@@ -105,13 +105,13 @@ The following road elements are implemented:
 - Road line
 - Base class of traffic regulations
 
-**Traffic Event Detection**
+#### Traffic Event Detection
 
 - Static collision detection
 - Dynamic collision detection
 - Arrival event detection
 
-**Sensor**
+#### Sensor
 
 - Bird-eye-view (BEV) semantic segmentation RGB image
 - Single-line LiDAR point cloud
