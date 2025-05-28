@@ -148,19 +148,15 @@ class DLPParser:
         df_frame = df_frame.filter(
             pl.col("timestamp (ms)").is_between(stamp_range[0], stamp_range[1], closed="both")
         )
-        time_stamps = df_frame["timestamp (ms)"].to_list()
+
         actual_stamp_range = (
             df_frame["timestamp (ms)"].min(),
             df_frame["timestamp (ms)"].max(),
         )
 
-        df_instance = df_instance.filter(
-            pl.col("instance_token").is_in(df_frame["instance_token"].implode())
-        )
+        df_instance = df_instance.filter(pl.col("instance_token").is_in(df_frame["instance_token"]))
         df_instance = df_instance.join(df_frame, on="instance_token", how="inner")
-        df_agent = df_agent.filter(
-            pl.col("agent_token").is_in(df_instance["agent_token"].implode())
-        )
+        df_agent = df_agent.filter(pl.col("agent_token").is_in(df_instance["agent_token"]))
 
         participants = {
             row["agent_token"]: self._generate_participant(row, idx)
