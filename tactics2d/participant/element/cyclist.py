@@ -26,7 +26,7 @@ class Cyclist(ParticipantBase):
         id_ (Any): The unique identifier of the cyclist.
         type_ (str): The type of the cyclist. Defaults to "cyclist".
         trajectory (Trajectory): The trajectory of the cyclist. Defaults to an empty trajectory.
-        color (Any): The color of the cyclist. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to light-orange (253, 150, 68).
+        color (Any): The color of the cyclist. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to light-orange "#fd9644".
         length (float): The length of the cyclist. The unit is meter. Defaults to None.
         width (float): The width of the cyclist. The unit is meter. Defaults to None.
         height (float): The height of the cyclist. The unit is meter. Defaults to None.
@@ -54,7 +54,7 @@ class Cyclist(ParticipantBase):
         "max_decel": float,
         "verify": bool,
     }
-    _default_color = (253, 150, 68, 255)  # light-orange
+    _default_color = "#fd9644"  # light-orange
 
     def __init__(self, id_: Any, type_: str = "cyclist", trajectory: Trajectory = None, **kwargs):
         """Initialize a cyclist participant. `tactics2d` treat motorcyclists as cyclists by default.

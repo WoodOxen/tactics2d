@@ -90,6 +90,7 @@ theme:
     - navigation.sections
     - search.suggest
     - toc.follow
+    - toc.integrate
 
 plugins:
   - glightbox
@@ -115,7 +116,7 @@ markdown_extensions:
   - admonition
   - attr_list
   - toc:
-      toc_depth: 3
+      toc_depth: 2
   - pymdownx.arithmatex:
       generic: true
   - pymdownx.details

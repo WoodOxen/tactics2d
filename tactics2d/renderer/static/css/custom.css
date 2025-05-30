@@ -1,0 +1,67 @@
+/* Make body and html fill screen and remove margins */
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    background-color: black;
+}
+
+/* Transparent floating navbar */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    z-index: 10;
+    color: white;
+    backdrop-filter: blur(6px);
+}
+
+.menu-icon {
+    font-size: 24px;
+    cursor: pointer;
+    margin-right: 15px;
+}
+
+.menu-content {
+    display: none;
+    position: absolute;
+    top: 50px;
+    left: 0;
+    background-color: rgba(0, 0, 0, 0.85);
+    padding: 10px;
+    color: white;
+    z-index: 9;
+    width: 200px;
+}
+
+.menu-content a {
+    display: block;
+    color: white;
+    text-decoration: none;
+    padding: 5px 10px;
+}
+
+.menu-content a:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.icon-button {
+    color: white;
+    text-decoration: none;
+    padding: 5px 5px;
+    background-color: #333;
+    border-radius: 5px;
+    transition: background 0.3s ease;
+}
+
+.icon-button:hover {
+    background-color: #555;
+}
