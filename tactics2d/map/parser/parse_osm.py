@@ -99,17 +99,18 @@ class OSMParser:
         return tags
 
     def _load_area(self, xml_node: ET.Element, map_: Map) -> Area:
-        area_id = xml_node.attrib["id"]
+        area_id = int(xml_node.attrib["id"])
         line_ids = dict(inner=[], outer=[])
         regulatory_ids = []
 
         for member in xml_node.findall("member"):
+            member_id = int(member.attrib["ref"])
             if member.attrib["role"] == "outer":
-                line_ids["outer"].append(member.attrib["ref"])
+                line_ids["outer"].append(member_id)
             elif member.attrib["role"] == "inner":
-                line_ids["inner"].append(member.attrib["ref"])
+                line_ids["inner"].append(member_id)
             elif member.attrib["role"] == "regulatory_element":
-                regulatory_ids.append(member.attrib["ref"])
+                regulatory_ids.append(member_id)
 
         outer_point_list = []
         for line_id in line_ids["outer"]:
@@ -210,7 +211,7 @@ class OSMParser:
         Returns:
             A node under the GPS coordinates.
         """
-        node_id = xml_node.attrib["id"]
+        node_id = int(xml_node.attrib["id"])
         lon = float(xml_node.attrib["lon"])
         lat = float(xml_node.attrib["lat"])
 
@@ -227,7 +228,7 @@ class OSMParser:
         Returns:
             A node under the x-y coordinates.
         """
-        node_id = xml_node.attrib["id"]
+        node_id = int(xml_node.attrib["id"])
         x, y = projector(xml_node.attrib["lon"], xml_node.attrib["lat"])
 
         return Node(id_=node_id, x=x - origin[0], y=y - origin[1])
@@ -242,13 +243,14 @@ class OSMParser:
         Returns:
             A road element.
         """
-        id_ = xml_node.attrib["id"]
+        id_ = int(xml_node.attrib["id"])
         point_list = []
         point_ids = []
 
         for node in xml_node.findall("nd"):
-            point_list.append(map_.nodes[node.attrib["ref"]].location)
-            point_ids.append(node.attrib["ref"])
+            node_id = int(node.attrib["ref"])
+            point_list.append(map_.nodes[node_id].location)
+            point_ids.append(node_id)
 
         tags = self._get_tags(xml_node)
         is_area = tags.pop("area", False)
@@ -270,7 +272,7 @@ class OSMParser:
         Returns:
             A road element.
         """
-        id_ = xml_node.attrib["id"]
+        id_ = int(xml_node.attrib["id"])
         tags = self._get_tags(xml_node)
         type_ = tags.pop("type")
         road_element = None
@@ -283,7 +285,7 @@ class OSMParser:
             line_ids = []
             for member in xml_node.findall("member"):
                 if member.attrib["type"] == "way":
-                    line_ids.append(member.attrib["ref"])
+                    line_ids.append(int(member.attrib["ref"]))
             for line_id in line_ids:
                 if len(point_list) == 0:
                     if map_.roadlines.get(line_id):
@@ -303,12 +305,13 @@ class OSMParser:
             tos = dict()
             vias = dict()
             for member in xml_node.findall("member"):
+                member_id = int(member.attrib["ref"])
                 if member.attrib["role"] == "from":
-                    froms[member.attrib["ref"]] = member.attrib["type"]
+                    froms[member_id] = member.attrib["type"]
                 elif member.attrib["role"] == "to":
-                    tos[member.attrib["ref"]] = member.attrib["type"]
+                    tos[member_id] = member.attrib["type"]
                 elif member.attrib["role"] == "via":
-                    vias[member.attrib["ref"]] = member.attrib["type"]
+                    vias[member_id] = member.attrib["type"]
 
             tags["froms"] = froms
             tags["tos"] = tos
@@ -327,11 +330,11 @@ class OSMParser:
         Returns:
             A roadline labeled with Lanelet 2 tags.
         """
-        line_id = xml_node.attrib["id"]
+        line_id = int(xml_node.attrib["id"])
         point_list = []
 
         for node in xml_node.findall("nd"):
-            point_list.append(map_.nodes[node.attrib["ref"]].location)
+            point_list.append(map_.nodes[int(node.attrib["ref"])].location)
         linestring = LineString(point_list)
 
         tags = self._get_lanelet2_tags(xml_node)
@@ -339,17 +342,18 @@ class OSMParser:
         return RoadLine(id_=line_id, geometry=linestring, **tags)
 
     def load_lane_lanelet2(self, xml_node: ET.Element, map_: Map) -> Lane:
-        lane_id = xml_node.attrib["id"]
+        lane_id = int(xml_node.attrib["id"])
         line_ids = dict(left=[], right=[])
         regulatory_ids = []
 
         for member in xml_node.findall("member"):
+            member_id = int(member.attrib["ref"])
             if member.attrib["role"] == "left":
-                line_ids["left"].append(member.attrib["ref"])
+                line_ids["left"].append(member_id)
             elif member.attrib["role"] == "right":
-                line_ids["right"].append(member.attrib["ref"])
+                line_ids["right"].append(member_id)
             elif member.attrib["role"] == "regulatory_element":
-                regulatory_ids.append(member.attrib["ref"])
+                regulatory_ids.append(member_id)
 
         point_list = dict()
         for side in ["left", "right"]:
@@ -387,17 +391,18 @@ class OSMParser:
         Returns:
             An area labeled with Lanelet 2 tags.
         """
-        area_id = xml_node.attrib["id"]
+        area_id = int(xml_node.attrib["id"])
         line_ids = dict(inner=[], outer=[])
         regulatory_ids = []
 
         for member in xml_node.findall("member"):
+            member_id = int(member.attrib["ref"])
             if member.attrib["role"] == "outer":
-                line_ids["outer"].append(member.attrib["ref"])
+                line_ids["outer"].append(member_id)
             elif member.attrib["role"] == "inner":
-                line_ids["inner"].append(member.attrib["ref"])
+                line_ids["inner"].append(member_id)
             elif member.attrib["role"] == "regulatory_element":
-                regulatory_ids.append(member.attrib["ref"])
+                regulatory_ids.append(member_id)
 
         outer_point_list = list(map_.roadlines[line_ids["outer"][0]].geometry.coords)
         for line_id in line_ids["outer"][1:]:
@@ -428,14 +433,14 @@ class OSMParser:
         return Area(area_id, polygon, line_ids, set(regulatory_ids), **area_tags)
 
     def load_regulatory_lanelet2(self, xml_node: ET.Element) -> Regulatory:
-        regulatory_id = xml_node.attrib["id"]
+        regulatory_id = int(xml_node.attrib["id"])
         relations = dict()
         ways = dict()
         for member in xml_node.findall("member"):
             if member.attrib["type"] == "relation":
-                relations[member.attrib["ref"]] = member.attrib["role"]
+                relations[int(member.attrib["ref"])] = member.attrib["role"]
             elif member.attrib["type"] == "way":
-                ways[member.attrib["ref"]] = member.attrib["role"]
+                ways[int(member.attrib["ref"])] = member.attrib["role"]
 
         regulatory_tags = self._get_lanelet2_tags(xml_node)
         return Regulatory(regulatory_id, relations, ways, **regulatory_tags)

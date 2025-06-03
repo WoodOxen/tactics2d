@@ -63,7 +63,8 @@ class BEVCamera(SensorBase):
     def _in_perception_range(self, geometry) -> bool:
         if self._location is None:
             return True
-        return geometry.distance(self._location) > self.max_perception_distance * 2
+
+        return geometry.distance(self._location) <= self.max_perception_distance * 2
 
     def _get_color(self, element):
         if element.color in self.color_palette:
@@ -109,9 +110,11 @@ class BEVCamera(SensorBase):
 
         return 1
 
-    def _get_map_elements(self):
+    def _get_map_elements(self, prev_road_id_set):
+        road_id_list = []
         road_element_list = []
         white = self.color_palette["white"]
+
         for area in self._map.areas.values():
             if not self._in_perception_range(area.geometry):
                 continue
@@ -121,7 +124,7 @@ class BEVCamera(SensorBase):
 
             road_element_list.append(
                 {
-                    "id": int(area.id_ * 1e6),
+                    "id": int(1e6 + area.id_),
                     "type": "polygon",
                     "geometry": list(area.geometry.exterior.coords),
                     "color": self._get_color(area),
@@ -129,11 +132,12 @@ class BEVCamera(SensorBase):
                     "lineWidth": 0,
                 }
             )
+            road_id_list.append(int(1e6 + area.id_))
 
             for i, interior in enumerate(interiors):
                 road_element_list.append(
                     {
-                        "id": int(area.id_ * 1e6 + i),
+                        "id": int(1e6 + area.id_ + i * 1e5),
                         "type": "polygon",
                         "geometry": interior,
                         "color": white,
@@ -141,6 +145,7 @@ class BEVCamera(SensorBase):
                         "lineWidth": 0,
                     }
                 )
+                road_id_list.append(int(1e6 + area.id_ + i * 1e5))
 
         for lane in self._map.lanes.values():
             if not self._in_perception_range(lane.geometry):
@@ -148,7 +153,7 @@ class BEVCamera(SensorBase):
 
             road_element_list.append(
                 {
-                    "id": int(lane.id_ * 1e6),
+                    "id": int(1e6 + lane.id_),
                     "type": "polygon",
                     "geometry": list(lane.geometry.coords),
                     "color": self._get_color(lane),
@@ -156,25 +161,42 @@ class BEVCamera(SensorBase):
                     "lineWidth": 0,
                 }
             )
+            road_id_list.append(int(1e6 + lane.id_))
 
         for roadline in self._map.roadlines.values():
             if roadline.type_ == "virtual" or not self._in_perception_range(roadline.geometry):
                 continue
-
             road_element_list.append(
                 {
-                    "id": int(roadline.id_ * 1e6),
-                    "type": "dashedline" if "dashed" in roadline.subtype else "line",
+                    "id": int(1e6 + roadline.id_),
+                    "type": "dashed_line" if "dashed" in roadline.subtype else "line",
                     "geometry": list(roadline.geometry.coords),
                     "color": self._get_color(roadline),
                     "order": self._get_order(roadline),
                     "lineWidth": 2 if "thick" in roadline.type_ else 1,
                 }
             )
+            road_id_list.append(int(1e6 + roadline.id_))
 
-        return road_element_list
+        # Create the map geometry message flow
+        road_id_set = set(road_id_list)
+        road_id_to_create = road_id_set - prev_road_id_set
+        road_id_to_remove = prev_road_id_set - road_id_set
 
-    def _get_participants(self, participants, participant_ids, frame):
+        road_element_to_create = []
+        for road_element in road_element_list:
+            if road_element["id"] in road_id_to_create:
+                road_element_to_create.append(road_element)
+
+        map_data = {
+            "road_id_to_remove": list(road_id_to_remove),
+            "road_element": road_element_to_create,
+        }
+
+        return map_data, road_id_set
+
+    def _get_participants(self, frame, participants, participant_ids, prev_participant_id_set):
+        participant_id_list = []
         participant_list = []
         black = self.color_palette["black"]
 
@@ -192,60 +214,89 @@ class BEVCamera(SensorBase):
             order = self._get_order(participant)
 
             if isinstance(participant, Vehicle) or isinstance(participant, Cyclist):
-                points = np.array(participant_geometry.coords)
+                points = np.array(participant.geometry.coords)
                 triangle = [
                     ((points[0] + points[1]) / 2).tolist(),
                     ((points[1] + points[2]) / 2).tolist(),
                     ((points[3] + points[0]) / 2).tolist(),
                 ]
+                state = participant.trajectory.get_state(frame)
+                location = list(state.location)
+                heading = state.heading
 
                 participant_list.append(
                     {
-                        "id": participant.id_,
+                        "id": int(participant.id_),
                         "type": "polygon",
                         "geometry": points.tolist(),
+                        "position": location,
+                        "rotation": heading,
                         "color": self._get_color(participant),
                         "order": order,
                         "lineWidth": 1,
                     }
                 )
+                participant_id_list.append(int(participant.id_))
+
                 participant_list.append(
                     {
-                        "id": int(participant.id_ + 1e3),
+                        "id": int(-participant.id_),
                         "type": "polygon",
                         "geometry": triangle,
+                        "position": location,
+                        "rotation": heading,
                         "color": black,
-                        "order": order,
+                        "order": order + 0.1,
                         "lineWidth": 0,
                     }
                 )
+                participant_id_list.append(int(-participant.id_))
+
             elif isinstance(participant, Pedestrian):
                 participant_list.append(
                     {
                         "id": participant.id_,
                         "type": "circle",
-                        "center": participant_geometry,
+                        "position": participant_geometry,
                         "radius": participant_radius,
                         "color": self._get_color(participant),
                         "order": order,
                         "lineWidth": 1,
                     }
                 )
+                participant_id_list.append(int(participant.id_))
+
             elif isinstance(participant, Obstacle):
                 pass
 
-        return participant_list
+        # Create the participant geometry message flow
+        participant_id_set = set(participant_id_list)
+        participant_id_to_create = participant_id_set - prev_participant_id_set
+        participant_id_to_remove = prev_participant_id_set - participant_id_set
+
+        participant_data = {
+            "participant_id_to_create": list(participant_id_to_create),
+            "participant_id_to_remove": list(participant_id_to_remove),
+            "participants": participant_list,
+        }
+
+        return participant_data, participant_id_set
 
     def update(
         self,
-        participants,
+        frame: int,
+        participants: dict,
         participant_ids: list,
-        frame: int = None,
+        prev_road_id_set: set,
+        prev_participant_id_set: set,
         location: Point = None,
     ):
         self._location = location
 
-        element_list = self._get_map_elements()
-        element_list.extend(self._get_participants(participants, participant_ids, frame))
+        map_data, road_id_set = self._get_map_elements(prev_road_id_set)
+        participant_data, participant_id_set = self._get_participants(
+            frame, participants, participant_ids, prev_participant_id_set
+        )
 
-        return element_list
+        geometry_data = {"frame": frame, "map_data": map_data, "participant_data": participant_data}
+        return geometry_data, road_id_set, participant_id_set

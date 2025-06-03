@@ -13,6 +13,7 @@ logging.basicConfig(level=logging.INFO)
 import eventlet
 
 eventlet.monkey_patch()
+import json
 
 from camera import BEVCamera
 from flask import Flask, render_template, request
@@ -45,28 +46,41 @@ def generate_data():
     file_id = 1
     stamp_range = None
     file_path = f"/home/rowena/Documents/tactics2d/data/{dataset}/data"
+    map_config = f"/home/rowena/Documents/tactics2d/tactics2d/dataset_parser/map.config"
+    with open(map_config) as f:
+        configs = json.load(f)
 
     dataset_parser = LevelXParser(dataset)
     participants, actual_stamp_range = dataset_parser.parse_trajectory(
         file_id, file_path, stamp_range
     )
 
-    map_parser = OSMParser()
-    map_ = map_parser.parse("/home/rowena/Documents/tactics2d/tactics2d/data/map/highD/highD_2.osm")
-
-    print(len(map_.areas), len(map_.lanes), len(map_.roadlines))
+    map_parser = OSMParser(lanelet2=True)
+    map_ = map_parser.parse(
+        "/home/rowena/Documents/tactics2d/tactics2d/data/map/highD/highD_2.osm", configs["highD_2"]
+    )
 
     camera = BEVCamera(id_=1, map_=map_, perception_range=50)
 
-    # while True:
-    for frame in range(actual_stamp_range[0], actual_stamp_range[1], 40):
-        participant_ids = [pid for pid, p in participants.items() if p.is_active(frame)]
+    prev_road_id_set = set()
+    prev_participant_id_set = set()
 
-        geometry_data = camera.update(participants, participant_ids, frame, Point(200, 20))
+    while True:
+        for frame in range(actual_stamp_range[0], actual_stamp_range[1], 40):
+            participant_ids = [pid for pid, p in participants.items() if p.is_active(frame)]
 
-        socketio.emit("geometry_data", {"frame": frame, "geometry": geometry_data})
+            geometry_data, prev_road_id_set, prev_participant_id_set = camera.update(
+                frame,
+                participants,
+                participant_ids,
+                prev_road_id_set,
+                prev_participant_id_set,
+                Point(200, -10),
+            )
 
-        time.sleep(0.04)
+            socketio.emit("geometry_data", geometry_data)
+
+            time.sleep(0.04)
 
 
 if __name__ == "__main__":
