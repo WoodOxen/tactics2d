@@ -1,0 +1,6 @@
+<routes>
+
+    <route id="1" edges="1_main_0" />
+    <route id="2" edges="2_main_0" />
+
+</routes>
