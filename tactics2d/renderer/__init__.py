@@ -4,3 +4,8 @@
 # @Description: This file initializes the sensor module.
 # @Author: Tactics2D Team
 # @Version: 0.1.9
+
+from .camera import BEVCamera
+from .matplotlib_renderer import MatplotlibRenderer
+
+__all__ = ["MatplotlibRenderer", "BEVCamera"]

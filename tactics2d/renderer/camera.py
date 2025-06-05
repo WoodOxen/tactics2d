@@ -36,15 +36,13 @@ class BEVCamera(SensorBase):
         self,
         id_: int,
         map_: Map,
-        perception_range: Union[float, Tuple[float]],
-        resolution: Tuple[int, int] = (800, 800),
+        perception_range: Union[float, Tuple[float]] = None,
         color_palette: dict = None,
         color_mapper: dict = None,
         order_mapper: dict = None,
     ):
         super().__init__(id_, map_, perception_range)
 
-        self._resolution = resolution
         self._map_rendered = False
 
         if color_palette is not None:
@@ -55,10 +53,6 @@ class BEVCamera(SensorBase):
 
         if order_mapper is not None:
             self.order_mapper.update(order_mapper)
-
-    @property
-    def resolution(self):
-        return self._resolution
 
     def _in_perception_range(self, geometry) -> bool:
         if self._location is None:
@@ -129,7 +123,7 @@ class BEVCamera(SensorBase):
                     "geometry": list(area.geometry.exterior.coords),
                     "color": self._get_color(area),
                     "order": order,
-                    "lineWidth": 0,
+                    "line_width": 0,
                 }
             )
             road_id_list.append(int(1e6 + area.id_))
@@ -142,7 +136,7 @@ class BEVCamera(SensorBase):
                         "geometry": interior,
                         "color": white,
                         "order": order + 0.1,
-                        "lineWidth": 0,
+                        "line_width": 0,
                     }
                 )
                 road_id_list.append(int(1e6 + area.id_ + i * 1e5))
@@ -158,7 +152,7 @@ class BEVCamera(SensorBase):
                     "geometry": list(lane.geometry.coords),
                     "color": self._get_color(lane),
                     "order": self._get_order(lane),
-                    "lineWidth": 0,
+                    "line_width": 0,
                 }
             )
             road_id_list.append(int(1e6 + lane.id_))
@@ -166,14 +160,21 @@ class BEVCamera(SensorBase):
         for roadline in self._map.roadlines.values():
             if roadline.type_ == "virtual" or not self._in_perception_range(roadline.geometry):
                 continue
+
+            line_width = 1
+            if roadline.type_ in ["line_thin", "curbstone"]:
+                line_width = 0.5
+            elif "thick" in roadline.type_:
+                line_width = 2
+
             road_element_list.append(
                 {
                     "id": int(1e6 + roadline.id_),
-                    "type": "dashed_line" if "dashed" in roadline.subtype else "line",
+                    "type": "line_" + roadline.subtype,
                     "geometry": list(roadline.geometry.coords),
                     "color": self._get_color(roadline),
                     "order": self._get_order(roadline),
-                    "lineWidth": 2 if "thick" in roadline.type_ else 1,
+                    "line_width": line_width,
                 }
             )
             road_id_list.append(int(1e6 + roadline.id_))
@@ -190,7 +191,7 @@ class BEVCamera(SensorBase):
 
         map_data = {
             "road_id_to_remove": list(road_id_to_remove),
-            "road_element": road_element_to_create,
+            "road_elements": road_element_to_create,
         }
 
         return map_data, road_id_set
@@ -233,7 +234,7 @@ class BEVCamera(SensorBase):
                         "rotation": heading,
                         "color": self._get_color(participant),
                         "order": order,
-                        "lineWidth": 1,
+                        "line_width": 1,
                     }
                 )
                 participant_id_list.append(int(participant.id_))
@@ -247,7 +248,7 @@ class BEVCamera(SensorBase):
                         "rotation": heading,
                         "color": black,
                         "order": order + 0.1,
-                        "lineWidth": 0,
+                        "line_width": 0,
                     }
                 )
                 participant_id_list.append(int(-participant.id_))
@@ -261,7 +262,7 @@ class BEVCamera(SensorBase):
                         "radius": participant_radius,
                         "color": self._get_color(participant),
                         "order": order,
-                        "lineWidth": 1,
+                        "line_width": 1,
                     }
                 )
                 participant_id_list.append(int(participant.id_))

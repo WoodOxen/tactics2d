@@ -38,7 +38,7 @@ class SensorBase(ABC):
         if perception_range is None:
             width = (map_.boundary[1] - map_.boundary[0]) / 2
             height = (map_.boundary[3] - map_.boundary[2]) / 2
-            self.perception_range = (width, width, height, height)
+            self._perception_range = (width, width, height, height)
         elif isinstance(perception_range, float) or isinstance(perception_range, int):
             self._perception_range = (
                 perception_range,
