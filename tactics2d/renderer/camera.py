@@ -133,7 +133,7 @@ class BEVCamera(SensorBase):
                     {
                         "id": int(1e6 + area.id_ + i * 1e5),
                         "type": "polygon",
-                        "geometry": interior,
+                        "geometry": list(interior.coords),
                         "color": white,
                         "order": order + 0.1,
                         "line_width": 0,
@@ -170,7 +170,9 @@ class BEVCamera(SensorBase):
             road_element_list.append(
                 {
                     "id": int(1e6 + roadline.id_),
-                    "type": "line_" + roadline.subtype,
+                    "type": (
+                        "line_" + roadline.subtype if roadline.subtype is not None else "line_solid"
+                    ),
                     "geometry": list(roadline.geometry.coords),
                     "color": self._get_color(roadline),
                     "order": self._get_order(roadline),
@@ -258,7 +260,7 @@ class BEVCamera(SensorBase):
                     {
                         "id": participant.id_,
                         "type": "circle",
-                        "position": participant_geometry,
+                        "position": [participant_geometry.x, participant_geometry.y],
                         "radius": participant_radius,
                         "color": self._get_color(participant),
                         "order": order,

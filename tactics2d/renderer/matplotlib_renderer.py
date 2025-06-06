@@ -51,6 +51,10 @@ class MatplotlibRenderer:
         self.ax.set_axis_off()
 
     def _create_polygon(self, element):
+        if len(element["geometry"]) < 3:
+            logging.warning(f"Polygon with id {element['id']} has less than 3 points, skipping.")
+            return None
+
         return Polygon(
             xy=element["geometry"],
             closed=True,
@@ -159,6 +163,8 @@ class MatplotlibRenderer:
 
             if element["type"] == "polygon":
                 polygon = self._create_polygon(element)
+                if polygon is None:
+                    continue
                 self.road_polygons[element_id] = polygon
                 self.road_polygon_geometry[element_id] = element["geometry"]
                 self.ax.add_patch(polygon)
@@ -204,6 +210,8 @@ class MatplotlibRenderer:
             if id_ in participant_id_to_create and id_ not in self.participants:
                 if participant["type"] == "polygon":
                     patch = self._create_polygon(participant)
+                    if patch is None:
+                        continue
                 elif participant["type"] == "circle":
                     patch = self._create_circle(participant)
                 else:
