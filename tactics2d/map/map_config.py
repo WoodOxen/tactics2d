@@ -126,6 +126,7 @@ IND_MAP_CONFIG = {
     },
 }
 
+
 ROUND_MAP_CONFIG = {
     "rounD_0": {
         "name": "rounD location 0",
@@ -165,6 +166,7 @@ ROUND_MAP_CONFIG = {
         "trajectory_files": [1],
     },
 }
+
 
 EXID_MAP_CONFIG = {
     "exiD_0": {
@@ -243,6 +245,7 @@ EXID_MAP_CONFIG = {
     },
 }
 
+
 UNID_MAP_CONFIG = {
     "uniD_0": {
         "name": "uniD location 0",
@@ -254,6 +257,7 @@ UNID_MAP_CONFIG = {
         "trajectory_files": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     }
 }
+
 
 INTERACTION_MAP_CONFIG = {
     "DR_DEU_Merging_MT": {

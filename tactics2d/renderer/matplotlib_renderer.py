@@ -43,7 +43,7 @@ class MatplotlibRenderer:
 
         self.fig, self.ax = plt.subplots()
         self.fig.set_size_inches(self.width, self.height)
-        self.fig.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95)
+        self.fig.subplots_adjust(left=0, right=1, bottom=0, top=0.95)
 
         self.ax.set_aspect("equal")
         self.ax.set_xlim(*xlim)
