@@ -8,20 +8,25 @@ html, body {
     background-color: black;
 }
 
-/* Transparent floating navbar */
+/* Set root variable for navbar height */
+:root {
+    --navbar-height: 50px;
+}
+
+/* Style for the navbar */
 .navbar {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: 50px;
     background-color: rgba(0, 0, 0, 0.6);
     display: flex;
     align-items: center;
-    padding: 0 15px;
+    padding: 10px 15px;
     z-index: 10;
     color: white;
     backdrop-filter: blur(6px);
+    min-height: var(--navbar-height);
 }
 
 .menu-icon {
@@ -64,4 +69,17 @@ html, body {
 
 .icon-button:hover {
     background-color: #555;
+}
+
+#sensor-container-wrapper {
+    position: absolute;
+    top: var(--navbar-height);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: calc(100vh - var(--navbar-height));
+    overflow: hidden;
+    background: transparent;
+    z-index: 1;
 }

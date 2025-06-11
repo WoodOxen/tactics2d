@@ -7,5 +7,6 @@
 
 from .camera import BEVCamera
 from .matplotlib_renderer import MatplotlibRenderer
+from .webgl_renderer import WebGLRenderer
 
-__all__ = ["MatplotlibRenderer", "BEVCamera"]
+__all__ = ["MatplotlibRenderer", "BEVCamera", "WebGLRenderer"]

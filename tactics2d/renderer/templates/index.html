@@ -6,8 +6,8 @@
 
     <!-- Libraries -->
     <script src="{{ url_for('static', filename='js/three.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/render.js') }}" defer></script>
+    <script src="https://cdn.socket.io/3.1.3/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/renderManager.js') }}" defer></script>
 
     <!-- Styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/font-awesome.all.min.css') }}">
@@ -17,8 +17,11 @@
 
     <div class="navbar">
         <span>Tactics2D</span>
-        <a href="https://tactics2d.readthedocs.io/en/latest/" target="_blank" class="icon-button"><i class="fas fa-bars"></i> <span>Documentation</span></a>
+        <a href="https://tactics2d.readthedocs.io/en/latest/" target="_blank" class="icon-button"><i class="fas fa-bars"></i> <span>Docs</span></a>
     </div>
 
+    <div id="sensor-container-wrapper"> </div>
+
+    <script>console.log("HTML loaded");</script>
 </body>
 </html>
