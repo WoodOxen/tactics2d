@@ -1,3 +1,13 @@
+console.log("renderManager.js loaded");
+
+let renderManagerInstance = null;
+
+window.addEventListener("DOMContentLoaded", () => {
+    if (!renderManagerInstance) {
+        renderManagerInstance = new RenderManager();
+    }
+});
+
 class windowContainer {
     constructor(containerId, perceptionRange, initialPosition = [0, 0], initialYaw = 0) {
         this.container = document.getElementById(containerId);
@@ -83,7 +93,7 @@ class windowContainer {
             return new THREE.Color(colorStr);
         } catch (e) {
             console.warn("Invalid color:", colorStr);
-            return new THREE.Color(0xff00ff);
+            return new THREE.Color(0xeeeeee);
         }
     }
 
@@ -126,12 +136,12 @@ class windowContainer {
                 color: this.parseColor(element.color),
                 dashSize: 3,
                 gapSize: 2,
-                linewidth: element.lineWidth,
+                linewidth: element.line_width,
             });
         } else {
             material = new THREE.LineBasicMaterial({
                 color: this.parseColor(element.color),
-                linewidth: element.lineWidth
+                linewidth: element.line_width
             });
         }
 
@@ -244,10 +254,14 @@ class RenderManager {
     }
 
     initSocket() {
-        this.socket=io();
+        this.socket=io("http://127.0.0.1:5000");
 
         this.socket.on("connect", () => {
             console.log("Connected to the server")
+        });
+
+        this.socket.on("connect_error", (err) => {
+            console.error("Socket connection error:", err);
         });
 
         this.socket.on("layout", (layout) => {
@@ -384,6 +398,7 @@ class RenderManager {
             if (sensor.map_data) sensorObject.updateRoadElements(sensor.map_data);
             if (sensor.participant_data) sensorObject.updateParticipants(sensor.participant_data);
             sensorObject.updateView(sensor.position, sensor.yaw);
+            sensorObject.render();
         });
 
         if (isSensorChanged) {

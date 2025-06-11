@@ -3,9 +3,14 @@ import time
 
 logging.basicConfig(level=logging.INFO)
 
+import eventlet
+
+eventlet.monkey_patch()
+
 import numpy as np
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO
+from shapely.geometry import Point
 
 from tactics2d.dataset_parser import LevelXParser
 from tactics2d.map.map_config import HIGHD_MAP_CONFIG
@@ -23,7 +28,7 @@ class WebGLRenderer:
         self.host = host
         self.port = port
         self.app = Flask(__name__)
-        self.socketio = SocketIO(self.app, async_mode="threading")
+        self.socketio = SocketIO(self.app, async_mode="eventlet")
 
         self.last_send_time = 0
         self.data_buffer = None
@@ -51,7 +56,7 @@ class WebGLRenderer:
     def _setup_socket_events(self):
         @self.socketio.on("connect")
         def on_connect():
-            logging.info("Client connected")
+            logging.info("Connecting to WebSocket server...")
             self.socketio.start_background_task(self.generate_data)
 
         @self.socketio.on("render_complete")
@@ -63,11 +68,12 @@ class WebGLRenderer:
         min_interval = 1.0 / self.max_fps
 
         # TODO: If a performance bottleneck is frequently reported, we may try to send the signal of different sensors separately.
-        if self.client_ready:
-            time.sleep(max(0, min_interval - (now - self.last_send_time)))
-            self.socketio.emit("sensor_data", self.data_buffer)
-            self.last_send_time = now
-            self.client_ready = False
+        # if self.client_ready:
+        # logging.info("Client is ready to receive data.")
+        time.sleep(max(0, min_interval - (now - self.last_send_time)))
+        self.socketio.emit("sensor_data", self.data_buffer)
+        self.last_send_time = now
+        # self.client_ready = False
 
     def update_layout(self, layout: str):
         if layout is None:
@@ -94,7 +100,6 @@ class WebGLRenderer:
         file_id = 1
         stamp_range = None
         file_path = f"/home/rowena/Documents/tactics2d/data/{dataset}/data"
-        map_config = f"/home/rowena/Documents/tactics2d/tactics2d/dataset_parser/map.config"
 
         dataset_parser = LevelXParser(dataset)
         participants, actual_stamp_range = dataset_parser.parse_trajectory(
@@ -110,9 +115,7 @@ class WebGLRenderer:
         camera = BEVCamera(id_=1, map_=map_, perception_range=50)
 
         boundary = map_.boundary
-        camera_position = np.array(
-            [(boundary[0] + boundary[1]) / 2, (boundary[2] + boundary[3]) / 2]
-        )
+        camera_position = [(boundary[0] + boundary[1]) / 2, (boundary[2] + boundary[3]) / 2]
 
         prev_road_id_set = set()
         prev_participant_id_set = set()
@@ -127,17 +130,16 @@ class WebGLRenderer:
                     participant_ids,
                     prev_road_id_set,
                     prev_participant_id_set,
-                    camera_position,
+                    Point(*camera_position),
                 )
-
-                logging.debug("Sending geometry data for frame %d", frame)
 
                 sensor_data = [
                     {
                         "id": "camera_1",
-                        "perception_range": np.max(camera.perception_range),
-                        "position": camera_position.tolist(),
+                        "perception_range": int(np.max(camera.perception_range)),
+                        "position": camera_position,
                         "yaw": 0,
+                        "frame": geometry_data["frame"],
                         "map_data": geometry_data["map_data"],
                         "participant_data": geometry_data["participant_data"],
                     }

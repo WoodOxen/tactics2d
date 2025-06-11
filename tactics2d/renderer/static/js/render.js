@@ -207,7 +207,7 @@ socket.on('connect', () => {
 
 
 socket.on("geometry_data", function(data) {
-    console.log("Rendering frame:", data.frame);
+    // console.log("Rendering frame:", data.frame);
 
     // Update road elements
     if (data.map_data) {
