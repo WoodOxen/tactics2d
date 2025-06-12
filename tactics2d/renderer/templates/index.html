@@ -5,22 +5,40 @@
     <title>WebSocket + Three.js Example</title>
 
     <!-- Libraries -->
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/three.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/renderManager.js') }}" defer></script>
 
     <!-- Styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/font-awesome.all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
 </head>
 <body>
 
-    <div class="navbar">
-        <span>Tactics2D</span>
-        <a href="https://tactics2d.readthedocs.io/en/latest/" target="_blank" class="icon-button"><i class="fas fa-bars"></i> <span>Docs</span></a>
-    </div>
+    <nav class="navbar fixed-top navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Tactics2D</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNavDropdown">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" target="_blank" href="https://tactics2d.readthedocs.io/en/latest/"> Help </a>
+                    </li>
+                </ul>
+            </div>
+            <form class="d-flex">
+                <button class="btn btn-primary btn-lg btn-dark" type="button">
+                    <i class="fa-solid fa-grip"></i>
+                </button>
+            </form>
+        </div>
+    </nav>
 
-    <div id="sensor-container-wrapper"> </div>
+    <div id="sensor-container-wrapper" class="container-fluid"></div>
 
     <script>console.log("HTML loaded");</script>
 </body>

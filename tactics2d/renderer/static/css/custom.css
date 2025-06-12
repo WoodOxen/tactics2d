@@ -1,85 +1,16 @@
-/* Make body and html fill screen and remove margins */
+:root {
+    --navbar-height: 56px;
+}
+
 html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding-top: var(--navbar-height);
     font-family: Arial, sans-serif;
     background-color: black;
 }
 
-/* Set root variable for navbar height */
-:root {
-    --navbar-height: 50px;
-}
-
-/* Style for the navbar */
-.navbar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background-color: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    padding: 10px 15px;
-    z-index: 10;
-    color: white;
-    backdrop-filter: blur(6px);
-    min-height: var(--navbar-height);
-}
-
-.menu-icon {
-    font-size: 24px;
-    cursor: pointer;
-    margin-right: 15px;
-}
-
-.menu-content {
-    display: none;
-    position: absolute;
-    top: 50px;
-    left: 0;
-    background-color: rgba(0, 0, 0, 0.85);
-    padding: 10px;
-    color: white;
-    z-index: 9;
-    width: 200px;
-}
-
-.menu-content a {
-    display: block;
-    color: white;
-    text-decoration: none;
-    padding: 5px 10px;
-}
-
-.menu-content a:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-.icon-button {
-    color: white;
-    text-decoration: none;
-    padding: 5px 5px;
-    background-color: #333;
-    border-radius: 5px;
-    transition: background 0.3s ease;
-}
-
-.icon-button:hover {
-    background-color: #555;
-}
-
 #sensor-container-wrapper {
-    position: absolute;
-    top: var(--navbar-height);
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100vw;
     height: calc(100vh - var(--navbar-height));
-    overflow: hidden;
-    background: transparent;
-    z-index: 1;
 }

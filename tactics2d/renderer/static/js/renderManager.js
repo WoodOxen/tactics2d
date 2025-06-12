@@ -8,13 +8,20 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-class windowContainer {
+class sensorContainer {
     constructor(containerId, perceptionRange, initialPosition = [0, 0], initialYaw = 0) {
-        this.container = document.getElementById(containerId);
-        this.scene = new THREE.Scene();
+        let containerElement = document.getElementById(containerId);
+        if (!containerElement) {
+            containerElement = document.createElement('div');
+            containerElement.id = containerId;
+            containerElement.classList.add('sensor-container');
+            document.body.appendChild(containerElement);
+        }
+        this.container = containerElement;
+        this.renderer = null;
 
         this.perceptionRange = perceptionRange;
-
+        this.scene = new THREE.Scene();
         this.roadObjects = new Map();
         this.participantObjects = new Map();
 
@@ -32,6 +39,7 @@ class windowContainer {
             this.container.clientWidth,
             this.container.clientHeight
         );
+        this.renderer.setClearColor(0x000000, 1);
         this.container.appendChild(this.renderer.domElement);
     }
 
@@ -57,10 +65,23 @@ class windowContainer {
 
     // Update the renderer size based on the container dimensions
     updateRenderer(width, height) {
-        this.renderer.setSize(width, height);
+        if (!this.renderer) {
+            console.error("Renderer not initialized!");
+            this.initRenderer();
+            if (!this.renderer) return;
+        }
 
-        if (this.lastPosition && this.lastYaw !== undefined) {
-            this.updateView(this.lastPosition, this.lastYaw);
+        // Skip if dimensions are invalid
+        if (width <= 0 || height <= 0) return;
+
+        // Only update if size actually changed
+        const currentSize = this.renderer.getSize(new THREE.Vector2());
+        if (currentSize.width !== width || currentSize.height !== height) {
+            this.renderer.setSize(width, height);
+
+            if (this.lastPosition && this.lastYaw !== undefined) {
+                this.updateView(this.lastPosition, this.lastYaw);
+            }
         }
     }
 
@@ -220,33 +241,42 @@ class windowContainer {
     }
 
     render() {
+        this.renderer.clear(true, true, true);
         this.renderer.render(this.scene, this.camera);
-    }
-
-    clearScene() {
-        while (this.scene.children.length > 0) {
-            this.scene.remove(this.scene.children[0]);
-        }
     }
 }
 
 
+// RenderManager class to manage the layout and rendering of sensor containers
 class RenderManager {
     constructor(layout="grid", host="127.0.0.1", port=5000) {
         this.container = document.getElementById("sensor-container-wrapper");
         this.sensors = new Map();
-        this.mainSensorId = null;
+        this.sensorsLayoutInfo = new Map();
+
+        // Initialize properties for layout
         this.layout = layout;
+        this.mainSensorId = null;
+        this.lastGridSize = null;
+        this.lastMainSize = null;
+        this.lastSubSize = null;
+
+        // Initialize properties for socket connection
         this.animationFrame=null;
         this.socket=null;
-
         this.host=host;
         this.port=port;
 
         this.initSocket();
 
         this.resizeObserver = new ResizeObserver(() => {
-            this.updateLayout(this.layout);
+            if (this.resizeTimeout) {
+                cancelAnimationFrame(this.resizeTimeout);
+            }
+
+            this.resizeTimeout = requestAnimationFrame(() => {
+                this.updateLayout(this.layout);
+            });
         });
         this.resizeObserver.observe(this.container);
 
@@ -257,7 +287,9 @@ class RenderManager {
         this.socket=io("http://127.0.0.1:5000");
 
         this.socket.on("connect", () => {
-            console.log("Connected to the server")
+            console.log("Connected to the server");
+            this.container.innerHTML = '';
+            this.sensors.clear();
         });
 
         this.socket.on("connect_error", (err) => {
@@ -282,28 +314,73 @@ class RenderManager {
         const numWindow = this.sensors.size;
         if (numWindow === 0) return;
 
-        const numCols = Math.ceil(Math.sqrt(numWindow));
-        const numRows = Math.ceil(numWindow / numCols);
+        const wrapper = this.container;
+        const wrapperWidth = wrapper.clientWidth;
+        const wrapperHeight = wrapper.clientHeight;
 
-        const wrapperHeight = this.container.clientHeight;
-        const windowLength = Math.floor(wrapperHeight / numRows / 100) * 100;
+        if (wrapperWidth <= 0 || wrapperHeight <= 0) return;
 
-        let i = 0;
+        const maxSize = 1000;
+        const minSize = 100;
+        const gutter = 5;
+
+        // Compute the number of rows and columns based on the available space
+        const aspectRatio = wrapperWidth / wrapperHeight;
+        let numCols = Math.ceil(Math.sqrt(numWindow * aspectRatio));
+        let numRows = Math.ceil(numWindow / numCols);
+        console.debug("Number of columns:", numCols, "Number of rows:", numRows);
+
+        let gridSize = Math.min(
+            maxSize,
+            Math.floor((wrapperWidth - (numCols - 1) * gutter) / numCols),
+            Math.floor((wrapperHeight - (numRows - 1) * gutter) / numRows)
+        );
+        gridSize = Math.max(minSize, gridSize);
+        gridSize = Math.floor(gridSize / 10) * 10; // Round to nearest 10
+        this.lastGridSize = gridSize;
+        console.debug("Calculated new window size:", gridSize);
+
+        let iCol = 0;
+        let iRow = 0;
         this.sensors.forEach((sensor) => {
-            const row = Math.floor(i / numCols);
-            const col = i % numCols;
+            let row = document.getElementById(`sensor-row-${iRow}`);
+            if (!row) {
+                row = document.createElement('div');
+                row.id = `sensor-row-${iRow}`;
+                row.classList.add('row', 'justify-content-center');
+                this.container.appendChild(row);
+            }
 
-            sensor.container.style.width = `${windowLength}px`;
-            sensor.container.style.height = `${windowLength}px`;
-            sensor.container.style.position = "absolute";
-            sensor.container.style.left = `${col * windowLength}px`;
-            sensor.container.style.top = `${row * windowLength}px`;
+            let col = document.getElementById(`sensor-col-${iRow}-${iCol}`);
+            if (!col) {
+                col = document.createElement('div');
+                col.id = `sensor-col-${iRow}-${iCol}`;
+                col.classList.add('col-auto');
+                row.appendChild(col);
+            }
 
-            sensor.updateRenderer(windowLength, windowLength);
+            let sensorLayoutInfo = this.sensorsLayoutInfo.get(sensor.id) || {};
+            if (!(sensorLayoutInfo.layout === "grid" && sensorLayoutInfo.size === gridSize && sensorLayoutInfo.row === iRow && sensorLayoutInfo.col === iCol)) {
+                sensorLayoutInfo.layout = "grid";
+                sensorLayoutInfo.size = gridSize;
+                sensorLayoutInfo.row = iRow;
+                sensorLayoutInfo.col = iCol;
+                this.sensorsLayoutInfo.set(sensor.id, sensorLayoutInfo);
 
-            i++;
+                sensor.container.style.width = `${gridSize}px`;
+                sensor.container.style.height = `${gridSize}px`;
+                col.appendChild(sensor.container);
+                sensor.updateRenderer(gridSize, gridSize);
+            }
+
+            iCol++;
+            if (iCol >= numCols) {
+                iCol = 0;
+                iRow++;
+            }
         });
-        console.log("Updated to grid layout.")
+
+        console.debug("Updated to grid layout. Window size:", gridSize);
     }
 
     updateHierarchicalLayout() {
@@ -317,7 +394,7 @@ class RenderManager {
         const wrapperHeight = this.container.clientHeight;
         const wrapperWidth = this.container.clientWidth;
         const mainLength = Math.floor(wrapperHeight * 0.7 / 100) * 100;
-        const subLength = max(Math.floor(wrapperHeight * 0.3 / 100) * 100, Math.floor(wrapperWidth / numWindow / 100) * 100);
+        const subLength = Math.max(Math.floor(wrapperHeight * 0.3 / 100) * 100, Math.floor(wrapperWidth / numWindow / 100) * 100);
 
         const mainSensor = this.sensors.get(this.mainSensorId);
         mainSensor.container.style.width = `${mainLength}px`;
@@ -375,19 +452,18 @@ class RenderManager {
     renderAll(sensorData) {
         let isSensorChanged = false;
 
-        sensorData.forEach((sensor) => {
+        (sensorData || []).forEach((sensor) => {
             let container = document.getElementById(sensor.id);
             if (!container) {
                 container = document.createElement("div");
                 container.id = sensor.id;
-                container.className = "sensor-window";
-                container.style.position = "absolute";
+                container.classList.add("sensor-container")
                 document.getElementById("sensor-container-wrapper").appendChild(container);
             }
 
             if (!this.sensors.has(sensor.id)) {
                 console.log(`Creating new sensor container for ${sensor.id}`);
-                const newSensor = new windowContainer(
+                const newSensor = new sensorContainer(
                     sensor.id, sensor.perception_range, sensor.position, sensor.yaw
                 );
                 this.sensors.set(sensor.id, newSensor);
