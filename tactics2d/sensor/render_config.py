@@ -1,7 +1,7 @@
 ##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: render_template.py
-# @Description: This file contains the default color palette and zorder for rendering different classes of map elements.
+# @File: render_config.py
+# @Description: This file contains the default color palette and zorder for rendering different classes of elements in the traffic scenario.
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
@@ -72,8 +72,13 @@ DEFAULT_COLOR = {
     "road_border": COLOR_PALETTE["light-gray"],
     # default color for vehicle class subtypes
     "vehicle": COLOR_PALETTE["light-turquoise"],
+    "car": COLOR_PALETTE["light-turquoise"],
+    "truck": COLOR_PALETTE["light-turquoise"],
+    "bus": COLOR_PALETTE["light-turquoise"],
     # default color for cyclist class subtypes
+    "motorcycle": COLOR_PALETTE["light-orange"],
     "cyclist": COLOR_PALETTE["light-orange"],
+    "bicycle": COLOR_PALETTE["light-orange"],
     # default color for pedestrian class subtypes
     "pedestrian": COLOR_PALETTE["light-blue"],
 }
@@ -108,16 +113,21 @@ DEFAULT_ORDER = {
     "freespace": 3,
     "vegetation": 3,
     "keepout": 3,
-    "building": 4,
+    "building": 5,
     "traffic_island": 3,
-    "obstacle": 4,
+    "obstacle": 5,
     # default zorder for roadline class subtypes
-    "roadline": 3.5,
-    "road_border": 3.5,
-    "curbstone": 4,
+    "roadline": 4,
+    "road_border": 4,
+    "curbstone": 5,
+    "vehicle": 6,
+    "car": 6,
+    "truck": 6,
+    "bus": 6,
     # default zorder for cyclist class subtypes
-    "vehicle": 5,
+    "motorcycle": 6,
+    "cyclist": 6,
+    "bicycle": 6,
     # default zorder for pedestrian class subtypes
-    "cyclist": 5,
-    "pedestrian": 5,
+    "pedestrian": 6,
 }

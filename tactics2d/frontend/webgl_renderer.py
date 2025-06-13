@@ -3,19 +3,13 @@ import time
 
 logging.basicConfig(level=logging.INFO)
 
-import eventlet
-
-eventlet.monkey_patch()
-
 import numpy as np
-from flask import Flask, render_template, request
-from flask_socketio import SocketIO
 from shapely.geometry import Point
 
 from tactics2d.dataset_parser import LevelXParser
 from tactics2d.map.map_config import HIGHD_MAP_CONFIG
 from tactics2d.map.parser import OSMParser
-from tactics2d.renderer import BEVCamera
+from tactics2d.sensor.camera import BEVCamera
 
 
 class WebGLRenderer:
@@ -57,6 +51,9 @@ class WebGLRenderer:
         @self.socketio.on("connect")
         def on_connect():
             logging.info("Connecting to WebSocket server...")
+            self.data_buffer = None
+            self.last_send_time = 0
+            self.client_ready = True
             self.socketio.start_background_task(self.generate_data)
 
         @self.socketio.on("render_complete")

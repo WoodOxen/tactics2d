@@ -210,6 +210,7 @@ class sensorContainer {
             if (obj) {
                 this.scene.remove(obj);
                 this.participantObjects.delete(id);
+                console.debug(`Removed participant ${id}`);
             }
         });
 
@@ -236,6 +237,7 @@ class sensorContainer {
                     this.participantObjects.set(participant.id, mesh);
                     this.scene.add(mesh);
                 }
+                console.debug(`Added new participant ${participant.id}`);
             }
         });
     }
@@ -284,12 +286,22 @@ class RenderManager {
     }
 
     initSocket() {
-        this.socket=io("http://127.0.0.1:5000");
+        if (this.socket) {
+            this.socket.disconnect();
+        }
+
+        this.socket=io("http://127.0.0.1:5000", {
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            forceNew: true
+        });
 
         this.socket.on("connect", () => {
             console.log("Connected to the server");
             this.container.innerHTML = '';
             this.sensors.clear();
+            this.sensorsLayoutInfo.clear();
+            this.mainSensorId = null;
         });
 
         this.socket.on("connect_error", (err) => {
