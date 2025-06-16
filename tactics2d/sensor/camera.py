@@ -25,7 +25,8 @@ class BEVCamera(SensorBase):
         map_ (Map): The map that the sensor is attached to. This attribute is **read-only** once the instance is initialized.
         perception_range (Union[float, Tuple[float]]): The distance from the sensor to its maximum detection range in (left, right, front, back). When this value is undefined, the sensor is assumed to detect the whole map. Defaults to None.
         position (Point): The position of the sensor in the global 2D coordinate system.
-        bind_id (Any): The unique identifier of object that the sensor is bound to.
+        bind_id (Any): The unique identifier of object that the sensor is bound to. This attribute is **read-only** and can only be set using the `bind_with` method.
+        is_bound (bool): Whether the sensor is bound to an object. This attribute is **read-only** once the instance is initialized.
     """
 
     color_palette = COLOR_PALETTE
