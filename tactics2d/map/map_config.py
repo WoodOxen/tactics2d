@@ -262,7 +262,7 @@ UNID_MAP_CONFIG = {
 INTERACTION_MAP_CONFIG = {
     "DR_DEU_Merging_MT": {
         "name": "DR_DEU_Merging_MT",
-        "osm_file": "INTERACTION/DR_DEU_Merging_MT.osm",
+        "osm_file": "DR_DEU_Merging_MT.osm",
         "country": "DEU",
         "scenario_type": "",
         "dataset": "INTERACTION",
@@ -272,7 +272,7 @@ INTERACTION_MAP_CONFIG = {
     },
     "DR_CHN_Merging_ZS": {
         "name": "DR_CHN_Merging_ZS",
-        "osm_file": "INTERACTION/DR_CHN_Merging_ZS.osm",
+        "osm_file": "DR_CHN_Merging_ZS.osm",
         "country": "CHN",
         "scenario_type": "",
         "dataset": "INTERACTION",
@@ -282,7 +282,7 @@ INTERACTION_MAP_CONFIG = {
     },
     "DR_USA_Roundabout_SR": {
         "name": "DR_USA_Roundabout_SR",
-        "osm_file": "INTERACTION/DR_USA_Roundabout_SR.osm",
+        "osm_file": "DR_USA_Roundabout_SR.osm",
         "country": "USA",
         "scenario_type": "roundabout",
         "dataset": "INTERACTION",
@@ -292,7 +292,7 @@ INTERACTION_MAP_CONFIG = {
     },
     "DR_CHN_Roundabout_LN": {
         "name": "DR_CHN_Roundabout_LN",
-        "osm_file": "INTERACTION/DR_CHN_Roundabout_LN.osm",
+        "osm_file": "DR_CHN_Roundabout_LN.osm",
         "country": "CHN",
         "scenario_type": "roundabout",
         "dataset": "INTERACTION",
@@ -302,7 +302,7 @@ INTERACTION_MAP_CONFIG = {
     },
     "DR_DEU_Roundabout_OF": {
         "name": "DR_DEU_Roundabout_OF",
-        "osm_file": "INTERACTION/DR_DEU_Roundabout_OF.osm",
+        "osm_file": "DR_DEU_Roundabout_OF.osm",
         "country": "DEU",
         "scenario_type": "roundabout",
         "dataset": "INTERACTION",
@@ -312,7 +312,7 @@ INTERACTION_MAP_CONFIG = {
     },
     "DR_USA_Roundabout_FT": {
         "name": "DR_USA_Roundabout_FT",
-        "osm_file": "INTERACTION/DR_USA_Roundabout_FT.osm",
+        "osm_file": "DR_USA_Roundabout_FT.osm",
         "country": "USA",
         "scenario_type": "roundabout",
         "dataset": "INTERACTION",
@@ -328,7 +328,7 @@ INTERACTION_MAP_CONFIG = {
     },
     "DR_USA_Roundabout_EP": {
         "name": "DR_USA_Roundabout_EP",
-        "osm_file": "INTERACTION/DR_USA_Roundabout_EP.osm",
+        "osm_file": "DR_USA_Roundabout_EP.osm",
         "country": "USA",
         "scenario_type": "roundabout",
         "dataset": "INTERACTION",
@@ -338,7 +338,7 @@ INTERACTION_MAP_CONFIG = {
     },
     "DR_USA_Intersection_EP0": {
         "name": "DR_USA_Intersection_EP",
-        "osm_file": "INTERACTION/DR_USA_Intersection_EP0.osm",
+        "osm_file": "DR_USA_Intersection_EP0.osm",
         "country": "USA",
         "scenario_type": "intersection",
         "dataset": "INTERACTION",
@@ -348,7 +348,7 @@ INTERACTION_MAP_CONFIG = {
     },
     "DR_USA_Intersection_EP1": {
         "name": "DR_USA_Intersection_EP",
-        "osm_file": "INTERACTION/DR_USA_Intersection_EP1.osm",
+        "osm_file": "DR_USA_Intersection_EP1.osm",
         "country": "USA",
         "scenario_type": "intersection",
         "dataset": "INTERACTION",
@@ -358,7 +358,7 @@ INTERACTION_MAP_CONFIG = {
     },
     "DR_USA_Intersection_MA": {
         "name": "DR_USA_Intersection_MA",
-        "osm_file": "INTERACTION/DR_USA_Intersection_MA.osm",
+        "osm_file": "DR_USA_Intersection_MA.osm",
         "country": "USA",
         "scenario_type": "intersection",
         "dataset": "INTERACTION",
@@ -372,7 +372,7 @@ INTERACTION_MAP_CONFIG = {
     },
     "DR_USA_Intersection_GL": {
         "name": "DR_USA_Intersection_GL",
-        "osm_file": "INTERACTION/DR_USA_Intersection_GL.osm",
+        "osm_file": "DR_USA_Intersection_GL.osm",
         "country": "USA",
         "scenario_type": "intersection",
         "dataset": "INTERACTION",
@@ -388,7 +388,7 @@ INTERACTION_MAP_CONFIG = {
     },
     "TC_BGR_Intersection_VA": {
         "name": "TC_BGR_Intersection_VA",
-        "osm_file": "INTERACTION/TC_BGR_Intersection_VA.osm",
+        "osm_file": "TC_BGR_Intersection_VA.osm",
         "country": "BGR",
         "scenario_type": "intersection",
         "dataset": "INTERACTION",
@@ -401,7 +401,7 @@ INTERACTION_MAP_CONFIG = {
 DLP_MAP_CONFIG = {
     "DLP": {
         "name": "Dragon Lake Parking Lot",
-        "osm_file": "DLP/DLP.osm",
+        "osm_file": "DLP.osm",
         "country": "USA",
         "scenario_type": "parking",
         "dataset": "DLP",

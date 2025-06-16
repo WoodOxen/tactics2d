@@ -129,7 +129,7 @@ class BEVCamera(SensorBase):
 
             road_element_list.append(
                 {
-                    "id": int(1e6 + area.id_),
+                    "id": int(1e6 + int(area.id_)),
                     "type": "polygon",
                     "geometry": list(area.geometry.exterior.coords),
                     "color": self._get_color(area),
@@ -137,12 +137,12 @@ class BEVCamera(SensorBase):
                     "line_width": 0,
                 }
             )
-            road_id_list.append(int(1e6 + area.id_))
+            road_id_list.append(int(1e6 + int(area.id_)))
 
             for i, interior in enumerate(interiors):
                 road_element_list.append(
                     {
-                        "id": int(1e6 + area.id_ + i * 1e5),
+                        "id": int(1e6 + int(area.id_) + i * 1e5),
                         "type": "polygon",
                         "geometry": list(interior.coords),
                         "color": white,
@@ -150,7 +150,7 @@ class BEVCamera(SensorBase):
                         "line_width": 0,
                     }
                 )
-                road_id_list.append(int(1e6 + area.id_ + i * 1e5))
+                road_id_list.append(int(1e6 + int(area.id_) + i * 1e5))
 
         for lane in self._map.lanes.values():
             if not self._in_perception_range(lane.geometry):
@@ -158,7 +158,7 @@ class BEVCamera(SensorBase):
 
             road_element_list.append(
                 {
-                    "id": int(1e6 + lane.id_),
+                    "id": int(1e6 + int(lane.id_)),
                     "type": "polygon",
                     "geometry": list(lane.geometry.coords),
                     "color": self._get_color(lane),
@@ -166,7 +166,7 @@ class BEVCamera(SensorBase):
                     "line_width": 0,
                 }
             )
-            road_id_list.append(int(1e6 + lane.id_))
+            road_id_list.append(int(1e6 + int(lane.id_)))
 
         for roadline in self._map.roadlines.values():
             if roadline.type_ == "virtual" or not self._in_perception_range(roadline.geometry):
@@ -180,7 +180,7 @@ class BEVCamera(SensorBase):
 
             road_element_list.append(
                 {
-                    "id": int(1e6 + roadline.id_),
+                    "id": int(1e6 + int(roadline.id_)),
                     "type": (
                         "line_" + roadline.subtype if roadline.subtype is not None else "line_solid"
                     ),
@@ -190,7 +190,7 @@ class BEVCamera(SensorBase):
                     "line_width": line_width,
                 }
             )
-            road_id_list.append(int(1e6 + roadline.id_))
+            road_id_list.append(int(1e6 + int(roadline.id_)))
 
         # Create the map geometry message flow
         road_id_set = set(road_id_list)
@@ -264,7 +264,7 @@ class BEVCamera(SensorBase):
                         "line_width": 0,
                     }
                 )
-                participant_id_list.append(int(-participant.id_))
+                participant_id_list.append(-int(participant.id_))
 
             elif isinstance(participant, Pedestrian):
                 participant_list.append(
@@ -321,6 +321,13 @@ class BEVCamera(SensorBase):
             participant_id_set (set): The set of participant IDs that were rendered in the current frame.
         """
         self._position = position
+
+        if participant_ids is None:
+            participant_ids = dict()
+        if prev_road_id_set is None:
+            prev_road_id_set = set()
+        if prev_participant_id_set is None:
+            prev_participant_id_set = set()
 
         map_data, road_id_set = self._get_map_elements(prev_road_id_set)
         participant_data, participant_id_set = self._get_participants(

@@ -69,37 +69,54 @@ class Map:
 
     @property
     def boundary(self):
-        if self._boundary is None:
-            x_min, x_max, y_min, y_max = (float("inf"), float("-inf"), float("inf"), float("-inf"))
+        if self._boundary is not None:
+            return self._boundary
 
-            for node in self.nodes.values():
-                x_min = min(x_min, node.x)
-                x_max = max(x_max, node.x)
-                y_min = min(y_min, node.y)
-                y_max = max(y_max, node.y)
+        x_min, x_max, y_min, y_max = (float("inf"), float("-inf"), float("inf"), float("-inf"))
 
-            for lane in self.lanes.values():
-                lane_coords = np.array(lane.geometry.coords)
-                x_min = min(x_min, np.min(lane_coords[:, 0]))
-                x_max = max(x_max, np.max(lane_coords[:, 0]))
-                y_min = min(y_min, np.min(lane_coords[:, 1]))
-                y_max = max(y_max, np.max(lane_coords[:, 1]))
+        for node in self.nodes.values():
+            x_min = min(x_min, node.x)
+            x_max = max(x_max, node.x)
+            y_min = min(y_min, node.y)
+            y_max = max(y_max, node.y)
 
-            for area in self.areas.values():
-                area_coords = np.array(area.geometry.exterior.coords)
-                x_min = min(x_min, np.min(area_coords[:, 0]))
-                x_max = max(x_max, np.max(area_coords[:, 0]))
-                y_min = min(y_min, np.min(area_coords[:, 1]))
-                y_max = max(y_max, np.max(area_coords[:, 1]))
+        for lane in self.lanes.values():
+            if not hasattr(lane, "geometry") or lane.geometry is None:
+                continue
 
-            for roadline in self.roadlines.values():
-                roadline_coords = np.array(roadline.geometry.coords)
-                x_min = min(x_min, np.min(roadline_coords[:, 0]))
-                x_max = max(x_max, np.max(roadline_coords[:, 0]))
-                y_min = min(y_min, np.min(roadline_coords[:, 1]))
-                y_max = max(y_max, np.max(roadline_coords[:, 1]))
+            lane_coords = np.array(lane.geometry.coords)
+            x_min = min(x_min, np.min(lane_coords[:, 0]))
+            x_max = max(x_max, np.max(lane_coords[:, 0]))
+            y_min = min(y_min, np.min(lane_coords[:, 1]))
+            y_max = max(y_max, np.max(lane_coords[:, 1]))
 
-            self._boundary = (x_min - 10, x_max + 10, y_min - 10, y_max + 10)
+        for area in self.areas.values():
+            if not hasattr(area, "geometry") or area.geometry is None:
+                continue
+
+            area_coords = np.array(area.geometry.exterior.coords)
+            x_min = min(x_min, np.min(area_coords[:, 0]))
+            x_max = max(x_max, np.max(area_coords[:, 0]))
+            y_min = min(y_min, np.min(area_coords[:, 1]))
+            y_max = max(y_max, np.max(area_coords[:, 1]))
+
+        for roadline in self.roadlines.values():
+            if not hasattr(roadline, "geometry") or roadline.geometry is None:
+                continue
+
+            roadline_coords = np.array(roadline.geometry.coords)
+            x_min = min(x_min, np.min(roadline_coords[:, 0]))
+            x_max = max(x_max, np.max(roadline_coords[:, 0]))
+            y_min = min(y_min, np.min(roadline_coords[:, 1]))
+            y_max = max(y_max, np.max(roadline_coords[:, 1]))
+
+        for regulatory in self.regulations.values():
+            if not hasattr(regulatory, "geometry") or regulatory.geometry is None:
+                continue
+
+            # TODO: get shape of regulations
+
+        self._boundary = (np.floor(x_min), np.ceil(x_max), np.floor(y_min), np.ceil(y_max))
 
         return self._boundary
 
@@ -141,6 +158,7 @@ class Map:
 
         self.roadlines[roadline.id_] = roadline
         self.ids[roadline.id_] = MapElement.ROADLINE
+        self._boundary = None
 
     def add_junction(self, junction: Junction):
         """This function adds a junction to the map.
@@ -160,6 +178,7 @@ class Map:
 
         self.junctions[junction.id_] = junction
         self.ids[junction.id_] = MapElement.JUNCTION
+        self._boundary = None
 
     def add_lane(self, lane: Lane):
         """This function adds a lane to the map.
@@ -178,6 +197,7 @@ class Map:
 
         self.lanes[lane.id_] = lane
         self.ids[lane.id_] = MapElement.LANE
+        self._boundary = None
 
     def add_area(self, area: Area):
         """This function adds an area to the map.
@@ -196,6 +216,7 @@ class Map:
 
         self.areas[area.id_] = area
         self.ids[area.id_] = MapElement.AREA
+        self._boundary = None
 
     def add_regulatory(self, regulatory: Regulatory):
         """This function adds a traffic regulation to the map.

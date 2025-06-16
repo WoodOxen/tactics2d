@@ -7,15 +7,19 @@
 
 
 import logging
-from typing import Tuple
+from typing import Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.lines import Line2D
 from matplotlib.patches import Circle, Polygon
+from numpy.typing import ArrayLike
+from shapely.geometry import Point
 
 
 class MatplotlibRenderer:
+    """_summary_"""
+
     def __init__(
         self,
         xlim: Tuple[float, float],
@@ -23,15 +27,27 @@ class MatplotlibRenderer:
         resolution: Tuple[float, float],
         dpi: int = 200,
     ):
+        """_summary_
+
+        Args:
+            xlim (Tuple[float, float]): _description_
+            ylim (Tuple[float, float]): _description_
+            resolution (Tuple[float, float]): _description_
+            dpi (int, optional): _description_. Defaults to 200.
+        """
         self.xlim = xlim
         self.ylim = ylim
         self.resolution = resolution
         self.dpi = dpi
-        self.width = self.resolution[0] / self.dpi
-        self.height = self.resolution[1] / self.dpi
+        self.width = max(self.resolution[0] / self.dpi, 1)
+        self.height = max(self.resolution[1] / self.dpi, 1)
 
         aspect_ratio = (self.ylim[1] - self.ylim[0]) / (self.xlim[1] - self.xlim[0])
-        self.height = self.width * aspect_ratio + 0.5
+        height = self.width * aspect_ratio
+        if height < 1:
+            self.width = self.height / aspect_ratio
+        else:
+            self.height = height
 
         self.camera_position = None
         self.camera_yaw = None
@@ -144,9 +160,25 @@ class MatplotlibRenderer:
             line.set_data(transformed[:, 0], transformed[:, 1])
 
     def update(
-        self, geometry_data: dict, camera_position: Tuple[float, float], camera_yaw: float = 0
+        self, geometry_data: dict, camera_position: Union[Point, ArrayLike], camera_yaw: float = 0
     ):
-        self.camera_position = camera_position
+        """_summary_
+
+        Args:
+            geometry_data (dict): _description_
+            camera_position (Union[Point, ArrayLike]): _description_
+            camera_yaw (float, optional): _description_. Defaults to 0.
+        """
+        if isinstance(camera_position, Point):
+            self.camera_position = np.array([camera_position.x, camera_position.y])
+        else:
+            self.camera_position = np.array([camera_position[0], camera_position[1]])
+            if len(camera_position) > 2:
+                logging.warning(
+                    "Camera position should be a 2D array."
+                    f"Set the camera postion to ({self.camera_position[0]}, {self.camera_position[1]})"
+                )
+
         self.camera_yaw = camera_yaw
 
         road_id_to_remove = geometry_data["map_data"]["road_id_to_remove"]
@@ -231,6 +263,33 @@ class MatplotlibRenderer:
                 elif participant["type"] == "circle":
                     self._update_circle(self.participants[id_], participant["position"])
 
+    def save_single_frame(self, save_to: str = None, dpi: int = None, return_array=False):
+        """_summary_
+
+        Args:
+            save_to (str, optional): _description_. Defaults to None.
+            dpi (int, optional): _description_. Defaults to None.
+            return_array (bool, optional): _description_. Defaults to False.
+
+        Returns:
+            _type_: _description_
+        """
+        try:
+            dpi = int(dpi)
+        except:
+            dpi = self.dpi
+
+        self.fig.canvas.draw()
+        if save_to is not None:
+            self.fig.savefig(save_to, dpi=dpi)
+
+        if return_array:
+            image = np.frombuffer(self.fig.canvas.tostring_rgb(), dtype=np.uint8)
+            image = image.reshape(self.fig.canvas.get_width_height()[::-1] + (3,))
+            return image
+
+        return None
+
     def reset(self):
         self.camera_position = None
         self.camera_yaw = None
@@ -262,3 +321,8 @@ class MatplotlibRenderer:
         self.ax.set_ylim(*self.ylim)
         self.ax.set_aspect("equal")
         self.ax.set_axis_off()
+
+    def destroy(self):
+        plt.close(self.fig)
+        self.fig = None
+        self.ax = None

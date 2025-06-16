@@ -16,7 +16,7 @@ from tactics2d.map.element import Map
 from .sensor_base import SensorBase
 
 
-class LiDAR(SensorBase):
+class SingleLineLidar(SensorBase):
     """This class defines the render paradigm for a single line lidar.
 
     The default parameters refer to LiDAR STL-06P. This LiDAR sensor has only one scan line. Its documentation is [here](https://www.ldrobot.com/images/2023/03/02/LDROBOT_STL-06P_Datasheet_EN_v1.3_txOyicBl.pdf).

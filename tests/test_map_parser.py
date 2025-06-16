@@ -11,15 +11,15 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-import json
 import logging
-import xml.etree.ElementTree as ET
 
-import matplotlib.pyplot as plt
 import pytest
+from shapely.geometry import Point
 
+from tactics2d.frontend import MatplotlibRenderer
+from tactics2d.map.map_config import *
 from tactics2d.map.parser import OSMParser, XODRParser
-from tactics2d.traffic import ScenarioDisplay
+from tactics2d.sensor import BEVCamera
 from tactics2d.utils.common import get_absolute_path
 
 
@@ -30,59 +30,66 @@ def test_osm_parser():
 
     map_ = map_parser.parse(map_path)
 
-    fig, ax = plt.subplots()
-    fig.set_layout_engine("none")
-    ax.set_aspect("equal")
-    ax.set_axis_off()
+    boundary = map_.boundary
+    camera = BEVCamera(1, map_)
+    position = Point(0, 0)
+    geometry_data, _, _ = camera.update(0, None, None, None, None, position)
 
-    scenario_display = ScenarioDisplay()
-    scenario_display.display_map(map_, ax)
-    ax.plot()
-    fig.savefig("./tests/runtime/raw.png")
-    plt.close(fig)
+    matplotlib_renderer = MatplotlibRenderer(
+        (boundary[0], boundary[1]),
+        (boundary[2], boundary[3]),
+        resolution=((boundary[1] - boundary[0]) * 100, (boundary[3] - boundary[2]) * 100),
+    )
+    matplotlib_renderer.update(geometry_data, (position.x, position.y))
+    matplotlib_renderer.save_single_frame(save_to="./tests/runtime/raw.png")
 
 
 @pytest.mark.map_parser
-def test_lanelet2_parser():
+@pytest.mark.parametrize(
+    "map_folder, map_configs",
+    [
+        ("./tactics2d/data/map/DLP", DLP_MAP_CONFIG),
+        ("./tactics2d/data/map/exiD", EXID_MAP_CONFIG),
+        ("./tactics2d/data/map/highD", HIGHD_MAP_CONFIG),
+        ("./tactics2d/data/map/inD", IND_MAP_CONFIG),
+        ("./tactics2d/data/map/INTERACTION", INTERACTION_MAP_CONFIG),
+        ("./tactics2d/data/map/rounD", ROUND_MAP_CONFIG),
+    ],
+)
+def test_lanelet2_parser(map_folder, map_configs):
     """Test whether the current parser can manage to parse the provided maps.
 
     [TODO] split this test to two part:
         One for testing the correctness of the provided maps' notations;
         One for testing the parser's ability to parse the lanelet2 format maps.
     """
-
-    data_path = "./tactics2d/data/map"
-    config_path = "./tactics2d/dataset_parser/map.config"
-
     map_parser = OSMParser(lanelet2=True)
-    scenario_display = ScenarioDisplay()
-
-    with open(config_path) as f:
-        configs = json.load(f)
-
     parsed_map_set = set()
 
-    for map_name, map_config in configs.items():
-        if map_config["dataset"] in ["inD", "rounD", "uniD", "exiD", "NuPlan"]:
-            continue
+    for map_name, map_config in map_configs.items():
         logging.info(f"Parsing map {map_name}.")
 
         try:
-            map_path = get_absolute_path(
-                "{}/{}/{}.osm".format(data_path, map_config["dataset"], map_name)
-            )
+            file_name = map_config["osm_file"]
+            map_path = get_absolute_path(f"{map_folder}/{file_name}")
             map_ = map_parser.parse(map_path, map_config)
             parsed_map_set.add(map_.name)
 
-            fig, ax = plt.subplots()
-            fig.set_layout_engine("none")
-            ax.set_axis_off()
-            scenario_display.reset()
-            scenario_display.display_map(map_, ax)
-            ax.set_aspect("equal")
-            ax.plot()
-            fig.savefig(f"./tests/runtime/{map_name}.png", dpi=300)
-            plt.close(fig)
+            boundary = map_.boundary
+            camera = BEVCamera(1, map_)
+            position = Point(0, 0)
+            geometry_data, _, _ = camera.update(0, None, None, None, None, position)
+
+            matplotlib_renderer = MatplotlibRenderer(
+                (boundary[0], boundary[1]),
+                (boundary[2], boundary[3]),
+                resolution=((boundary[1] - boundary[0]) * 10, (boundary[3] - boundary[2]) * 10),
+            )
+
+            matplotlib_renderer.update(geometry_data, [position.x, position.y])
+            matplotlib_renderer.save_single_frame(save_to=f"./tests/runtime/{map_name}.png")
+
+            matplotlib_renderer.destroy()
 
         except SyntaxError as err:
             logging.error(err)
@@ -112,16 +119,19 @@ def test_xodr_parser(map_path, img_path):
     map_parser = XODRParser()
     map_ = map_parser.parse(map_path)
 
-    fig, ax = plt.subplots()
-    fig.set_layout_engine("none")
-    ax.set_aspect("equal")
-    ax.set_axis_off()
+    boundary = map_.boundary
+    camera = BEVCamera(1, map_)
+    position = Point(0, 0)
+    geometry_data, _, _ = camera.update(0, None, None, None, None, position)
 
-    scenario_display = ScenarioDisplay()
-    scenario_display.display_map(map_, ax)
-    ax.plot()
-    fig.savefig(img_path, facecolor="black")
-    plt.close(fig)
+    matplotlib_renderer = MatplotlibRenderer(
+        (boundary[0], boundary[1]),
+        (boundary[2], boundary[3]),
+        resolution=((boundary[1] - boundary[0]) * 10, (boundary[3] - boundary[2]) * 10),
+    )
+
+    matplotlib_renderer.update(geometry_data, [position.x, position.y])
+    matplotlib_renderer.save_single_frame(save_to=img_path)
 
 
 @pytest.mark.map_parser

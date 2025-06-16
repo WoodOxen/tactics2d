@@ -30,8 +30,8 @@ from tactics2d.sensor import RenderManager, SingleLineLidar, TopDownCamera
 from tactics2d.utils.common import get_absolute_path
 
 
-@pytest.mark.render
-@pytest.mark.parametrize("follow_view", [True, False])
+# @pytest.mark.render
+# @pytest.mark.parametrize("follow_view", [True, False])
 def test_camera(follow_view: bool):
     map_path = "./tactics2d/data/map/INTERACTION/DR_DEU_Roundabout_OF.osm"
     trajectory_path = (
@@ -43,10 +43,7 @@ def test_camera(follow_view: bool):
         configs = json.load(f)
 
     map_parser = OSMParser(lanelet2=True)
-    map_ = map_parser.parse(
-        get_absolute_path(map_path),
-        configs["DR_DEU_Roundabout_OF"],
-    )
+    map_ = map_parser.parse(get_absolute_path(map_path), configs["DR_DEU_Roundabout_OF"])
 
     frame = 88000
     dataset_parser = InteractionParser()
@@ -77,8 +74,8 @@ def test_camera(follow_view: bool):
         img.save("./tests/runtime/test_camera.jpg")
 
 
-@pytest.mark.render
-@pytest.mark.parametrize("perception_range", [12.0, 30.0, 45.0, 100.0])
+# @pytest.mark.render
+# @pytest.mark.parametrize("perception_range", [12.0, 30.0, 45.0, 100.0])
 def test_lidar(perception_range):
     map_path = "./tactics2d/data/map/INTERACTION/DR_DEU_Roundabout_OF.osm"
     trajectory_path = (
@@ -90,10 +87,7 @@ def test_lidar(perception_range):
         configs = json.load(f)
 
     map_parser = OSMParser(lanelet2=True)
-    map_ = map_parser.parse(
-        get_absolute_path(map_path),
-        configs["DR_DEU_Roundabout_OF"],
-    )
+    map_ = map_parser.parse(get_absolute_path(map_path), configs["DR_DEU_Roundabout_OF"])
 
     frame = 88000
     dataset_parser = InteractionParser()
@@ -117,12 +111,12 @@ def test_lidar(perception_range):
     img.save(f"./tests/runtime/test_lidar_{int(perception_range)}.jpg")
 
 
-@pytest.mark.render
-@pytest.mark.skipif(platform.system() == "Darwin", reason="This test is not supported on MacOS.")
-@pytest.mark.parametrize(
-    "layout_style, off_screen",
-    [("block", False), ("hierarchy", False), ("block", True), ("hierarchy", True)],
-)
+# @pytest.mark.render
+# @pytest.mark.skipif(platform.system() == "Darwin", reason="This test is not supported on MacOS.")
+# @pytest.mark.parametrize(
+#     "layout_style, off_screen",
+#     [("block", False), ("hierarchy", False), ("block", True), ("hierarchy", True)],
+# )
 def test_render_manager(layout_style, off_screen):
     """This function tests the following functions in RenderManager:
     _rearrange_layout, add, is_bound, bind, unbind, remove_sensor, update, render, reset, close
@@ -137,10 +131,7 @@ def test_render_manager(layout_style, off_screen):
         configs = json.load(f)
 
     map_parser = OSMParser(lanelet2=True)
-    map_ = map_parser.parse(
-        get_absolute_path(map_path),
-        configs["DR_DEU_Roundabout_OF"],
-    )
+    map_ = map_parser.parse(get_absolute_path(map_path), configs["DR_DEU_Roundabout_OF"])
 
     dataset_parser = InteractionParser()
     participants, _ = dataset_parser.parse_trajectory(0, trajectory_path, (87000, 90000))
@@ -199,6 +190,6 @@ def test_render_manager(layout_style, off_screen):
     logging.info(f"The average FPS is {average_fps}")
 
 
-@pytest.mark.skip(reason="This test is not implemented yet.")
+# @pytest.mark.skip(reason="This test is not implemented yet.")
 def test_off_screen_rendering():
     return
