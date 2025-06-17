@@ -25,7 +25,7 @@ import numpy as np
 from tactics2d.envs import ParkingEnv, RacingEnv
 
 
-@pytest.mark.env
+# @pytest.mark.env
 def test_racing_env():
     render_mode = "human" if "DISPLAY" in os.environ else "rgb_array"
     env = RacingEnv(render_mode=render_mode, render_fps=60, max_step=2000)
@@ -42,7 +42,7 @@ def test_racing_env():
     logging.info(f"The average fps is {n_iter / (t2 - t1): .2f} Hz.")
 
 
-@pytest.mark.env
+# @pytest.mark.env
 def test_parking_env():
     render_mode = "human" if "DISPLAY" in os.environ else "rgb_array"
     env = ParkingEnv(render_mode=render_mode, render_fps=60, max_step=2000)
@@ -59,7 +59,7 @@ def test_parking_env():
     logging.info(f"The average fps is {n_iter / (t2 - t1): .2f} Hz.")
 
 
-@pytest.mark.env
-@pytest.mark.skip(reason="Terminal only")
+# @pytest.mark.env
+# @pytest.mark.skip(reason="Terminal only")
 def test_manual_control(env):
     pass

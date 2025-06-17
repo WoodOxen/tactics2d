@@ -19,7 +19,7 @@ from tactics2d.map.element import Map
 from tactics2d.map.generator import ParkingLotGenerator
 from tactics2d.participant.element import Vehicle
 from tactics2d.physics import SingleTrackKinematics
-from tactics2d.sensor import RenderManager, SingleLineLidar, TopDownCamera
+from tactics2d.sensor import BEVCamera, SingleLineLidar
 from tactics2d.traffic import ScenarioManager, ScenarioStatus, TrafficStatus
 from tactics2d.traffic.event_detection import (
     Arrival,
@@ -213,11 +213,9 @@ class ParkingEnv(gym.Env):
         state_infos["target_heading"] = self.scenario_manager.target_heading
         state_infos["traffic_status"] = traffic_status
         state_infos["scenario_status"] = scenario_status
-        (
-            state_infos["diff_position"],
-            state_infos["diff_angle"],
-            state_infos["diff_heading"],
-        ) = self._get_relative_pose(state)
+        (state_infos["diff_position"], state_infos["diff_angle"], state_infos["diff_heading"]) = (
+            self._get_relative_pose(state)
+        )
         return state_infos
 
     def step(self, action: Union[np.ndarray, int]):
