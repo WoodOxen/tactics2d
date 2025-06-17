@@ -235,9 +235,9 @@ class RacingEnv(gym.Env):
             self.map_ = Map(name="racing_track", scenario_type="racing")
             self.map_generator = RacingTrackGenerator()
 
-            self.render_manager = RenderManager(
-                fps=self.render_fps, windows_size=self._window_size, off_screen=self.off_screen
-            )
+            # self.render_manager = RenderManager(
+            #     fps=self.render_fps, windows_size=self._window_size, off_screen=self.off_screen
+            # )
 
             self.tile_visited = dict()
             self.tile_visiting = None

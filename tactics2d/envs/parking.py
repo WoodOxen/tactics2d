@@ -338,9 +338,9 @@ class ParkingEnv(gym.Env):
             self.target_heading = None
             self.cnt_step = 0
 
-            self.render_manager = RenderManager(
-                fps=self.render_fps, windows_size=self._window_size, off_screen=self.off_screen
-            )
+            # self.render_manager = RenderManager(
+            #     fps=self.render_fps, windows_size=self._window_size, off_screen=self.off_screen
+            # )
 
             # traffic event detectors
             self.status_checklist = {
