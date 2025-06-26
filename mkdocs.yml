@@ -14,12 +14,13 @@ nav:
   - Installation: "installation.md"
   - Dataset Support:
     - "dataset_support/index.md"
+    - CitySim: "dataset_support/citysim.ipynb"
+    - DLP: "dataset_support/dlp.ipynb"
     - highD: "dataset_support/highd.ipynb"
     - inD: "dataset_support/ind.ipynb"
     - rounD: "dataset_support/round.ipynb"
     - exiD: "dataset_support/exid.ipynb"
     - uniD: "dataset_support/unid.ipynb"
-    - CitySim: "dataset_support/citysim.ipynb"
   - Python API:
     - tactics2d.controller: "api/controller.md"
     - tactics2d.dataset_parser: "api/dataset_parser.md"

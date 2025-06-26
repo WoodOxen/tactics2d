@@ -16,9 +16,9 @@ import logging
 import pytest
 from shapely.geometry import Point
 
-from tactics2d.frontend import MatplotlibRenderer
 from tactics2d.map.map_config import *
 from tactics2d.map.parser import OSMParser, XODRParser
+from tactics2d.renderer import MatplotlibRenderer
 from tactics2d.sensor import BEVCamera
 from tactics2d.utils.common import get_absolute_path
 

@@ -130,7 +130,26 @@ class NuPlanParser:
 
         TODO: the parsing of lane connectors is not implemented yet.
 
-        A NuPlan map includes the following layers: 'baseline_paths', 'carpark_areas', 'generic_drivable_areas', 'dubins_nodes', 'lane_connectors', 'intersections', 'boundaries', 'crosswalks', 'lanes_polygons', 'lane_group_connectors', 'lane_groups_polygons', 'road_segments', 'stop_polygons', 'traffic_lights', 'walkways', 'gen_lane_connectors_scaled_width_polygons', 'meta'. In this parser, we only parse the following layers: 'boundaries', 'lanes_polygons', 'lane_connectors', 'carpark_areas', 'crosswalks', 'walkways', 'stop_polygons', 'traffic_lights'
+        A NuPlan map includes the following layers:
+        - baseline_paths*
+        - boundaries
+        - carpark_areas
+        - crosswalks
+        - dubins_nodes*
+        - generic_drivable_areas
+        - gen_lane_connectors_scaled_width_polygons*
+        - intersections
+        - lane_connectors
+        - lane_group_connectors*
+        - lane_groups_polygons*
+        - lanes_polygons
+        - meta
+        - road_segments
+        - stop_polygons
+        - traffic_lights
+        - walkways
+
+        In this parser, we parse all the layers without *.
         """
         map_file = os.path.join(folder, file)
         map_meta = gpd.read_file(map_file, layer="meta", engine="pyogrio")

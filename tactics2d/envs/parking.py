@@ -411,7 +411,7 @@ class ParkingEnv(gym.Env):
             # reset the sensors
             self.render_manager.reset()
 
-            camera = TopDownCamera(
+            camera = BEVCamera(
                 id_=0,
                 map_=self.map_,
                 perception_range=(20, 20, 20, 20),
