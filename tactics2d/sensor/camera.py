@@ -237,10 +237,11 @@ class BEVCamera(SensorBase):
                 state = participant.trajectory.get_state(frame)
                 position = list(state.location)
                 heading = state.heading
+                id_ = abs(participant.id_)
 
                 participant_list.append(
                     {
-                        "id": int(participant.id_),
+                        "id": id_,
                         "type": "polygon",
                         "geometry": points.tolist(),
                         "position": position,
@@ -250,11 +251,11 @@ class BEVCamera(SensorBase):
                         "line_width": 1,
                     }
                 )
-                participant_id_list.append(int(participant.id_))
+                participant_id_list.append(id_)
 
                 participant_list.append(
                     {
-                        "id": int(-participant.id_),
+                        "id": id_ + 0.5,
                         "type": "polygon",
                         "geometry": triangle,
                         "position": position,
@@ -264,12 +265,13 @@ class BEVCamera(SensorBase):
                         "line_width": 0,
                     }
                 )
-                participant_id_list.append(-int(participant.id_))
+                participant_id_list.append(id_ + 0.5)
 
             elif isinstance(participant, Pedestrian):
+                id_ = abs(participant.id_)
                 participant_list.append(
                     {
-                        "id": participant.id_,
+                        "id": id_,
                         "type": "circle",
                         "position": [participant_geometry.x, participant_geometry.y],
                         "radius": participant_radius,
@@ -278,7 +280,7 @@ class BEVCamera(SensorBase):
                         "line_width": 1,
                     }
                 )
-                participant_id_list.append(int(participant.id_))
+                participant_id_list.append(id_)
 
             elif isinstance(participant, Obstacle):
                 pass
