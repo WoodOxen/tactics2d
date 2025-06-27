@@ -1,4 +1,4 @@
-window.addEventListener("load", function () {
+function insertHideButtons() {
   const cells = document.querySelectorAll(".celltag_hide_input[id]");
 
   cells.forEach((cell) => {
@@ -10,10 +10,9 @@ window.addEventListener("load", function () {
     if (inputWrapper && inputArea) {
       inputArea.style.display = "none";
 
-      // 包装按钮 div
       const buttonWrapper = document.createElement("div");
       buttonWrapper.style.width = "100%";
-      buttonWrapper.style.textAlign = "left"; // 或 center/right 根据你需求
+      buttonWrapper.style.textAlign = "center";
       buttonWrapper.style.margin = "4px 0";
 
       const button = document.createElement("button");
@@ -32,4 +31,11 @@ window.addEventListener("load", function () {
       cell.classList.add("button-inserted");
     }
   });
+}
+
+window.addEventListener("DOMContentLoaded", insertHideButtons);
+
+const observer = new MutationObserver((mutationsList, observer) => {
+  insertHideButtons();
 });
+observer.observe(document.body, { childList: true, subtree: true });
