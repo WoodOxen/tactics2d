@@ -418,8 +418,8 @@ DLP_MAP_CONFIG = {
 
 NUPLAN_MAP_CONFIG = {
     "sg-one-north": {
-        "name": "sg-one-north",
-        "gpkg_file": "sg-one-north.gpkg",
+        "folder": "sg-one-north/9.17.1964",
+        "gpkg_file": "map.gpkg",
         "country": "SGP",
         "scenario_type": "urban",
         "dataset": "NuPlan",
@@ -427,9 +427,8 @@ NUPLAN_MAP_CONFIG = {
         "gps_origin": [0, 0],
     },
     "us-ma-boston": {
-        "name": "us-ma-boston",
-        "osm_file": "",
-        "gpkg_file": "us-ma-boston.gpkg",
+        "folder": "us-ma-boston/9.12.1817",
+        "gpkg_file": "map.gpkg",
         "country": "USA",
         "scenario_type": "urban",
         "dataset": "NuPlan",
@@ -437,9 +436,8 @@ NUPLAN_MAP_CONFIG = {
         "gps_origin": [0, 0],
     },
     "las_vegas": {
-        "name": "us-nv-las-vegas-strip",
-        "osm_file": "",
-        "gpkg_file": "us-nv-las-vegas-strip.gpkg",
+        "folder": "us-nv-las-vegas-strip/9.15.1915",
+        "gpkg_file": "map.gpkg",
         "country": "USA",
         "scenario_type": "urban",
         "dataset": "NuPlan",
@@ -447,9 +445,8 @@ NUPLAN_MAP_CONFIG = {
         "gps_origin": [0, 0],
     },
     "us-pa-pittsburgh-hazelwood": {
-        "name": "us-pa-pittsburgh-hazelwood",
-        "osm_file": "",
-        "gpkg_file": "us-pa-pittsburgh-hazelwood.gpkg",
+        "folder": "us-pa-pittsburgh-hazelwood/9.17.1937",
+        "gpkg_file": "map.gpkg",
         "country": "USA",
         "scenario_type": "urban",
         "dataset": "NuPlan",
