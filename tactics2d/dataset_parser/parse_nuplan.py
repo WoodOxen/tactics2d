@@ -6,13 +6,11 @@
 # @Version: 1.0.0
 
 import datetime
-import json
 import os
 import sqlite3
 from typing import List, Tuple
 
 import numpy as np
-from shapely.geometry import LineString, Point, Polygon
 
 from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
@@ -76,7 +74,6 @@ class NuPlanParser:
         """
         participants = dict()
         time_stamps = set()
-
         file_path = os.path.join(folder, file)
 
         if stamp_range is None:

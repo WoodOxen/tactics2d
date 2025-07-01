@@ -7,7 +7,8 @@
 
 
 from .parse_gis import GISParser
+from .parse_gpkg import GPKGParser
 from .parse_osm import OSMParser
 from .parse_xodr import XODRParser
 
-__all__ = ["GISParser", "OSMParser", "XODRParser"]
+__all__ = ["GISParser", "GPKGParser", "OSMParser", "XODRParser"]
