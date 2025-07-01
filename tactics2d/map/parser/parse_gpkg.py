@@ -5,10 +5,12 @@
 # @Author: Tactics2D Team
 # @Version: 0.1.9
 
+import logging
+
 import geopandas as gpd
 import numpy as np
 import pyogrio
-from shapely.geometry import LineString, MultiLineString, MultiPolygon, Point, Polygon
+from shapely.geometry import LineString, LinearRing, Point, Polygon
 
 from tactics2d.map.element import Area, Lane, Map, Node, Regulatory, RoadLine
 
@@ -33,55 +35,38 @@ class GPKGParser:
         gdf_in_utm_coords = gdf_in_pixel_coords.to_crs(projection_system)
         return gdf_in_utm_coords
 
-    def _load_roadline(self, row):
-        if self.dataset == "nuplan":
-            type_mapping = self._NUPLAN_ROADLINE_MAPPING
-            roadline = RoadLine(
-                id_=abs(int(row["boundary_segment_fids"])),
-                type_=type_mapping[row["boundary_type_fid"]],
-                geometry=LineString(row["geometry"]),
-            )
-            return roadline
-
-        return None
-
     def _parse_nuplan(self, file_path) -> Map:
         map_meta = gpd.read_file(file_path, layer="meta", engine="pyogrio")
         projection_system = map_meta[map_meta["key"] == "projectedCoordSystem"]["value"].iloc[0]
+        type_mapping = self._NUPLAN_ROADLINE_MAPPING
 
-        map_ = Map(name="nuplan_" + file_path.splilt("/")[-1].split(".")[0])
+        map_ = Map(name="nuplan_" + file_path.split("/")[-1].split(".")[0])
 
         boundaries = self.load_utm_coords(file_path, "boundaries", projection_system)
-        boundaries = boundaries.set_index(boundaries["boundary_segment_fids"])
+        for _, row in boundaries.iterrows():
+            roadline = RoadLine(
+                id_=int(row["boundary_segment_fids"].split(",")[0]),
+                type_=type_mapping[row["boundary_type_fid"]],
+                geometry=LineString(row["geometry"]),
+            )
+            map_.add_roadline(roadline)
 
-        # load roadlines and lanes
-        lane_dict = {"lanes_polygons": "lane", "crosswalks": "crosswalk", "walkways": "walkway"}
+        # load lands
+        lane_dict = {"lanes_polygons": "lane"}
 
         for key, value in lane_dict.items():
             df_lanes = self.load_utm_coords(file_path, key, projection_system)
             for _, row in df_lanes.iterrows():
-                left_bound = self._load_roadline(boundaries[row["left_boundary_fid"]])
-                right_bound = self._load_roadline(boundaries[row["right_boundary_fid"]])
                 lane = Lane(
-                    id_=abs(int(row["lane_fid"])),
-                    left_side=left_bound,
-                    right_side=right_bound,
-                    line_ids={
-                        "left": list(boundaries[row["left_boundary_fid"]]),
-                        "right": list(boundaries[row["right_boundary_fid"]]),
-                    },
-                    type_=value,
-                    speed_limit=row["speed_limit_mps"],
-                    speed_limit_mandatory=False,
-                    speed_limit_unit="m/s",
+                    id_=row["lane_fid"],
+                    geometry=LinearRing(Polygon(row["geometry"]).exterior),
+                    subtype=value,
                 )
-
-                map_.add_roadline(left_bound)
-                map_.add_roadline(right_bound)
+                self.id_cnt += 1
                 map_.add_lane(lane)
 
         # load areas
-        area_dict = {"carpark_areas": "parking", "generic_drivable_areas": "driving"}
+        area_dict = {"carpark_areas": "parking", "crosswalks": "crosswalk", "intersections": "lane", "walkways": "walkway"}
 
         for key, value in area_dict.items():
             df_areas = self.load_utm_coords(file_path, key, projection_system)
@@ -97,10 +82,7 @@ class GPKGParser:
 
         id_cnt = max(np.array(list(map_.ids.keys()), np.int64)) + 1
 
-        # lane_connectors = self.load_utm_coords("lane_connectors")
-        # for _, row in lane_connectors.iterrows():
-
-        traffic_lights = self.load_utm_coords("traffic_lights")
+        traffic_lights = self.load_utm_coords(file_path, "traffic_lights", projection_system)
         for _, row in traffic_lights.iterrows():
             traffic_light = Regulatory(
                 id_=str(id_cnt),
