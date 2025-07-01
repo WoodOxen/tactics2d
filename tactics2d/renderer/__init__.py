@@ -6,6 +6,7 @@
 # @Version: 0.1.9
 
 from .matplotlib_renderer import MatplotlibRenderer
-from .webgl_renderer import WebGLRenderer
 
-__all__ = ["MatplotlibRenderer", "WebGLRenderer"]
+# from .webgl_renderer import WebGLRenderer
+
+__all__ = ["MatplotlibRenderer"]

@@ -1,124 +1,124 @@
-import logging
-import time
+# import logging
+# import time
 
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
 
-import asyncio
-import json
-import signal
-import subprocess
+# import asyncio
+# import json
+# import signal
+# import subprocess
 
-import requests
-import websockets
+# import requests
+# import websockets
 
 
-class WebGLRenderer:
+# class WebGLRenderer:
 
-    def __init__(
-        self,
-        host: str = "127.0.0.1",
-        port: str = "5000",
-        max_retry=10,
-        max_fps: int = 60,
-        layout: str = "grid",
-    ):
-        self.host = host
-        self.port = port
-        self.base_url = f"http://{self.host}/{self.port}"
-        self.max_retry = max_retry
+#     def __init__(
+#         self,
+#         host: str = "127.0.0.1",
+#         port: str = "5000",
+#         max_retry=10,
+#         max_fps: int = 60,
+#         layout: str = "grid",
+#     ):
+#         self.host = host
+#         self.port = port
+#         self.base_url = f"http://{self.host}/{self.port}"
+#         self.max_retry = max_retry
 
-        self.ws = None  # websocket client
-        self.ws_loop = None
-        self.process = None
-        self.last_send_time = 0
-        self.data_buffer = None
+#         self.ws = None  # websocket client
+#         self.ws_loop = None
+#         self.process = None
+#         self.last_send_time = 0
+#         self.data_buffer = None
 
-        self.update_layout(layout)
-        self.update_max_fps(max_fps)
+#         self.update_layout(layout)
+#         self.update_max_fps(max_fps)
 
-    @property
-    def max_fps(self):
-        return self._max_fps
+#     @property
+#     def max_fps(self):
+#         return self._max_fps
 
-    @property
-    def layout(self):
-        return self._layout
+#     @property
+#     def layout(self):
+#         return self._layout
 
-    def __enter__(self):
-        self.start_app()
-        return self
+#     def __enter__(self):
+#         self.start_app()
+#         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.stop_app()
+#     def __exit__(self, exc_type, exc_value, traceback):
+#         self.stop_app()
 
-    def is_app_running(self):
-        try:
-            r = requests.get(f"{self.fast_api_port}/health", timeout=10)
-            return r.status_code == 200
-        except requests.RequestException:
-            # check if the host is able to connect
+#     def is_app_running(self):
+#         try:
+#             r = requests.get(f"{self.fast_api_port}/health", timeout=10)
+#             return r.status_code == 200
+#         except requests.RequestException:
+#             # check if the host is able to connect
 
-            # check if the port is able to connect
+#             # check if the port is able to connect
 
-            return False
+#             return False
 
-    async def _connect(self):
-        uri = f"ws://{self.host}:{self.port}/ws"
-        self.ws = await websockets.connect(uri)
-        logging.info("Connected to WebSocket server.")
+#     async def _connect(self):
+#         uri = f"ws://{self.host}:{self.port}/ws"
+#         self.ws = await websockets.connect(uri)
+#         logging.info("Connected to WebSocket server.")
 
-    def start_websocket(self):
-        self.ws_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.ws_loop)
-        self.ws_loop.run_until_complete(self._connect())
+#     def start_websocket(self):
+#         self.ws_loop = asyncio.new_event_loop()
+#         asyncio.set_event_loop(self.ws_loop)
+#         self.ws_loop.run_until_complete(self._connect())
 
-    def start_app(self):
-        self.process = subprocess.Popen(
-            ["uvicorn", "app:app", "--host", self.host, "--port", str(self.port)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+#     def start_app(self):
+#         self.process = subprocess.Popen(
+#             ["uvicorn", "app:app", "--host", self.host, "--port", str(self.port)],
+#             stdout=subprocess.PIPE,
+#             stderr=subprocess.PIPE,
+#         )
 
-        for _ in range(self.max_retry):
-            if self.is_fastapi_running():
-                logging.info("FastAPI app started.")
+#         for _ in range(self.max_retry):
+#             if self.is_fastapi_running():
+#                 logging.info("FastAPI app started.")
 
-                return True
-            time.sleep(0.5)
-        logging.info("FastAPI app failed.")
-        return False
+#                 return True
+#             time.sleep(0.5)
+#         logging.info("FastAPI app failed.")
+#         return False
 
-    def stop_app(self):
-        if self.process is not None:
-            logging.info("Stopping FastAPI app...")
-            self.process.send_signal(signal.SIGINT)
-            try:
-                self.process.wait(timeout=5)
-                logging.info("FastAPI app stopped cleanly")
-            except subprocess.TimeoutExpired:
-                logging.info("Force killing FastAPI app...")
-                self.process.kill()
+#     def stop_app(self):
+#         if self.process is not None:
+#             logging.info("Stopping FastAPI app...")
+#             self.process.send_signal(signal.SIGINT)
+#             try:
+#                 self.process.wait(timeout=5)
+#                 logging.info("FastAPI app stopped cleanly")
+#             except subprocess.TimeoutExpired:
+#                 logging.info("Force killing FastAPI app...")
+#                 self.process.kill()
 
-    def update_layout(self, layout: str):
-        if layout is None:
-            return
+#     def update_layout(self, layout: str):
+#         if layout is None:
+#             return
 
-        if layout in ["grid", "hierarchical"]:
-            if layout != self._layout:
-                self._layout = layout
-                if self.ws:
-                    asyncio.run(self.ws.send(json.dumps({"layout": self._layout})))
-                    logging.info(f"Change the layout to {self._layout}")
-        else:
-            logging.warning(f"Invalid layout type. Reverting to the current layout {self._layout}.")
+#         if layout in ["grid", "hierarchical"]:
+#             if layout != self._layout:
+#                 self._layout = layout
+#                 if self.ws:
+#                     asyncio.run(self.ws.send(json.dumps({"layout": self._layout})))
+#                     logging.info(f"Change the layout to {self._layout}")
+#         else:
+#             logging.warning(f"Invalid layout type. Reverting to the current layout {self._layout}.")
 
-    def update_max_fps(self, max_fps: int):
-        max_fps = int(max_fps)
-        if max_fps > 100 or max_fps <= 0:
-            logging.debug(f"Max FPS out range. Reverting to {self._max_fps} Hz.")
-        else:
-            self._max_fps = max_fps
-            logging.debug(f"Change the maximum render FPS to {self._max_fps} Hz.")
+#     def update_max_fps(self, max_fps: int):
+#         max_fps = int(max_fps)
+#         if max_fps > 100 or max_fps <= 0:
+#             logging.debug(f"Max FPS out range. Reverting to {self._max_fps} Hz.")
+#         else:
+#             self._max_fps = max_fps
+#             logging.debug(f"Change the maximum render FPS to {self._max_fps} Hz.")
 
 
 # class WebGLRenderer:

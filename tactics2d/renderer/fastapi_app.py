@@ -1,21 +1,21 @@
-from fastapi import FastAPI, WebSocket
+# from fastapi import FastAPI, WebSocket
 
-app = FastAPI()
-
-
-@app.get("/health")
-def health():
-    return {"status": "running"}
+# app = FastAPI()
 
 
-@app.post("/send_data")
-async def send_data(data):
-    msg = data
+# @app.get("/health")
+# def health():
+#     return {"status": "running"}
 
 
-@app.websocket("/ws")
-async def websocket_endpoint(ws):
-    await ws.accept()
-    while True:
-        data = await ws.receive_text()
-        await ws.send_text(f"Received: {data}")
+# @app.post("/send_data")
+# async def send_data(data):
+#     msg = data
+
+
+# @app.websocket("/ws")
+# async def websocket_endpoint(ws):
+#     await ws.accept()
+#     while True:
+#         data = await ws.receive_text()
+#         await ws.send_text(f"Received: {data}")
