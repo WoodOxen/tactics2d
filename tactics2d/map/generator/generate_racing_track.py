@@ -13,9 +13,9 @@ from typing import Dict, List, Tuple
 import numpy as np
 from shapely.geometry import LineString, Point
 
+from tactics2d.geometry import Circle
+from tactics2d.interpolator import Bezier
 from tactics2d.map.element import Lane, LaneRelationship, Map, RoadLine
-from tactics2d.math.geometry import Circle
-from tactics2d.math.interpolate import Bezier
 from tactics2d.participant.trajectory import State
 
 
@@ -38,15 +38,17 @@ class RacingTrackGenerator:
     """
 
     _n_checkpoint = (10, 20)  # the number of turns is ranging in 10-20
-    _track_width = 15  # the width of the track is varying around 15m
+    _track_width = 5  # the width of the track is varying around 5m
     _track_rad = 800  # the maximum curvature radius
-    _curve_rad = (50, 150)  # the curvature radius is ranging in 10-150m
+    _curve_rad = (50, 150)  # the curvature radius is ranging in 50-150m
     _tile_length = 10  # the length of each tile
+    _bezier_order = 2  # the order of the Bezier curve
+    _bezier_interpolation = 50  # the number of interpolation points for each Bezier curve
 
     def __init__(self, bezier_order=2, bezier_interpolation=50):
         """Initialize the attributes in the class."""
-        self.bezier_generator = Bezier(bezier_order)
-        self.bezier_interpolation = bezier_interpolation
+        self._bezier_order = bezier_order
+        self._bezier_interpolation = bezier_interpolation
 
     def _get_checkpoints(self) -> Tuple[List[np.ndarray], List[np.ndarray], bool]:
         n_checkpoint = np.random.randint(*self._n_checkpoint)
@@ -73,7 +75,7 @@ class RacingTrackGenerator:
                 t2 = np.random.uniform(low=1 / 4, high=1 / 2)
                 pt1_ = (1 - t1) * pt2 + t1 * pt1
                 pt3_ = (1 - t2) * pt2 + t2 * pt3
-                _, radius = Circle.get_circle(Circle.ConstructBy.ThreePoints, pt1_, pt2, pt3_)
+                _, radius = Circle.get_circle(point1=pt1_, point2=pt2, point3=pt3_)
                 if radius < self._curve_rad[0]:
                     if rad[i] > rad[next_i]:
                         rad[next_i] += np.random.uniform(0.0, 10.0)
@@ -139,7 +141,7 @@ class RacingTrackGenerator:
         points = []
         # get the center line by Bezier curve generator
         for i in range(checkpoints.shape[1]):
-            new_points = self.bezier_generator.get_curve(
+            new_points = Bezier.get_curve(
                 np.array(
                     [
                         control_points[start_id - i - 1][1],
@@ -147,7 +149,8 @@ class RacingTrackGenerator:
                         control_points[start_id - i - 1][0],
                     ]
                 ),
-                self.bezier_interpolation,
+                self._bezier_interpolation,
+                self._bezier_order,
             )
             points.extend(new_points)
 

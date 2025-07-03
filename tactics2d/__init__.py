@@ -3,6 +3,6 @@
 # @File: __init__.py
 # @Description: Initialize the tactics2d package.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8
 
 __version__ = "0.1.8"

@@ -24,8 +24,9 @@ from tactics2d.sensor import RenderManager, TopDownCamera
 from tactics2d.traffic import ScenarioManager, ScenarioStatus, TrafficStatus
 from tactics2d.traffic.event_detection import NoAction, OffLane, OutBound, TimeExceed
 
-MAX_STEER = 0.75
+MAX_STEER = 0.5
 MAX_ACCEL = 2.0
+MIN_ACCEL = -4.0
 
 
 class RacingEnv(gym.Env):
@@ -33,21 +34,16 @@ class RacingEnv(gym.Env):
 
     ## Observation
 
-    `RacingEnv` provides a top-down semantic segmentation image of agent and its surrounding. The observation is represented as a
+    `RacingEnv` provides a top-down semantic segmentation image of agent and its surrounding. The observation is represented as an np.ndarray.
 
     ## Action
 
     `RacingEnv` accepts either a continuous or a discrete action command for the agent vehicle.
 
     - The continuous action is a 2D numpy array with the shape of (2,) representing the steering angle and the acceleration.
-    - The discrete action is an integer from 1 to 5, representing the following actions:
-        1. Do nothing: (0, 0)
-        2. Turn left: (-0.5, 0)
-        3. Turn right: (0.5, 0)
-        4. Move forward: (0, 1)
-        5. Move backward: (0, -1)
+    - The discrete action is an integer range in [0, 142] that points to a 2D numpy array with the shape of (2,) representing the steering angle and the acceleration. The steering ranges in [-0.5, 0.5, 0.1]. The acceleration ranges in [-2.0, 4.0, 0.5].
 
-    The first element of the action tuple is the steering angle, which should be in the range of [-0.75, 0.75]. Its unit is radian. The second element of the action tuple is the acceleration, which should be in the range of [-2.0, 2.0]. Its unit is m/s$^2$.
+    The first element of the action tuple is the steering angle, which should be in the range of [-0.5, 0.5]. Its unit is radian. The second element of the action tuple is the acceleration, which should be in the range of [-2.0, 4.0]. Its unit is m/s$^2$.
 
     ## Status and Reward
 
@@ -73,7 +69,7 @@ class RacingEnv(gym.Env):
     _max_fps = 200
     _max_steer = MAX_STEER
     _max_accel = MAX_ACCEL
-    _discrete_actions = {1: (0, 0), 2: (-0.5, 0), 3: (0.5, 0), 4: (0, 1), 5: (0, -1)}
+    _min_accel = MIN_ACCEL
 
     def __init__(
         self,
@@ -85,10 +81,10 @@ class RacingEnv(gym.Env):
         """Initialize the racing environment.
 
         Args:
-            render_mode (str, optional): The mode of the rendering. It can be "human" or "rgb_array".
+            render_mode (str, optional): The mode of the rendering. It can be "human" or "rgb_array". Defaults to "human".
             render_fps (int, optional): The frame rate of the rendering.
-            max_step (int, optional): The maximum time step of the scenario.
-            continuous (bool, optional): Whether to use continuous action space.
+            max_step (int, optional): The maximum time step of the scenario. Defaults to 100000.
+            continuous (bool, optional): Whether to use continuous action space. Defaults to True.
 
         Raises:
             NotImplementedError: If the render mode is not supported.
@@ -110,12 +106,16 @@ class RacingEnv(gym.Env):
 
         if self.continuous:
             self.action_space = spaces.Box(
-                np.array([-self._max_steer, -self._max_accel]),
+                np.array([-self._max_steer, self._min_accel]),
                 np.array([self._max_steer, self._max_accel]),
                 dtype=np.float32,
             )
         else:
-            self.action_space = spaces.Discrete(5)
+            x = np.linspace(-self._max_steer, self._max_steer, 11)
+            y = np.linspace(self._min_accel, self._max_accel, 13)
+            xx, yy = np.meshgrid(x, y)
+            self._discrete_action = np.vstack([xx.ravel(), yy.ravel()]).T
+            self.action_space = spaces.Discrete(len(self._discrete_action))
 
         self.scenario_manager = self._RacingScenarioManager(
             self.max_step, 100, self.render_fps, off_screen=self.render_mode != "human"
@@ -141,11 +141,15 @@ class RacingEnv(gym.Env):
 
         return reward
 
-    def step(self, action: Union[np.ndarray, int]):
+    def get_ego_state(self) -> State:
+        """This function returns the current state of the ego vehicle."""
+        return self.scenario_manager.agent.trajectory.last_state
+
+    def step(self, action: Union[tuple, int]):
         """This function takes a step in the environment.
 
         Args:
-            action (Union[np.array, int]): The action command for the agent vehicle.
+            action (Union[tuple, int]): The action command for the agent vehicle. If the action space is continuous, the input should be a tuple, whose first element controls the steering value and the second controls the acceleration. If the action space is discrete, the input should be an index that points to a pre-defined control command.
 
         Raises:
             InvalidAction: If the action is not in the action space.
@@ -203,6 +207,7 @@ class RacingEnv(gym.Env):
     class _RacingScenarioManager(ScenarioManager):
         _max_steer = MAX_STEER
         _max_accel = MAX_ACCEL
+        _min_accel = MIN_ACCEL
         _window_size = (500, 500)
         _state_size = (200, 200)
 
@@ -222,7 +227,7 @@ class RacingEnv(gym.Env):
                 lr=self.agent.length / 2 - self.agent.rear_overhang,
                 steer_range=(-self._max_steer, self._max_steer),
                 speed_range=self.agent.speed_range,
-                accel_range=(-self._max_accel, self._max_accel),
+                accel_range=(self._min_accel, self._max_accel),
                 interval=self.step_size,
             )
             self.participants = {self.agent.id_: self.agent}

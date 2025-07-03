@@ -6,11 +6,8 @@
 # @Version: 1.0.0
 
 import os
-
-# from packaging.version import Version
 from typing import List, Tuple, Union
 
-import google.protobuf
 import numpy as np
 import tensorflow as tf
 from shapely.geometry import LineString, Point, Polygon

@@ -1,0 +1,17 @@
+.show-code-button {
+  display: block;
+  width: 100%;
+  padding: 2px 0;
+  font-size: 14px;
+  background-color: #f9fafb;
+  border: none;
+  color: #374151;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background-color 0.2s ease;
+}
+
+.show-code-button:hover {
+  background-color: #f3f4f6;
+}

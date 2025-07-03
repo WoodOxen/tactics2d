@@ -20,15 +20,15 @@ import pytest
 
 from tactics2d.map.parser import OSMParser, XODRParser
 from tactics2d.traffic import ScenarioDisplay
+from tactics2d.utils.common import get_absolute_path
 
 
 @pytest.mark.map_parser
 def test_osm_parser():
-    data_path = "./tactics2d/data/map/SJTU/raw.osm"
+    map_path = get_absolute_path("./tactics2d/data/map/SJTU/raw.osm")
     map_parser = OSMParser()
 
-    map_root = ET.parse(data_path).getroot()
-    map_ = map_parser.parse(map_root)
+    map_ = map_parser.parse(map_path)
 
     fig, ax = plt.subplots()
     fig.set_layout_engine("none")
@@ -68,11 +68,10 @@ def test_lanelet2_parser():
         logging.info(f"Parsing map {map_name}.")
 
         try:
-            map_path = "{}/{}/{}.osm".format(data_path, map_config["dataset"], map_name)
-            map_root = ET.parse(map_path).getroot()
-            map_ = map_parser.parse(
-                map_root, map_config["project_rule"], map_config["gps_origin"], map_config
+            map_path = get_absolute_path(
+                "{}/{}/{}.osm".format(data_path, map_config["dataset"], map_name)
             )
+            map_ = map_parser.parse(map_path, map_config)
             parsed_map_set.add(map_.name)
 
             fig, ax = plt.subplots()
@@ -109,9 +108,9 @@ def test_lanelet2_parser():
     ],
 )
 def test_xodr_parser(map_path, img_path):
-    map_root = ET.parse(map_path).getroot()
+    map_path = get_absolute_path(map_path)
     map_parser = XODRParser()
-    map_ = map_parser.parse(map_root)
+    map_ = map_parser.parse(map_path)
 
     fig, ax = plt.subplots()
     fig.set_layout_engine("none")
@@ -123,3 +122,8 @@ def test_xodr_parser(map_path, img_path):
     ax.plot()
     fig.savefig(img_path, facecolor="black")
     plt.close(fig)
+
+
+@pytest.mark.map_parser
+def test_gis_parse():
+    map_path = "./tactics2d/data/map/"

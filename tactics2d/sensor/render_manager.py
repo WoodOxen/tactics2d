@@ -214,6 +214,7 @@ class RenderManager:
 
         Args:
             participants (dict): The dictionary of all participants. The render manager will detect which of them is alive.
+            participant_ids (list): The list of all participant ids.
             frame (int): Update the sensors to the given frame. If None, the sensors will update to the current frame. The default unit is millisecond.
         """
         to_remove = []
@@ -239,6 +240,11 @@ class RenderManager:
 
         self._clock.tick(self.fps)
 
+        # Handle pygame events to keep the window responsive
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return
         blit_sequence = []
         for id_, layout_info in self._layouts.items():
             surface = pygame.transform.scale_by(self._sensors[id_].surface, layout_info[0])

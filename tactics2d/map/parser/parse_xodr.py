@@ -16,9 +16,9 @@ from pyproj import CRS
 from shapely.affinity import affine_transform, rotate
 from shapely.geometry import LineString, Point, Polygon
 
+from tactics2d.geometry import Circle
+from tactics2d.interpolator import Spiral
 from tactics2d.map.element import Area, Connection, Junction, Lane, Map, Node, Regulatory, RoadLine
-from tactics2d.math.geometry import Circle
-from tactics2d.math.interpolate import Spiral
 
 
 class XODRParser:
@@ -103,7 +103,7 @@ class XODRParser:
             points = [(x_start, y_start)]
         else:
             gamma = (curv_end - curv_start) / length
-            points = Spiral.get_spiral(length, [x_start, y_start], heading, curv_start, gamma)
+            points = Spiral.get_curve(length, [x_start, y_start], heading, curv_start, gamma)
             points = [(x, y) for x, y in points]
         return points
 
@@ -114,8 +114,11 @@ class XODRParser:
         length = float(xml_node.attrib["length"])
         curvature = float(xml_node.find("arc").attrib["curvature"])
 
-        center, radius = Circle.get_circle_by_tangent_vector(
-            [x_start, y_start], heading, abs(1 / curvature), "L" if curvature > 0 else "R"
+        center, radius = Circle.get_circle(
+            tangent_point=[x_start, y_start],
+            tangent_heading=heading,
+            radius=abs(1 / curvature),
+            side="L" if curvature > 0 else "R",
         )
 
         n_interpolate = int(length / 0.1)
@@ -488,10 +491,7 @@ class XODRParser:
             if len(center_points) == 1:
                 center_points.append(center_points[0])
 
-            center_line = RoadLine(
-                id_=self.id_counter,
-                geometry=LineString(center_points),
-            )
+            center_line = RoadLine(id_=self.id_counter, geometry=LineString(center_points))
             self.id_counter += 1
 
             # Load road marks for lanesection
@@ -573,16 +573,16 @@ class XODRParser:
 
         return junction
 
-    def parse(self, xml_root: ET.Element):
+    def parse(self, file_path: str):
         """This function parses the OpenDRIVE format map. To ensure that all road elements have an unique id, the function automatically reassign the id of the road elements.
 
         Args:
-            xml_root (ET.Element): The root of the XML tree.
+            file_path (str): The absolute path of the `.xodr` file.
 
         Returns:
             map_ (Map): The parsed map.
         """
-
+        xml_root = ET.parse(file_path).getroot()
         header_node = xml_root.find("header")
         if header_node is not None:
             header_info, projector = self.load_header(header_node)

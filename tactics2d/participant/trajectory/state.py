@@ -144,6 +144,10 @@ class State:
 
         return None
 
+    def set_heading(self, heading: float):
+        """This function sets the heading direction (radian)."""
+        self.heading = heading
+
     def set_velocity(self, vx: float, vy: float):
         """This function sets vx, vy."""
         self.vx = vx

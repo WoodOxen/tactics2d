@@ -4,18 +4,18 @@
 
 ### Added
 
-- Add carla sensor base class
-
 ### Changed
 
-- Move `test` to `tests` in the root directory.
-- Improve map rendering speed.
-- Improve the running efficiency of Bezier and b_spline interpolators by adding c++ implementation.
+- Split `tactics2d.math` into `tactics2d.interpolator` and `tactics2d.geometry`.
+- Parameter changes in `tactics2d.geometry`:
+  - `Circle`: Remove `get_circle_by_three_points` and `get_circle_by_tangent_vector`. Keep their functionality in `Circle.get_circle(**kwargs)`.
+- Parameter changes in `tactics2d.interpolator`:
+  - `Bezier`: Change `get_curve` method to static method. Remove `order` parameter in `__init__` method. Add `order` parameter in `get_curve` method.
+  - `BSpline`: Change `get_curve` method to static method. Remove `degree` parameter in `__init__` method. Add `degree` parameter in `get_curve` method.
+  - `CubicSpline`: Change `get_curve` method to static method. Remove `boundary_type` parameter in `__init__` method. Add `boundary_type` parameter in `get_curve` method.
+  - `Spiral`: Rename `get_spiral` method to `get_curve`.
 
 ### Fixed
-
-- Fix `type_node is none` bug
-- Fix bugs in test_b_spline.py.
 
 ### Deprecated
 
@@ -23,11 +23,38 @@
 
 ### TODO
 
+- `tactics2d.interpolator.cubic_spline`: Improve efficiency of CubicSpline by ThomasSolver.
 - `tactics2d.dataset_parser.NuPlanParser`: Identify the boundaries of a lane element.
 - `tactics2d.dataset_parser.WOMDParser`: Identify the boundaries of a lane element.
 - `tactics2d.dataset_parser.womd_proto`: Add compatibility to protobuf 3.x.x and 4.x.x.
 - `tactics2d.map.parser.OSMParser`: Handle the tag `highway` in `load_way` for the original [OSM label style](https://wiki.openstreetmap.org/wiki/Key:lanes).
 - `tactics2d.dataset_parser`: Improve the efficiency.
+
+## [0.1.8] - 2025-05-22
+
+### Added
+
+- Add data parser for NGSIM.
+- Add data parser for CitySim.
+- Add carla sensor base class.
+- Add a new tutorial for pure pursuit controller in racing environment.
+- Add controller class for pure pursuit controller.
+- Add Chinese README.
+- Add data analysis for LevelX datasets (highD, inD, rounD, exiD, uniD) and CitySim.
+
+### Changed
+
+- Boost LevelX datasets by polars, 10 times faster than before.
+- Move `test` to `tests` in the root directory.
+- Improve map rendering speed.
+- Improve the running efficiency of Bezier and b_spline interpolators by adding c++ implementation.
+- Change the interface of `tactics2d.map.parser.OSMParser` and `tactics2d.map.parser.XODRParser`.
+
+### Fixed
+
+- Fix `type_node is none` bug
+- Fix bugs in test_b_spline.py.
+- Fix pygame window unresponsive where events aren't handled.
 
 ## [0.1.7] - 2024-05-22
 

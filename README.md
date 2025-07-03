@@ -10,10 +10,17 @@
 [![Downloads](https://img.shields.io/pypi/dm/tactics2d)](https://pypi.org/project/tactics2d/)
 [![Discord](https://img.shields.io/discord/1209363816912126003)](https://discordapp.com/widget?id=1209363816912126003&theme=system)
 
+![python-version](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11-blue)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Github license](https://img.shields.io/github/license/WoodOxen/tactics2d)](https://github.com/WoodOxen/tactics2d/blob/dev/LICENSE)
 
+EN | [CN](README.CN.md)
+
 ## About
+
+> [!note]
+> This is the official codebase for Course AU7043 in Shanghai Jiao Tong University under branch `AU7043`.
+>
 
 `tactics2d` is an open-source Python library that provides diverse and challenging traffic scenarios for the development and evaluation of reinforcement learning-based decision-making models in autonomous driving. `tactics2d` stands out with the following key features:
 
@@ -45,8 +52,9 @@ We have conducted testing for the execution and construction of `tactics2d` on t
 | System | 3.8 | 3.9 | 3.10 | 3.11 |
 | --- | --- | --- | --- | --- |
 | Ubuntu 18.04 | :white_check_mark: | - | - | - |
-| Ubuntu 20.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Ubuntu 20.04 | :white_check_mark: | :white_check_mark: | - | - |
 | Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | MacOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 
@@ -54,16 +62,17 @@ We have conducted testing for the execution and construction of `tactics2d` on t
 
 We strongly recommend using `conda` to manage the Python environment. If you don't have `conda` installed, you can download it from [here](https://docs.conda.io/en/latest/miniconda.html).
 
-```shell
+```bash
 # create a new conda environment
 conda create -n tactics2d python=3.9
+conda activate tactics2d
 ```
 
 #### 1.1 Install from PyPI
 
 You can simply install `tactics2d` from PyPI with the following command.
 
-```shell
+```bash
 pip install tactics2d
 ```
 
@@ -71,7 +80,7 @@ pip install tactics2d
 
 You can also install `tactics2d` from from its source on GitHub. This way is recommended if you want to run the sample code or contribute to the development of `tactics2d`. Please note that you should have GCC installed on your operating system before installing tactics2d.
 
-```shell
+```bash
 # clone the repository with submodules but ignore the large files (mainly the NuPlan's map data)
 # please download NuPlan's map data from its official website and put it in the `tactics2d/data/map/NuPlan` directory
 git clone --recurse-submodules git@github.com:WoodOxen/tactics2d.git
@@ -99,87 +108,108 @@ You can put the downloaded files at whatever location you like. In the parser, y
 
 ### 3. Run the Tutorial
 
+After the installation, you can run the [tutorial jupyter notebooks](docs/tutorial) to get started with `tactics2d`.
+
+To run [train_parking_demo.ipynb](docs/tutorial/train_parking_demo.ipynb), which is a simplified version of our work in this [paper](https://github.com/jiamiya/HOPE), you need to pull an extra module `rllib`:
+
+```bash
+git submodule update --init --recursive
+```
+
+### 4. For More Samples
+
+We have built a complete CI pipeline for `tactics2d`. The samples under [tests](tests) are good samples for you to get familiar with the interfaces. To run the samples, you can use the following command:
+
+```bash
+pip install pytest
+pytest tests/[test_file_name]::[test_function_name]
+```
+
 ## Demo
 
 `tactics2d` supports the parsing of various real-world trajectory datasets, including Argoverse, Dragon Lake Parking (DLP), INTERACTION, LevelX Series (highD, inD, rounD, ExiD), NuPlan, and Waymo Open Motion Dataset (WOMD). For more demos, please refer to the [documentation](https://tactics2d.readthedocs.io/en/latest/dataset-support/).
 
-### Highway cases (HighD, ExiD)
+### Highway cases
 
-![HighD Location 3](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/highD_loc_3.gif)
-
-![ExiD Location 6](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/exiD_loc_6.gif)
-
-### Intersection cases (InD, Argoverse, INTERACTION, NuPlan, WOMD)
-
-<table><tr><th valign="top" width="50%">
-InD
-</th>
-<th valign="top" width="50%">
-Argoverse
-</th>
-</tr>
-
-<tr><td valign="center" width="50%">
-<img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/inD_loc_4.gif" align="center" style="width: 100%">
-</td>
-<td valign="top" width="50%">
-<img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/argoverse_sample.gif" align="center" style="width: 100%">
-</td>
-</tr>
-
-<tr><th valign="top" width="50%">
-INTERACTION
-</th>
-<th valign="top" width="50%">
-Waymo Open Motion Dataset (WOMD)
-</th>
-</tr>
-
-<tr><td valign="center" width="50%">
-<img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_USA_Intersection_GL.gif" align="center" style="width: 100%">
-</td>
-<td valign="top" width="50%">
-<img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/womd_sample.gif" align="center" style="width: 100%">
-</td>
-</tr>
+<table>
+  <tr>
+    <th>HighD (Location 3)</th>
+    <th>ExiD (Location 6)</th>
+  </tr>
+  <tr>
+    <td valign="top" width="50%">
+    <img src="docs/assets/replay_dataset/highD_loc_3.gif" align="left" style="width: 100%" />
+    </td>
+    <td valign="top" width="50%">
+    <img src="docs/assets/replay_dataset/exiD_loc_6.gif" align="left" style="width: 100%" />
+    </td>
+  </tr>
 </table>
 
-### Roundabout cases (RounD, INTERACTION, )
+### Intersection cases
 
-<table><tr><th valign="top" width="50%">
-RounD
-</th>
-<th valign="top" width="50%">
-INTERACTION
-</th>
-</tr>
-
-<tr><td valign="center" width="50%">
-<img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/rounD_loc_0.gif" align="center" style="width: 100%">
-</td>
-<td valign="top" width="50%">
-<img src="https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/DR_DEU_Roundabout_OF.gif" align="center" style="width: 100%">
-</td>
-</tr>
+<table>
+  <tr>
+    <th>InD (Location 4)</th>
+    <th>Argoverse</th>
+  </tr>
+  <tr>
+    <td valign="top" width="50%">
+    <img src="docs/assets/replay_dataset/inD_loc_4.gif" align="left" style="width: 95%" />
+    </td>
+    <td valign="top" width="50%">
+    <img src="docs/assets/replay_dataset/argoverse_sample.gif" align="left" style="width: 100%" />
+    </td>
+  </tr>
 </table>
 
-### Parking cases (DLP, Self-generated)
+<table>
+  <tr>
+    <th>INTERACTION</th>
+    <th>WOMD</th>
+  </tr>
+  <tr>
+    <td valign="top" width="50%">
+    <img src="docs/assets/replay_dataset/DR_USA_Intersection_GL.gif" align="left" style="width: 100%" />
+    </td>
+    <td valign="top" width="50%">
+    <img src="docs/assets/replay_dataset/womd_sample.gif" align="left" style="width: 70%" />
+    </td>
+  </tr>
+</table>
 
-<table><tr><th valign="top" width="50%">
-DLP
-</th>
-<th valign="top" width="50%">
-Auto-generated
-</th>
-</tr>
+### Roundabout cases
 
-<tr><td valign="center" width="50%">
-<img src="https://github.com/MotacillaAlba/image-storage/blob/main/img/dlp_sample.gif?raw=true" align="center" style="width: 100%">
-</td>
-<td valign="top" width="50%">
-<img src="" align="center" style="width: 100%">
-</td>
-</tr>
+<table>
+  <tr>
+    <th>RounD (Location 0)</th>
+    <th>INTERACTION</th>
+  </tr>
+  <tr>
+    <td valign="top" width="50%">
+    <img src="docs/assets/replay_dataset/rounD_loc_0.gif" align="left" style="width: 100%" />
+    </td>
+    <td valign="top" width="50%">
+    <img src="docs/assets/replay_dataset/DR_DEU_Roundabout_OF.gif" align="left" style="width: 100%" />
+    </td>
+  </tr>
+</table>
+
+### Parking cases
+
+<table>
+  <tr>
+    <th>DLP</th>
+    <th>Self-generated</th>
+  </tr>
+  <tr>
+    <td valign="top" width="70%">
+    <img src="docs/assets/replay_dataset/DLP_sample.gif" align="left" style="width: 100%" />
+    </td>
+    <td valign="top" width="20%">
+    <img src="" align="left" style="width: 100%" />
+    </td>
+  </tr>
 </table>
 
 ### Racing cases (Self-generated)
@@ -212,10 +242,17 @@ Merealtea, zhuanghany11, liyuhang699, shuo-Liu, AnthonyWithLi, ...
 If you find `tactics2d` useful, please cite this in your publication.
 
 ```bibtex
-@article{li2023tactics2d,
-  title={Tactics2D: A Reinforcement Learning Environment Library with Generative Scenarios for Driving Decision-making},
-  author={Li, Yueyuan and Zhang, Songan and Jiang, Mingyang and Chen, Xingyuan and Yang, Ming},
-  journal={arXiv preprint arXiv:2311.11058},
-  year={2023}
+@article{li2024tactics2d,
+  title={Tactics2D: A Highly Modular and Extensible Simulator for Driving Decision-Making},
+  author={Li, Yueyuan and Zhang, Songan and Jiang, Mingyang and Chen, Xingyuan and Yang, Jing and Qian, Yeqiang and Wang, Chunxiang and Yang, Ming},
+  journal={IEEE Transactions on Intelligent Vehicles},
+  year={2024},
+  publisher={IEEE}
 }
 ```
+
+## Works Based on Tactics2D
+
+You are welcome to raise pull request and update your publication based on Tactics2D.
+
+Jiang, Mingyang\*, Li, Yueyuan\*, Zhang, Songan, et al. "[HOPE: A Reinforcement Learning-based Hybrid Policy Path Planner for Diverse Parking Scenarios](https://arxiv.org/abs/2405.20579)." *IEEE Transactions on Intelligent Transportation Systems* (2025). (\*Co-first author) | [Code](https://github.com/jiamiya/HOPE) | [Demo](https://www.youtube.com/watch?v=62w9qhjIuRI)
