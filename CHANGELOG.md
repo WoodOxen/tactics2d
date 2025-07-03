@@ -4,7 +4,7 @@
 
 ### Added
 
-- `tactics2d.renderer` module
+- `tactics2d.map.parser.GPKGParser` for nuplan map parsing
 
 ### Changed
 
@@ -16,6 +16,9 @@
   - `BSpline`: Change `get_curve` method to static method. Remove `degree` parameter in `__init__` method. Add `degree` parameter in `get_curve` method.
   - `CubicSpline`: Change `get_curve` method to static method. Remove `boundary_type` parameter in `__init__` method. Add `boundary_type` parameter in `get_curve` method.
   - `Spiral`: Rename `get_spiral` method to `get_curve`.
+  - `tactics2d.traffic.scenario_display` to `tactics2d.sensor.matplotlib.renderer`.
+  - `tactics2d.sensor.camera` returns dictionary for frontend rendering.
+  - `tactics2d.sensor.lidar` returns dictionary for frontend rendering.
 
 ### Fixed
 
@@ -24,12 +27,10 @@
 ### Removed
 
 - `tactics2d.sensor` module
-- `tactics2d.traffic.scenario_display`
 
 ### TODO
 
 - `tactics2d.interpolator.cubic_spline`: Improve efficiency of CubicSpline by ThomasSolver.
-- `tactics2d.dataset_parser.NuPlanParser`: Identify the boundaries of a lane element.
 - `tactics2d.dataset_parser.WOMDParser`: Identify the boundaries of a lane element.
 - `tactics2d.dataset_parser.womd_proto`: Add compatibility to protobuf 3.x.x and 4.x.x.
 - `tactics2d.map.parser.OSMParser`: Handle the tag `highway` in `load_way` for the original [OSM label style](https://wiki.openstreetmap.org/wiki/Key:lanes).

@@ -17,8 +17,6 @@ import threading
 
 import numpy as np
 
-from tactics2d.renderer import WebGLRenderer
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Tactics2D Command Line Tool")
