@@ -17,7 +17,7 @@ import pytest
 from shapely.geometry import Point
 
 from tactics2d.map.map_config import *
-from tactics2d.map.parser import GPKGParser, OSMParser, XODRParser
+from tactics2d.map.parser import OSMParser, XODRParser
 from tactics2d.sensor import BEVCamera, MatplotlibRenderer
 from tactics2d.utils.common import get_absolute_path
 
@@ -131,10 +131,3 @@ def test_xodr_parser(map_path, img_path):
 
     matplotlib_renderer.update(geometry_data, [position.x, position.y])
     matplotlib_renderer.save_single_frame(save_to=img_path)
-
-
-@pytest.mark.map_parser
-def test_gpkg_parse():
-    map_path = "./tactics2d/data/map/NuPlan/sg-one-north.gpkg"
-    map_parser = GPKGParser("nuplan")
-    map_parser.parse(map_path)

@@ -10,8 +10,12 @@ import os
 import sqlite3
 from typing import List, Tuple
 
+import geopandas as gpd
 import numpy as np
+import pyogrio
+from shapely.geometry import LinearRing, LineString, Point, Polygon
 
+from tactics2d.map.element import Area, Lane, Map, Node, Regulatory, RoadLine
 from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 
@@ -32,6 +36,8 @@ class NuPlanParser:
         "czone_sign": Other,
         "generic_object": Other,
     }
+
+    _ROADLINE_MAPPING = {0: "dashed", 1: "virtual", 2: "solid", 3: "virtual"}
 
     # millisecond-level time stamp at 2021-01-01 00:00:00
     _DATETIME = datetime.datetime(2021, 1, 1, 0, 0, 0).timestamp() * 1000
@@ -119,3 +125,72 @@ class NuPlanParser:
         stamps = sorted(list(time_stamps))
 
         return participants, stamps
+
+    def parse_map(self, file_path: str) -> Map:
+        map_meta = gpd.read_file(file_path, layer="meta", engine="pyogrio")
+        projection_system = map_meta[map_meta["key"] == "projectedCoordSystem"]["value"].iloc[0]
+        type_mapping = self._ROADLINE_MAPPING
+        id_cnt = 0
+
+        map_ = Map(name="nuplan_" + file_path.split("/")[-1].split(".")[0])
+
+        def load_utm_coords(layer_name):
+            gdf_in_pixel_coords = pyogrio.read_dataframe(file_path, layer=layer_name)
+            gdf_in_utm_coords = gdf_in_pixel_coords.to_crs(projection_system)
+            return gdf_in_utm_coords
+
+        boundaries = load_utm_coords("boundaries")
+        for _, row in boundaries.iterrows():
+            roadline = RoadLine(
+                id_=int(row["boundary_segment_fids"].split(",")[0]),
+                type_=type_mapping[row["boundary_type_fid"]],
+                geometry=LineString(row["geometry"]),
+            )
+            map_.add_roadline(roadline)
+
+        # load lands
+        lane_dict = {"lanes_polygons": "lane"}
+
+        for key, value in lane_dict.items():
+            df_lanes = load_utm_coords(key)
+            for _, row in df_lanes.iterrows():
+                lane = Lane(
+                    id_=row["lane_fid"],
+                    geometry=LinearRing(Polygon(row["geometry"]).exterior),
+                    subtype=value,
+                )
+                map_.add_lane(lane)
+
+        # load areas
+        area_dict = {
+            "carpark_areas": "parking",
+            "crosswalks": "crosswalk",
+            "intersections": "lane",
+            "walkways": "walkway",
+        }
+        id_cnt = max(np.array(list(map_.ids.keys()), np.int64)) + 1
+
+        for key, value in area_dict.items():
+            df_areas = load_utm_coords(key)
+            for _, row in df_areas.iterrows():
+                area = Area(
+                    id_=id_cnt,
+                    geometry=Polygon(row["geometry"]),
+                    subtype=value,
+                    custom_tags={"heading": row["heading"]} if key == "carpark_areas" else None,
+                )
+                id_cnt += 1
+                map_.add_area(area)
+
+        traffic_lights = load_utm_coords("traffic_lights")
+        for _, row in traffic_lights.iterrows():
+            traffic_light = Regulatory(
+                id_=id_cnt,
+                subtype="traffic_light",
+                position=Point(row["geometry"].x, row["geometry"].y),
+                custom_tags={"heading": row["ori_mean_yaw"]},
+            )
+            id_cnt += 1
+            map_.add_regulatory(traffic_light)
+
+        return map_
