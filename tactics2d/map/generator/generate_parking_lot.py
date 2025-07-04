@@ -39,7 +39,7 @@ class ParkingLotGenerator:
     _vehicle_size = (5.3, 2.5)
     _n_parking_lots_bay = 9
     _n_parking_lots_parallel = 7
-    _target_color = (0, 238, 118, 100)
+    _target_color = "#EE766E"
 
     def __init__(
         self, vehicle_size: Tuple[float, float] = (5.3, 2.5), type_proportion: float = 0.5

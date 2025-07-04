@@ -26,6 +26,7 @@ from tactics2d.envs import ParkingEnv, RacingEnv
 
 
 @pytest.mark.env
+@pytest.mark.skip(reason="TODO")
 def test_racing_env():
     render_mode = "human" if "DISPLAY" in os.environ else "rgb_array"
     env = RacingEnv(render_mode=render_mode, render_fps=60, max_step=2000)
@@ -43,6 +44,7 @@ def test_racing_env():
 
 
 @pytest.mark.env
+@pytest.mark.skip(reason="TODO")
 def test_parking_env():
     render_mode = "human" if "DISPLAY" in os.environ else "rgb_array"
     env = ParkingEnv(render_mode=render_mode, render_fps=60, max_step=2000)

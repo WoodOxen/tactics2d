@@ -38,7 +38,7 @@ class Vehicle(ParticipantBase):
         id_ (int): The unique identifier of the vehicle.
         type_ (str): The type of the vehicle. Defaults to "medium_car".
         trajectory (Trajectory): The trajectory of the vehicle. Defaults to an empty trajectory.
-        color (tuple): The color of the vehicle. The color of the traffic participant. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to light-turquoise (43, 203, 186).
+        color (tuple): The color of the vehicle. The color of the traffic participant. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to light-turquoise "#2bcbba".
         length (float): The length of the vehicle. The unit is meter. Defaults to None.
         width (float): The width of the vehicle. The unit is meter. Defaults to None.
         height (float): The height of the vehicle. The unit is meter. Defaults to None.
@@ -76,7 +76,7 @@ class Vehicle(ParticipantBase):
         "max_decel": float,
         "verify": bool,
     }
-    _default_color = (43, 203, 186, 255)  # light-turquoise
+    _default_color = "#2bcbba"  # light-turquoise
     _driven_modes = {"FWD", "RWD", "4WD", "AWD"}
 
     def __init__(

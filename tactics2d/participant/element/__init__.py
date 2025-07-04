@@ -6,6 +6,7 @@
 # @Version: 1.0.0
 
 from .cyclist import Cyclist
+from .obstacle import Obstacle
 from .other import Other
 from .participant_base import ParticipantBase
 from .participant_template import (
@@ -22,6 +23,7 @@ __all__ = [
     "Cyclist",
     "Vehicle",
     "Other",
+    "Obstacle",
     "list_vehicle_templates",
     "list_cyclist_templates",
     "list_pedestrian_templates",

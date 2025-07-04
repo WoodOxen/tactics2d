@@ -20,7 +20,7 @@ from tactics2d.map.generator import RacingTrackGenerator
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State
 from tactics2d.physics import SingleTrackKinematics
-from tactics2d.sensor import RenderManager, TopDownCamera
+from tactics2d.sensor import BEVCamera
 from tactics2d.traffic import ScenarioManager, ScenarioStatus, TrafficStatus
 from tactics2d.traffic.event_detection import NoAction, OffLane, OutBound, TimeExceed
 
@@ -235,9 +235,9 @@ class RacingEnv(gym.Env):
             self.map_ = Map(name="racing_track", scenario_type="racing")
             self.map_generator = RacingTrackGenerator()
 
-            self.render_manager = RenderManager(
-                fps=self.render_fps, windows_size=self._window_size, off_screen=self.off_screen
-            )
+            # self.render_manager = RenderManager(
+            #     fps=self.render_fps, windows_size=self._window_size, off_screen=self.off_screen
+            # )
 
             self.tile_visited = dict()
             self.tile_visiting = None

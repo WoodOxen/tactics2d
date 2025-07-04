@@ -2,7 +2,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v3.2.0
+  rev: v5.0.0
   hooks:
   - id: trailing-whitespace
     exclude: tactics2d/participant/trajectory_classifier.m
@@ -14,21 +14,25 @@ repos:
     args: [--maxkb=5000]
   - id: requirements-txt-fixer
 - repo: https://github.com/asottile/pyupgrade
-  rev: v3.15.1
+  rev: v3.20.0
   hooks:
   - id: pyupgrade
 - repo: https://github.com/pycqa/isort
-  rev: 5.13.2
+  rev: 6.0.1
   hooks:
   - id: isort
     args: [--profile=black]
 - repo: https://github.com/python/black
-  rev: 24.3.0
+  rev: 25.1.0
   hooks:
   - id: black
-    args: ["--line-length", "100", "--color"]
+    args: ["--line-length", "100", "--color", "--skip-magic-trailing-comma"]
 - repo: https://github.com/cpp-linter/cpp-linter-hooks
-  rev: v0.6.1  # Use the ref you want to point at
+  rev: v0.8.0  # Use the ref you want to point at
   hooks:
     - id: clang-format
       args: []
+# -   repo: https://github.com/pre-commit/mirrors-eslint
+#     rev: 'v9.27.0'  # Use the sha / tag you want to point at
+#     hooks:
+#     -   id: eslint

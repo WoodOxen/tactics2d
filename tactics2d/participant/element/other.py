@@ -24,7 +24,7 @@ class Other(ParticipantBase):
         id_ (Any): The unique identifier of the traffic participant.
         type_ (str): The type of the traffic participant. Defaults to "unknown".
         trajectory (Trajectory): The trajectory of the traffic participant. Defaults to an empty trajectory.
-        color (Any): The color of the traffic participant. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to black (0, 0, 0).
+        color (Any): The color of the traffic participant. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors.
         length (float): The length of the traffic participant. The unit is meter. Defaults to None.
         width (float): The width of the traffic participant. The unit is meter. Defaults to None.
         height (float): The height of the traffic participant. The unit is meter. Defaults to None.

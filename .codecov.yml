@@ -1,3 +1,2 @@
 ignore:
-  - "tactics2d/traffic/scenario_display.py"
   - "tactics2d/map/parser/fix_osm.py"

@@ -9,6 +9,7 @@ import logging
 import os
 
 import geopandas as gpd
+import pyogrio
 from pyproj import Proj
 from shapely.geometry import LineString, MultiLineString, MultiPolygon, Point, Polygon
 
@@ -18,6 +19,8 @@ from tactics2d.map.element import Area, Lane, Map, Node, Regulatory, RoadLine
 
 
 class GISParser:
+    """_summary_"""
+
     def __init__(self):
         self.projector = None
 

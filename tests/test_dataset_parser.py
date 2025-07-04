@@ -29,6 +29,7 @@ from tactics2d.dataset_parser import (
     NuPlanParser,
     WOMDParser,
 )
+from tactics2d.map.map_config import NUPLAN_MAP_CONFIG
 
 
 @pytest.mark.dataset_parser
@@ -60,10 +61,7 @@ def test_argoverse2_parser(sub_folder, expected):
 
 
 @pytest.mark.dataset_parser
-@pytest.mark.parametrize(
-    "ids, expected",
-    [(None, 136), ([1, 2, 3], 3)],
-)
+@pytest.mark.parametrize("ids, expected", [(None, 136), ([1, 2, 3], 3)])
 def test_citysim_parser(ids, expected):
     folder = "./tactics2d/data/trajectory_sample/CitySim/Intersection B (Non-Signalized Intersection)/Trajectories"
     file = "IntersectionB-01.csv"
@@ -198,9 +196,7 @@ def test_ngsim_parser(file, stamp_range, ids):
 )
 def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
     folder_path = "./tactics2d/data/trajectory_sample/NuPlan/data/cache"
-    map_folder_path = "./tactics2d/data/map"
-    with open("./tactics2d/dataset_parser/map.config") as f:
-        configs = json.load(f)
+    map_folder_path = "./tactics2d/data/map/NuPlan"
 
     dataset_parser = NuPlanParser()
 
@@ -208,7 +204,7 @@ def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
     participants, _ = dataset_parser.parse_trajectory(file_name, folder_path, stamp_range)
     t2 = time.time()
     location = dataset_parser.get_location(file_name, folder_path)
-    map_path = configs[location]["gpkg_path"]
+    map_path = NUPLAN_MAP_CONFIG[location]["gpkg_file"]
 
     try:
         _ = dataset_parser.parse_map(map_path, map_folder_path)

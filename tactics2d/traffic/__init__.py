@@ -5,8 +5,7 @@
 # @Author: Yueyuan Li
 # @Version: 1.0.0
 
-from .scenario_display import ScenarioDisplay
 from .scenario_manager import ScenarioManager
 from .status import ScenarioStatus, TrafficStatus
 
-__all__ = ["ScenarioDisplay", "ScenarioManager", "ScenarioStatus", "TrafficStatus"]
+__all__ = ["ScenarioManager", "ScenarioStatus", "TrafficStatus"]
