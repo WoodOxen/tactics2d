@@ -23,6 +23,11 @@ class OSMParser:
     """
 
     def __init__(self, lanelet2: bool = False):
+        """Initialize the parser.
+
+        Args:
+            lanelet2 (bool, optional): Whether the `.osm` file is annotated in Lanelet2 format. Defaults to False.
+        """
         self.lanelet2 = lanelet2
 
     def _append_point_list(self, point_list, new_points, component_id):
@@ -99,17 +104,18 @@ class OSMParser:
         return tags
 
     def _load_area(self, xml_node: ET.Element, map_: Map) -> Area:
-        area_id = xml_node.attrib["id"]
+        area_id = int(xml_node.attrib["id"])
         line_ids = dict(inner=[], outer=[])
         regulatory_ids = []
 
         for member in xml_node.findall("member"):
+            member_id = int(member.attrib["ref"])
             if member.attrib["role"] == "outer":
-                line_ids["outer"].append(member.attrib["ref"])
+                line_ids["outer"].append(member_id)
             elif member.attrib["role"] == "inner":
-                line_ids["inner"].append(member.attrib["ref"])
+                line_ids["inner"].append(member_id)
             elif member.attrib["role"] == "regulatory_element":
-                regulatory_ids.append(member.attrib["ref"])
+                regulatory_ids.append(member_id)
 
         outer_point_list = []
         for line_id in line_ids["outer"]:
@@ -159,7 +165,7 @@ class OSMParser:
 
         return Area(area_id, polygon, line_ids, set(regulatory_ids), **area_tags)
 
-    def load_bounds_no_proj(self, xml_node: ET.Element) -> tuple:
+    def _load_bounds_no_proj(self, xml_node: ET.Element) -> tuple:
         """This function loads the boundary of the map from the XML node. The coordinates will not be projected.
 
         Args:
@@ -178,7 +184,7 @@ class OSMParser:
 
         return None
 
-    def load_bounds(self, xml_node: ET.Element, projector: Proj, origin: tuple) -> tuple:
+    def _load_bounds(self, xml_node: ET.Element, projector: Proj, origin: tuple) -> tuple:
         """This function loads the boundary of the map from the XML node. The coordinates will be projected.
 
         Args:
@@ -201,7 +207,7 @@ class OSMParser:
 
         return None
 
-    def load_nodes_no_proj(self, xml_node: ET.Element) -> Node:
+    def _load_nodes_no_proj(self, xml_node: ET.Element) -> Node:
         """This function loads the nodes from the XML node. The coordinates will not be projected.
 
         Args:
@@ -210,13 +216,13 @@ class OSMParser:
         Returns:
             A node under the GPS coordinates.
         """
-        node_id = xml_node.attrib["id"]
+        node_id = int(xml_node.attrib["id"])
         lon = float(xml_node.attrib["lon"])
         lat = float(xml_node.attrib["lat"])
 
         return Node(id_=node_id, x=lon, y=lat)
 
-    def load_nodes(self, xml_node: ET.Element, projector: Proj, origin: tuple) -> Node:
+    def _load_nodes(self, xml_node: ET.Element, projector: Proj, origin: tuple) -> Node:
         """This function loads the nodes from the XML node. The coordinates will be projected.
 
         Args:
@@ -227,12 +233,12 @@ class OSMParser:
         Returns:
             A node under the x-y coordinates.
         """
-        node_id = xml_node.attrib["id"]
+        node_id = int(xml_node.attrib["id"])
         x, y = projector(xml_node.attrib["lon"], xml_node.attrib["lat"])
 
         return Node(id_=node_id, x=x - origin[0], y=y - origin[1])
 
-    def load_way(self, xml_node: ET.Element, map_: Map) -> Tuple[Area, RoadLine]:
+    def _load_way(self, xml_node: ET.Element, map_: Map) -> Tuple[Area, RoadLine]:
         """This function loads an OSM road elements from the XML node.
 
         Args:
@@ -242,13 +248,14 @@ class OSMParser:
         Returns:
             A road element.
         """
-        id_ = xml_node.attrib["id"]
+        id_ = int(xml_node.attrib["id"])
         point_list = []
         point_ids = []
 
         for node in xml_node.findall("nd"):
-            point_list.append(map_.nodes[node.attrib["ref"]].location)
-            point_ids.append(node.attrib["ref"])
+            node_id = int(node.attrib["ref"])
+            point_list.append(map_.nodes[node_id].location)
+            point_ids.append(node_id)
 
         tags = self._get_tags(xml_node)
         is_area = tags.pop("area", False)
@@ -260,7 +267,7 @@ class OSMParser:
 
         return road_element
 
-    def load_relation(self, xml_node: ET.Element, map_: Map) -> Tuple[Area, RoadLine, Regulatory]:
+    def _load_relation(self, xml_node: ET.Element, map_: Map) -> Tuple[Area, RoadLine, Regulatory]:
         """This function loads an OSM road elements from the XML node.
 
         Args:
@@ -270,7 +277,7 @@ class OSMParser:
         Returns:
             A road element.
         """
-        id_ = xml_node.attrib["id"]
+        id_ = int(xml_node.attrib["id"])
         tags = self._get_tags(xml_node)
         type_ = tags.pop("type")
         road_element = None
@@ -283,7 +290,7 @@ class OSMParser:
             line_ids = []
             for member in xml_node.findall("member"):
                 if member.attrib["type"] == "way":
-                    line_ids.append(member.attrib["ref"])
+                    line_ids.append(int(member.attrib["ref"]))
             for line_id in line_ids:
                 if len(point_list) == 0:
                     if map_.roadlines.get(line_id):
@@ -303,12 +310,13 @@ class OSMParser:
             tos = dict()
             vias = dict()
             for member in xml_node.findall("member"):
+                member_id = int(member.attrib["ref"])
                 if member.attrib["role"] == "from":
-                    froms[member.attrib["ref"]] = member.attrib["type"]
+                    froms[member_id] = member.attrib["type"]
                 elif member.attrib["role"] == "to":
-                    tos[member.attrib["ref"]] = member.attrib["type"]
+                    tos[member_id] = member.attrib["type"]
                 elif member.attrib["role"] == "via":
-                    vias[member.attrib["ref"]] = member.attrib["type"]
+                    vias[member_id] = member.attrib["type"]
 
             tags["froms"] = froms
             tags["tos"] = tos
@@ -317,7 +325,7 @@ class OSMParser:
 
         return road_element
 
-    def load_roadline_lanelet2(self, xml_node: ET.Element, map_: Map) -> RoadLine:
+    def _load_roadline_lanelet2(self, xml_node: ET.Element, map_: Map) -> RoadLine:
         """This function loads a Lanelet 2 roadline from the XML node.
 
         Args:
@@ -327,29 +335,30 @@ class OSMParser:
         Returns:
             A roadline labeled with Lanelet 2 tags.
         """
-        line_id = xml_node.attrib["id"]
+        line_id = int(xml_node.attrib["id"])
         point_list = []
 
         for node in xml_node.findall("nd"):
-            point_list.append(map_.nodes[node.attrib["ref"]].location)
+            point_list.append(map_.nodes[int(node.attrib["ref"])].location)
         linestring = LineString(point_list)
 
         tags = self._get_lanelet2_tags(xml_node)
 
         return RoadLine(id_=line_id, geometry=linestring, **tags)
 
-    def load_lane_lanelet2(self, xml_node: ET.Element, map_: Map) -> Lane:
-        lane_id = xml_node.attrib["id"]
+    def _load_lane_lanelet2(self, xml_node: ET.Element, map_: Map) -> Lane:
+        lane_id = int(xml_node.attrib["id"])
         line_ids = dict(left=[], right=[])
         regulatory_ids = []
 
         for member in xml_node.findall("member"):
+            member_id = int(member.attrib["ref"])
             if member.attrib["role"] == "left":
-                line_ids["left"].append(member.attrib["ref"])
+                line_ids["left"].append(member_id)
             elif member.attrib["role"] == "right":
-                line_ids["right"].append(member.attrib["ref"])
+                line_ids["right"].append(member_id)
             elif member.attrib["role"] == "regulatory_element":
-                regulatory_ids.append(member.attrib["ref"])
+                regulatory_ids.append(member_id)
 
         point_list = dict()
         for side in ["left", "right"]:
@@ -377,7 +386,7 @@ class OSMParser:
 
         return Lane(lane_id, left_side, right_side, line_ids, set(regulatory_ids), **lane_tags)
 
-    def load_area_lanelet2(self, xml_node: ET.Element, map_: Map) -> Area:
+    def _load_area_lanelet2(self, xml_node: ET.Element, map_: Map) -> Area:
         """This function loads a Lanelet 2 area from the XML node.
 
         Args:
@@ -387,17 +396,18 @@ class OSMParser:
         Returns:
             An area labeled with Lanelet 2 tags.
         """
-        area_id = xml_node.attrib["id"]
+        area_id = int(xml_node.attrib["id"])
         line_ids = dict(inner=[], outer=[])
         regulatory_ids = []
 
         for member in xml_node.findall("member"):
+            member_id = int(member.attrib["ref"])
             if member.attrib["role"] == "outer":
-                line_ids["outer"].append(member.attrib["ref"])
+                line_ids["outer"].append(member_id)
             elif member.attrib["role"] == "inner":
-                line_ids["inner"].append(member.attrib["ref"])
+                line_ids["inner"].append(member_id)
             elif member.attrib["role"] == "regulatory_element":
-                regulatory_ids.append(member.attrib["ref"])
+                regulatory_ids.append(member_id)
 
         outer_point_list = list(map_.roadlines[line_ids["outer"][0]].geometry.coords)
         for line_id in line_ids["outer"][1:]:
@@ -427,15 +437,15 @@ class OSMParser:
 
         return Area(area_id, polygon, line_ids, set(regulatory_ids), **area_tags)
 
-    def load_regulatory_lanelet2(self, xml_node: ET.Element) -> Regulatory:
-        regulatory_id = xml_node.attrib["id"]
+    def _load_regulatory_lanelet2(self, xml_node: ET.Element) -> Regulatory:
+        regulatory_id = int(xml_node.attrib["id"])
         relations = dict()
         ways = dict()
         for member in xml_node.findall("member"):
             if member.attrib["type"] == "relation":
-                relations[member.attrib["ref"]] = member.attrib["role"]
+                relations[int(member.attrib["ref"])] = member.attrib["role"]
             elif member.attrib["type"] == "way":
-                ways[member.attrib["ref"]] = member.attrib["role"]
+                ways[int(member.attrib["ref"])] = member.attrib["role"]
 
         regulatory_tags = self._get_lanelet2_tags(xml_node)
         return Regulatory(regulatory_id, relations, ways, **regulatory_tags)
@@ -475,36 +485,36 @@ class OSMParser:
         node_boundary = xml_root.find("bounds")
         if node_boundary is not None:
             map_.set_boundary(
-                self.load_bounds(node_boundary, projector, origin)
+                self._load_bounds(node_boundary, projector, origin)
                 if to_project
-                else self.load_bounds_no_proj(node_boundary)
+                else self._load_bounds_no_proj(node_boundary)
             )
 
         if to_project:
             for xml_node in xml_root.findall("node"):
                 if xml_node.get("action") == "delete":
                     continue
-                map_.add_node(self.load_nodes(xml_node, projector, origin))
+                map_.add_node(self._load_nodes(xml_node, projector, origin))
         else:
             for xml_node in xml_root.findall("node"):
                 if xml_node.get("action") == "delete":
                     continue
-                map_.add_node(self.load_nodes_no_proj(xml_node))
+                map_.add_node(self._load_nodes_no_proj(xml_node))
 
         if self.lanelet2:
             for xml_node in xml_root.findall("way"):
                 if xml_node.get("action") == "delete":
                     continue
-                map_.add_roadline(self.load_roadline_lanelet2(xml_node, map_))
+                map_.add_roadline(self._load_roadline_lanelet2(xml_node, map_))
 
             for xml_node in xml_root.findall("relation"):
                 if xml_node.get("action") == "delete":
                     continue
                 for tag in xml_node.findall("tag"):
                     if tag.attrib["v"] == "lanelet":
-                        map_.add_lane(self.load_lane_lanelet2(xml_node, map_))
+                        map_.add_lane(self._load_lane_lanelet2(xml_node, map_))
                     elif tag.attrib["v"] in ["multipolygon", "area"]:
-                        map_.add_area(self.load_area_lanelet2(xml_node, map_))
+                        map_.add_area(self._load_area_lanelet2(xml_node, map_))
 
             for xml_node in xml_root.findall("relation"):
                 if xml_node.get("action") == "delete":
@@ -512,13 +522,13 @@ class OSMParser:
                 if self.lanelet2:
                     for tag in xml_node.findall("tag"):
                         if tag.attrib["v"] == "regulatory_element":
-                            map_.add_regulatory(self.load_regulatory_lanelet2(xml_node))
+                            map_.add_regulatory(self._load_regulatory_lanelet2(xml_node))
 
         else:
             for xml_node in xml_root.findall("way"):
                 if xml_node.get("action") == "delete":
                     continue
-                road_element = self.load_way(xml_node, map_)
+                road_element = self._load_way(xml_node, map_)
 
                 if isinstance(road_element, RoadLine):
                     map_.add_roadline(road_element)
@@ -528,7 +538,7 @@ class OSMParser:
             for xml_node in xml_root.findall("relation"):
                 if xml_node.get("action") == "delete":
                     continue
-                road_element = self.load_relation(xml_node, map_)
+                road_element = self._load_relation(xml_node, map_)
 
                 if isinstance(road_element, RoadLine):
                     map_.add_roadline(road_element)

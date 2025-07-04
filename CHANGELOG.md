@@ -10,12 +10,17 @@
 - Parameter changes in `tactics2d.geometry`:
   - `Circle`: Remove `get_circle_by_three_points` and `get_circle_by_tangent_vector`. Keep their functionality in `Circle.get_circle(**kwargs)`.
 - Parameter changes in `tactics2d.interpolator`:
-  - `Bezier`: Change `get_curve` method to static method. Remove `order` parameter in `__init__` method. Add `order` parameter in `get_curve` method.
-  - `BSpline`: Change `get_curve` method to static method. Remove `degree` parameter in `__init__` method. Add `degree` parameter in `get_curve` method.
-  - `CubicSpline`: Change `get_curve` method to static method. Remove `boundary_type` parameter in `__init__` method. Add `boundary_type` parameter in `get_curve` method.
+  - `Bezier`: Change `get_curve` method to static method. Move `order` parameter from `__init__` to `get_curve` method.
+  - `BSpline`: Change `get_curve` method to static method. Move `degree` parameter from `__init__` to `get_curve` method.
+  - `CubicSpline`: Change `get_curve` method to static method. Move `boundary_type` parameter from `__init__` to `get_curve` method.
   - `Spiral`: Rename `get_spiral` method to `get_curve`.
+  - `tactics2d.traffic.scenario_display` to `tactics2d.sensor.matplotlib.renderer`.
+  - `tactics2d.sensor.camera` returns dictionary for frontend rendering.
+  - `tactics2d.sensor.lidar` returns dictionary for frontend rendering.
 
 ### Fixed
+
+- Improve `NuPlanParser.map_parser()` at my best, still it is a mess of shit.
 
 ### Deprecated
 
@@ -24,7 +29,6 @@
 ### TODO
 
 - `tactics2d.interpolator.cubic_spline`: Improve efficiency of CubicSpline by ThomasSolver.
-- `tactics2d.dataset_parser.NuPlanParser`: Identify the boundaries of a lane element.
 - `tactics2d.dataset_parser.WOMDParser`: Identify the boundaries of a lane element.
 - `tactics2d.dataset_parser.womd_proto`: Add compatibility to protobuf 3.x.x and 4.x.x.
 - `tactics2d.map.parser.OSMParser`: Handle the tag `highway` in `load_way` for the original [OSM label style](https://wiki.openstreetmap.org/wiki/Key:lanes).
