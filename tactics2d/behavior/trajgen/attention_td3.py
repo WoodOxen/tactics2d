@@ -27,7 +27,7 @@ class ScaledDotProductAttention(nn.Module):
         return out, attn
 
 
-class AttentionActor(nn.Module):
+class ActorNet(nn.Module):
     def __init__(self, param_dict, control_steering=True):
         super().__init__()
         self.route_feature_num = param_dict["route_feature_num"]
@@ -169,7 +169,7 @@ class AttentionActor(nn.Module):
         return action, att_matrix
 
 
-class CriticNetwork(nn.Module):
+class CriticNet(nn.Module):
     def __init__(self, param_dict, control_steering=True):
         super().__init__()
         self.route_feature_num = param_dict["route_feature_num"]
