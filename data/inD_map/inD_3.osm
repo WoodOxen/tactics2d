@@ -3214,11 +3214,12 @@
     <tag k='subtype' v='vegetation' />
     <tag k='type' v='multipolygon' />
   </relation>
-  <relation id='1772325' visible='true' version='1'>
+  <relation id='1772325' action='modify' visible='true' version='1'>
     <member type='way' ref='1784508' role='right' />
     <member type='way' ref='1784941' role='right' />
     <member type='way' ref='1784272' role='right' />
     <member type='way' ref='1784176' role='left' />
+    <member type='way' ref='1784327' role='left' />
     <tag k='location' v='urban' />
     <tag k='one_way' v='yes' />
     <tag k='region' v='de' />
