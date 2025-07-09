@@ -11,37 +11,24 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
-class ScaledDotProductAttention(nn.Module):
-    def __init__(self, features_per_head):
-        super().__init__()
-        self.scale = np.sqrt(features_per_head)
-
-    def forward(self, query, key, value, mask=None):
-        # query: [B, head, 1, F], key/value: [B, head, N, F]
-        scores = torch.matmul(query, key.transpose(-2, -1)) / self.scale  # [B, head, 1, N]
-        if mask is not None:
-            scores = scores.masked_fill(mask, float("-inf"))
-        attn = F.softmax(scores, dim=-1)
-        out = torch.matmul(attn, value)  # [B, head, 1, F]
-        return out, attn
+from .config import TRAJGEN_CONFIG
 
 
 class ActorNet(nn.Module):
-    def __init__(self, param_dict, control_steering=True):
+    def __init__(self):
         super().__init__()
-        self.route_feature_num = param_dict["route_feature_num"]
-        self.ego_feature_num = param_dict["ego_feature_num"]
-        self.npc_feature_num = param_dict["npc_feature_num"]
-        self.npc_num = param_dict["npc_num"]
-        self.state_size = param_dict["state_size"]
-        self.action_size = param_dict["action_size"] if control_steering else 1
-        self.control_steering = control_steering
 
-        self.encoder_size = [64, 64]
-        self.decoder_size = [256, 256]
-        self.features_per_head = 64
-        self.feature_head = 1
+        for key, value in TRAJGEN_CONFIG.items():
+            setattr(self, key, value)
+
+        self.mask_num = self.npc_num + 1
+        self.state_size = (
+            self.route_feature_num
+            + self.ego_feature_num
+            + self.npc_num * self.npc_feature_num
+            + self.mask_num
+        )
+
         self.kqv_size = self.features_per_head * self.feature_head
 
         # Encoders
@@ -62,7 +49,6 @@ class ActorNet(nn.Module):
         self.query_ego = nn.Linear(self.encoder_size[1], self.kqv_size, bias=False)
         self.key_all = nn.Linear(self.encoder_size[1], self.kqv_size, bias=False)
         self.value_all = nn.Linear(self.encoder_size[1], self.kqv_size, bias=False)
-        self.attention = ScaledDotProductAttention(self.features_per_head)
 
         # Route encoder
         if self.control_steering:
@@ -107,11 +93,11 @@ class ActorNet(nn.Module):
             + self.ego_feature_num
             + self.npc_num * self.npc_feature_num,
         ]
-        ego_state = vehicle_state[:, : self.ego_feature_num]
+        ego_state = vehicle_state[:, : self.ego_feature_num].reshape(-1, 1, self.ego_feature_num)
         npcs_state = vehicle_state[:, self.ego_feature_num :].reshape(
             -1, self.npc_num, self.npc_feature_num
         )
-        mask = state[:, -(self.npc_num + 1) :] < 0.5  # [B, npc_num+1]
+        mask = state[:, -self.mask_num :] < 0.5  # [B, npc_num+1]
         return ego_state, npcs_state, route_state, mask
 
     @staticmethod
@@ -119,29 +105,41 @@ class ActorNet(nn.Module):
         noise = theta * (mu - action) + sigma * np.sqrt(dt) * np.random.randn(*action.shape)
         return noise
 
-    def forward(self, state, noise_std=0.0):
+    def attention(self, query, key, value, mask):
+        scores = torch.matmul(query, key.transpose(-2, -1)) / np.sqrt(self.features_per_head)
+        if mask is not None:
+            scores = scores.masked_fill(mask, -1e9)
+        p_attn = F.softmax(scores, dim=-1)
+        att_output = torch.matmul(p_attn, value)
+        return att_output, p_attn
+
+    def forward(self, state):
         ego_state, npcs_state, route_state, mask = self.split_input(state)
         B = state.shape[0]
 
         # Encode ego and npcs
         ego_enc = self.ego_encoder(ego_state).unsqueeze(1)  # [B, 1, F]
-        npcs_enc = self.npc_encoder(npcs_state.view(-1, self.npc_feature_num)).view(
-            B, self.npc_num, -1
-        )  # [B, npc_num, F]
-        concat_enc = torch.cat([ego_enc, npcs_enc], dim=1)  # [B, npc_num+1, F]
+        npcs_enc = self.npc_encoder(npcs_state)  # [B, N, F]
+        concat_enc = torch.cat([ego_enc, npcs_enc], dim=1)  # [B, N+1, F]
 
         # Attention projections
-        query = self.query_ego(ego_enc)  # [B, 1, kqv]
-        key = self.key_all(concat_enc)  # [B, npc_num+1, kqv]
-        value = self.value_all(concat_enc)  # [B, npc_num+1, kqv]
+        query = self.query_ego(ego_enc)  # [B, 1, D]
+        key = self.key_all(concat_enc)  # [B, N+1, D]
+        value = self.value_all(concat_enc)  # [B, N+1, D]
 
         # Reshape for multi-head (here only 1 head)
-        query = query.view(B, self.feature_head, 1, self.features_per_head)
-        key = key.view(B, self.feature_head, self.npc_num + 1, self.features_per_head)
-        value = value.view(B, self.feature_head, self.npc_num + 1, self.features_per_head)
+        query = query.view(B, 1, self.feature_head, self.features_per_head).transpose(
+            1, 2
+        )  # [B, head, 1, F]
+        key = key.view(B, self.mask_num, self.feature_head, self.features_per_head).transpose(
+            1, 2
+        )  # [B, head, N+1, F]
+        value = value.view(B, self.mask_num, self.feature_head, self.features_per_head).transpose(
+            1, 2
+        )  # [B, head, N+1, F]
 
         # Mask shape: [B, 1, 1, npc_num+1] -> [B, head, 1, npc_num+1]
-        mask = mask.unsqueeze(1).unsqueeze(2).expand(-1, self.feature_head, 1, -1)
+        mask = mask.unsqueeze(1).unsqueeze(2).expand(-1, self.feature_head, 1, self.mask_num)
 
         # Attention
         att_result, att_matrix = self.attention(query, key, value, mask)
@@ -158,30 +156,45 @@ class ActorNet(nn.Module):
             acc = torch.tanh(self.acc_head(dec))
             steer = torch.tanh(self.steer_head(dec))
             action = torch.cat([acc, steer], dim=1)
-            if noise_std > 0:
-                action = action + torch.randn_like(action) * noise_std
-            action = torch.clamp(action, -1, 1)
         else:
             target_speed = torch.sigmoid(self.target_speed_head(dec))
-            if noise_std > 0:
-                target_speed = target_speed + torch.randn_like(target_speed) * noise_std
-            action = torch.clamp(target_speed, 0, 1)
+            action = target_speed
         return action, att_matrix
+
+    def get_action(self, state, noise=1.0):
+        self.eval()
+        with torch.no_grad():
+            action, _ = self.forward(torch.FloatTensor(state))
+            action = action.cpu().numpy().squeeze()
+        if self.control_steering:
+            acc_noised = action[0] + self.ou_noise(action[0], mu=0, theta=0.3, sigma=0.45) * noise
+            steer_noised = action[1] + self.ou_noise(action[0], mu=0, theta=0.3, sigma=0.45) * noise
+            action_noise = np.squeeze(
+                np.array([np.clip(acc_noised, -1, 1), np.clip(steer_noised, -1, 1)])
+            )
+        else:
+            target_speed_noised = (
+                action + self.ou_noise(action, mu=0.5, theta=0.3, sigma=0.45) * noise
+            )
+            action_noise = np.clip(target_speed_noised, 0, 1)
+
+        return action_noise
 
 
 class CriticNet(nn.Module):
-    def __init__(self, param_dict, control_steering=True):
+    def __init__(self):
         super().__init__()
-        self.route_feature_num = param_dict["route_feature_num"]
-        self.ego_feature_num = param_dict["ego_feature_num"]
-        self.npc_feature_num = param_dict["npc_feature_num"]
-        self.npc_num = param_dict["npc_num"]
-        self.state_size = param_dict["state_size"]
-        self.action_size = param_dict["action_size"] if control_steering else 1
-        self.control_steering = control_steering
 
-        self.encoder_size = [64, 64]
-        self.decoder_size = [256, 256]
+        for key, value in TRAJGEN_CONFIG.items():
+            setattr(self, key, value)
+
+        self.mask_num = self.npc_num + 1
+        self.state_size = (
+            self.route_feature_num
+            + self.ego_feature_num
+            + self.npc_num * self.npc_feature_num
+            + self.mask_num
+        )
 
         # Encoders
         self.vehicle_encoder = nn.Sequential(
