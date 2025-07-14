@@ -85,7 +85,7 @@ You can also install `tactics2d` from from its source on GitHub. This way is rec
 # please download NuPlan's map data from its official website and put it in the `tactics2d/data/map/NuPlan` directory
 git clone --recurse-submodules git@github.com:WoodOxen/tactics2d.git
 cd tactics2d
-pip install -v .
+python setup.py install
 ```
 
 If no errors occurs, you should have installed `tactics2d` successfully.
@@ -213,6 +213,29 @@ pytest tests/[test_file_name]::[test_function_name]
 </table>
 
 ### Racing cases (Self-generated)
+
+## Acknowledgement
+
+### Core Development Team
+
+This project is developed and maintained by the following individuals:
+
+SCP-CN-001, MotacillaAlba, jiamiya, ...
+
+### Contributors
+
+This project has benefited from the contributions of the following individuals:
+
+Merealtea, zhuanghany11, liyuhang699, shuo-Liu, AnthonyWithLi, ...
+
+### Third-party Libraries
+
+`tactics2d` has referred to the following third-party libraries to implement some of its functionalities:
+
+1. Interactive Behavior Models
+
+     - [InterSim](https://github.com/Tsinghua-MARS-Lab/InterSim)
+     - [LimSim](https://github.com/PJLab-ADG/LimSim)
 
 ## Citation
 

@@ -43,7 +43,7 @@ class Regulatory:
         nodes: dict = dict(),
         type_: str = "regulatory_element",
         subtype: str = None,
-        position: str = None,
+        position=None,
         location: str = None,
         dynamic: bool = False,
         fallback: bool = False,
@@ -58,7 +58,7 @@ class Regulatory:
             nodes (dict, optional): A dictionary of the nodes that the regulatory element belongs to. The key is the id of the node, and the value is the role of the node.
             type_ (str, optional): The type of the regulatory element.
             subtype (str, optional): The subtype of the regulatory element.
-            position (str, optional): The position of the regulatory element.
+            position (Any, optional): The position of the regulatory element.
             location (str, optional): The location of the regulatory element.
             dynamic (bool, optional): Whether the regulatory element is dynamic.
             fallback (bool, optional): Whether the regulatory element is a fallback.
