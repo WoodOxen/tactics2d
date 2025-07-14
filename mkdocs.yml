@@ -92,15 +92,7 @@ theme:
     - navigation.instant.progress
     - navigation.top
     - navigation.sections
-    - navigation.indexes
-    - navigation.integrate
-    - navigation.instant
-    - navigation.instant.progress
-    - navigation.top
-    - navigation.sections
     - search.suggest
-    - toc.follow
-    - toc.integrate
     - toc.follow
     - toc.integrate
 
@@ -120,8 +112,6 @@ plugins:
       include_requirejs: true
       include_source: true
       kernel_name: python3
-  - search:
-      lang: en
   - search:
       lang: en
 
@@ -146,11 +136,8 @@ extra_javascript:
   - javascripts/hide_code.js
   - https://unpkg.com/katex@0/dist/katex.min.js
   - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
-  - https://unpkg.com/katex@0/dist/katex.min.js
-  - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
 
 extra_css:
   - css/extra_for_material.css
   - css/hide_code.css
-  - https://unpkg.com/katex@0/dist/katex.min.css
   - https://unpkg.com/katex@0/dist/katex.min.css
