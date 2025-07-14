@@ -10,6 +10,7 @@ import logging
 from enum import IntEnum
 from typing import Any, Union
 
+import numpy as np
 from shapely.geometry import LinearRing, LineString
 
 
@@ -103,6 +104,9 @@ class Lane:
         self.speed_limit_mandatory = speed_limit_mandatory
         self.custom_tags = custom_tags
 
+        self._check_boundary()
+        self.centerline = self._get_centerline()
+
         if not None in [left_side, right_side]:
             self.geometry = LinearRing(
                 list(left_side.coords) + list(reversed(list(right_side.coords)))
@@ -116,6 +120,88 @@ class Lane:
         self.successors = set()
         self.left_neighbors = set()
         self.right_neighbors = set()
+
+    def _check_boundary(self):
+        if self.left_side is None or self.right_side is None:
+            return
+
+        left_coords = np.array(self.left_side.coords)
+        right_coords = np.array(self.right_side.coords)
+
+        # 1. Check left and right side are correctly defined
+        n = min(len(left_coords), len(right_coords), 10)
+        indices = np.linspace(0, min(len(left_coords), len(right_coords)) - 1, n, dtype=int)
+        cross_sum = 0
+        for idx in indices:
+            if idx < len(left_coords) - 1 and idx < len(right_coords) - 1:
+                lane_vec = 0.5 * (
+                    (left_coords[idx + 1] - left_coords[idx])
+                    + (right_coords[idx + 1] - right_coords[idx])
+                )
+            else:
+                lane_vec = 0.5 * (
+                    (left_coords[-1] - left_coords[-2]) + (right_coords[-1] - right_coords[-2])
+                )
+            left_to_right = right_coords[idx] - left_coords[idx]
+            cross_z = np.cross(lane_vec[:2], left_to_right[:2])
+            cross_sum += cross_z
+        if cross_sum < 0:
+            self.left_side, self.right_side = self.right_side, self.left_side
+            left_coords = np.array(self.left_side.coords)
+            right_coords = np.array(self.right_side.coords)
+            logging.debug(
+                f"Swapped left_side and right_side for lane {self.id_} to ensure correct orientation."
+            )
+
+        # 2. Ensuring that the start points are on the entrance of the lane
+        left_start = left_coords[0]
+        left_end = left_coords[-1]
+        right_start = right_coords[0]
+        right_end = right_coords[-1]
+        dist_starts = np.linalg.norm(left_start - right_start)
+        dist_ends = np.linalg.norm(left_end - right_end)
+        if dist_starts > dist_ends:
+            self.left_side = LineString(left_coords[::-1])
+            self.right_side = LineString(right_coords[::-1])
+            logging.debug(
+                f"Reversed left_side and right_side for lane {self.id_} to ensure entrance direction."
+            )
+
+    def _get_centerline(self):
+        """Interpolate the side with fewer points to match the other, then compute the centerline."""
+        if self.left_side is None or self.right_side is None:
+            return None
+
+        left_coords = np.array(self.left_side.coords)
+        right_coords = np.array(self.right_side.coords)
+
+        n_left = len(left_coords)
+        n_right = len(right_coords)
+
+        if n_left > n_right:
+            base = left_coords
+            ref = right_coords
+            ref_line = LineString(ref)
+            ref_dist = np.linspace(0, ref_line.length, n_left)
+            ref_points = [ref_line.interpolate(d) for d in ref_dist]
+            ref_coords = np.array([[p.x, p.y] for p in ref_points])
+            left_coords_interp = base
+            right_coords_interp = ref_coords
+        elif n_right > n_left:
+            base = right_coords
+            ref = left_coords
+            ref_line = LineString(ref)
+            ref_dist = np.linspace(0, ref_line.length, n_right)
+            ref_points = [ref_line.interpolate(d) for d in ref_dist]
+            ref_coords = np.array([[p.x, p.y] for p in ref_points])
+            left_coords_interp = ref_coords
+            right_coords_interp = base
+        else:
+            left_coords_interp = left_coords
+            right_coords_interp = right_coords
+
+        centerline = 0.5 * (left_coords_interp + right_coords_interp)
+        return LineString(centerline)
 
     def _set_speed_limit_unit(self, speed_limit: float, speed_limit_unit: str):
         if not speed_limit_unit in self._speed_units:
