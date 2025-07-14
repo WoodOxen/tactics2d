@@ -26,7 +26,6 @@ nav:
 
   - Python API:
     - tactics2d.controller: "api/controller.md"
-    - tactics2d.controller: "api/controller.md"
     - tactics2d.dataset_parser: "api/dataset_parser.md"
     - tactics2d.envs: "api/envs.md"
     - tactics2d.geometry: "api/geometry.md"
