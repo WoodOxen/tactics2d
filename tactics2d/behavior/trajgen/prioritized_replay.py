@@ -15,11 +15,6 @@ import numpy as np
 
 
 class SumTree:
-    """
-    This SumTree code is modified version of Morvan Zhou:
-    https://github.com/MorvanZhou/Reinforcement-learning-with-tensorflow/blob/master/contents/5.2_Prioritized_Replay_DQN/RL_brain.py
-    """
-
     data_pointer = 0
 
     # initialise tree with all nodes = 0 and data with all values =0
@@ -71,12 +66,7 @@ class SumTree:
         return self.tree[0]
 
 
-class Buffer:
-    """
-    This SumTree code is modified version of:
-    https://github.com/jaara/AI-blog/blob/master/Seaquest-DDQN-PER.py
-    """
-
+class ReplayBuffer:
     def __init__(self, capacity, pretrain_length):
         """
         Remember that our tree is composed of a sum tree that contains the priority scores at his leaf

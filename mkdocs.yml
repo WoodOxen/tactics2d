@@ -26,6 +26,7 @@ nav:
 
   - Python API:
     - tactics2d.controller: "api/controller.md"
+    - tactics2d.controller: "api/controller.md"
     - tactics2d.dataset_parser: "api/dataset_parser.md"
     - tactics2d.envs: "api/envs.md"
     - tactics2d.geometry: "api/geometry.md"
@@ -92,7 +93,15 @@ theme:
     - navigation.instant.progress
     - navigation.top
     - navigation.sections
+    - navigation.indexes
+    - navigation.integrate
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.top
+    - navigation.sections
     - search.suggest
+    - toc.follow
+    - toc.integrate
     - toc.follow
     - toc.integrate
 
@@ -114,11 +123,17 @@ plugins:
       kernel_name: python3
   - search:
       lang: en
+  - search:
+      lang: en
 
 markdown_extensions:
   - abbr
   - admonition
   - attr_list
+  - toc:
+      toc_depth: 2
+  - pymdownx.arithmatex:
+      generic: true
   - toc:
       toc_depth: 2
   - pymdownx.arithmatex:
@@ -132,8 +147,11 @@ extra_javascript:
   - javascripts/hide_code.js
   - https://unpkg.com/katex@0/dist/katex.min.js
   - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
+  - https://unpkg.com/katex@0/dist/katex.min.js
+  - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
 
 extra_css:
   - css/extra_for_material.css
   - css/hide_code.css
+  - https://unpkg.com/katex@0/dist/katex.min.css
   - https://unpkg.com/katex@0/dist/katex.min.css
