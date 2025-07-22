@@ -14,7 +14,7 @@ import pandas as pd
 import polars as pl
 from pyproj import Proj
 
-from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
+from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 
 
@@ -46,6 +46,7 @@ class LevelXParser:
         "bicycle": "bicycle",
         "cycle": "bicycle",
         "pedestrian": "pedestrian",
+        "animal": "animal",
     }
 
     _CLASS_MAPPING = {
@@ -61,6 +62,7 @@ class LevelXParser:
         "bicycle": Cyclist,
         "cycle": Cyclist,
         "pedestrian": Pedestrian,
+        "animal": Other,
     }
 
     _HIGHD_BOUNDS = {

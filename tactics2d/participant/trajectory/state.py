@@ -28,7 +28,7 @@ class State:
         ay (float): The acceleration in the y-axis. The unit is meter per second squared (m/s$^2$).
         accel (float): The scalar acceleration value. The unit is meter per second squared (m/s$^2$). This attribute can be set while initialization or by `set_accel`. If it is not set while ax and ay are available, accel will be obtained by sqrt(ax$^2$+ay$^2$). Otherwise, the accel will be None.
         location (Tuple[float, float]): The location. The unit is meter. This attribute is **read-only**.
-        velocity (Tuple[float, float]): The velocity vector (vx, vy). The unit is meter per second (m/s). If vx and vy are not available but speed and heading are available, the velocity will be obtained by (speed * cos(heading), speed * sin(heading)). Otherwise, the velocity will be None. This attribute is **read-only**.
+        velocity (Tuple[float, float]): The velocity vector (vx, vy). The unit is meter per second (m/s). If vx and vy are not available but speed and heading are available, the velocity will be obtained by (speed * cos(heading), speed * sin(heading)). Otherwise, the velocity will be (None, None). This attribute is **read-only**.
         acceleration (Tuple[float, float]): The acceleration vector (ax, ay). The unit is meter per second squared (m/s$^2$). If ax and ay are not available, the acceleration will be None. This attribute is **read-only**.
     """
 
@@ -124,7 +124,7 @@ class State:
         if not None in [self.speed, self.heading]:
             return (self.speed * np.cos(self.heading), self.speed * np.sin(self.heading))
 
-        return None
+        return (None, None)
 
     @property
     def accel(self) -> float:
@@ -142,7 +142,7 @@ class State:
         elif not None in [self._accel, self.heading]:
             return (self._accel * np.cos(self.heading), self._accel * np.sin(self.heading))
 
-        return None
+        return (None, None)
 
     def set_heading(self, heading: float):
         """This function sets the heading direction (radian)."""

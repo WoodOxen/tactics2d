@@ -18,7 +18,16 @@ class IDM:
     !!! quote "Reference"
         Treiber, Martin, Ansgar Hennecke, and Dirk Helbing. "Congested traffic states in empirical observations and microscopic simulations." Physical review E 62.2 (2000): 1805.
     """
-    def __init__(self, s0: float=2.0, T: float=1.6, a: float=0.73, b: float=1.67, delta:int=4, t_bound: float=0.05):
+
+    def __init__(
+        self,
+        s0: float = 2.0,
+        T: float = 1.6,
+        a: float = 0.73,
+        b: float = 1.67,
+        delta: int = 4,
+        t_bound: float = 0.05,
+    ):
         """Initialize the IDM parameters.
 
         Args:
@@ -35,7 +44,7 @@ class IDM:
         self.b = b
         self.delta = delta
         self.t_bound = t_bound
-    
+
     def get_acceleration(self, ego_speed: float, v0: float, delta_v: float, s: float) -> float:
         """
 
@@ -48,11 +57,15 @@ class IDM:
         Returns:
             float:
         """
-        s_star = self.s0 + ego_speed*self.T +ego_speed*delta_v/ (2.0 * np.sqrt(self.a * self.b))
-        acceleration = self.a * (1.0 - (ego_speed/v0) ** self.delta - (s_star / s) ** 2)
+        s_star = (
+            self.s0 + ego_speed * self.T + ego_speed * delta_v / (2.0 * np.sqrt(self.a * self.b))
+        )
+        acceleration = self.a * (1.0 - (ego_speed / v0) ** self.delta - (s_star / s) ** 2)
         return acceleration
 
-    def get_speed(self, ego_speed: float, leading_vehicle_speed: float, v0: float, l: float, s: float) -> float:
+    def get_speed(
+        self, ego_speed: float, leading_vehicle_speed: float, v0: float, l: float, s: float
+    ) -> float:
         """Estimate ego vehicle’s future speed after a short time using the IDM acceleration model.
 
         Args:
@@ -65,16 +78,21 @@ class IDM:
         Returns:
             float:
         """
+
         def idm_equation(t, x):
             ego_position, ego_speed = x
             delta_v = ego_speed - leading_vehicle_speed
-            s_star = self.s0 + ego_speed*self.T +ego_speed*delta_v/ (2.0 * np.sqrt(self.a * self.b))
+            s_star = (
+                self.s0
+                + ego_speed * self.T
+                + ego_speed * delta_v / (2.0 * np.sqrt(self.a * self.b))
+            )
             # The maximum is needed to avoid numerical instability
             net_distance = max(0.1, s + t * leading_vehicle_speed - ego_position - l)
             dvdt = self.a * (1.0 - (ego_speed / v0) ** self.delta - (s_star / net_distance) ** 2)
 
             return [ego_speed, dvdt]
-        
+
         # Set the initial conditions
         y0 = [0.0, ego_speed]
         # Integrate the differential equations using RK45
