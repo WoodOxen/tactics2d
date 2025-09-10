@@ -130,7 +130,7 @@ class State:
     def accel(self) -> float:
         if not None in [self.ax, self.ay]:
             return np.linalg.norm([self.ax, self.ay])
-        elif not self.acceleration is None:
+        elif not self.acceleration is None and not self.acceleration is (None, None):
             return np.linalg.norm(self.acceleration)
 
         return None
