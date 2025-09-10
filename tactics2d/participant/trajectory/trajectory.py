@@ -84,6 +84,20 @@ class Trajectory:
     def average_speed(self):
         return np.mean([state.speed for state in self._history_states.values()])
 
+    def get_closest_frame(self, frame: int) -> int:
+        """This function gets the closest frame in the trajectory to the requested frame.
+
+        Args:
+            frame (int): The time stamp of the requested frame. The unit is millisecond (ms).
+
+        Returns:
+            int: The closest frame in the trajectory to the requested frame. If the trajectory is empty, it will be None.
+        """
+        if len(self) == 0:
+            return None
+        closest_frame = min(self._history_states.keys(), key=lambda x: abs(x - frame))
+        return closest_frame
+
     def has_state(self, frame: int) -> bool:
         """This function checks if the trajectory has a state at the requested frame.
 
@@ -110,7 +124,11 @@ class Trajectory:
         if frame is None:
             return self._current_state
         if frame not in self._history_states:
-            raise KeyError(f"Time stamp {frame} is not found in the trajectory {self.id_}.")
+            closest_frame = self.get_closest_frame(frame)
+            logging.warning(
+                f"Frame {frame} not found in trajectory {self.id_}. Returning the state at the closest frame {closest_frame} instead."
+            )
+            return self._history_states[closest_frame]
         return self._history_states[frame]
 
     def add_state(self, state: State):
