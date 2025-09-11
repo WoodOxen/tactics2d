@@ -15,7 +15,7 @@ import numpy as np
 import pyogrio
 from shapely.geometry import LinearRing, LineString, Point, Polygon
 
-from tactics2d.map.element import Area, Lane, Map, Node, Regulatory, RoadLine
+from tactics2d.map.element import Area, Lane, Map, Regulatory, RoadLine
 from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 

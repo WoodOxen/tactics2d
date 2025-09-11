@@ -55,7 +55,7 @@ def test_camera(follow_view: bool):
 
     if follow_view:
         camera = BEVCamera(1, map_, window_size=(600, 600))
-        camera.update(participants, participant_ids, frame)
+        camera.update(participants, participant_ids, frame, None, None)
     else:
         camera = BEVCamera(1, map_, (30, 30, 45, 15), window_size=(600, 600))
         state = participants[participant_ids[0]].get_state(frame)

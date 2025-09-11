@@ -100,7 +100,6 @@ class Area:
         elif speed_limit_unit == "mi/h" or speed_limit_unit == "mph":
             self.speed_limit = round(speed_limit / 2.237, 3)
 
-    @property
     def shape(self, outer_only: bool = False) -> Tuple[list, list]:
         outer_shape = list(self.geometry.exterior.coords)
         if outer_only:

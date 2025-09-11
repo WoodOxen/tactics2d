@@ -57,8 +57,11 @@ class IDM:
         Returns:
             float:
         """
-        s_star = (
-            self.s0 + ego_speed * self.T + ego_speed * delta_v / (2.0 * np.sqrt(self.a * self.b))
+        if s == 0:
+            s = 1e-5
+
+        s_star = self.s0 + max(
+            0, ego_speed * self.T + ego_speed * delta_v / (2.0 * np.sqrt(self.a * self.b))
         )
         acceleration = self.a * (1.0 - (ego_speed / v0) ** self.delta - (s_star / s) ** 2)
         return acceleration

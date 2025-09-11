@@ -35,6 +35,11 @@ nav:
     - tactics2d.physics: "api/physics.md"
     - tactics2d.sensor: "api/sensor.md"
     - tactics2d.traffic: "api/traffic.md"
+
+  - Tutorials:
+    - Interpolators: "tutorials/interpolator_demo.ipynb"
+    - Classical Planners: "tutorials/classical_planner_demo.ipynb"
+
   - Community: "community.md"
   - Publications: "publication.md"
 
