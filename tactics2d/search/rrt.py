@@ -48,7 +48,7 @@ class RRT:
             target (ArrayLike): Goal point [x, y].
             boundary (ArrayLike): Search area limits, formatted as [xmin, xmax, ymin, ymax].
             obstacles (Any): Collection of obstacles in the environment. Can be a list of rectangles, polygons, or other shapes depending on `collide_fn`.
-            collide_fn (Callable): Collision checking function with signature `collide_fn(p1: ArrayLike, p2: ArrayLike, obstacles: Any) -> bool`, returning True if the edge (p1 → p2) is in collision.
+            collide_fn (Callable): Collision checking function with signature `collide_fn(p1: ArrayLike, p2: ArrayLike, obstacles: Any) -> bool`, returning True if the edge (p1 -> p2) is in collision.
             max_iter
             step_size
 
