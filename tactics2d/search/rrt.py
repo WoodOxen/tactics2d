@@ -14,6 +14,12 @@ from tactics2d.participant.trajectory import State
 
 
 class RRT:
+    """This class implements the RRT algorithm.
+
+    !!! quote "Reference"
+        LaValle, Steven. "Rapidly-exploring random trees: A new tool for path planning." Research Report 9811 (1998).
+    """
+
     @staticmethod
     def _reconstruct(tree, idx):
         result = []
@@ -29,20 +35,22 @@ class RRT:
     def plan(
         start: ArrayLike,
         target: ArrayLike,
-        bounds: ArrayLike,
+        boundary: ArrayLike,
         obstacles: Any,
         collide_fn: Callable,
-        max_iter: int = 1e5,
         step_size: float = 1.0,
+        max_iter: int = 1e5,
     ):
         """This method finds a feasible collision-free path from the start to the target position without considering vehicle size, kinematic constraints, or dynamics. The result is a sequence of waypoints in free space.
 
         Args:
             start (ArrayLike): Starting point [x, y].
             target (ArrayLike): Goal point [x, y].
-            bounds (ArrayLike): Search area limits, formatted as [xmin, xmax, ymin, ymax].
+            boundary (ArrayLike): Search area limits, formatted as [xmin, xmax, ymin, ymax].
             obstacles (Any): Collection of obstacles in the environment. Can be a list of rectangles, polygons, or other shapes depending on `collide_fn`.
             collide_fn (Callable): Collision checking function with signature `collide_fn(p1: ArrayLike, p2: ArrayLike, obstacles: Any) -> bool`, returning True if the edge (p1 → p2) is in collision.
+            max_iter
+            step_size
 
         Returns:
             path (list): A sequence of waypoints from start to target. Empty list if no path is found.
@@ -51,8 +59,8 @@ class RRT:
         tree = [(start[0], start[1], None)]
 
         for _ in range(max_iter):
-            rx = np.random.uniform(bounds[0], bounds[1])
-            ry = np.random.uniform(bounds[2], bounds[3])
+            rx = np.random.uniform(boundary[0], boundary[1])
+            ry = np.random.uniform(boundary[2], boundary[3])
 
             nodes = np.array([(x, y) for x, y, _ in tree])
             dists = np.sum((nodes - np.array([rx, ry])) ** 2, axis=1)
@@ -83,6 +91,12 @@ class RRT:
 
 
 class RRTStar(RRT):
+    """This class implements the RRT* algorithm.
+
+    !!! quote "Reference"
+        Karaman, Sertac, and Emilio Frazzoli. "Sampling-based algorithms for optimal motion planning." The international journal of robotics research 30.7 (2011): 846-894.
+    """
+
     @staticmethod
     def _choose_parent(tree, new_node, nearest_idx, radius, obstacles, collide_fn):
         new_x, new_y = new_node
@@ -104,19 +118,19 @@ class RRTStar(RRT):
     def plan(
         start: ArrayLike,
         target: ArrayLike,
-        bounds: ArrayLike,
+        boundary: ArrayLike,
         obstacles: Any,
         collide_fn: Callable,
-        max_iter: int = 1e5,
         step_size: float = 1.0,
+        max_iter: int = 1e5,
         radius: float = 3.0,
     ):
         """_summary_
 
         Args:
             start (ArrayLike): Starting point [x, y].
-            target (ArrayLike): Goal point [x, y].
-            bounds (ArrayLike): Search area limits, formatted as [xmin, xmax, ymin, ymax].
+            target (ArrayLike): Target point [x, y].
+            boundary (ArrayLike): Search area limits, formatted as [xmin, xmax, ymin, ymax].
             obstacles (Any): Collection of obstacles in the environment. Can be a list of rectangles, polygons, or other shapes depending on `collide_fn`.
             collide_fn (Callable): Collision checking function with signature `collide_fn(p1: ArrayLike, p2: ArrayLike, obstacles: Any) -> bool`, returning True if the edge (p1 → p2) is in collision.
 
@@ -127,8 +141,8 @@ class RRTStar(RRT):
         tree = [(start[0], start[1], None, 0.0)]
 
         for _ in range(max_iter):
-            rx = np.random.uniform(bounds[0], bounds[1])
-            ry = np.random.uniform(bounds[2], bounds[3])
+            rx = np.random.uniform(boundary[0], boundary[1])
+            ry = np.random.uniform(boundary[2], boundary[3])
 
             nodes = np.array([(x, y) for x, y, _, _ in tree])
             dists = np.sum((nodes - np.array([rx, ry])) ** 2, axis=1)
