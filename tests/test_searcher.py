@@ -15,9 +15,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import shapely
-from matplotlib.patches import Polygon
 from scipy.sparse import csr_matrix
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
 
 from tactics2d.map.converter import Rasterization
 from tactics2d.map.element import Map
@@ -140,3 +139,62 @@ def test_rrt_star():
     )
 
     return final_path, tree
+
+
+def terminal_fn(current_position, target_position):
+    return (
+        np.sqrt(
+            (current_position[0] - target_position[0]) ** 2
+            + (current_position[1] - target_position[1]) ** 2
+        )
+        < 0.1
+    )
+
+
+def expand_fn(current_position, obstacles, step_size=0.1):
+    x, y = current_position[:2]
+    neighbors = []
+    moves = [[step_size, 0], [-step_size, 0], [0, step_size], [0, -step_size]]
+    for move in moves:
+        position = current_position[0] + move[0], current_position[1] + move[1]
+        point = Point(position)
+        if not any(point.within(obstacle.geometry) for obstacle in obstacles):
+            neighbors.append(position)
+    return neighbors
+
+
+def reward_fn(current_position, target_position):
+    dist = np.sqrt(
+        (current_position[0] - target_position[0]) ** 2
+        + (current_position[1] - target_position[1]) ** 2
+    )
+    if dist < 0.1:
+        return 100
+    return -dist
+
+
+def simulate_fn(current_position, target_position, obstacles, max_iters=1e3):
+    x, y = current_position
+    i = 0
+    while not terminal_fn([x, y], target_position) and i < max_iters:
+        neighbors = expand_fn([x, y], obstacles)
+        if not neighbors:
+            break
+        idx = np.random.choice(len(neighbors))
+        x, y = neighbors[idx]
+        i += 1
+    return [x, y]
+
+
+@pytest.mark.math
+def test_mcts():
+    map_, bounds, obstacles, start, target = generate_scenario()
+    mcts = MCTS(
+        terminal_fn=lambda p: terminal_fn(p, target),
+        expand_fn=lambda p: expand_fn(p, obstacles, step_size=0.05),
+        reward_fn=lambda p: reward_fn(p, target),
+        simulate_fn=lambda p: simulate_fn(p, target, obstacles),
+    )
+    final_path, tree_root = mcts.plan(start, max_try=1e2)
+
+    return final_path, tree_root

@@ -75,7 +75,7 @@ class MCTS:
 
     def _select(self, node):
         while not self.terminal_fn(node.state):
-            if not len(self.expand_fn(node.state)) == len(node.children):
+            if len(node.children) == 0:
                 return node
             else:
                 node = self._get_best_child(node)
@@ -100,25 +100,9 @@ class MCTS:
             node.total_reward += reward
             node = node.parent
 
-    def plan(
-        self,
-        start: ArrayLike,
-        max_iter: int,
-        terminal_fn: Callable = None,
-        expand_fn: Callable = None,
-        reward_fn: Callable = None,
-        simulate_fn: Callable = None,
-        exploration_weight: float = 1.0,
-    ):
-
-        self.terminal_fn = terminal_fn if isinstance(terminal_fn, Callable) else self.terminal_fn
-        self.expand_fn = expand_fn if isinstance(expand_fn, Callable) else self.expand_fn
-        self.reward_fn = reward_fn if isinstance(reward_fn, Callable) else self.reward_fn
-        self.simulate_fn = simulate_fn if isinstance(simulate_fn, Callable) else self.simulate_fn
-        self.exploration_weight = exploration_weight
-
+    def plan(self, start: ArrayLike, max_try: int = 1e2):
         root = self.Node(state=start)
-        for _ in range(max_iter):
+        for _ in range(int(max_try)):
             node = self._select(root)
             if not self.terminal_fn(node.state):
                 child = self._expand(node)
@@ -128,7 +112,7 @@ class MCTS:
                 reward = self.reward_fn(child.state)
             self._back_propagate(child, reward)
 
-        best_child = self._get_best_child(root, self.exploration_weight)
+        best_child = self._get_best_child(root)
         path = []
         node = best_child
         while node is not None:
@@ -136,13 +120,4 @@ class MCTS:
             node = node.parent
         path = path[::-1]
 
-        tree = []
-
-        def collect_nodes(n):
-            tree.append(n)
-            for c in n.children:
-                collect_nodes(c)
-
-        collect_nodes(root)
-
-        return path, tree
+        return path, root
