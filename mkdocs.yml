@@ -38,7 +38,7 @@ nav:
 
   - Tutorials:
     - Interpolators: "tutorials/interpolator_demo.ipynb"
-    - Classical Planners: "tutorials/classical_planner_demo.ipynb"
+    - Searchers: "tutorials/search_demo.ipynb"
 
   - Community: "community.md"
   - Publications: "publication.md"

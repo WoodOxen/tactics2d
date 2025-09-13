@@ -5,8 +5,8 @@
 # @Author: Tactics2D Team
 # @Version: 0.1.9
 
-
+from .dijkstra import Dijkstra
 from .mcts import MCTS
 from .rrt import RRT, RRTStar
 
-__all__ = ["RRT", "RRTStar", "MCTS"]
+__all__ = ["Dijkstra", "RRT", "RRTStar", "MCTS"]

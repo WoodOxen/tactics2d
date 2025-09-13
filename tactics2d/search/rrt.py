@@ -14,11 +14,8 @@ from tactics2d.participant.trajectory import State
 
 
 class RRT:
-    def __init__(self, max_iter: int, step_size: float):
-        self.max_iter = max_iter
-        self.step_size = step_size
-
-    def reconstruct(self, tree, idx):
+    @staticmethod
+    def _reconstruct(tree, idx):
         result = []
 
         while idx is not None:
@@ -28,13 +25,15 @@ class RRT:
 
         return result[::-1]
 
+    @staticmethod
     def plan(
-        self,
         start: ArrayLike,
         target: ArrayLike,
         bounds: ArrayLike,
         obstacles: Any,
         collide_fn: Callable,
+        max_iter: int = 1e5,
+        step_size: float = 1.0,
     ):
         """This method finds a feasible collision-free path from the start to the target position without considering vehicle size, kinematic constraints, or dynamics. The result is a sequence of waypoints in free space.
 
@@ -51,7 +50,7 @@ class RRT:
         """
         tree = [(start[0], start[1], None)]
 
-        for _ in range(self.max_iter):
+        for _ in range(max_iter):
             rx = np.random.uniform(bounds[0], bounds[1])
             ry = np.random.uniform(bounds[2], bounds[3])
 
@@ -65,29 +64,27 @@ class RRT:
 
             theta = np.arctan2(ry - nearest_node[1], rx - nearest_node[0])
             new_node = (
-                nearest_node[0] + self.step_size * np.cos(theta),
-                nearest_node[1] + self.step_size * np.sin(theta),
+                nearest_node[0] + step_size * np.cos(theta),
+                nearest_node[1] + step_size * np.sin(theta),
                 nearest_node_idx,
             )
 
             tree.append(new_node)
 
-            if np.linalg.norm(np.array(new_node[:2]) - np.array(target[:2])) < self.step_size:
+            if np.linalg.norm(np.array(new_node[:2]) - np.array(target[:2])) < step_size:
                 tree.append((target[0], target[1], len(tree) - 1))
                 break
 
-        return self.reconstruct(tree, len(tree) - 1), tree
+        return RRT._reconstruct(tree, len(tree) - 1), tree
 
+    @staticmethod
     def plan_trajectory(self):
         return
 
 
 class RRTStar(RRT):
-    def __init__(self, max_iter, step_size, radius):
-        super().__init__(max_iter, step_size)
-        self.radius = radius
-
-    def choose_parent(self, tree, new_node, nearest_idx, obstacles, collide_fn):
+    @staticmethod
+    def _choose_parent(tree, new_node, nearest_idx, radius, obstacles, collide_fn):
         new_x, new_y = new_node
         best_parent = nearest_idx
         best_cost = tree[nearest_idx][3] + np.hypot(
@@ -95,7 +92,7 @@ class RRTStar(RRT):
         )
 
         for i, (nx, ny, _, cost) in enumerate(tree):
-            if (nx - new_x) ** 2 + (ny - new_y) ** 2 <= self.radius**2:
+            if (nx - new_x) ** 2 + (ny - new_y) ** 2 <= radius**2:
                 if not collide_fn([nx, ny], [new_x, new_y], obstacles):
                     new_cost = cost + np.hypot(new_x - nx, new_y - ny)
                     if new_cost < best_cost:
@@ -103,24 +100,16 @@ class RRTStar(RRT):
                         best_cost = new_cost
         return best_parent, best_cost
 
-    def rewire(self, tree, new_idx, obstacles, collide_fn):
-        new_x, new_y, _, new_cost = tree[new_idx]
-        for i, (nx, ny, _, cost) in enumerate(tree):
-            if i == new_idx:
-                continue
-            if (nx - new_x) ** 2 + (ny - new_y) ** 2 <= self.radius**2:
-                if not collide_fn((nx, ny), (new_x, new_y), obstacles):
-                    alt_cost = new_cost + np.hypot(new_x - nx, new_y - ny)
-                    if alt_cost < cost:
-                        tree[i] = (nx, ny, new_idx, alt_cost)
-
+    @staticmethod
     def plan(
-        self,
         start: ArrayLike,
         target: ArrayLike,
         bounds: ArrayLike,
         obstacles: Any,
         collide_fn: Callable,
+        max_iter: int = 1e5,
+        step_size: float = 1.0,
+        radius: float = 3.0,
     ):
         """_summary_
 
@@ -137,7 +126,7 @@ class RRTStar(RRT):
         """
         tree = [(start[0], start[1], None, 0.0)]
 
-        for _ in range(self.max_iter):
+        for _ in range(max_iter):
             rx = np.random.uniform(bounds[0], bounds[1])
             ry = np.random.uniform(bounds[2], bounds[3])
 
@@ -150,23 +139,31 @@ class RRTStar(RRT):
                 continue
 
             theta = np.arctan2(ry - nearest_node[1], rx - nearest_node[0])
-            new_x = nearest_node[0] + self.step_size * np.cos(theta)
-            new_y = nearest_node[1] + self.step_size * np.sin(theta)
-            best_parent, best_cost = self.choose_parent(
-                tree, [new_x, new_y], nearest_node_idx, obstacles, collide_fn
+            new_x = nearest_node[0] + step_size * np.cos(theta)
+            new_y = nearest_node[1] + step_size * np.sin(theta)
+            best_parent, best_cost = RRTStar._choose_parent(
+                tree, [new_x, new_y], nearest_node_idx, radius, obstacles, collide_fn
             )
             new_node = (new_x, new_y, best_parent, best_cost)
 
             tree.append(new_node)
             new_idx = len(tree) - 1
 
-            self.rewire(tree, new_idx, obstacles, collide_fn)
+            new_x, new_y, _, new_cost = tree[new_idx]
+            for i, (nx, ny, _, cost) in enumerate(tree):
+                if i == new_idx:
+                    continue
+                if (nx - new_x) ** 2 + (ny - new_y) ** 2 <= radius**2:
+                    if not collide_fn((nx, ny), (new_x, new_y), obstacles):
+                        alt_cost = new_cost + np.hypot(new_x - nx, new_y - ny)
+                        if alt_cost < cost:
+                            tree[i] = (nx, ny, new_idx, alt_cost)
 
-            if np.linalg.norm(np.array(new_node[:2]) - np.array(target[:2])) < self.step_size:
+            if np.linalg.norm(np.array(new_node[:2]) - np.array(target[:2])) < step_size:
                 tree.append((target[0], target[1], len(tree) - 1, best_cost))
                 break
 
-        return self.reconstruct(tree, len(tree) - 1), tree
+        return RRT._reconstruct(tree, len(tree) - 1), tree
 
     def plan_trajectory(self):
         return
