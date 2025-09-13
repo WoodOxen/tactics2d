@@ -1,11 +1,3 @@
-from typing import Dict, List
-
-import torch
-import torch.nn.functional as F
-from torch import nn
-
-from prediction.lib import PointSubGraph, CrossAttention, MLP
-import prediction.utils as utils
 from typing import Any, Dict, List, NamedTuple, Tuple
 
 import numpy as np
@@ -33,7 +25,7 @@ class DecoderRes(nn.Module):
             hidden_size (int): The size of the hidden state dimension.
             out_features (int, optional): The number of output features. Defaults to 60.
         """
-        super(DecoderRes, self).__init__()
+        super().__init__()
         self.mlp = MLP(hidden_size, hidden_size)  # MLP with the same size input and output
         self.fc = nn.Linear(hidden_size, out_features)  # Final fully connected layer
         super().__init__()
@@ -56,6 +48,7 @@ class DecoderRes(nn.Module):
         hidden_states = self.fc(hidden_states)
         return hidden_states
 
+
 class DecoderResCat(nn.Module):
     """
     This class defines a decoder module with residual connections that concatenates input features before processing them through an MLP.
@@ -74,9 +67,11 @@ class DecoderResCat(nn.Module):
             in_features (int): The number of input features to concatenate with the hidden states before processing.
             out_features (int, optional): The number of output features. Defaults to 60.
         """
-        super(DecoderResCat, self).__init__()
+        super().__init__()
         self.mlp = MLP(in_features, hidden_size)  # MLP transforming the hidden states
-        self.fc = nn.Linear(hidden_size + in_features, out_features)  # Fully connected layer for final output
+        self.fc = nn.Linear(
+            hidden_size + in_features, out_features
+        )  # Fully connected layer for final output
         super().__init__()
         self.mlp = MLP(in_features, hidden_size)
         self.fc = nn.Linear(hidden_size + in_features, out_features)
@@ -97,11 +92,13 @@ class DecoderResCat(nn.Module):
         hidden_states = self.fc(hidden_states)
         return hidden_states
 
+
 # Assuming 'utils' and 'PointSubGraph', 'CrossAttention', 'DecoderRes', 'DecoderResCat' are defined elsewhere as this code relies on them.
+
 
 class Decoder(nn.Module):
     """
-    This class defines a decoder module that integrates various components including a decoder with residual connections, 
+    This class defines a decoder module that integrates various components including a decoder with residual connections,
     goals 2D MLPs, cross-attention mechanisms, and a point subgraph.
 
     Attributes:
@@ -118,9 +115,10 @@ class Decoder(nn.Module):
     """
 
     def __init__(self, vectornet):
-        super(Decoder, self).__init__()
+        super().__init__()
         hidden_size = 128
         self.future_frame_num = 80
+
     def __init__(self, args_: utils.Args, vectornet):
         super().__init__()
         global args
@@ -168,8 +166,8 @@ class Decoder(nn.Module):
 
         for i in range(batch_size):
             ok = argmax[i] == interaction_labels[i]
-            utils.other_errors_put(f'interaction_label.{interaction_labels[i]}', float(ok))
-            utils.other_errors_put('interaction_label.all', float(ok))
+            utils.other_errors_put(f"interaction_label.{interaction_labels[i]}", float(ok))
+            utils.other_errors_put("interaction_label.all", float(ok))
             utils.other_errors_put(f"interaction_label.{interaction_labels[i]}", float(ok))
             utils.other_errors_put("interaction_label.all", float(ok))
             # this blows gpu memory when testing

@@ -4,7 +4,6 @@ import math
 import random
 import time
 
-from plan.env_planner import EnvPlanner, Agent, SudoInterpolator
 import envs.util as utils
 import interactive_sim.envs.util as utils
 import numpy as np
@@ -54,10 +53,12 @@ class BasePlanner(EnvPlanner):
         elif my_current_v_per_step < 0.001 * self.frame_rate:
             my_current_v_per_step = 0
 
-    def plan_marginal_trajectories(self, current_state, current_frame_idx, ego_agent_id, my_current_pose, my_current_v_per_step):
+    def plan_marginal_trajectories(
+        self, current_state, current_frame_idx, ego_agent_id, my_current_pose, my_current_v_per_step
+    ):
         """
         This function plans marginal trajectories for the ego agent based on the current state and frame index.
-        
+
         Args:
             current_state (dict): The current state of the scene or simulation.
             current_frame_idx (int): The current frame index in the scenario.
@@ -66,12 +67,12 @@ class BasePlanner(EnvPlanner):
             my_current_v_per_step (float): The current velocity of the ego agent in units per step.
 
         Returns:
-            tuple: A tuple containing the list of interpolators, the list of interpolated marginal trajectories, 
+            tuple: A tuple containing the list of interpolators, the list of interpolated marginal trajectories,
                 and the current routes for the ego agent.
         """
         # Set the action for the ego agent to 'follow'.
-        current_state['agent'][ego_agent_id]['action'] = 'follow'
-        
+        current_state["agent"][ego_agent_id]["action"] = "follow"
+
         # Clamp the current velocity per step to a maximum and minimum frame rate multiplier.
         my_current_v_per_step = min(max(my_current_v_per_step, 0), 0.1) * self.frame_rate
 
@@ -80,8 +81,11 @@ class BasePlanner(EnvPlanner):
             last_tic = time.perf_counter()
 
         # Get current routes for the ego agent, or use an empty list if none are found.
-        current_routes = current_state['predicting']['route'][ego_agent_id] if \
-            ego_agent_id in current_state['predicting']['route'] else []
+        current_routes = (
+            current_state["predicting"]["route"][ego_agent_id]
+            if ego_agent_id in current_state["predicting"]["route"]
+            else []
+        )
 
         # Get rerouted trajectories and update current routes for the ego agent.
         current_routes = (
@@ -95,18 +99,18 @@ class BasePlanner(EnvPlanner):
             current_frame_idx=current_frame_idx,
             dynamic_turnings=True,
             current_route=current_routes,
-            is_ego=True
+            is_ego=True,
         )
 
         # Store the updated routes in the current state.
-        if ego_agent_id not in current_state['predicting']['route']:
-            current_state['predicting']['route'][ego_agent_id] = current_routes
+        if ego_agent_id not in current_state["predicting"]["route"]:
+            current_state["predicting"]["route"][ego_agent_id] = current_routes
 
             # Record the goal point for marking.
-            goal_pt, goal_yaw = self.online_predictor.data['predicting']['goal_pts'][ego_agent_id]
-            current_state['predicting']['mark_pts'] = [goal_pt]
-            is_ego=True,
-        
+            goal_pt, goal_yaw = self.online_predictor.data["predicting"]["goal_pts"][ego_agent_id]
+            current_state["predicting"]["mark_pts"] = [goal_pt]
+            is_ego = (True,)
+
         if ego_agent_id not in current_state["predicting"]["route"]:
             current_state["predicting"]["route"][ego_agent_id] = current_routes
             # draw goal point
@@ -130,7 +134,7 @@ class BasePlanner(EnvPlanner):
             my_interpolated_trajectory = self.get_trajectory_from_interpolator(
                 my_interpolator=my_interpolator,
                 my_current_speed=my_current_v_per_step,
-                agent_id=ego_agent_id
+                agent_id=ego_agent_id,
             )
             my_traj = my_interpolated_trajectory[:, :2]  # Preserve only the (x, y) coordinates.
             my_interpolator = SudoInterpolator(my_traj.copy(), my_current_pose)
@@ -379,7 +383,7 @@ class BasePlanner(EnvPlanner):
         Returns:
             dict: The updated state of the planning system, including the results of the planning.
         """
-        current_state['predicting']['emergency_stopping'] = False
+        current_state["predicting"]["emergency_stopping"] = False
         current_state["predicting"]["emergency_stopping"] = False
         if self.is_planning(current_frame_idx) and current_state is not None:
             # load scenario data
@@ -412,29 +416,24 @@ class BasePlanner(EnvPlanner):
                 valid_lane_types=self.valid_lane_types,
             )
 
-            (
-                my_interpolators,
-                my_interpolated_marginal_trajectories,
-                current_routes,
-            ) = self.plan_marginal_trajectories(
-                current_state=current_state,
-                current_frame_idx=current_frame_idx,
-                ego_agent_id=ego_agent_id,
-                my_current_pose=my_current_pose,
-                my_current_v_per_step=my_current_v_per_step,
+            (my_interpolators, my_interpolated_marginal_trajectories, current_routes) = (
+                self.plan_marginal_trajectories(
+                    current_state=current_state,
+                    current_frame_idx=current_frame_idx,
+                    ego_agent_id=ego_agent_id,
+                    my_current_pose=my_current_pose,
+                    my_current_v_per_step=my_current_v_per_step,
+                )
             )
 
             # deal with interactions
             # 1. make predictions
-            (
-                other_agent_traj,
-                other_agent_ids,
-                prior_agent_traj,
-                prior_agent_ids,
-            ) = self.make_predictions(
-                current_state=current_state,
-                current_frame_idx=current_frame_idx,
-                ego_agent_id=ego_agent_id,
+            (other_agent_traj, other_agent_ids, prior_agent_traj, prior_agent_ids) = (
+                self.make_predictions(
+                    current_state=current_state,
+                    current_frame_idx=current_frame_idx,
+                    ego_agent_id=ego_agent_id,
+                )
             )
 
             if PRINT_TIMER:
@@ -771,12 +770,16 @@ class BasePlanner(EnvPlanner):
                                     # check relation
                                     # if collision, solve conflict
                                     predict_tic = time.perf_counter()
-                                    self.online_predictor.predict_one_time(each_pair=[ego_agent_id, target_agent_id],
-                                                                                current_frame=current_frame_idx,
-                                                                                clear_history=True,
-                                                                                predict_with_rules=self.predict_with_rules,
-                                                                                current_data=current_state)
-                                    detected_relation = self.online_predictor.data['predicting']['relation']
+                                    self.online_predictor.predict_one_time(
+                                        each_pair=[ego_agent_id, target_agent_id],
+                                        current_frame=current_frame_idx,
+                                        clear_history=True,
+                                        predict_with_rules=self.predict_with_rules,
+                                        current_data=current_state,
+                                    )
+                                    detected_relation = self.online_predictor.data["predicting"][
+                                        "relation"
+                                    ]
                                     self.online_predictor.predict_one_time(
                                         each_pair=[ego_agent_id, target_agent_id],
                                         current_frame=current_frame_idx,

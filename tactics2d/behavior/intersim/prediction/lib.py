@@ -1,8 +1,5 @@
 import math
 
-import torch
-import torch.nn.functional as F
-from torch import nn
 import numpy as np
 import prediction.utils as utils
 import torch
@@ -26,12 +23,12 @@ class LayerNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-5):
         """
         Initializes the LayerNorm instance.
-        
+
         Args:
             hidden_size (int): The size of the last dimension of input (features).
             eps (float, optional): A small constant added to the variance to maintain numerical stability. Defaults to 1e-5.
         """
-        super(LayerNorm, self).__init__()
+        super().__init__()
         super().__init__()
         self.weight = nn.Parameter(torch.ones(hidden_size))
         self.bias = nn.Parameter(torch.zeros(hidden_size))
@@ -40,26 +37,27 @@ class LayerNorm(nn.Module):
     def forward(self, x):
         """
         Applies layer normalization to the input tensor.
-        
+
         Args:
             x (torch.Tensor): The input tensor of shape (batch_size, hidden_size, ...).
-        
+
         Returns:
             torch.Tensor: The normalized tensor of the same shape as the input.
         """
         # Compute the mean and standard deviation over the last dimension.
         u = x.mean(-1, keepdim=True)
         s = (x - u).pow(2).mean(-1, keepdim=True)
-        
+
         # Normalize the input using the computed mean and standard deviation.
         x = (x - u) / torch.sqrt(s + self.variance_epsilon)
-        
+
         # Apply the learnable weights and biases.
         return self.weight * x + self.bias
 
+
 class MLP(nn.Module):
     """
-    This class defines a simple multi-layer perceptron (MLP) class. 
+    This class defines a simple multi-layer perceptron (MLP) class.
     This implementation includes a linear layer followed by a layer normalization and a ReLU non-linearity.
 
     Attributes:
@@ -75,9 +73,9 @@ class MLP(nn.Module):
 
         Args:
             hidden_size (int): The number of input features.
-            out_features (int, optional): The number of output features. Defaults to None, falls back to hidden_size if None. 
+            out_features (int, optional): The number of output features. Defaults to None, falls back to hidden_size if None.
         """
-        super(MLP, self).__init__()
+        super().__init__()
         super().__init__()
         if out_features is None:
             out_features = hidden_size
@@ -96,18 +94,19 @@ class MLP(nn.Module):
         """
         # Apply linear layer
         hidden_states = self.linear(hidden_states)
-        
+
         # Apply layer normalization
         hidden_states = self.layer_norm(hidden_states)
-        
+
         # Apply ReLU activation function
         hidden_states = torch.nn.functional.relu(hidden_states)
-        
+
         return hidden_states
+
 
 class GlobalGraph(nn.Module):
     """
-    This class is a global graph module implementing a self-attention mechanism, which can be used to capture dependencies between 
+    This class is a global graph module implementing a self-attention mechanism, which can be used to capture dependencies between
     different elements in the input sequence.
 
     Attributes:
@@ -142,7 +141,7 @@ class GlobalGraph(nn.Module):
         This masks out the positions where attention is not required.
 
         Args:
-            attention_mask (torch.Tensor): Tensor with shape [batch_size, seq_length] indicating whether each position 
+            attention_mask (torch.Tensor): Tensor with shape [batch_size, seq_length] indicating whether each position
                should attend (1 indicates attention, 0 no attention).
 
         Returns:
@@ -159,7 +158,7 @@ class GlobalGraph(nn.Module):
         This function transposes the input tensor to the format expected by the attention scoring function.
 
         Args:
-            x (torch.Tensor): The tensor containing the query, key, or value layers. Shape: 
+            x (torch.Tensor): The tensor containing the query, key, or value layers. Shape:
               [batch_size, seq_length, all_head_size].
 
         Returns:
@@ -173,7 +172,7 @@ class GlobalGraph(nn.Module):
 
     def forward(self, hidden_states, attention_mask=None, mapping=None, return_scores=False):
         """
-        This function performs the forward pass for the global graph layer, which includes query, key and value transformations, 
+        This function performs the forward pass for the global graph layer, which includes query, key and value transformations,
         attention scoring, masking and attention probability computation.
 
         Args:
@@ -183,7 +182,7 @@ class GlobalGraph(nn.Module):
             return_scores (bool, optional): Whether to return the attention scores along with the context layer. Defaults to False.
 
         Returns:
-            torch.Tensor: The context layer after applying self-attention and concatenation of heads. 
+            torch.Tensor: The context layer after applying self-attention and concatenation of heads.
              If return_scores is True, returns a tuple containing the context layer and attention scores.
         """
         # Apply linear transformations to get query, key and value
@@ -222,22 +221,29 @@ class GlobalGraph(nn.Module):
             return context_layer, attention_probs
         return context_layer
 
+
 class CrossAttention(GlobalGraph):
     """
-    The cross-attention mechanism extends the self-attention to interact with external inputs, where the query comes 
+    The cross-attention mechanism extends the self-attention to interact with external inputs, where the query comes
     from one source and the key-value pairs come from another.
 
     Attributes:
         query (torch.nn.Linear): Linear layer for transforming the query input.
         key (torch.nn.Linear): Linear layer for transforming the key input.
-        value (torch.nn.Linear): Linear layer for transforming the value input. Note, if key_hidden_size and 
+        value (torch.nn.Linear): Linear layer for transforming the value input. Note, if key_hidden_size and
             query_hidden_size are equal, value will be the same as key layer.
         all_head_size (int): The total size of each attention head, same as in GlobalGraph.
         num_qkv (int): The number of query, key, value sets, same as in GlobalGraph.
     """
 
-    def __init__(self, hidden_size, attention_head_size=None, num_attention_heads=1, key_hidden_size=None,
-                 query_hidden_size=None):
+    def __init__(
+        self,
+        hidden_size,
+        attention_head_size=None,
+        num_attention_heads=1,
+        key_hidden_size=None,
+        query_hidden_size=None,
+    ):
         """
         This function constructs a CrossAttention instance.
 
@@ -245,11 +251,12 @@ class CrossAttention(GlobalGraph):
             hidden_size (int): The size of the input features.
             attention_head_size (int, optional): The size of each attention head, defaults to hidden_size // num_attention_heads if not provided.
             num_attention_heads (int, optional): The number of attention heads, defaults to 1.
-            key_hidden_size (int, optional): The size of features for key and value. If None, uses hidden_size. 
+            key_hidden_size (int, optional): The size of features for key and value. If None, uses hidden_size.
             query_hidden_size (int, optional): The size of features for query. If None, uses hidden_size.
         """
-        super(CrossAttention, self).__init__(hidden_size, attention_head_size, num_attention_heads)
+        super().__init__(hidden_size, attention_head_size, num_attention_heads)
         # If specific sizes for query and key are provided, adjust the corresponding layers accordingly.
+
     def __init__(
         self,
         hidden_size,
@@ -278,17 +285,17 @@ class CrossAttention(GlobalGraph):
         This function applies cross-attention to originate attention from the hidden_states_key to the hidden_states_query.
 
         Args:
-            hidden_states_query (torch.Tensor): The query tensor of shape 
+            hidden_states_query (torch.Tensor): The query tensor of shape
                                                 [batch_size, seq_length_query, hidden_size].
-            hidden_states_key (torch.Tensor, optional): The key tensor, if provided, of shape 
-                                                       [batch_size, seq_length_key, hidden_size]. 
+            hidden_states_key (torch.Tensor, optional): The key tensor, if provided, of shape
+                                                       [batch_size, seq_length_key, hidden_size].
                                                        Defaults to None, which implies self-attention.
-            attention_mask (torch.Tensor, optional): The attention mask tensor of shape 
+            attention_mask (torch.Tensor, optional): The attention mask tensor of shape
                                                     [batch_size, seq_length_query, seq_length_key].
             mapping (Not used, optional): Placeholder for potential future use. Defaults to None.
-            return_scores (bool, optional): Whether to return the attention scores along with the context layer. 
+            return_scores (bool, optional): Whether to return the attention scores along with the context layer.
                                              False by default.
-            
+
         Returns:
             torch.Tensor: The context layer with shape [batch_size, seq_length, all_head_size].
                           If return_scores is True, returns a tuple of (context_layer, attention_scores).
@@ -304,7 +311,9 @@ class CrossAttention(GlobalGraph):
         value_layer = self.transpose_for_scores(mixed_value_layer)
 
         # Calculate the attention scores and apply optional attention mask
-        attention_scores = torch.matmul(query_layer / math.sqrt(self.attention_head_size), key_layer.transpose(-1, -2))
+        attention_scores = torch.matmul(
+            query_layer / math.sqrt(self.attention_head_size), key_layer.transpose(-1, -2)
+        )
         attention_scores = torch.matmul(
             query_layer / math.sqrt(self.attention_head_size), key_layer.transpose(-1, -2)
         )
@@ -334,7 +343,7 @@ class CrossAttention(GlobalGraph):
 
 class GlobalGraphRes(nn.Module):
     """
-    This class is the residual connection wrapper for the GlobalGraph module that processes hidden states through two 
+    This class is the residual connection wrapper for the GlobalGraph module that processes hidden states through two
     GlobalGraph instances and merges their outputs by concatenation. This module is useful for building deep networks
     where the addition or concatenation of outputs aims to mitigate the vanishing gradient problem.
 
@@ -350,7 +359,7 @@ class GlobalGraphRes(nn.Module):
         Args:
             hidden_size (int): The size of the input features, must be even to allow for equal splitting if only one attention head is used.
         """
-        super(GlobalGraphRes, self).__init__()
+        super().__init__()
         # Initialize two instances of GlobalGraph with half the number of attention heads by default.
         super().__init__()
         self.global_graph = GlobalGraph(hidden_size, hidden_size // 2)
@@ -368,8 +377,13 @@ class GlobalGraphRes(nn.Module):
         Returns:
             torch.Tensor: Concatenated outputs of the two GlobalGraph instances.
         """
-        hidden_states = torch.cat([self.global_graph(hidden_states, attention_mask, mapping),
-                                   self.global_graph2(hidden_states, attention_mask, mapping)], dim=-1)
+        hidden_states = torch.cat(
+            [
+                self.global_graph(hidden_states, attention_mask, mapping),
+                self.global_graph2(hidden_states, attention_mask, mapping),
+            ],
+            dim=-1,
+        )
         # hidden_states = self.global_graph(hidden_states, attention_mask, mapping) \
         #                 + self.global_graph2(hidden_states, attention_mask, mapping)
         hidden_states = torch.cat(
@@ -383,9 +397,10 @@ class GlobalGraphRes(nn.Module):
 
         return hidden_states
 
+
 class PointSubGraph(nn.Module):
     """
-    This class is a module that encodes 2D goals conditioned on the state of a target agent within a batch. 
+    This class is a module that encodes 2D goals conditioned on the state of a target agent within a batch.
 
     Attributes:
         layers (nn.ModuleList): A list of MLP layers used for processing 2D point data and agent state.
@@ -399,12 +414,16 @@ class PointSubGraph(nn.Module):
         Args:
             hidden_size (int): The size of the hidden layers for each MLP in the ModuleList. This determines the dimensionality of the internal feature representations.
         """
-        super(PointSubGraph, self).__init__()
+        super().__init__()
         self.hidden_size = hidden_size
         # Create a ModuleList of MLP layers with decreasing output sizes, each designed to reduce the dimensionality by half.
-        self.layers = nn.ModuleList([MLP(2, hidden_size // 2),
-                                     MLP(hidden_size, hidden_size // 2),
-                                     MLP(hidden_size, hidden_size)])
+        self.layers = nn.ModuleList(
+            [
+                MLP(2, hidden_size // 2),
+                MLP(hidden_size, hidden_size // 2),
+                MLP(hidden_size, hidden_size),
+            ]
+        )
         super().__init__()
         self.hidden_size = hidden_size
         self.layers = nn.ModuleList(
@@ -443,14 +462,15 @@ class PointSubGraph(nn.Module):
 
         return hidden_states
 
+
 class SubGraph(nn.Module):
     """
-    This class is a subgraph module of VectorNet, which applies multiple MLP layers with fully connected neurons, layer normalization, 
+    This class is a subgraph module of VectorNet, which applies multiple MLP layers with fully connected neurons, layer normalization,
     and ReLU activation to process the input hidden states.
 
     Attributes:
         args (Namespace): Arguments containing configuration for the subgraph layer.
-        layers (nn.ModuleList): A list of MLP layers, where each layer consists of a fully connected layer followed by 
+        layers (nn.ModuleList): A list of MLP layers, where each layer consists of a fully connected layer followed by
                                  layer normalization and ReLU activation.
         depth (int): The number of MLP layers within the subgraph module.
     """
@@ -464,7 +484,8 @@ class SubGraph(nn.Module):
             hidden_size (int): The size of the hidden state for each MLP layer.
             depth (int, optional): The number of layers in the subgraph. Defaults to args.sub_graph_depth if not provided.
         """
-        super(SubGraph, self).__init__()
+        super().__init__()
+
     def __init__(self, args, hidden_size, depth=None):
         super().__init__()
         self.args = args
@@ -478,7 +499,7 @@ class SubGraph(nn.Module):
 
         Args:
             hidden_states (torch.Tensor): Input tensor of shape [batch_size, vector_num, hidden_size].
-            li_vector_num (list of int, optional): A list containing the number of vectors for each batch element. 
+            li_vector_num (list of int, optional): A list containing the number of vectors for each batch element.
                                                   Defaults to None, which implies max_vector_num for all elements.
 
         Returns:

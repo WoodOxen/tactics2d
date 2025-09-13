@@ -43,7 +43,7 @@ class EnvPlanner:
     While the baseline planner or any planner controlling the ego vehicle can only use the prediction or past data
     """
 
-    def __init__(self, env_config, predictor, dataset='Waymo', map_api=None):
+    def __init__(self, env_config, predictor, dataset="Waymo", map_api=None):
         """
         This function initializes the planner with the required configurations and components.
 
@@ -56,6 +56,7 @@ class EnvPlanner:
         Attributes:
             (Various self attributes are initialized based on env_config and other parameters.)
         """
+
     def __init__(self, env_config, predictor, dataset="Waymo", map_api=None):
         self.planning_from = env_config.env.planning_from
         self.planning_interval = env_config.env.planning_interval
@@ -150,7 +151,9 @@ class EnvPlanner:
             return True
         return False
 
-    def collision_based_relevant_detection(self, current_frame_idx, current_state, predict_ego=True):
+    def collision_based_relevant_detection(
+        self, current_frame_idx, current_state, predict_ego=True
+    ):
         """
         This function detects relevant agents based on potential collisions for planning purposes.
 
@@ -164,7 +167,8 @@ class EnvPlanner:
 
         Modifies current_state to record the updated relevant agents and their colliding pairs.
         """
-        ego_agent = current_state['predicting']['ego_id'][1]
+        ego_agent = current_state["predicting"]["ego_id"][1]
+
     def collision_based_relevant_detection(
         self, current_frame_idx, current_state, predict_ego=True
     ):
@@ -1162,7 +1166,9 @@ class EnvPlanner:
         else:
             return self.routed_traj[agent_id], current_route
 
-    def adjust_speed_for_collision(self, interpolator, distance_to_end, current_v, end_point_v, reschedule_speed_profile=False):
+    def adjust_speed_for_collision(
+        self, interpolator, distance_to_end, current_v, end_point_v, reschedule_speed_profile=False
+    ):
         """
         Adjusts the agent's speed to avoid a potential collision by applying constant deceleration.
 
@@ -1176,6 +1182,7 @@ class EnvPlanner:
         Returns:
             np.array: A numpy array containing the adjusted trajectory points.
         """
+
     def adjust_speed_for_collision(
         self, interpolator, distance_to_end, current_v, end_point_v, reschedule_speed_profile=False
     ):
@@ -1246,8 +1253,9 @@ class EnvPlanner:
                 traj_to_return.append(interpolator.interpolate(0))
         return np.array(traj_to_return, ndmin=2)
 
-    def get_traffic_light_collision_pts(self, current_state, current_frame_idx,
-                                        continue_time_threshold=5):
+    def get_traffic_light_collision_pts(
+        self, current_state, current_frame_idx, continue_time_threshold=5
+    ):
         """
         Identifies collision points at traffic lights based on the current state and frame index.
 
@@ -1259,8 +1267,9 @@ class EnvPlanner:
         Returns:
             list: A list of end points for traffic light collision checks, useful for planning routes.
         """
-        tl_dics = current_state['traffic_light']
-        road_dics = current_state['road']
+        tl_dics = current_state["traffic_light"]
+        road_dics = current_state["road"]
+
     def get_traffic_light_collision_pts(
         self, current_state, current_frame_idx, continue_time_threshold=5
     ):
@@ -1309,10 +1318,19 @@ class EnvPlanner:
                                 assert False, f"Unknown dataset in env planner - {self.dataset}"
         return traffic_light_ending_pts
 
-    def get_trajectory_from_interpolator(self, my_interpolator, my_current_speed, a_per_step=None,
-                                         check_turning_dynamics=True, desired_speed=7,
-                                         emergency_stop=False, hold_still=False,
-                                         agent_id=None, a_scale_turning=0.7, a_scale_not_turning=0.9):
+    def get_trajectory_from_interpolator(
+        self,
+        my_interpolator,
+        my_current_speed,
+        a_per_step=None,
+        check_turning_dynamics=True,
+        desired_speed=7,
+        emergency_stop=False,
+        hold_still=False,
+        agent_id=None,
+        a_scale_turning=0.7,
+        a_scale_not_turning=0.9,
+    ):
         """
         Generates a trajectory based on the interpolator and dynamic speed adjustments for turns.
 
@@ -1331,6 +1349,7 @@ class EnvPlanner:
         Returns:
             np.array: A numpy array containing the generated trajectory.
         """
+
     def get_trajectory_from_interpolator(
         self,
         my_interpolator,
@@ -1928,7 +1947,7 @@ class EnvPlanner:
             traj (np.array): The trajectory to validate in the form of a numpy array.
 
         Returns:
-            int: Returns -1 if the trajectory is smooth throughout or the index of the point where a 
+            int: Returns -1 if the trajectory is smooth throughout or the index of the point where a
             significant jump occurred, indicating a potential issue with the trajectory.
         """
         total_time, _ = traj.shape
@@ -1952,6 +1971,7 @@ class SudoInterpolator:
     A class used for interpolating trajectories within a given framework, allowing the calculation of positions
     along a trajectory at specified distances.
     """
+
     def __init__(self, trajectory, current_pose):
         """
         This function initializes the SudoInterpolator with a trajectory and a current pose.

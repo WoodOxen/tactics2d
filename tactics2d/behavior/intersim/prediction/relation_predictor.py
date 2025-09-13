@@ -14,7 +14,6 @@ from prediction.vectornet import VectorNet
 from torch.nn.parallel import DistributedDataParallel as DDP
 from tqdm import tqdm
 
-
 # class TrajectoryType(IntEnum):
 #     STATIONARY = 0
 #     STRAIGHT = 1
@@ -35,6 +34,7 @@ from tqdm import tqdm
 #     @staticmethod
 #     def to_string(a: int):
 #         return str(AgentType(a)).split('.')[1]
+
 
 class AgentType(IntEnum):
     unset = 0
@@ -77,6 +77,7 @@ def get_normalized(polygons, x, y, angle):
                 polygons[polygon_idx, i, 0] * sin_ + polygons[polygon_idx, i, 1] * cos_
             )
     return new_polygons
+
 
 def predict_reactor_for_onepair(
     target_reactor_id,
@@ -122,7 +123,9 @@ def predict_reactor_for_onepair(
         objects_id_this_batch = objects_id.copy()
         # objects_id包含了所有agent的id
         # default without reactor's intentions
-        gt_reactor = np.zeros_like(all_agent_trajectories_this_batch[i])  # 生成一个长度等于当前agent的轨迹长度的零向量
+        gt_reactor = np.zeros_like(
+            all_agent_trajectories_this_batch[i]
+        )  # 生成一个长度等于当前agent的轨迹长度的零向量
         last_valid_index = history_frame_num - 1  # 10
         # speed = utils.get_dis_point2point((gt_trajectory[0, history_frame_num - 1, 5], gt_trajectory[0, history_frame_num - 1, 6]))
         waymo_yaw = all_agent_trajectories_this_batch[i, last_valid_index, 3]
@@ -166,12 +169,20 @@ def predict_reactor_for_onepair(
         #     continue
         tracks_type = np.ones_like(all_agent_trajectories_this_batch)[:, 0, 0]
         # print("Tag relation before get agents")
-        vectors, polyline_spans, trajs = utils_cython.get_agents(all_agent_trajectories_this_batch, gt_future_is_valid,
-                                                                 tracks_type, False, image, gt_reactor)
+        vectors, polyline_spans, trajs = utils_cython.get_agents(
+            all_agent_trajectories_this_batch,
+            gt_future_is_valid,
+            tracks_type,
+            False,
+            image,
+            gt_reactor,
+        )
         # print("Tag relation after get agents")
         map_start_polyline_idx = len(polyline_spans)
         # print("Tag relation before get roads")
-        vectors_, polyline_spans_, goals_2D, lanes = utils_cython.get_roads(raw_data, normalizer, image)
+        vectors_, polyline_spans_, goals_2D, lanes = utils_cython.get_roads(
+            raw_data, normalizer, image
+        )
         vectors, polyline_spans, trajs = utils_cython.get_agents(
             all_agent_trajectories_this_batch,
             gt_future_is_valid,
@@ -223,7 +234,7 @@ def predict_reactor_for_onepair(
             "inf_id": objects_id_this_batch[1],
             "all_agent_ids": objects_id_this_batch.copy(),
             # 'inf_label': inf_label,
-            'image': image
+            "image": image,
         }
         # if eval_time < 80:
         #     mapping['final_idx'] = eval_time - 1
@@ -739,10 +750,10 @@ class RelationPredictor:
         Args:
             current_data (dict): The current scene data containing information on agents and their trajectory.
 
-        This method iterates through the list of agents, retrieves their goal points, and stores them in the 
+        This method iterates through the list of agents, retrieves their goal points, and stores them in the
         'predicting' dictionary of the scenario data. It also flags whether each agent should follow the goal point.
         """
-        start_time=time.time()
+        start_time = time.time()
         start_time = time.time()
         # select one ego vehicle
         agent_dic = current_data["agent"]
@@ -759,7 +770,7 @@ class RelationPredictor:
         end_time = time.time()
         print(f"setting_goal_points_in{end_time-start_time}")
 
-    def get_goal(self, current_data, agent_id, dataset='Waymo'):
+    def get_goal(self, current_data, agent_id, dataset="Waymo"):
         """
         This function determines the goal point for an agent based on the dataset.
 
@@ -770,10 +781,11 @@ class RelationPredictor:
 
         Returns:
             list: A list containing the [goal_point, yaw], where goal_point is a [x, y] coordinate.
-        
-        This function serves to find the last valid position in agent trajectory to use as a goal point. 
+
+        This function serves to find the last valid position in agent trajectory to use as a goal point.
         The behavior differs based on the dataset, following the inherent structure and information available in each.
         """
+
     def get_goal(self, current_data, agent_id, dataset="Waymo") -> List:
         # get last valid point as the goal point
         # agent_dic = current_data['agent'][agent_id]
