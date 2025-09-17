@@ -25,92 +25,103 @@ from PIL import Image
 from shapely.geometry import Point
 
 from tactics2d.dataset_parser import InteractionParser
+from tactics2d.map.map_config import INTERACTION_MAP_CONFIG
 from tactics2d.map.parser import OSMParser
 from tactics2d.sensor import BEVCamera, SingleLineLidar
 from tactics2d.utils.common import get_absolute_path
 
 
 @pytest.mark.render
-@pytest.mark.skip(reason="TODO")
 @pytest.mark.parametrize("follow_view", [True, False])
 def test_camera(follow_view: bool):
-    map_path = "./tactics2d/data/map/INTERACTION/DR_DEU_Roundabout_OF.osm"
+    scenario = "DR_DEU_Roundabout_OF"
+    file_id = 1
+    stamp_range = (0, 8000)
+    map_path = f"./tactics2d/data/map/INTERACTION/{scenario}.osm"
     trajectory_path = (
-        "./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/DR_USA_Intersection_EP0"
+        f"./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/{scenario}"
     )
-    config_path = "./tactics2d/dataset_parser/map.config"
-
-    with open(config_path) as f:
-        configs = json.load(f)
 
     map_parser = OSMParser(lanelet2=True)
-    map_ = map_parser.parse(get_absolute_path(map_path), configs["DR_DEU_Roundabout_OF"])
+    map_ = map_parser.parse(get_absolute_path(map_path), INTERACTION_MAP_CONFIG[scenario])
+    x_min, x_max, y_min, y_max = map_.boundary
 
-    frame = 88000
     dataset_parser = InteractionParser()
-    participants, _ = dataset_parser.parse_trajectory(0, trajectory_path, (87000, 90000))
-    participant_ids = [
-        participant.id_ for participant in participants.values() if participant.is_active(frame)
-    ]
+    participants, actual_stamp_range = dataset_parser.parse_trajectory(
+        file_id, trajectory_path, stamp_range
+    )
+    frame_list = list(range(actual_stamp_range[0], actual_stamp_range[1], 100))
 
-    if follow_view:
-        camera = BEVCamera(1, map_, window_size=(600, 600))
-        camera.update(participants, participant_ids, frame, None, None)
+    camera = BEVCamera(1, map_, perception_range=(30, 30, 45, 15))
+    camera_position = np.array([(x_min + x_max) / 2, (y_min + y_max) / 2])
+
+    prev_road_id_set = set()
+    prev_participant_id_set = set()
+
+    for frame in frame_list:
+        participant_ids = [pid for pid, p in participants.items() if p.is_active(frame)]
+        if follow_view:
+            camera.update(
+                frame,
+                participants,
+                participant_ids,
+                prev_road_id_set,
+                prev_participant_id_set,
+                Point(camera_position),
+            )
     else:
-        camera = BEVCamera(1, map_, (30, 30, 45, 15), window_size=(600, 600))
         state = participants[participant_ids[0]].get_state(frame)
         logging.info(state.location)
-        camera.update(participants, participant_ids, frame, Point(state.location), state.heading)
-    observation = camera.get_observation()
-    logging.info(f"observation.shape: {observation.shape}")
-
-    img = Image.fromarray(observation)
-    img = img.rotate(270)
-
-    if not os.path.exists("./tests/runtime"):
-        os.makedirs("./tests/runtime")
-    if follow_view:
-        img.save("./tests/runtime/test_camera_follow_view.jpg")
-    else:
-        img.save("./tests/runtime/test_camera.jpg")
+        camera.update(
+            frame,
+            participants,
+            participant_ids,
+            prev_road_id_set,
+            prev_participant_id_set,
+            Point(state.location),
+        )
+    # observation = camera.get_observation()
+    # logging.info(f"observation.shape: {observation.shape}")
 
 
 @pytest.mark.render
-@pytest.mark.skip(reason="TODO")
 @pytest.mark.parametrize("perception_range", [12.0, 30.0, 45.0, 100.0])
 def test_lidar(perception_range):
-    map_path = "./tactics2d/data/map/INTERACTION/DR_DEU_Roundabout_OF.osm"
+    scenario = "DR_DEU_Roundabout_OF"
+    file_id = 1
+    stamp_range = (0, 8000)
+    map_path = f"./tactics2d/data/map/INTERACTION/{scenario}.osm"
     trajectory_path = (
-        "./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/DR_USA_Intersection_EP0"
+        f"./tactics2d/data/trajectory_sample/INTERACTION/recorded_trackfiles/{scenario}"
     )
-    config_path = "./tactics2d/dataset_parser/map.config"
-
-    with open(config_path) as f:
-        configs = json.load(f)
 
     map_parser = OSMParser(lanelet2=True)
-    map_ = map_parser.parse(get_absolute_path(map_path), configs["DR_DEU_Roundabout_OF"])
+    map_ = map_parser.parse(get_absolute_path(map_path), INTERACTION_MAP_CONFIG[scenario])
 
-    frame = 88000
     dataset_parser = InteractionParser()
-    participants, _ = dataset_parser.parse_trajectory(0, trajectory_path, (87000, 90000))
-    participant_ids = [
-        participant.id_ for participant in participants.values() if participant.is_active(frame)
-    ]
+    participants, actual_stamp_range = dataset_parser.parse_trajectory(
+        file_id, trajectory_path, stamp_range
+    )
+    frame_list = list(range(actual_stamp_range[0], actual_stamp_range[1], 100))
 
-    lidar = SingleLineLidar(1, map_, perception_range, window_size=(600, 600), off_screen=False)
+    lidar = SingleLineLidar(1, map_, perception_range)
 
-    state = participants[participant_ids[0]].get_state(frame)
-    lidar.update(participants, participant_ids[1:], frame, Point(state.location), state.heading)
-    _ = lidar.get_observation()
+    for frame in frame_list:
+        participant_ids = [
+            participant.id_ for participant in participants.values() if participant.is_active(frame)
+        ]
 
-    observation = pygame.surfarray.array3d(lidar.surface)
-    img = Image.fromarray(observation)
-    img = img.rotate(270)
+        state = participants[participant_ids[0]].get_state(frame)
+        lidar.update(frame, participants, participant_ids[1:], Point(state.location), state.heading)
+    # _ = lidar.get_observation()
 
-    if not os.path.exists("./tests/runtime"):
-        os.makedirs("./tests/runtime")
-    img.save(f"./tests/runtime/test_lidar_{int(perception_range)}.jpg")
+    # observation = pygame.surfarray.array3d(lidar.surface)
+    # img = Image.fromarray(observation)
+    # img = img.rotate(270)
+
+    # if not os.path.exists("./tests/runtime"):
+    #     os.makedirs("./tests/runtime")
+    # img.save(f"./tests/runtime/test_lidar_{int(perception_range)}.jpg")
 
 
 @pytest.mark.render

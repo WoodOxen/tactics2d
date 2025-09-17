@@ -56,7 +56,7 @@ class SingleLineLidar(SensorBase):
         self._freq_scan = freq_scan
         self._freq_detect = freq_detect
 
-        self.point_density = np.min(int(self._freq_detect / self._freq_scan), 1)
+        self.point_density = int(self._freq_detect / self._freq_scan)
         self.angle_resolution = 2 * np.pi / self.point_density
         self.scan_result = np.full(self.point_density, float("inf"))
 
