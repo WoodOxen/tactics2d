@@ -34,8 +34,8 @@ from tactics2d.utils.common import get_absolute_path
 @pytest.mark.render
 @pytest.mark.parametrize("follow_view", [True, False])
 def test_camera(follow_view: bool):
-    scenario = "DR_DEU_Roundabout_OF"
-    file_id = 1
+    scenario = "DR_USA_Intersection_EP0"
+    file_id = 0
     stamp_range = (0, 8000)
     map_path = f"./tactics2d/data/map/INTERACTION/{scenario}.osm"
     trajectory_path = (
@@ -87,8 +87,8 @@ def test_camera(follow_view: bool):
 @pytest.mark.render
 @pytest.mark.parametrize("perception_range", [12.0, 30.0, 45.0, 100.0])
 def test_lidar(perception_range):
-    scenario = "DR_DEU_Roundabout_OF"
-    file_id = 1
+    scenario = "DR_USA_Intersection_EP0"
+    file_id = 0
     stamp_range = (0, 8000)
     map_path = f"./tactics2d/data/map/INTERACTION/{scenario}.osm"
     trajectory_path = (
