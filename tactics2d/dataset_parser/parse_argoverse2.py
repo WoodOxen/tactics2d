@@ -191,7 +191,7 @@ class Argoverse2Parser:
                     id_=str(road_element["id"]),
                     left_side=left_road_line.geometry,
                     right_side=right_road_line.geometry,
-                    line_ids={left_road_line.id_, right_road_line.id_},
+                    line_ids={"left": [left_road_line.id_], "right": [right_road_line.id_]},
                     subtype=self._LANE_TYPE_MAPPING[road_element["lane_type"]],
                     location="urban",
                     custom_tags={"is_intersection": road_element["is_intersection"]},
