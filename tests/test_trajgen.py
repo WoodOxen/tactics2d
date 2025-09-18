@@ -9,7 +9,7 @@
 import numpy as np
 import pytest
 
-from tactics2d.behavior.trajgen.prioritized_replay_buffer import SumTree
+from tactics2d.behavior.trajgen.prioritized_replay_buffer import PrioritizedReplayBuffer, SumTree
 
 
 @pytest.mark.behavior
@@ -62,15 +62,12 @@ def test_update_zero_excludes_leaf():
     st = SumTree(4)
     for p, d in zip([1, 1, 1, 1], list("abcd")):
         st.add(p, d)
-    # 把 'b' 对应叶子设置为 0
-    # 简便起见：先找到 'b'
     for i in range(st.capacity):
         if st.data[i] == "b":
             leaf = (st.capacity - 1) + i
             break
     st.update(leaf, 0.0)
 
-    # Monte Carlo 采样确认几乎不命中 'b'
     hits = {k: 0 for k in "abcd"}
     T = 2000
     for _ in range(T):
@@ -96,13 +93,13 @@ def test_sampling_is_proportional():
 
     probs = counts / counts.sum()
     target = np.array(pri) / sum(pri)
-    # 宽松容差（卡方/LLN）；这里用绝对误差
+
     assert np.allclose(probs, target, atol=0.02)
 
 
 @pytest.mark.behavior
 def test_padding_leaves_never_sampled_when_leaf_count_upscaled():
-    st = SumTree(3)  # 实现里 leaf_count=4, 末尾一片是 padding=0
+    st = SumTree(3)
     st.add(1, "x")
     st.add(1, "y")
     st.add(1, "z")
@@ -112,4 +109,84 @@ def test_padding_leaves_never_sampled_when_leaf_count_upscaled():
         v = np.random.random() * st.total_priority
         _, pr, data = st.get_leaf(v)
         seen.add(data)
-    assert seen == {"x", "y", "z"}  # 不应出现 None/0/padding
+    assert seen == {"x", "y", "z"}
+
+
+@pytest.fixture
+def small_buffer():
+    return PrioritizedReplayBuffer(buffer_size=8, alpha=0.6, beta=0.4, beta_increment=1e-3)
+
+
+@pytest.mark.behavior
+def test_push_increases_total_priority(small_buffer):
+    buf = small_buffer
+    # push 使用当前最大叶子优先级（首个为 upper_absolute_error）
+    k = 5
+    for i in range(k):
+        buf.push(("s", i))
+
+    total = buf.sum_tree.total_priority
+    assert np.isclose(total, k * buf.upper_absolute_error)
+
+    # 前 k 条 data 不为默认 0.0
+    assert all(buf.sum_tree.data[i] != 0.0 for i in range(k))
+
+
+@pytest.mark.behavior
+def test_sample_shapes_and_ids_and_data(small_buffer):
+    buf = small_buffer
+    data = [("exp", i) for i in range(6)]
+    for d in data:
+        buf.push(d)
+
+    n = 4
+    ids, exps, w = buf.sample(n)
+
+    assert ids.shape == (n,)
+    assert w.shape == (n, 1)  # 你当前实现是 (n,1)
+    assert len(exps) == n
+
+    # 采样的树索引必须在叶子区间内
+    start = buf.sum_tree.leaf_start
+    end = start + buf.buffer_size
+    assert np.all((ids >= start) & (ids < end))
+
+    # 经验必须来自已写入的数据槽（而不是初始化的 0.0）
+    for e in exps:
+        assert isinstance(e, tuple) and e[0] == "exp"
+
+
+@pytest.mark.behavior
+def test_update_priority_changes_leaf_value(small_buffer):
+    buf = small_buffer
+    for i in range(3):
+        buf.push(("x", i))
+
+    ids, exps, w = buf.sample(2)  # 抽两个
+    # 构造一个较大的 TD 误差，观察优先级变化
+    abs_errors = np.array([2.5, 0.1], dtype=float)
+    buf.update_priority(ids[:2], abs_errors[:2])
+
+    # 逐个检查叶子值是否等于 min(|e|+eps, cap)^alpha
+    for idx, e in zip(ids[:2], abs_errors[:2]):
+        expected = min(e + buf.eps, buf.upper_absolute_error) ** buf.alpha
+        assert np.isclose(buf.sum_tree.tree[int(idx)], expected)
+
+
+@pytest.mark.behavior
+def test_importance_weights_are_normalized(small_buffer):
+    buf = small_buffer
+    for i in range(6):
+        buf.push(("x", i))
+
+    ids, exps, w = buf.sample(6)
+    # 归一化后 max_weight 应当接近 1（数值误差允许 1.000... 一点点偏差）
+    assert w.max() <= 1.0 + 1e-6
+    assert w.min() > 0.0
+
+
+@pytest.mark.behavior
+def test_sampling_raises_on_empty_buffer():
+    buf = PrioritizedReplayBuffer(4)
+    with pytest.raises(ValueError):
+        buf.sample(2)

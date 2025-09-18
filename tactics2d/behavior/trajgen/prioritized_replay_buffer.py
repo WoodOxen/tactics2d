@@ -10,12 +10,21 @@ import logging
 import os
 import pickle
 import random
+from typing import Any
 
 import numpy as np
 
 
 class SumTree:
-    def __init__(self, capacity):
+    def __init__(self, capacity: int):
+        """Initialize a sum tree with at least `capacity` leaf slots.
+
+        Args:
+            capacity (int): Maximum number of data items to store. Leaf slots are padded to the next power of two >= capacity.
+
+        Raises:
+            AssertionError: If capacity < 1.
+        """
         assert capacity >= 1
         self.capacity = capacity
         self.leaf_count = 1 << (capacity - 1).bit_length()
@@ -24,20 +33,20 @@ class SumTree:
         self.data = np.zeros(capacity, dtype=object)
         self.data_pointer = 0
 
-    def add(self, priority, data):
-        tree_index = self.leaf_start + self.data_pointer
+    def add(self, priority: float, data: Any):
+        idx = self.leaf_start + self.data_pointer
         self.data[self.data_pointer] = data
-        self.update(tree_index, priority)
+        self.update(idx, priority)
         self.data_pointer = (self.data_pointer + 1) % self.capacity
 
-    def update(self, tree_index, priority):
-        change = priority - self.tree[tree_index]
-        self.tree[tree_index] = priority
-        while tree_index != 0:
-            tree_index = (tree_index - 1) // 2
-            self.tree[tree_index] += change
+    def update(self, idx: int, priority: float):
+        change = priority - self.tree[idx]
+        self.tree[idx] = priority
+        while idx != 0:
+            idx = (idx - 1) // 2
+            self.tree[idx] += change
 
-    def get_leaf(self, v):
+    def get_leaf(self, v: float):
         parent = 0
         while True:
             left = 2 * parent + 1
@@ -55,11 +64,22 @@ class SumTree:
 
     @property
     def total_priority(self):
+        """float: The sum of all leaf priorities (value at the root)."""
         return self.tree[0]
 
 
 class PrioritizedReplayBuffer:
-    def __init__(self, buffer_size: int, alpha=0.6, beta=0.4, beta_increment=1e-3):
+    def __init__(
+        self, buffer_size: int, alpha: float = 0.6, beta: float = 0.4, beta_increment: float = 1e-3
+    ):
+        """Create the buffer and its underlying sum tree.
+
+        Args:
+            buffer_size (int): Maximum number of experiences to keep.
+            alpha (float): Priority exponent in PER (0 => uniform, 1 => full prioritization).
+            beta (float): Initial importance-sampling exponent (will anneal toward 1.0).
+            beta_increment (float): Additive increment for beta on each `sample()` call.
+        """
         self.buffer_size = buffer_size
         self.alpha = alpha
         self.beta = beta
@@ -72,11 +92,14 @@ class PrioritizedReplayBuffer:
         # small epsilon to avoid zero probability
         self.eps = 1e-3
 
-        self._log_utilization_once = True
+    def push(self, experience: Any):
+        """Insert a new experience with the current maximum leaf priority.
 
-    def push(self, experience):
-        """
-        Store a new experience in the tree with max_priority and adjust the priority according to the prediction error.
+        New items are given max of existing leaf priorities so they are sampled at least once
+        before their priority is updated from a computed TD error.
+
+        Args:
+            experience (Any): The transition or data item to store.
         """
         start = self.sum_tree.leaf_start
         leaves = self.sum_tree.tree[start : start + self.buffer_size]
@@ -85,7 +108,7 @@ class PrioritizedReplayBuffer:
             max_priority = self.upper_absolute_error
         self.sum_tree.add(max_priority, experience)
 
-    def sample(self, n):
+    def sample(self, n: int):
         total = self.sum_tree.total_priority
         if total <= 0.0:
             raise ValueError("Cannot sample from an empty buffer or when all priorities are zero.")
@@ -143,14 +166,3 @@ class PrioritizedReplayBuffer:
             return buffer_data, info["total_steps"], info["episode_num"]
 
         return buffer_data
-
-    def measure_utilization(self):
-        """Log buffer utilization once after first wrap-around; else periodically log fill percentage."""
-        pointer = self.sum_tree.data_pointer
-        util = pointer / self.buffer_size
-        percent = round(util * 100.0, 2)
-        if self._log_utilization_once and pointer == 0:
-            logging.info("Replay buffer wrapped: now continuously overwriting oldest samples.")
-            self._log_utilization_once = False
-        else:
-            logging.info(f"{percent} % of the buffer has been filled")
