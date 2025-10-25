@@ -8,8 +8,7 @@
 
 import logging
 import xml.etree.ElementTree as ET
-from copy import deepcopy
-from typing import Tuple, Union
+from typing import Union
 
 import numpy as np
 from pyproj import CRS

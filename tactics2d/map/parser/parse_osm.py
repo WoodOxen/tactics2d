@@ -79,22 +79,22 @@ class OSMParser:
                 tags[tag.attrib["k"]] = tag.attrib["v"]
 
             elif tag.attrib["k"] in bool_tags:
-                tags[tag.attrib["k"]] = tag.attrib["v"] == "yes"
+                tags["custom_tags"][tag.attrib["k"]] = tag.attrib["v"] == "yes"
 
             elif "lane_change" in tag.attrib["k"]:
                 if "lane_change" in tags:
                     raise SyntaxError("Conflict tags on lane changing property.")
                 else:
                     if tag.attrib["k"] == "lane_change":
-                        tags["lane_change"] = (
+                        tags["custom_tags"]["lane_change"] = (
                             (True, True) if tag.attrib["v"] == "yes" else (False, False)
                         )
                     elif tag.attrib["k"] == "lane_change:left":
-                        tags["lane_change"] = (
+                        tags["custom_tags"]["lane_change"] = (
                             (True, False) if tag.attrib["v"] == "yes" else (False, False)
                         )
                     elif tag.attrib["k"] == "lane_change:right":
-                        tags["lane_change"] = (
+                        tags["custom_tags"]["lane_change"] = (
                             (False, True) if tag.attrib["v"] == "yes" else (False, False)
                         )
 

@@ -9,11 +9,10 @@ import logging
 import os
 
 import geopandas as gpd
-import pyogrio
 from pyproj import Proj
-from shapely.geometry import LineString, MultiLineString, MultiPolygon, Point, Polygon
+from shapely.geometry import LineString, MultiLineString, Point
 
-from tactics2d.map.element import Area, Lane, Map, Node, Regulatory, RoadLine
+from tactics2d.map.element import Map, RoadLine
 
 # from collections import Union, List
 

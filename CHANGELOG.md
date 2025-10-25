@@ -4,6 +4,8 @@
 
 ### Added
 
+- `tactics2d.dataset_parser.LevelXParser`: Add support for uniD.
+
 ### Changed
 
 - Split `tactics2d.math` into `tactics2d.interpolator` and `tactics2d.geometry`.
@@ -17,6 +19,7 @@
   - `tactics2d.traffic.scenario_display` to `tactics2d.sensor.matplotlib.renderer`.
   - `tactics2d.sensor.camera` returns dictionary for frontend rendering.
   - `tactics2d.sensor.lidar` returns dictionary for frontend rendering.
+  - `tactics2d.participant.trajectory.State` returns `(None, None)` for property velocity and acceleration when the state is not available.
 
 ### Fixed
 

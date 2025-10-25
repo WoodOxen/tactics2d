@@ -51,8 +51,6 @@ include-package-data = true
 [tool.setuptools.package-data]
 tactics2d = [
     "tactics2d/participant/trajectory_classifier.m",
-    "tactics2d/frontend/static/**",
-    "tactics2d/frontend/templates/*",
 ]
 
 [tool.setuptools.packages.find]
