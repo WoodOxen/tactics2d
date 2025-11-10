@@ -41,6 +41,7 @@ jobs:
 
       - name: Run Pytest
         run: |
+          set MPLBACKEND=Agg
           mkdir -p ./tests/runtime
           pytest tests --cov=tactics2d --cov-report=xml
 
