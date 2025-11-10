@@ -44,6 +44,7 @@ def test_osm_parser():
 
 
 @pytest.mark.map_parser
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="Skip on Windows (Tcl/Tk not available)")
 @pytest.mark.parametrize(
     "map_folder, map_configs",
     [
