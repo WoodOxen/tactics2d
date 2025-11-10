@@ -23,6 +23,7 @@ from tactics2d.utils.common import get_absolute_path
 
 
 @pytest.mark.map_parser
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="Skip on Windows (Tcl/Tk not available)")
 def test_osm_parser():
     map_path = get_absolute_path("./tactics2d/data/map/SJTU/raw.osm")
     map_parser = OSMParser()
@@ -100,6 +101,7 @@ def test_lanelet2_parser(map_folder, map_configs):
 
 
 @pytest.mark.map_parser
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="Skip on Windows (Tcl/Tk not available)")
 @pytest.mark.parametrize(
     "map_path, img_path",
     [
