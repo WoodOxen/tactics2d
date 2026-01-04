@@ -1,4 +1,4 @@
-##! python3@pytest.mark.skipif(sys.platform.startswith("win"), reason="Skip on Windows (Tcl/Tk not available)")
+##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: test_map_parser.py
 # @Description: This script is used to test the parsers and converters in the map module.
