@@ -11,11 +11,9 @@ jobs:
   test-modules:
     strategy:
       matrix:
-        os: ['ubuntu-22.04', 'ubuntu-24.04', 'macos-latest', 'windows-latest']
+        os: ['ubuntu-22.04', 'ubuntu-24.04', 'macos-14', 'windows-latest']
         python-version: ['3.8', '3.9', '3.10', '3.11']
         exclude:
-        - os: macos-latest
-          python-version: '3.11'
         - os: windows-latest
           python-version: '3.8'
         - os: windows-latest
