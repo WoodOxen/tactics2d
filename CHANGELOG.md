@@ -7,32 +7,30 @@
 ### Changed
 
 - Split `tactics2d.math` into `tactics2d.interpolator` and `tactics2d.geometry`.
-- Parameter changes in `tactics2d.geometry`:
-  - `Circle`: Remove `get_circle_by_three_points` and `get_circle_by_tangent_vector`. Keep their functionality in `Circle.get_circle(**kwargs)`.
-- Parameter changes in `tactics2d.interpolator`:
-  - `Bezier`: Change `get_curve` method to static method. Move `order` parameter from `__init__` to `get_curve` method.
-  - `BSpline`: Change `get_curve` method to static method. Move `degree` parameter from `__init__` to `get_curve` method.
-  - `CubicSpline`: Change `get_curve` method to static method. Move `boundary_type` parameter from `__init__` to `get_curve` method.
+- Refactor geometry module:
+  - `Circle`: Remove `get_circle_by_three_points` and `get_circle_by_tangent_vector`. Keep functionality in `Circle.get_circle(**kwargs)`.
+- Refactor interpolator module:
+  - `Bezier`: Change `get_curve` method to static. Move `order` parameter from `__init__` to `get_curve`.
+  - `BSpline`: Change `get_curve` method to static. Move `degree` parameter from `__init__` to `get_curve`.
+  - `CubicSpline`: Change `get_curve` method to static. Move `boundary_type` parameter from `__init__` to `get_curve`.
   - `Spiral`: Rename `get_spiral` method to `get_curve`.
-  - `tactics2d.traffic.scenario_display` to `tactics2d.sensor.matplotlib.renderer`.
-  - `tactics2d.sensor.camera` returns dictionary for frontend rendering.
-  - `tactics2d.sensor.lidar` returns dictionary for frontend rendering.
+- Rename `tactics2d.traffic.scenario_display` to `tactics2d.sensor.matplotlib.renderer`.
+- Update sensor interfaces:
+  - `tactics2d.sensor.camera`: Now returns dictionary for frontend rendering.
+  - `tactics2d.sensor.lidar`: Now returns dictionary for frontend rendering.
+- Replace TensorFlow dependency with tfrecord for WOMD parsing:
+  - Remove `tensorflow-cpu` dependency, add `tfrecord>=0.2.0`.
+  - Update `WOMDParser` to use `tfrecord.tfrecord_iterator` instead of `tf.data.TFRecordDataset`.
+  - Cache scenario data to avoid generator exhaustion.
 
 ### Fixed
 
-- Improve `NuPlanParser.map_parser()` at my best, still it is a mess of shit.
+- Improve `NuPlanParser.map_parser()` (ongoing improvements).
 
 ### Deprecated
 
 ### Removed
 
-### TODO
-
-- `tactics2d.interpolator.cubic_spline`: Improve efficiency of CubicSpline by ThomasSolver.
-- `tactics2d.dataset_parser.WOMDParser`: Identify the boundaries of a lane element.
-- `tactics2d.dataset_parser.womd_proto`: Add compatibility to protobuf 3.x.x and 4.x.x.
-- `tactics2d.map.parser.OSMParser`: Handle the tag `highway` in `load_way` for the original [OSM label style](https://wiki.openstreetmap.org/wiki/Key:lanes).
-- `tactics2d.dataset_parser`: Improve the efficiency.
 
 ## [0.1.8] - 2025-05-22
 
