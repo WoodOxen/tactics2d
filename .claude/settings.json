@@ -1,41 +1,45 @@
 {
     "permissions": {
       "deny": [
-        // Build artifacts and build files
         "Read(./build/**)",
         "Read(./dist/**)",
-        "Read(./tactics2d.egg-info/**)",
+        "Read(./*.egg-info/**)",
         "Read(./*.so)",
-        "Read(./__pycache__/**)",
-        "Read(./*.pyc)",
+        "Read(./*.pyd)",
+        "Read(./*.dll)",
+        "Read(./*.dylib)",
+        "Read(./**/__pycache__/**)",
+        "Read(./**/*.pyc)",
 
-        // Test and runtime files
         "Read(./tests/runtime/**)",
-        "Read(./.pytest_cache/**)",
+        "Read(./**/.pytest_cache/**)",
         "Read(./.coverage)",
+        "Read(./coverage.xml)",
         "Read(./htmlcov/**)",
-
-        // Documentation build outputs
+        "Read(./*.prof)",
         "Read(./docs/_build/**)",
         "Read(./site/**)",
-
-        // Claude Code generated files
         "Read(./claude-*.md)",
-
-        // Temporary files and logs
         "Read(./*.log)",
         "Read(./*.tmp)",
-        "Read(./*.cache)"
+        "Read(./*.cache)",
+        "Read(./*.swp)",
+        "Read(./*.swo)"
       ],
       "allow": [
-        // Common project commands allowed
         "Bash(pytest tests/ --cov=tactics2d)",
+        "Bash(pytest tests/ -m \"env\")",
         "Bash(black --line-length 100 .)",
         "Bash(isort --profile black .)",
         "Bash(clang-format -i tactics2d/interpolator/cpp_interpolator/src/*.cpp tactics2d/geometry/cpp_geometry/src/*.cpp)",
+        "Bash(pre-commit run --all-files)",
         "Bash(mkdocs build)",
+        "Bash(mkdocs serve)",
         "Bash(python setup.py install)",
-        "Bash(python setup.py build)"
+        "Bash(python setup.py build)",
+        "Bash(python setup.py clean --all)",
+        "Bash(python -m build)",
+        "Bash(mkdir -p ./tests/runtime)"
       ]
     },
     "cleanupPeriodDays": 30,
