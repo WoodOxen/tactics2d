@@ -31,7 +31,6 @@ Repository = "https://github.com/WoodOxen/tactics2d"
 
 [project.optional-dependencies]
 test = [
-    "bezier>=2021.2.12,<=2023.7.28",
     "Pillow>=9.5.0",
     "pytest>=7.4.4",
     "pytest-cov>=4.1.0",

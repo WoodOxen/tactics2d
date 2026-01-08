@@ -33,8 +33,12 @@ class CubicSpline {
         std::pair<double, double> xx, BoundaryType boundary_type);
     static std::vector<double> Gauss(std::vector<std::vector<double>>& A,
                                      std::vector<double>& b);
-    // std::vector<double> Thomas_algorithm(std::vector<std::vector<double>>& A,
-    // std::vector<double>& b);
+    static std::vector<double> ThomasSolve(const std::vector<double>& h,
+                                           const std::vector<double>& B,
+                                           BoundaryType boundary_type,
+                                           std::pair<double, double> xx);
+    static std::vector<double> BandedSolve(const std::vector<double>& h,
+                                           const std::vector<double>& B);
 };
 
 #endif  // CUBIC_SPLINE_HPP
