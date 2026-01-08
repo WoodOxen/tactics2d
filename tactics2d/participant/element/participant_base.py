@@ -3,7 +3,7 @@
 # @File: participant_base.py
 # @Description: This script defines an abstract class for a traffic participant.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 import logging
 from abc import ABC, abstractmethod

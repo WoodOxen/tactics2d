@@ -3,7 +3,7 @@
 # @File: sensor_base.py
 # @Description: This file defines a base interface for sensors.
 # @Author: Tactics2D Team
-# @Version: 0.1.9
+# @Version: 0.1.8rc1
 
 from abc import ABC, abstractmethod
 from typing import Tuple, Union

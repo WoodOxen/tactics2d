@@ -3,7 +3,7 @@
 # @File: __init__.py
 # @Description: This file initializes the sensor module.
 # @Author: Tactics2D Team
-# @Version: 0.1.9
+# @Version: 0.1.8rc1
 
 from .matplotlib_renderer import MatplotlibRenderer
 

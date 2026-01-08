@@ -3,7 +3,7 @@
 # @File: generate_parking_lot.py
 # @Description: This file defines a class to generate random parking lot scenarios.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 
 import logging

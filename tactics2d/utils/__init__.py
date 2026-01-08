@@ -3,4 +3,4 @@
 # @File: __init__.py
 # @Description:
 # @Author: Tactics2D Team
-# @Version:
+# @Version: 0.1.8rc1

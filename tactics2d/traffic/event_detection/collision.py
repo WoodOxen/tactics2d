@@ -3,7 +3,7 @@
 # @File: collision.py
 # @Description: This file defines the collision events for traffic scenarios.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 
 from shapely.geometry import Polygon

@@ -3,7 +3,7 @@
 # @File: other.py
 # @Description: This file defines a class for a traffic participant of an unknown type/undefined.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 from typing import Any, Tuple, Union
 

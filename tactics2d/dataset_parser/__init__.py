@@ -3,7 +3,7 @@
 # @File: __init__.py
 # @Description: Initialize the dataset parser module.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 from .parse_argoverse2 import Argoverse2Parser
 from .parse_citysim import CitySimParser

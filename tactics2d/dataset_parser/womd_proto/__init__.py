@@ -3,7 +3,7 @@
 # @File: __init__.py
 # @Description: Initialize the womd_proto module.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 from .pb2 import scenario_pb2 as scenario_pbv2
 

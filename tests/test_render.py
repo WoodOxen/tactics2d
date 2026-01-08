@@ -3,7 +3,7 @@
 # @File: test_render.py
 # @Description: This script is used to test the sensor module.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 
 import sys

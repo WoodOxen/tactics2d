@@ -3,7 +3,7 @@
 # @File: parse_xodr.py
 # @Description: This file defines a class for parsing the OpenDRIVE map format.
 # @Author: Tactics2D Team
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 
 import logging

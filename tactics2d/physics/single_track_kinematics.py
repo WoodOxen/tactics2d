@@ -3,7 +3,7 @@
 # @File: single_track_kinematics.py
 # @Description: This file implements a kinematic single-track model for a traffic participant.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 from typing import Tuple, Union
 

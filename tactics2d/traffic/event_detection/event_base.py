@@ -3,7 +3,7 @@
 # @File: event_base.py
 # @Description: This script defines the event base class for the traffic scenario.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 
 from abc import ABC, abstractmethod

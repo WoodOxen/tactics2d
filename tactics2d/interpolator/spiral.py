@@ -3,7 +3,7 @@
 # @File: spiral.py
 # @Description: This file implements a spiral interpolation.
 # @Author: Tactics2D Team
-# @Version: 0.1.9
+# @Version: 0.1.8rc1
 
 
 import numpy as np

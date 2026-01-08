@@ -3,7 +3,7 @@
 # @File: test_participant.py
 # @Description: This script is used to test the participant module.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 
 import sys

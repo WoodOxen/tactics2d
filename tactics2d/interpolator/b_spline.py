@@ -3,9 +3,10 @@
 # @File: b_spline.py
 # @Description: This file implements a B-spline curve interpolator.
 # @Author: Tactics2D Team
-# @Version: 0.1.9
+# @Version: 0.1.8rc1
 
 import numpy as np
+
 from cpp_interpolator import BSpline as cpp_BSpline
 
 

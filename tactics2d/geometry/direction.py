@@ -3,7 +3,7 @@
 # @File: direction.py
 # @Description: This file defines the
 # @Author: Tactics2D Team
-# @Version: 0.1.9
+# @Version: 0.1.8rc1
 
 
 from enum import Enum

@@ -3,7 +3,7 @@
 # @File: __init__.py
 # @Description: Initialize the sensor module.
 # @Author: Tactics2D Team
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 from .camera import BEVCamera
 from .lidar import SingleLineLidar

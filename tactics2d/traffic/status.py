@@ -3,7 +3,7 @@
 # @File: status.py
 # @Description: This script defines the status by enum class for a traffic scenario.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 from enum import IntEnum
 

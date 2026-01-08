@@ -3,7 +3,7 @@
 # @File: lidar.py
 # @Description: This file implements the render paradigm for lidar-type sensors.
 # @Author: Tactics2D Team
-# @Version: 0.1.9
+# @Version: 0.1.8rc1
 
 from typing import Tuple
 

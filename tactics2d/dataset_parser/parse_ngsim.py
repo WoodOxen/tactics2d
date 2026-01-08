@@ -3,7 +3,7 @@
 # @File: parse_ngsim.py
 # @Description: This file implements a parser for NGSIM dataset.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 import os
 from typing import Tuple, Union

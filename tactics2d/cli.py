@@ -3,7 +3,7 @@
 # @File: cli.py
 # @Description:
 # @Author: Tactics2D Team
-# @Version: 0.1.9
+# @Version: 0.1.8rc1
 
 import sys
 
@@ -17,10 +17,12 @@ import threading
 
 import numpy as np
 
+import tactics2d
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Tactics2D Command Line Tool")
-    parser.add_argument("--version", action="version", version="tactics2d 0.1.9")
+    parser.add_argument("--version", action="version", version=f"tactics2d {tactics2d.__version__}")
 
     args = parser.parse_args()
 

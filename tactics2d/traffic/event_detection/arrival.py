@@ -3,7 +3,7 @@
 # @File: completed.py
 # @Description: This script defines the event detector to check whether the agent has arrived at a target area.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 
 from shapely.geometry import Polygon

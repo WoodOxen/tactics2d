@@ -3,7 +3,7 @@
 # @File: trajectory.py
 # @Description: This file defines a trajectory data structure.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 import logging
 from typing import Any, List, Tuple

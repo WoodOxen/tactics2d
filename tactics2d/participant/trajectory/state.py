@@ -3,7 +3,7 @@
 # @File: __init__.py
 # @Description: This file defines the state element of a trajectory.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 from typing import Any, Tuple
 

@@ -3,7 +3,7 @@
 # @File: render_config.py
 # @Description: This file contains the default color palette and zorder for rendering different classes of elements in the traffic scenario.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 COLOR_PALETTE = {
     "red": "#fc5c65",

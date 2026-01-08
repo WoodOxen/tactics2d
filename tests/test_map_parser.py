@@ -3,7 +3,7 @@
 # @File: test_map_parser.py
 # @Description: This script is used to test the parsers and converters in the map module.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 
 import sys

@@ -3,7 +3,7 @@
 # @File: parse_levelx.py
 # @Description: This file implements a parser for highD, inD, rounD, exiD, uniD datasets.
 # @Author: Yueyuan Li
-# @Version: 0.1.8
+# @Version: 0.1.8rc1
 
 import os
 import re

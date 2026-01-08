@@ -3,7 +3,7 @@
 # @File: __init__.py
 # @Description: This file defines the event detection module for the traffic scenario.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 from .arrival import Arrival
 from .collision import DynamicCollision, StaticCollision

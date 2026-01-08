@@ -3,7 +3,7 @@
 # @File: point_mass.py
 # @Description: This file implements a point mass model for a traffic participant.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 import logging
 from typing import Tuple, Union

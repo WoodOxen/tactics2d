@@ -3,7 +3,7 @@
 # @File: test_map_element.py
 # @Description: This file is used to test the elements in the map module.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 
 import logging

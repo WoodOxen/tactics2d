@@ -3,7 +3,7 @@
 # @File: parse_osm.py
 # @Description: This file defines a parser for lanelet2 format map.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 
 import logging

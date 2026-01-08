@@ -3,7 +3,7 @@
 # @File: single_track_drift.py
 # @Description: This file implements a dynamic single-track model for a vehicle.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 from typing import Tuple, Union
 

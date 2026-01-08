@@ -3,7 +3,7 @@
 # @File: get_absolute_path.py
 # @Description: This file implements a function to get the absolute path of a file.
 # @Author: Tactics2D Team
-# @Version:
+# @Version: 0.1.8rc1
 
 import os
 import sys

@@ -3,13 +3,9 @@
 # @File: __init__.py
 # @Description:
 # @Author: Tactics2D Team
-# @Version: 0.1.9
+# @Version: 0.1.8rc1
 
 from .circle import Circle
 from .direction import CardinalDirection, RelativeDirection
 
-__all__ = [
-    "Circle",
-    "RelativeDirection",
-    "CardinalDirection",
-]
+__all__ = ["Circle", "RelativeDirection", "CardinalDirection"]

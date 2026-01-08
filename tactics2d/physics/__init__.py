@@ -3,7 +3,7 @@
 # @File: __init__.py
 # @Description: Initialize the physics module.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 from .physics_model_base import PhysicsModelBase
 from .point_mass import PointMass

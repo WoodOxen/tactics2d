@@ -3,7 +3,7 @@
 # @File: parse_womd.py
 # @Description: This file implements a parser for Waymo Open Motion Dataset v1.2.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 import os
 from typing import List, Tuple, Union

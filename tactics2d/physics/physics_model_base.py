@@ -3,7 +3,7 @@
 # @File: physics_model_base.py
 # @Description: This file defines an abstract class for a physics model of a traffic participant.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 from abc import ABC, abstractmethod
 

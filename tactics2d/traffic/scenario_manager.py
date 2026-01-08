@@ -3,7 +3,7 @@
 # @File: scenario_manager.py
 # @Description: This script defines an abstract class for a scenario manager.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 from abc import ABC, abstractmethod
 from typing import Tuple

@@ -3,7 +3,7 @@
 # @File: parse_interaction.py
 # @Description: This file implements a parser for INTERACTION dataset.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 import os
 import re

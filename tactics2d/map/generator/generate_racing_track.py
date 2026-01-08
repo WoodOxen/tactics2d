@@ -3,7 +3,7 @@
 # @File: generate_racing_track.py
 # @Description: This file defines a class for generating random racing tracks.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 
 import logging

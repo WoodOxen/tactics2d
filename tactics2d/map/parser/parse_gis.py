@@ -3,7 +3,7 @@
 # @File: parse_gis.py
 # @Description:
 # @Author: Tactics2D Team
-# @Version:
+# @Version: 0.1.8rc1
 
 import logging
 import os

@@ -3,7 +3,7 @@
 # @File: matplotlib_renderer.py
 # @Description:
 # @Author: Tactics2D Team
-# @Version: 0.1.9
+# @Version: 0.1.8rc1
 
 
 import logging

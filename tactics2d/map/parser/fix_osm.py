@@ -3,7 +3,7 @@
 # @File: fix_osm.py
 # @Description: This script provides an util function to fix id conflict in OSM files.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 import xml.etree.ElementTree as ET
 

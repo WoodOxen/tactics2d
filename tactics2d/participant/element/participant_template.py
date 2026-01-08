@@ -3,7 +3,7 @@
 # @File: templates.py
 # @Description: The parameter templates for different types of vehicles and participants.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 from tabulate import tabulate
 

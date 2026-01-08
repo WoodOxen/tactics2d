@@ -3,7 +3,7 @@
 # @File: time_exceed.py
 # @Description: This script defines the event to check whether the current time step has exceeded the maximum tolerant time step.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 
 from .event_base import EventBase

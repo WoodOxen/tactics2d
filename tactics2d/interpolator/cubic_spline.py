@@ -3,12 +3,13 @@
 # @File: cubic_spline.py
 # @Description: This file implements a cubic spline interpolator.
 # @Author: Tactics2D Team
-# @Version: 0.1.9
+# @Version: 0.1.8rc1
 
 from enum import Enum
 from typing import Union
 
 import numpy as np
+
 from cpp_interpolator import CubicSpline as cpp_CubicSpline
 
 

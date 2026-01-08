@@ -3,7 +3,7 @@
 # @File: acceleration_controller.py
 # @Description:
 # @Author: Tactics2D Team
-# @Version:
+# @Version: 0.1.8rc1
 
 import numpy as np
 from scipy.interpolate import interp1d

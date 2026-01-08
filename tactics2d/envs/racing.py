@@ -3,7 +3,7 @@
 # @File: racing.py
 # @Description: This script defines a racing environment.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 
 import logging

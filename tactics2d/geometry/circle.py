@@ -3,13 +3,13 @@
 # @File: circle.py
 # @Description:
 # @Author: Tactics2D Team
-# @Version: 0.1.9
+# @Version: 0.1.8rc1
 
 from typing import Tuple
 
 import numpy as np
-from cpp_geometry import Circle as cpp_Circle
 
+from cpp_geometry import Circle as cpp_Circle
 from tactics2d.geometry.direction import RelativeDirection
 
 

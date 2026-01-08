@@ -3,7 +3,7 @@
 # @File: dubins.py
 # @Description: This file implements a Dubins curve interpolator.
 # @Author: Tactics2D Team
-# @Version: 0.1.9
+# @Version: 0.1.8rc1
 
 from typing import Tuple
 

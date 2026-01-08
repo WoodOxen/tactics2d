@@ -3,7 +3,7 @@
 # @File: parse_argoverse2.py
 # @Description: This file implements a parser for Argoverse 2 dataset.
 # @Author: Yueyuan Li
-# @Version: 0.1.8
+# @Version: 0.1.8rc1
 
 import json
 import os

@@ -3,7 +3,7 @@
 # @File: cyclist.py
 # @Description: This file defines a class for a cyclist participant.
 # @Author: Yueyuan Li
-# @Version: 1.0.0
+# @Version: 0.1.8rc1
 
 import logging
 from typing import Any, Tuple

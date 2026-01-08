@@ -3,7 +3,7 @@
 # @File: parse_citysim.py
 # @Description:
 # @Author: Tactics2D Team
-# @Version: 0.1.8
+# @Version: 0.1.8rc1
 
 import logging
 import os
@@ -42,11 +42,7 @@ class CitySimParser:
         return actual_stamp_range
 
     def parse_trajectory(
-        self,
-        file: str,
-        folder: str,
-        stamp_range: Tuple[int, int] = None,
-        ids: list = None,
+        self, file: str, folder: str, stamp_range: Tuple[int, int] = None, ids: list = None
     ) -> Tuple[dict, Tuple[int, int]]:
         """This function parses the trajectory data of CitySim datasets. The states were collected at 30Hz.
 
@@ -139,9 +135,7 @@ class CitySimParser:
                 b = (b2 + b4) / 2
 
                 participants[trajectory_id] = Vehicle(
-                    id_=trajectory_id,
-                    length=max(a, b),
-                    width=min(a, b),
+                    id_=trajectory_id, length=max(a, b), width=min(a, b)
                 )
 
             # Initialize trajectory

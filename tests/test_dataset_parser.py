@@ -3,7 +3,7 @@
 # @File: test_dataset_parser.py
 # @Description: This file implements the test cases for the dataset parser.
 # @Author: Yueyuan Li
-# @Version: 0.1.8
+# @Version: 0.1.8rc1
 
 
 import sys
