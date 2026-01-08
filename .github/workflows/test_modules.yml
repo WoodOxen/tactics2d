@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: ['ubuntu-22.04', 'ubuntu-24.04', 'macos-13', 'windows-latest']
-        python-version: ['3.8', '3.9', '3.10', '3.11']
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
         exclude:
         - os: windows-latest
           python-version: '3.8'
@@ -45,8 +45,7 @@ jobs:
       - name: Install dependencies on all platforms
         run: |
           python -m pip install --upgrade pip
-          pip install -r tests/requirements.txt
-          pip install -e .
+          pip install -e .[test]
 
       - name: Run Pytest
         run: |
@@ -102,6 +101,5 @@ jobs:
               apt-get install -y python${{ matrix.python-version }} python3-pip python${{ matrix.python-version }}-dev build-essential cmake && \
               cd /tactics2d && \
               python${{ matrix.python-version }} -m pip install --upgrade pip && \
-              pip install -r tests/requirements.txt && \
-              pip install -v . && \
+              pip install -v .[test] && \
               python${{ matrix.python-version }} -m pytest tests'
