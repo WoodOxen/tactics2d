@@ -7,9 +7,9 @@
 
 
 import logging
-import xml.etree.ElementTree as ET
 from typing import Tuple
 
+import defusedxml.ElementTree as ET
 from pyproj import Proj
 from shapely.geometry import LineString, Polygon
 

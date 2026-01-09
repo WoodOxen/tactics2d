@@ -7,10 +7,10 @@
 
 
 import logging
-import xml.etree.ElementTree as ET
 from copy import deepcopy
 from typing import Tuple, Union
 
+import defusedxml.ElementTree as ET
 import numpy as np
 from pyproj import CRS
 from shapely.affinity import affine_transform, rotate

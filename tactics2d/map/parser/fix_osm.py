@@ -5,7 +5,7 @@
 # @Author: Yueyuan Li
 # @Version: 0.1.8rc1
 
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 
 
 def re_id_elements(file, destination_file=None):
