@@ -1,9 +1,7 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: roadline.py
-# @Description: This file defines a class for a roadline.
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Roadline implementation."""
 
 
 import logging

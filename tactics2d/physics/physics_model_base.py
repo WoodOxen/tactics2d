@@ -1,9 +1,8 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: physics_model_base.py
-# @Description: This file defines an abstract class for a physics model of a traffic participant.
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Physics model base implementation."""
+
 
 from abc import ABC, abstractmethod
 

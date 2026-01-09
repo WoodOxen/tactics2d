@@ -1,9 +1,7 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: test_physics.py
-# @Description: This file implements the test cases for the physics models.
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Tests for physics."""
 
 
 import sys

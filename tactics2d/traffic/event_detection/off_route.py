@@ -1,9 +1,7 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: off_route.py
-# @Description: This script defines the event to check whether the agent is off the route.
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Off route implementation."""
 
 
 from shapely.geometry import LineString, Point

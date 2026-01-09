@@ -1,6 +1,4 @@
-##! python3
-# Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: parse_argoverse.py
-# @Description:
-# @Author: Tactics2D Team
-# @Version: 0.1.8rc1
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Argoverse parser implementation."""

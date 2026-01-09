@@ -1,9 +1,8 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: reeds_shepp.py
-# @Description: This file implements a Reeds-Shepp path interpolator.
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
+# Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Reeds shepp implementation."""
+
 
 import numpy as np
 

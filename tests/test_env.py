@@ -1,9 +1,7 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: test_env.py
-# @Description:
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Tests for env."""
 
 
 import sys

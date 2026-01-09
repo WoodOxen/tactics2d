@@ -1,4 +1,8 @@
-##! python3
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""OpenDrive map parser implementation."""
+
 from __future__ import annotations
 
 import logging
@@ -14,12 +18,6 @@ from shapely.geometry import LineString, Point, Polygon
 from tactics2d.geometry import Circle
 from tactics2d.interpolator import Spiral
 from tactics2d.map.element import Area, Connection, Junction, Lane, Map, RoadLine
-
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: parse_xodr.py
-# @Description: This file defines a class for parsing the OpenDRIVE map format.
-# @Author: Tactics2D Team
-# @Version: 0.1.8rc1
 
 
 class XODRParser:

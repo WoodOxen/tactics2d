@@ -1,9 +1,7 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: train_racing_agent.py
-# @Description: This script gives an example on how to train a PPO model in tactics2d's racing environment.
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Train racing agent implementation."""
 
 
 import sys

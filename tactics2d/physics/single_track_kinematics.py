@@ -1,9 +1,8 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: single_track_kinematics.py
-# @Description: This file implements a kinematic single-track model for a traffic participant.
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Single track kinematics implementation."""
+
 
 from typing import Tuple, Union
 

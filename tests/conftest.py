@@ -1,8 +1,8 @@
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: conftest.py
-# @Description: Pytest configuration file to set matplotlib backend for tests
-# @Author: Claude Code
-# @Version: 0.1.8rc1
+# Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Conftest implementation."""
+
 
 import os
 import sys

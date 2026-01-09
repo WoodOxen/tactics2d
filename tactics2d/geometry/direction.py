@@ -1,9 +1,7 @@
-##! python3
 # Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: direction.py
-# @Description: This file defines the
-# @Author: Tactics2D Team
-# @Version: 0.1.8rc1
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Direction implementation."""
 
 
 from enum import Enum

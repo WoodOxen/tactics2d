@@ -1,9 +1,8 @@
-##! python3
 # Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: get_absolute_path.py
-# @Description: This file implements a function to get the absolute path of a file.
-# @Author: Tactics2D Team
-# @Version: 0.1.8rc1
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Common utilities implementation."""
+
 
 import os
 import sys

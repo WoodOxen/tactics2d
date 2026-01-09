@@ -1,9 +1,7 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: test_dataset_parser.py
-# @Description: This file implements the test cases for the dataset parser.
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Tests for dataset parser."""
 
 
 import sys

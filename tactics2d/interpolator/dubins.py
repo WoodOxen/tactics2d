@@ -1,9 +1,8 @@
-##! python3
 # Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: dubins.py
-# @Description: This file implements a Dubins curve interpolator.
-# @Author: Tactics2D Team
-# @Version: 0.1.8rc1
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Dubins implementation."""
+
 
 from typing import Tuple
 

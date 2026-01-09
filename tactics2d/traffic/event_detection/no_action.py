@@ -1,4 +1,8 @@
-##! python3
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""No action implementation."""
+
 from __future__ import annotations
 
 from typing import Any, Union
@@ -6,12 +10,6 @@ from typing import Any, Union
 from shapely.geometry import Polygon
 
 from .event_base import EventBase
-
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: no_action.py
-# @Description: This script defines the no-action event for the traffic scenario.
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
 
 
 class NoAction(EventBase):

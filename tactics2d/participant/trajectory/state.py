@@ -1,9 +1,8 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: __init__.py
-# @Description: This file defines the state element of a trajectory.
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""State implementation."""
+
 
 from typing import Any, Tuple
 

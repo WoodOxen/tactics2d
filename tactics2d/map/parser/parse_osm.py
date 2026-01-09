@@ -1,4 +1,8 @@
-##! python3
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""OSM parser implementation."""
+
 from __future__ import annotations
 
 import logging
@@ -10,12 +14,6 @@ from pyproj import Proj
 from shapely.geometry import LineString, Polygon
 
 from tactics2d.map.element import Area, Lane, Map, Node, Regulatory, RoadLine
-
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: parse_osm.py
-# @Description: This file defines a parser for lanelet2 format map.
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
 
 
 class OSMParser:

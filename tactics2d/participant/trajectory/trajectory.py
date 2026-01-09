@@ -1,9 +1,8 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: trajectory.py
-# @Description: This file defines a trajectory data structure.
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Trajectory implementation."""
+
 
 import logging
 from typing import Any, List, Tuple

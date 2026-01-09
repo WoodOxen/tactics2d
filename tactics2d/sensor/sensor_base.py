@@ -1,9 +1,8 @@
-##! python3
-# Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: sensor_base.py
-# @Description: This file defines a base interface for sensors.
-# @Author: Tactics2D Team
-# @Version: 0.1.8rc1
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Base implementation."""
+
 
 from abc import ABC, abstractmethod
 from typing import Tuple, Union

@@ -1,9 +1,8 @@
-##! python3
-# Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: lidar.py
-# @Description: This file implements the render paradigm for lidar-type sensors.
-# @Author: Tactics2D Team
-# @Version: 0.1.8rc1
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Pseudo lidar implementation."""
+
 
 from typing import Tuple
 

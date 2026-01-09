@@ -1,9 +1,7 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: test_map_element.py
-# @Description: This file is used to test the elements in the map module.
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Tests for map element."""
 
 
 import logging

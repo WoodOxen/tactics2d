@@ -1,9 +1,8 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: parse_argoverse2.py
-# @Description: This file implements a parser for Argoverse 2 dataset.
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
+# Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Argoverse 2 parser implementation."""
+
 
 import json
 import os

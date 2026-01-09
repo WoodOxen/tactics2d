@@ -1,9 +1,8 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: parse_womd.py
-# @Description: This file implements a parser for Waymo Open Motion Dataset v1.2.
-# @Author: Yueyuan Li
-# @Version: 0.1.8rc1
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Waymo Open Motion Dataset parser implementation."""
+
 
 import os
 from typing import List, Tuple, Union
