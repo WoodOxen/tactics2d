@@ -1,11 +1,13 @@
 ##! python3
+from __future__ import annotations
+
+import defusedxml.ElementTree as ET
+
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: fix_osm.py
 # @Description: This script provides an util function to fix id conflict in OSM files.
 # @Author: Yueyuan Li
 # @Version: 0.1.8rc1
-
-import defusedxml.ElementTree as ET
 
 
 def re_id_elements(file, destination_file=None):

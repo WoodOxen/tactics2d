@@ -13,14 +13,12 @@ sys.path.append("..")
 
 import logging
 import os
-import random
 import time
 
 import pytest
 
 logging.basicConfig(level=logging.INFO)
 
-import numpy as np
 
 from tactics2d.envs import ParkingEnv, RacingEnv
 

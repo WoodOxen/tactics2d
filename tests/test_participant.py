@@ -12,8 +12,6 @@ sys.path.append(".")
 sys.path.append("..")
 
 import logging
-import os
-import time
 from io import StringIO
 
 import pytest

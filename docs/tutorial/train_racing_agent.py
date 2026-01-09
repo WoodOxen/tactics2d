@@ -22,8 +22,6 @@ import tqdm
 import wandb
 from rllib.algorithms.ppo import *
 
-from tactics2d.envs import RacingEnv
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 wandb.init(project="tactics2d-racing")

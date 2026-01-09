@@ -1,4 +1,12 @@
 ##! python3
+from __future__ import annotations
+
+from typing import Any, Union
+
+from shapely.geometry import Polygon
+
+from .event_base import EventBase
+
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: no_action.py
 # @Description: This script defines the no-action event for the traffic scenario.
@@ -6,17 +14,11 @@
 # @Version: 0.1.8rc1
 
 
-import numpy as np
-from shapely.geometry import Polygon
-
-from .event_base import EventBase
-
-
 class NoAction(EventBase):
     """This class defines a detector to check whether the agent has no action for a long time.
 
     Attributes:
-        last_action (Union[int, float, np.ndarray]): The last action of the agent.
+        last_action (Union[int, float, Any]): The last action of the agent.
         cnt_no_action (int): The counter of the no-action time period.
         max_step (int): The maximum tolerant time step for no action. Defaults to 100.
     """

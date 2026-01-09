@@ -13,9 +13,6 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 import argparse
-import threading
-
-import numpy as np
 
 import tactics2d
 

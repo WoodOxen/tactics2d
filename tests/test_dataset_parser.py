@@ -11,7 +11,6 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-import json
 import logging
 import os
 import time
