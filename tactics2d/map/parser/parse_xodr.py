@@ -6,8 +6,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Union
-from xml.etree.ElementTree import Element
 
 import defusedxml.ElementTree as ET
 import numpy as np
@@ -71,7 +69,7 @@ class XODRParser:
         headings.append(headings[-1])
         return headings
 
-    def _get_line(self, xml_node: Element) -> list:
+    def _get_line(self, xml_node: ET.Element) -> list:
         x_start = float(xml_node.attrib["x"])
         y_start = float(xml_node.attrib["y"])
         heading = float(xml_node.attrib["hdg"])
@@ -90,7 +88,7 @@ class XODRParser:
         points.append((x_start + length * np.cos(heading), y_start + length * np.sin(heading)))
         return points
 
-    def _get_spiral(self, xml_node: Element) -> list:
+    def _get_spiral(self, xml_node: ET.Element) -> list:
         x_start = float(xml_node.attrib["x"])
         y_start = float(xml_node.attrib["y"])
         heading = float(xml_node.attrib["hdg"])
@@ -106,7 +104,7 @@ class XODRParser:
             points = [(x, y) for x, y in points]
         return points
 
-    def _get_arc(self, xml_node: Element) -> list:
+    def _get_arc(self, xml_node: ET.Element) -> list:
         x_start = float(xml_node.attrib["x"])
         y_start = float(xml_node.attrib["y"])
         heading = float(xml_node.attrib["hdg"])
@@ -132,7 +130,7 @@ class XODRParser:
             points.append((x, y))
         return points
 
-    def _get_poly3(self, xml_node: Element) -> list:
+    def _get_poly3(self, xml_node: ET.Element) -> list:
         x_start = float(xml_node.attrib["x"])
         y_start = float(xml_node.attrib["y"])
         heading = float(xml_node.attrib["hdg"])
@@ -154,7 +152,7 @@ class XODRParser:
 
         return points
 
-    def _get_param_poly3(self, xml_node: Element) -> list:
+    def _get_param_poly3(self, xml_node: ET.Element) -> list:
         x_start = float(xml_node.attrib["x"])
         y_start = float(xml_node.attrib["y"])
         heading = float(xml_node.attrib["hdg"])
@@ -185,7 +183,7 @@ class XODRParser:
 
         return points
 
-    def _get_geometry(self, xml_node: Element) -> list:
+    def _get_geometry(self, xml_node: ET.Element) -> list:
         """
         Road Reference line
         """
@@ -217,11 +215,11 @@ class XODRParser:
 
         return np.linalg.norm(np.array(new_points[0]) - np.array(points[-1])) < 0.1
 
-    def load_header(self, xml_node: Element):
+    def load_header(self, xml_node: ET.Element):
         """This function loads the header of the OpenDRIVE map.
 
         Args:
-            xml_node (Element): The XML node of the header.
+            xml_node (ET.Element): The XML node of the header.
         """
         header_info = {
             "revMajor": xml_node.get("revMajor"),
@@ -244,7 +242,7 @@ class XODRParser:
 
         return header_info, projector
 
-    def load_roadmark(self, points: list | LineString, xml_node: Element):
+    def load_roadmark(self, points: list | LineString, xml_node: ET.Element):
         type_ = "virtual"
         subtype = None
 
@@ -314,7 +312,7 @@ class XODRParser:
 
         return roadline
 
-    def load_lane(self, ref_line, xml_node: Element, type_node: Element):
+    def load_lane(self, ref_line, xml_node: ET.Element, type_node: ET.Element):
         # ref_value should always be a positive value
         sign = np.sign(int(xml_node.attrib["id"]))
 
@@ -369,7 +367,7 @@ class XODRParser:
 
         return lane, roadline
 
-    def load_object(self, points, s_points, headings, xml_node: Element):
+    def load_object(self, points, s_points, headings, xml_node: ET.Element):
         s = float(xml_node.attrib["s"])
         t = float(xml_node.attrib["t"])
 
@@ -435,7 +433,7 @@ class XODRParser:
 
         return area
 
-    def load_road(self, xml_node: Element):
+    def load_road(self, xml_node: ET.Element):
         objects = []
         lanes = []
         roadlines = []
@@ -552,7 +550,7 @@ class XODRParser:
 
         return lanes, roadlines, objects
 
-    def load_junction(self, xml_node: Element):
+    def load_junction(self, xml_node: ET.Element):
         junction = Junction(id_=self.id_counter)
         self.id_counter += 1
 

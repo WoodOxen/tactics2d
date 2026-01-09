@@ -3,4 +3,4 @@
 
 """Tactics2d module."""
 
-__version__ = "0.1.8rc1"
+__version__ = "0.1.9rc1"

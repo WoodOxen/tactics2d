@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 from typing import Tuple
-from xml.etree.ElementTree import Element
 
 import defusedxml.ElementTree as ET
 from pyproj import Proj
@@ -45,7 +44,7 @@ class OSMParser:
 
         point_list += new_points[1:]
 
-    def _get_tags(self, xml_node: Element) -> dict:
+    def _get_tags(self, xml_node: ET.Element) -> dict:
         tags = dict()
         bool_tags = {"area", "oneway"}
 
@@ -57,7 +56,7 @@ class OSMParser:
 
         return tags
 
-    def _get_lanelet2_tags(self, xml_node: Element) -> dict:
+    def _get_lanelet2_tags(self, xml_node: ET.Element) -> dict:
         tags = dict()
         tags["custom_tags"] = dict()
 
@@ -79,22 +78,22 @@ class OSMParser:
                 tags[tag.attrib["k"]] = tag.attrib["v"]
 
             elif tag.attrib["k"] in bool_tags:
-                tags[tag.attrib["k"]] = tag.attrib["v"] == "yes"
+                tags["custom_tags"][tag.attrib["k"]] = tag.attrib["v"] == "yes"
 
             elif "lane_change" in tag.attrib["k"]:
                 if "lane_change" in tags:
                     raise SyntaxError("Conflict tags on lane changing property.")
                 else:
                     if tag.attrib["k"] == "lane_change":
-                        tags["lane_change"] = (
+                        tags["custom_tags"]["lane_change"] = (
                             (True, True) if tag.attrib["v"] == "yes" else (False, False)
                         )
                     elif tag.attrib["k"] == "lane_change:left":
-                        tags["lane_change"] = (
+                        tags["custom_tags"]["lane_change"] = (
                             (True, False) if tag.attrib["v"] == "yes" else (False, False)
                         )
                     elif tag.attrib["k"] == "lane_change:right":
-                        tags["lane_change"] = (
+                        tags["custom_tags"]["lane_change"] = (
                             (False, True) if tag.attrib["v"] == "yes" else (False, False)
                         )
 
@@ -103,7 +102,7 @@ class OSMParser:
 
         return tags
 
-    def _load_area(self, xml_node: Element, map_: Map) -> Area:
+    def _load_area(self, xml_node: ET.Element, map_: Map) -> Area:
         area_id = int(xml_node.attrib["id"])
         line_ids = dict(inner=[], outer=[])
         regulatory_ids = []
@@ -165,11 +164,11 @@ class OSMParser:
 
         return Area(area_id, polygon, line_ids, set(regulatory_ids), **area_tags)
 
-    def _load_bounds_no_proj(self, xml_node: Element) -> tuple:
+    def _load_bounds_no_proj(self, xml_node: ET.Element) -> tuple:
         """This function loads the boundary of the map from the XML node. The coordinates will not be projected.
 
         Args:
-            xml_node (Element): The XML node of the boundary.
+            xml_node (ET.Element): The XML node of the boundary.
 
         Returns:
             The boundary of the map expressed as (min_lon, max_lon, min_lat, max_lat).
@@ -184,11 +183,11 @@ class OSMParser:
 
         return None
 
-    def _load_bounds(self, xml_node: Element, projector: Proj, origin: tuple) -> tuple:
+    def _load_bounds(self, xml_node: ET.Element, projector: Proj, origin: tuple) -> tuple:
         """This function loads the boundary of the map from the XML node. The coordinates will be projected.
 
         Args:
-            xml_node (Element): The XML node of the boundary.
+            xml_node (ET.Element): The XML node of the boundary.
             projector (Proj): The projection rule of the map.
             origin (tuple): The origin of the GPS coordinates.
 
@@ -207,11 +206,11 @@ class OSMParser:
 
         return None
 
-    def _load_nodes_no_proj(self, xml_node: Element) -> Node:
+    def _load_nodes_no_proj(self, xml_node: ET.Element) -> Node:
         """This function loads the nodes from the XML node. The coordinates will not be projected.
 
         Args:
-            xml_node (Element): The XML node of the nodes.
+            xml_node (ET.Element): The XML node of the nodes.
 
         Returns:
             A node under the GPS coordinates.
@@ -222,11 +221,11 @@ class OSMParser:
 
         return Node(id_=node_id, x=lon, y=lat)
 
-    def _load_nodes(self, xml_node: Element, projector: Proj, origin: tuple) -> Node:
+    def _load_nodes(self, xml_node: ET.Element, projector: Proj, origin: tuple) -> Node:
         """This function loads the nodes from the XML node. The coordinates will be projected.
 
         Args:
-            xml_node (Element): The XML node of the nodes.
+            xml_node (ET.Element): The XML node of the nodes.
             projector (Proj): The projection rule of the map.
             origin (tuple): The origin of the GPS coordinates.
 
@@ -238,11 +237,11 @@ class OSMParser:
 
         return Node(id_=node_id, x=x - origin[0], y=y - origin[1])
 
-    def _load_way(self, xml_node: Element, map_: Map) -> tuple[Area, RoadLine]:
+    def _load_way(self, xml_node: ET.Element, map_: Map) -> tuple[Area, RoadLine]:
         """This function loads an OSM road elements from the XML node.
 
         Args:
-            xml_node (Element): The XML node of the road element.
+            xml_node (ET.Element): The XML node of the road element.
             map_ (Map): The map that the road element belongs to.
 
         Returns:
@@ -267,11 +266,11 @@ class OSMParser:
 
         return road_element
 
-    def _load_relation(self, xml_node: Element, map_: Map) -> tuple[Area, RoadLine, Regulatory]:
+    def _load_relation(self, xml_node: ET.Element, map_: Map) -> tuple[Area, RoadLine, Regulatory]:
         """This function loads an OSM road elements from the XML node.
 
         Args:
-            xml_node (Element): The XML node of the road element.
+            xml_node (ET.Element): The XML node of the road element.
             map_ (Map): The map that the road element belongs to.
 
         Returns:
@@ -325,11 +324,11 @@ class OSMParser:
 
         return road_element
 
-    def _load_roadline_lanelet2(self, xml_node: Element, map_: Map) -> RoadLine:
+    def _load_roadline_lanelet2(self, xml_node: ET.Element, map_: Map) -> RoadLine:
         """This function loads a Lanelet 2 roadline from the XML node.
 
         Args:
-            xml_node (Element): The XML node of the roadline.
+            xml_node (ET.Element): The XML node of the roadline.
             map_ (Map): The map that the roadline belongs to.
 
         Returns:
@@ -346,7 +345,7 @@ class OSMParser:
 
         return RoadLine(id_=line_id, geometry=linestring, **tags)
 
-    def _load_lane_lanelet2(self, xml_node: Element, map_: Map) -> Lane:
+    def _load_lane_lanelet2(self, xml_node: ET.Element, map_: Map) -> Lane:
         lane_id = int(xml_node.attrib["id"])
         line_ids = dict(left=[], right=[])
         regulatory_ids = []
@@ -386,11 +385,11 @@ class OSMParser:
 
         return Lane(lane_id, left_side, right_side, line_ids, set(regulatory_ids), **lane_tags)
 
-    def _load_area_lanelet2(self, xml_node: Element, map_: Map) -> Area:
+    def _load_area_lanelet2(self, xml_node: ET.Element, map_: Map) -> Area:
         """This function loads a Lanelet 2 area from the XML node.
 
         Args:
-            xml_node (Element): The XML node of the area.
+            xml_node (ET.Element): The XML node of the area.
             map_ (Map): The map that the area belongs to.
 
         Returns:
@@ -437,7 +436,7 @@ class OSMParser:
 
         return Area(area_id, polygon, line_ids, set(regulatory_ids), **area_tags)
 
-    def _load_regulatory_lanelet2(self, xml_node: Element) -> Regulatory:
+    def _load_regulatory_lanelet2(self, xml_node: ET.Element) -> Regulatory:
         regulatory_id = int(xml_node.attrib["id"])
         relations = dict()
         ways = dict()
