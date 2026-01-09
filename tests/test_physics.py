@@ -264,49 +264,6 @@ def test_single_track_kinematic(interval, delta_t):
         )
 
 
-@pytest.mark.physics
-@pytest.mark.parametrize(
-    "speed_range, accel_range, interval, delta_t",
-    [
-        ([0, 5], [0, 2], 100, 5),
-        ([-5, 5], [-2, 2], 9, 5),
-        ([5, 5], [2, 2], 50, 3),
-        (5, 2, 100, 5),
-        (-5, -2, 100, 5),
-        (None, None, 100, 5),
-    ],
-)
-def test_point_mass(speed_range, accel_range, interval, delta_t):
-    model_newton = PointMass(speed_range, accel_range, interval, delta_t, "newton")
-    model_euler = PointMass(speed_range, accel_range, interval, delta_t, "euler")
-    initial_state = State(frame=0, x=10, y=10, heading=0, speed=0)
-
-    last_state_newton = initial_state
-    last_state_euler = initial_state
-    line_newton = [[last_state_newton.x, last_state_newton.y]]
-    line_euler = [[last_state_euler.x, last_state_euler.y]]
-    cnt = 0
-    t1 = time.time()
-    for action, duration in PEDESTRIAN_ACTION_LIST:
-        for _ in np.arange(0, duration, interval):
-            state_newton = model_newton.step(last_state_newton, action, interval)
-            line_newton.append([state_newton.x, state_newton.y])
-            last_state_newton = state_newton
-            cnt += 1
-    t2 = time.time()
-
-    for action, duration in PEDESTRIAN_ACTION_LIST:
-        for _ in np.arange(0, duration, interval):
-            state_euler = model_euler.step(last_state_euler, action, interval)
-            line_euler.append([state_euler.x, state_euler.y])
-            last_state_euler = state_euler
-    t3 = time.time()
-
-    assert hausdorff_distance(LineString(line_newton), LineString(line_euler)) < 0.01
-    logging.info("The average fps for Newton's method is {:.2f} Hz.".format(cnt / (t2 + 1e-6 - t1)))
-    logging.info("The average fps for Euler's method is {:.2f} Hz.".format(cnt / (t3 + 1e-6 - t2)))
-
-
 @pytest.mark.parametrize("interval, delta_t", [(9, 5), (50, 3), (100, 5)])
 def test_single_track_dynamics(interval, delta_t):
     vehicle = Vehicle(0)

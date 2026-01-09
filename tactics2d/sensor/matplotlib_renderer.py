@@ -7,7 +7,14 @@
 
 
 import logging
+import os
 from typing import Tuple, Union
+
+# Set matplotlib backend to Agg before import
+os.environ["MPLBACKEND"] = "Agg"
+import matplotlib
+
+matplotlib.use("Agg", force=True)
 
 import matplotlib.pyplot as plt
 import numpy as np

@@ -20,6 +20,9 @@ jobs:
         - os: windows-latest
           python-version: '3.9'
     runs-on: ${{ matrix.os }}
+    env:
+      MPLBACKEND: Agg
+      PYTHON_SKIP_TKINTER: 1
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -39,9 +42,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
-      - name: Force matplotlib backend (Windows)
-        if: runner.os == 'Windows'
-        run: echo "MPLBACKEND=Agg" >> $GITHUB_ENV
+      # MPLBACKEND is already set in job-level env
 
       - name: Install dependencies on all platforms
         run: |
