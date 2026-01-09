@@ -1,9 +1,7 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: test_participant.py
-# @Description: This script is used to test the participant module.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Tests for participant."""
 
 
 import sys
@@ -12,8 +10,6 @@ sys.path.append(".")
 sys.path.append("..")
 
 import logging
-import os
-import time
 from io import StringIO
 
 import pytest

@@ -2,85 +2,97 @@
 
 ## [Unreleased]
 
+## [0.1.9rc1] - 2026-01-09
+
 ### Added
+
+- Add `defusedxml` dependency for enhanced XML parsing safety.
+- Add CI tests for multiple operating systems.
 
 ### Changed
 
-- Split `tactics2d.math` into `tactics2d.interpolator` and `tactics2d.geometry`.
-- Parameter changes in `tactics2d.geometry`:
-  - `Circle`: Remove `get_circle_by_three_points` and `get_circle_by_tangent_vector`. Keep their functionality in `Circle.get_circle(**kwargs)`.
-- Parameter changes in `tactics2d.interpolator`:
-  - `Bezier`: Change `get_curve` method to static method. Move `order` parameter from `__init__` to `get_curve` method.
-  - `BSpline`: Change `get_curve` method to static method. Move `degree` parameter from `__init__` to `get_curve` method.
-  - `CubicSpline`: Change `get_curve` method to static method. Move `boundary_type` parameter from `__init__` to `get_curve` method.
-  - `Spiral`: Rename `get_spiral` method to `get_curve`.
-  - `tactics2d.traffic.scenario_display` to `tactics2d.sensor.matplotlib.renderer`.
-  - `tactics2d.sensor.camera` returns dictionary for frontend rendering.
-  - `tactics2d.sensor.lidar` returns dictionary for frontend rendering.
+- Split `tactics2d.math` module into `tactics2d.interpolator` and `tactics2d.geometry`.
+- Refactor geometry module:
+  - Remove `get_circle_by_three_points` and `get_circle_by_tangent_vector` methods from `Circle` class.
+  - Consolidate functionality into `Circle.get_circle(**kwargs)` method.
+- Refactor interpolator module:
+  - Change `get_curve` method to static for `Bezier`, `BSpline`, and `CubicSpline` classes.
+  - Move `order` parameter from `__init__` to `get_curve` method in `Bezier` class.
+  - Move `degree` parameter from `__init__` to `get_curve` method in `BSpline` class.
+  - Move `boundary_type` parameter from `__init__` to `get_curve` method in `CubicSpline` class.
+  - Rename `get_spiral` method to `get_curve` in `Spiral` class.
+- Rename `tactics2d.traffic.scenario_display` module to `tactics2d.sensor.matplotlib.renderer`.
+- Update sensor interfaces to return dictionaries for frontend rendering:
+  - Update `tactics2d.sensor.camera` interface.
+  - Update `tactics2d.sensor.lidar` interface.
+- Replace TensorFlow dependency with `tfrecord` for WOMD parsing:
+  - Remove `tensorflow-cpu` dependency.
+  - Add `tfrecord>=0.2.0` dependency.
+  - Update `WOMDParser` to use `tfrecord.tfrecord_iterator` instead of `tf.data.TFRecordDataset`.
+  - Cache scenario data to avoid generator exhaustion.
+- Change headers to follow PEP format.
+- Improve code formatting and remove unused imports.
+- Correct header version and formats.
+- Change matplotlib backend to Agg for non-interactive environments.
+- Update version to 0.1.9rc1.
+- Normalize Python file header descriptions.
+- Update copyright years based on git history.
 
 ### Fixed
 
-- Improve `NuPlanParser.map_parser()` at my best, still it is a mess of shit.
-
-### Deprecated
+- Improve `NuPlanParser.map_parser()` method (ongoing improvements).
 
 ### Removed
 
-### TODO
-
-- `tactics2d.interpolator.cubic_spline`: Improve efficiency of CubicSpline by ThomasSolver.
-- `tactics2d.dataset_parser.WOMDParser`: Identify the boundaries of a lane element.
-- `tactics2d.dataset_parser.womd_proto`: Add compatibility to protobuf 3.x.x and 4.x.x.
-- `tactics2d.map.parser.OSMParser`: Handle the tag `highway` in `load_way` for the original [OSM label style](https://wiki.openstreetmap.org/wiki/Key:lanes).
-- `tactics2d.dataset_parser`: Improve the efficiency.
+- Remove test dependency on bezier library.
 
 ## [0.1.8] - 2025-05-22
 
 ### Added
 
-- Add data parser for NGSIM.
-- Add data parser for CitySim.
-- Add carla sensor base class.
-- Add a new tutorial for pure pursuit controller in racing environment.
-- Add controller class for pure pursuit controller.
-- Add Chinese README.
+- Add NGSIM data parser.
+- Add CitySim data parser.
+- Add Carla sensor base class.
+- Add pure pursuit controller class.
+- Add tutorial for pure pursuit controller in racing environment.
+- Add Chinese README documentation.
 - Add data analysis for LevelX datasets (highD, inD, rounD, exiD, uniD) and CitySim.
 
 ### Changed
 
-- Boost LevelX datasets by polars, 10 times faster than before.
-- Move `test` to `tests` in the root directory.
+- Improve performance of LevelX datasets processing using polars (10x faster).
+- Move `test` directory to `tests` in root directory.
 - Improve map rendering speed.
-- Improve the running efficiency of Bezier and b_spline interpolators by adding c++ implementation.
-- Change the interface of `tactics2d.map.parser.OSMParser` and `tactics2d.map.parser.XODRParser`.
+- Improve performance of Bezier and B-spline interpolators with C++ implementation.
+- Change interface of `tactics2d.map.parser.OSMParser` and `tactics2d.map.parser.XODRParser`.
 
 ### Fixed
 
-- Fix `type_node is none` bug
-- Fix bugs in test_b_spline.py.
-- Fix pygame window unresponsive where events aren't handled.
+- Fix `type_node is None` bug.
+- Fix bugs in `test_b_spline.py`.
+- Fix pygame window unresponsiveness when events are not handled.
 
 ## [0.1.7] - 2024-05-22
 
 ### Added
 
-- [#109] Tutorial for training an agent in the parking lot environment.
+- Add tutorial for training an agent in parking lot environment.
 
 ### Changed
 
-- [#101] `tactics2d/.github/workflows/tag_on_PR.yml`: Change the tag trigger to `workflow_dispatch` instead of `pull_request`.
-- [#109] Adjust some configurations within the parking environment.
-- [#109] Improve the point generation process in Dubin's interpolator and Reeds-Shepp interpolator.
+- Change tag trigger from `pull_request` to `workflow_dispatch` in `tactics2d/.github/workflows/tag_on_PR.yml`.
+- Adjust configurations in parking environment.
+- Improve point generation process in Dubins and Reeds-Shepp interpolators.
 
 ### Fixed
 
-- [#101] `tactics2d/map/parser/parse_xodr.py`: Fix lane parsing error.
-- [#101] `tactics2d/map/parser/parse_osm.py`: Remove "height" tag when parsing OSM map with Lanelet2 tag style.
-- [#109] Fix the checking condition of the NoAction scenario event detection.
+- Fix lane parsing error in `tactics2d/map/parser/parse_xodr.py`.
+- Remove "height" tag when parsing OSM map with Lanelet2 tag style in `tactics2d/map/parser/parse_osm.py`.
+- Fix checking condition of NoAction scenario event detection.
 
 ### Removed
 
-- [#109] Remove `action_mask.py`, `rs_planner.py`, `train_parking_agent.py` files in the tutorial folder.
+- Remove `action_mask.py`, `rs_planner.py`, and `train_parking_agent.py` files from tutorial folder.
 
 ## [0.1.6] - 2024-04-01
 

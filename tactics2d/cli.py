@@ -1,9 +1,8 @@
-##! python3
 # Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: cli.py
-# @Description:
-# @Author: Tactics2D Team
-# @Version: 0.1.9
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Cli implementation."""
+
 
 import sys
 
@@ -13,14 +12,13 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 import argparse
-import threading
 
-import numpy as np
+import tactics2d
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Tactics2D Command Line Tool")
-    parser.add_argument("--version", action="version", version="tactics2d 0.1.9")
+    parser.add_argument("--version", action="version", version=f"tactics2d {tactics2d.__version__}")
 
     args = parser.parse_args()
 

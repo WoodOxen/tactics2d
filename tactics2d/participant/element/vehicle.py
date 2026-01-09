@@ -1,15 +1,14 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: vehicle.py
-# @Description: This file defines a class for a four-wheeled vehicle.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Vehicle implementation."""
+
 
 import logging
 from typing import Any, Tuple
 
 import numpy as np
-from shapely.affinity import affine_transform, translate
+from shapely.affinity import affine_transform
 from shapely.geometry import LinearRing
 
 from tactics2d.participant.trajectory import State, Trajectory

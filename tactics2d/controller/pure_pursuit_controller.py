@@ -1,9 +1,8 @@
-##! python3
 # Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: pure_pursuit_controller.py
-# @Description:
-# @Author: Tactics2D Team
-# @Version: 0.18.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Pure pursuit controller implementation."""
+
 
 import numpy as np
 from scipy.interpolate import interp1d

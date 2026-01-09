@@ -1,6 +1,6 @@
 [project]
 name = "tactics2d"
-version = "0.1.8rc1"
+version = "0.1.9rc1"
 description = "Tactics2D: A Reinforcement Learning Environment Library with Generative Scenarios for Driving Decision-making"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }
@@ -31,10 +31,15 @@ Repository = "https://github.com/WoodOxen/tactics2d"
 
 [project.optional-dependencies]
 test = [
-    "bezier",
-    "Pillow",
-    "pytest",
-    "pytest-cov",
+    "Pillow>=9.5.0",
+    "pytest>=7.4.4",
+    "pytest-cov>=4.1.0",
+]
+dev = [
+    "pre-commit==3.5.0",
+    "black",
+    "isort",
+    "clang-format",
 ]
 
 [build-system]

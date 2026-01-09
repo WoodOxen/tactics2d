@@ -1,13 +1,18 @@
-###! python3
 # Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: matplotlib_renderer.py
-# @Description:
-# @Author: Tactics2D Team
-# @Version: 0.1.9
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""matplotlib renderer implementation."""
 
 
 import logging
+import os
 from typing import Tuple, Union
+
+# Set matplotlib backend to Agg before import
+os.environ["MPLBACKEND"] = "Agg"
+import matplotlib
+
+matplotlib.use("Agg", force=True)
 
 import matplotlib.pyplot as plt
 import numpy as np

@@ -1,16 +1,13 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: parse_xodr.py
-# @Description: This file defines a class for parsing the OpenDRIVE map format.
-# @Author: Tactics2D Team
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 
+"""OpenDrive map parser implementation."""
+
+from __future__ import annotations
 
 import logging
-import xml.etree.ElementTree as ET
-from copy import deepcopy
-from typing import Tuple, Union
 
+import defusedxml.ElementTree as ET
 import numpy as np
 from pyproj import CRS
 from shapely.affinity import affine_transform, rotate
@@ -18,7 +15,7 @@ from shapely.geometry import LineString, Point, Polygon
 
 from tactics2d.geometry import Circle
 from tactics2d.interpolator import Spiral
-from tactics2d.map.element import Area, Connection, Junction, Lane, Map, Node, Regulatory, RoadLine
+from tactics2d.map.element import Area, Connection, Junction, Lane, Map, RoadLine
 
 
 class XODRParser:
@@ -245,7 +242,7 @@ class XODRParser:
 
         return header_info, projector
 
-    def load_roadmark(self, points: Union[list, LineString], xml_node: ET.Element):
+    def load_roadmark(self, points: list | LineString, xml_node: ET.Element):
         type_ = "virtual"
         subtype = None
 

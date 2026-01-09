@@ -1,9 +1,8 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: parse_nuplan.py
-# @Description: This file implements a parser for NuPlan dataset.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""NuPlan dataset parser implementation."""
+
 
 import datetime
 import os
@@ -15,7 +14,7 @@ import numpy as np
 import pyogrio
 from shapely.geometry import LinearRing, LineString, Point, Polygon
 
-from tactics2d.map.element import Area, Lane, Map, Node, Regulatory, RoadLine
+from tactics2d.map.element import Area, Lane, Map, Regulatory, RoadLine
 from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 

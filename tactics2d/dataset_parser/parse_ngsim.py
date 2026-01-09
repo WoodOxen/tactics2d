@@ -1,12 +1,11 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: parse_ngsim.py
-# @Description: This file implements a parser for NGSIM dataset.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""NGSIM dataset parser implementation."""
+
 
 import os
-from typing import Tuple, Union
+from typing import Tuple
 
 import numpy as np
 import pandas as pd

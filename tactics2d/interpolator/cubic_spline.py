@@ -1,14 +1,14 @@
-##! python3
 # Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: cubic_spline.py
-# @Description: This file implements a cubic spline interpolator.
-# @Author: Tactics2D Team
-# @Version: 0.1.9
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Cubic spline implementation."""
+
 
 from enum import Enum
 from typing import Union
 
 import numpy as np
+
 from cpp_interpolator import CubicSpline as cpp_CubicSpline
 
 

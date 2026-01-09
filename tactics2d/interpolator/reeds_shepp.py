@@ -1,9 +1,8 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: reeds_shepp.py
-# @Description: This file implements a Reeds-Shepp path interpolator.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Reeds shepp implementation."""
+
 
 import numpy as np
 
@@ -64,10 +63,7 @@ class ReedsSheppPath:
 
         def get_arc(point, heading, radius, radian, forward, action):
             circle_center, _ = Circle.get_circle(
-                tangent_point=point,
-                tangent_heading=heading,
-                radius=radius,
-                side=action,
+                tangent_point=point, tangent_heading=heading, radius=radius, side=action
             )
             start_angle = (heading + np.pi / 2) if action == "R" else (heading - np.pi / 2)
             clockwise = (action == "R" and forward > 0) or (action == "L" and forward < 0)

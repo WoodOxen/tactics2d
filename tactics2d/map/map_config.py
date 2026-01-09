@@ -1,3 +1,8 @@
+# Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Map configuration implementation."""
+
 HIGHD_MAP_CONFIG = {
     "highD_1": {
         "name": "highD location 1",

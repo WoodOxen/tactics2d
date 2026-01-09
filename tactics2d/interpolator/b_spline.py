@@ -1,11 +1,11 @@
-##! python3
 # Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: b_spline.py
-# @Description: This file implements a B-spline curve interpolator.
-# @Author: Tactics2D Team
-# @Version: 0.1.9
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""B spline implementation."""
+
 
 import numpy as np
+
 from cpp_interpolator import BSpline as cpp_BSpline
 
 

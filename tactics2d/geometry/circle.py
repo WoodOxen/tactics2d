@@ -1,15 +1,14 @@
-##! python3
 # Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: circle.py
-# @Description:
-# @Author: Tactics2D Team
-# @Version: 0.1.9
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Circle implementation."""
+
 
 from typing import Tuple
 
 import numpy as np
-from cpp_geometry import Circle as cpp_Circle
 
+from cpp_geometry import Circle as cpp_Circle
 from tactics2d.geometry.direction import RelativeDirection
 
 

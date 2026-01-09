@@ -1,11 +1,13 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: fix_osm.py
-# @Description: This script provides an util function to fix id conflict in OSM files.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 
-import xml.etree.ElementTree as ET
+"""Fix osm implementation."""
+
+from __future__ import annotations
+
+import defusedxml.ElementTree as ET
+
+# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 
 
 def re_id_elements(file, destination_file=None):

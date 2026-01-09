@@ -1,9 +1,8 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: render_config.py
-# @Description: This file contains the default color palette and zorder for rendering different classes of elements in the traffic scenario.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Render configuration implementation."""
+
 
 COLOR_PALETTE = {
     "red": "#fc5c65",

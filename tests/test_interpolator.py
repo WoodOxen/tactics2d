@@ -1,3 +1,8 @@
+# Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Tests for interpolator."""
+
 import logging
 import sys
 import time
@@ -7,6 +12,7 @@ import pytest
 from scipy.interpolate import BSpline as SciBSpline
 from scipy.interpolate import CubicSpline as SciCubic
 from scipy.spatial.distance import directed_hausdorff
+from scipy.special import comb
 
 sys.path.append(".")
 sys.path.append("..")
@@ -45,15 +51,7 @@ def compare_similarity(curve1: np.ndarray, curve2: np.ndarray, diff: float = 0.0
         (
             2,
             np.array(
-                [
-                    [-1, 0],
-                    [-0.5, 0.5],
-                    [0.5, -0.5],
-                    [1, 0],
-                    [-1, 0],
-                    [-0.5, 0.5],
-                    [0.5, -0.5],
-                ]
+                [[-1, 0], [-0.5, 0.5], [0.5, -0.5], [1, 0], [-1, 0], [-0.5, 0.5], [0.5, -0.5]]
             ),
             np.array(np.arange(0, 10)),
             100,
@@ -177,26 +175,57 @@ def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
             raise err
         return
 
-    # Reference result (bezier package)
-    try:
-        import bezier
-    except ImportError:
-        logging.warning("Skipping reference test: 'bezier' package not installed.")
-        return
-
-    t3 = time.time()
-    curve = bezier.Curve(control_points.T, degree=order).evaluate_multi(
-        np.linspace(0.0, 1.0, n_interpolation)
+    # Mathematical properties verification
+    # 1. Endpoint interpolation
+    np.testing.assert_allclose(
+        my_curve[0],
+        control_points[0],
+        atol=1e-10,
+        err_msg="Bezier curve must interpolate first control point",
     )
+    np.testing.assert_allclose(
+        my_curve[-1],
+        control_points[-1],
+        atol=1e-10,
+        err_msg="Bezier curve must interpolate last control point",
+    )
+
+    # 2. Convex hull property (simplified: check bounding box)
+    min_ctrl = control_points.min(axis=0)
+    max_ctrl = control_points.max(axis=0)
+    # All curve points should be within the bounding box of control points (with small tolerance)
+    assert np.all(
+        my_curve >= min_ctrl - 1e-10
+    ), "Curve point outside control points bounding box (min)"
+    assert np.all(
+        my_curve <= max_ctrl + 1e-10
+    ), "Curve point outside control points bounding box (max)"
+
+    # 3. Reference implementation using Bernstein polynomials
+    n = order  # degree of Bezier curve
+    t = np.linspace(0, 1, n_interpolation)
+    t3 = time.time()
+    reference_curve = np.zeros((n_interpolation, 2))
+
+    for i in range(n + 1):
+        # Bernstein polynomial: B_{i,n}(t) = C(n,i) * t^i * (1-t)^{n-i}
+        bernstein = comb(n, i) * (t**i) * ((1 - t) ** (n - i))
+        reference_curve += bernstein[:, np.newaxis] * control_points[i]
+
     t4 = time.time()
 
-    assert compare_similarity(my_curve, curve.T), "Bezier curve output mismatch."
+    # Verify against reference implementation
+    assert compare_similarity(
+        my_curve, reference_curve
+    ), "Bezier curve implementation differs from reference Bernstein polynomial implementation"
 
     t_custom = t2 - t1
-    t_bezier = t4 - t3  # avoid zero-division
+    t_reference = t4 - t3
 
-    if t_custom > t_bezier:
-        logging.warning(f"Our Bezier is ~{t_custom / (t_bezier + 1e-8):.2f}x slower than bezier's")
+    if t_custom > t_reference:
+        logging.warning(
+            f"Our Bezier is ~{t_custom/(t_reference + 1e-8):.2f}x slower than reference implementation"
+        )
 
 
 @pytest.mark.math

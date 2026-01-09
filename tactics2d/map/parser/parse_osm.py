@@ -1,15 +1,14 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: parse_osm.py
-# @Description: This file defines a parser for lanelet2 format map.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 
+"""OSM parser implementation."""
+
+from __future__ import annotations
 
 import logging
-import xml.etree.ElementTree as ET
 from typing import Tuple
 
+import defusedxml.ElementTree as ET
 from pyproj import Proj
 from shapely.geometry import LineString, Polygon
 
@@ -79,22 +78,22 @@ class OSMParser:
                 tags[tag.attrib["k"]] = tag.attrib["v"]
 
             elif tag.attrib["k"] in bool_tags:
-                tags[tag.attrib["k"]] = tag.attrib["v"] == "yes"
+                tags["custom_tags"][tag.attrib["k"]] = tag.attrib["v"] == "yes"
 
             elif "lane_change" in tag.attrib["k"]:
                 if "lane_change" in tags:
                     raise SyntaxError("Conflict tags on lane changing property.")
                 else:
                     if tag.attrib["k"] == "lane_change":
-                        tags["lane_change"] = (
+                        tags["custom_tags"]["lane_change"] = (
                             (True, True) if tag.attrib["v"] == "yes" else (False, False)
                         )
                     elif tag.attrib["k"] == "lane_change:left":
-                        tags["lane_change"] = (
+                        tags["custom_tags"]["lane_change"] = (
                             (True, False) if tag.attrib["v"] == "yes" else (False, False)
                         )
                     elif tag.attrib["k"] == "lane_change:right":
-                        tags["lane_change"] = (
+                        tags["custom_tags"]["lane_change"] = (
                             (False, True) if tag.attrib["v"] == "yes" else (False, False)
                         )
 
@@ -238,7 +237,7 @@ class OSMParser:
 
         return Node(id_=node_id, x=x - origin[0], y=y - origin[1])
 
-    def _load_way(self, xml_node: ET.Element, map_: Map) -> Tuple[Area, RoadLine]:
+    def _load_way(self, xml_node: ET.Element, map_: Map) -> tuple[Area, RoadLine]:
         """This function loads an OSM road elements from the XML node.
 
         Args:
@@ -267,7 +266,7 @@ class OSMParser:
 
         return road_element
 
-    def _load_relation(self, xml_node: ET.Element, map_: Map) -> Tuple[Area, RoadLine, Regulatory]:
+    def _load_relation(self, xml_node: ET.Element, map_: Map) -> tuple[Area, RoadLine, Regulatory]:
         """This function loads an OSM road elements from the XML node.
 
         Args:

@@ -1,9 +1,8 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: parse_dlp.py
-# @Description: This file implements a parser of the Dragon Lake Parking Dataset.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Dragon Lake Parking dataset parser implementation."""
+
 
 import os
 from typing import Tuple, Union
@@ -69,11 +68,7 @@ class DLPParser:
             ax=0,
             ay=0,
         )
-        trajectory = Trajectory(
-            id_=id_,
-            fps=25.0,
-            stable_freq=False,
-        )
+        trajectory = Trajectory(id_=id_, fps=25.0, stable_freq=False)
         trajectory.add_state(state)
 
         participant = Obstacle(
@@ -149,10 +144,7 @@ class DLPParser:
             pl.col("timestamp (ms)").is_between(stamp_range[0], stamp_range[1], closed="both")
         )
 
-        actual_stamp_range = (
-            df_frame["timestamp (ms)"].min(),
-            df_frame["timestamp (ms)"].max(),
-        )
+        actual_stamp_range = (df_frame["timestamp (ms)"].min(), df_frame["timestamp (ms)"].max())
 
         df_instance = df_instance.filter(pl.col("instance_token").is_in(df_frame["instance_token"]))
         df_instance = df_instance.join(df_frame, on="instance_token", how="inner")

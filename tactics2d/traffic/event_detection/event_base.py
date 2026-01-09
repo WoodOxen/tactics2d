@@ -1,9 +1,7 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: event_base.py
-# @Description: This script defines the event base class for the traffic scenario.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Event base implementation."""
 
 
 from abc import ABC, abstractmethod
