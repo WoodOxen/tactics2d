@@ -127,12 +127,18 @@ class BEVCamera(SensorBase):
             elif "thick" in roadline.type_:
                 line_width = 2
 
+            line_color = roadline.color
+            if roadline.type_ == "virtual":
+                line_color = None
+            else:
+                line_color = white if roadline.color is None else roadline.color
+
             road_element_list.append(
                 {
                     "id": int(1e6 + int(roadline.id_)),
                     "shape": "line",
                     "geometry": list(roadline.geometry.coords),
-                    "color": roadline.color,
+                    "color": line_color,
                     "type": self._get_type(roadline),
                     "line_style": roadline.subtype if roadline.subtype is not None else "solid",
                     "line_width": line_width,

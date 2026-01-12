@@ -484,6 +484,20 @@ class MatplotlibRenderer:
                         participant["position"],
                         participant["rotation"],
                     )
+                    # add triangle indicator for direction
+                    points = np.array(participant.geometry.coords)
+                    triangle = [
+                        ((points[0] + points[1]) / 2).tolist(),
+                        ((points[1] + points[2]) / 2).tolist(),
+                        ((points[3] + points[0]) / 2).tolist(),
+                    ]
+                    self._update_polygon(
+                        self.participants[id_] + 0.5,
+                        triangle,
+                        participant["position"],
+                        participant["rotation"],
+                    )
+
                 elif participant.get("shape") == "circle":
                     self._update_circle(self.participants[id_], participant["position"])
 
