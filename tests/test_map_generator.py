@@ -19,7 +19,8 @@ logging.basicConfig(level=logging.INFO)
 from tactics2d.map.element import Area, Map
 from tactics2d.map.generator import ParkingLotGenerator, RacingTrackGenerator
 from tactics2d.participant.trajectory import State
-from tactics2d.sensor import BEVCamera, MatplotlibRenderer
+from tactics2d.renderer import MatplotlibRenderer
+from tactics2d.sensor import BEVCamera
 
 
 @pytest.mark.map_generator
