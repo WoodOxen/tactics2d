@@ -125,14 +125,16 @@ class SingleTrackKinematics(PhysicsModelBase):
 
     def _step(self, state: State, accel: float, delta: float, interval: int) -> State:
         beta = np.arctan(self.lr / self.wheel_base * np.tan(delta))  # slip angle
-        dts = [float(self.delta_t) / 1000] * int(interval // self.delta_t)
-        dts.append(float(interval % self.delta_t) / 1000)
+        dt = float(self.delta_t) / 1000
+        n_steps = interval // self.delta_t
+        remainder = interval % self.delta_t
 
         x, y = state.location
         phi = state.heading
         v = state.speed
 
-        for dt in dts:
+        # Main steps with standard delta_t
+        for _ in range(n_steps):
             dx = v * np.cos(phi + beta)
             dy = v * np.sin(phi + beta)
             dv = accel
@@ -142,6 +144,21 @@ class SingleTrackKinematics(PhysicsModelBase):
             y += dy * dt
             phi += dphi * dt
             v += dv * dt
+
+            v = np.clip(v, *self.speed_range) if not self.speed_range is None else v
+
+        # Remainder step if any
+        if remainder > 0:
+            dt_rem = float(remainder) / 1000
+            dx = v * np.cos(phi + beta)
+            dy = v * np.sin(phi + beta)
+            dv = accel
+            dphi = v / self.wheel_base * np.tan(delta) * np.cos(beta)
+
+            x += dx * dt_rem
+            y += dy * dt_rem
+            phi += dphi * dt_rem
+            v += dv * dt_rem
 
             v = np.clip(v, *self.speed_range) if not self.speed_range is None else v
 

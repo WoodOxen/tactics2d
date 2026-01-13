@@ -57,7 +57,7 @@ class PointMass(PhysicsModelBase):
             self.speed_range = None
 
         if isinstance(accel_range, float):
-            self.accel_range = None if accel_range < 0 else [0, speed_range]
+            self.accel_range = None if accel_range < 0 else [0, accel_range]
         elif hasattr(accel_range, "__len__") and len(accel_range) == 2:
             self.accel_range = [max(0, accel_range[0]), max(0, accel_range[1])]
             if self.accel_range[0] >= self.accel_range[1]:
