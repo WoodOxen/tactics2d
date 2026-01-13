@@ -530,9 +530,17 @@ class MatplotlibRenderer:
             self.fig.savefig(save_to, dpi=dpi)
 
         if return_array:
-            image = np.frombuffer(self.fig.canvas.tostring_rgb(), dtype=np.uint8)
-            image = image.reshape(self.fig.canvas.get_width_height()[::-1] + (3,))
-            return image
+            try:
+                image = np.frombuffer(self.fig.canvas.tostring_rgb(), dtype=np.uint8)
+                image = image.reshape(self.fig.canvas.get_width_height()[::-1] + (3,))
+                return image
+            except AttributeError:  # only return rgb layers
+                image = np.frombuffer(self.fig.canvas.tostring_argb(), dtype=np.uint8)
+                image = image.reshape(self.fig.canvas.get_width_height()[::-1] + (4,))
+                image = image[:, :, 1:4]  # Discard alpha channel
+                return image
+            except Exception as e:
+                logging.error(f"Failed to convert figure to array: {e}")
 
         return None
 

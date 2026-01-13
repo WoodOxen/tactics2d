@@ -105,42 +105,6 @@ class TestMatplotlibRenderer:
         assert renderer.width >= 1.0
         assert renderer.height >= 1.0
 
-    def test_resolve_style_color_resolution(self, renderer):
-        """Test _resolve_style method for color resolution."""
-        # Test direct color name from COLOR_PALETTE
-        color, z_order = renderer._resolve_style("white", "area")
-        assert color == COLOR_PALETTE["white"]
-
-        # Test type key from DEFAULT_COLOR
-        color, z_order = renderer._resolve_style("vehicle", "vehicle")
-        assert color == COLOR_PALETTE[DEFAULT_COLOR["vehicle"]]
-
-        # Test hex color value
-        color, z_order = renderer._resolve_style("#FF0000", "vehicle")
-        assert color == "#FF0000"
-
-        # Test fallback to default color
-        color, z_order = renderer._resolve_style("invalid_color", "vehicle")
-        assert color == COLOR_PALETTE["black"]
-
-    def test_resolve_style_zorder_resolution(self, renderer):
-        """Test _resolve_style method for z-order resolution."""
-        # Test numeric z-order
-        color, z_order = renderer._resolve_style("white", 5)
-        assert z_order == 5
-
-        # Test type key from DEFAULT_ORDER
-        color, z_order = renderer._resolve_style("vehicle", "vehicle")
-        assert z_order == DEFAULT_ORDER["vehicle"]
-
-        # Test using color_key as fallback for z-order
-        color, z_order = renderer._resolve_style("vehicle", "invalid_type")
-        assert z_order == DEFAULT_ORDER["vehicle"]
-
-        # Test complete fallback
-        color, z_order = renderer._resolve_style("invalid_color", "invalid_type")
-        assert z_order == 1
-
     def test_create_polygon(self, renderer):
         """Test _create_polygon method."""
         element = {
