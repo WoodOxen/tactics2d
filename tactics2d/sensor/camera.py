@@ -205,6 +205,20 @@ class BEVCamera(SensorBase):
                 )
                 participant_id_list.append(id_)
 
+                participant_list.append(
+                    {
+                        "id": id_ + 0.5,
+                        "shape": "polygon",
+                        "geometry": triangle,
+                        "position": position,
+                        "rotation": heading,
+                        "color": black,
+                        "type": "heading_arrow",
+                        "line_width": 0,
+                    }
+                )
+                participant_id_list.append(id_ + 0.5)
+
             elif isinstance(participant, Pedestrian):
                 id_ = abs(participant.id_)
                 participant_list.append(

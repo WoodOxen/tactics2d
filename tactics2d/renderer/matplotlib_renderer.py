@@ -123,6 +123,14 @@ class MatplotlibRenderer:
         elif isinstance(color_key, str) and color_key.startswith("#"):
             # Hex color code like "#FF0000"
             color = color_key
+        elif type_key in DEFAULT_COLOR:
+            # Type-based key like 'vehicle', 'lane', etc.
+            color_value = DEFAULT_COLOR[type_key]
+            # The value might be a color name or hex code
+            if color_value in COLOR_PALETTE:
+                color = COLOR_PALETTE[color_value]
+            else:
+                color = color_value  # Assume it's already a hex code or valid color
         else:
             # Fallback to default color
             color = COLOR_PALETTE["black"]
@@ -225,6 +233,9 @@ class MatplotlibRenderer:
 
         # TODO: Handle "solid_solid", "solid_dashed", "dashed_solid", and "dashed_dashed"
         line_style = element.get("line_style", element["type"])
+        # Convert to string and lowercase for consistent comparison
+        line_style = str(line_style).lower()
+
         if "dashed" in line_style:
             lines.append(
                 Line2D(
@@ -481,19 +492,6 @@ class MatplotlibRenderer:
                     self._update_polygon(
                         self.participants[id_],
                         participant["geometry"],
-                        participant["position"],
-                        participant["rotation"],
-                    )
-                    # add triangle indicator for direction
-                    points = np.array(participant.geometry.coords)
-                    triangle = [
-                        ((points[0] + points[1]) / 2).tolist(),
-                        ((points[1] + points[2]) / 2).tolist(),
-                        ((points[3] + points[0]) / 2).tolist(),
-                    ]
-                    self._update_polygon(
-                        self.participants[id_] + 0.5,
-                        triangle,
                         participant["position"],
                         participant["rotation"],
                     )

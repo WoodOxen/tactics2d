@@ -67,6 +67,7 @@ DEFAULT_COLOR = {
     "obstacle": "gray",
     # default color for roadline class subtypes
     "roadline": "white",
+    "solid": "white",
     "curbstone": "light-gray",
     "road_border": "light-gray",
     # default color for vehicle class subtypes
@@ -117,12 +118,15 @@ DEFAULT_ORDER = {
     "obstacle": 5,
     # default zorder for roadline class subtypes
     "roadline": 4,
+    "solid": 4,
+    "dashed": 4,
     "road_border": 4,
     "curbstone": 5,
     "vehicle": 6,
     "car": 6,
     "truck": 6,
     "bus": 6,
+    "heading_arrow": 7,
     # default zorder for cyclist class subtypes
     "motorcycle": 6,
     "cyclist": 6,
