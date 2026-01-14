@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added more claude configs to boost development efficiency.
+- Added document support for Chinese.
+
 ## [0.1.9rc1] - 2026-01-09
 
 ### Added
