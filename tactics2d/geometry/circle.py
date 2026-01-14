@@ -7,8 +7,8 @@
 from typing import Tuple
 
 import numpy as np
-
 from cpp_geometry import Circle as cpp_Circle
+
 from tactics2d.geometry.direction import RelativeDirection
 
 
