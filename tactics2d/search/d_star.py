@@ -27,7 +27,7 @@ class DStar:
         boundary: ArrayLike,
         graph: csr_matrix,
         heuristic_fn: Callable[[ArrayLike, ArrayLike], float],
-        step_size: float,
+        grid_resolution: float,
         max_iter: int = 100000,
         callback: Optional[Callable[[Dict], None]] = None,
     ):
@@ -38,7 +38,7 @@ class DStar:
             boundary (ArrayLike): Search area limits, formatted as [xmin, xmax, ymin, ymax].
             graph (csr_matrix): Sparse adjacency matrix of the search graph.
             heuristic_fn (Callable[[ArrayLike, ArrayLike], float]): Heuristic function that estimates cost between two points.
-            step_size (float): Grid resolution for rasterization.
+            grid_resolution (float): Grid resolution for rasterization.
             max_iter (int): Maximum number of iterations before giving up.
             callback (Optional[Callable[[Dict], None]]): Optional callback function called at each iteration.
                 Receives a dictionary with algorithm state: iteration count, current node,
@@ -50,7 +50,7 @@ class DStar:
 
         Raises:
             ValueError: If start or target coordinates are outside the boundary.
-            ValueError: If step_size is not positive.
+            ValueError: If grid_resolution is not positive.
             ValueError: If boundary is invalid (x_min >= x_max or y_min >= y_max).
             ValueError: If graph dimensions don't match the calculated grid size.
         """
@@ -58,22 +58,22 @@ class DStar:
         x_min, x_max, y_min, y_max = boundary
 
         # Validate input parameters
-        if step_size <= 0:
-            raise ValueError(f"step_size must be positive, got {step_size}")
+        if grid_resolution <= 0:
+            raise ValueError(f"grid_resolution must be positive, got {grid_resolution}")
         if x_min >= x_max or y_min >= y_max:
             raise ValueError(
                 f"Invalid boundary: {boundary}. Must satisfy x_min < x_max and y_min < y_max"
             )
 
         # Check that start and target coordinates are within boundary with epsilon tolerance
-        eps = step_size * 1e-9
+        eps = grid_resolution * 1e-9
         if not (x_min - eps <= start[0] < x_max + eps and y_min - eps <= start[1] < y_max + eps):
             raise ValueError(f"start coordinate {start} is outside boundary {boundary}")
         if not (x_min - eps <= target[0] < x_max + eps and y_min - eps <= target[1] < y_max + eps):
             raise ValueError(f"target coordinate {target} is outside boundary {boundary}")
 
-        width = int((x_max - x_min) / step_size)
-        height = int((y_max - y_min) / step_size)
+        width = int((x_max - x_min) / grid_resolution)
+        height = int((y_max - y_min) / grid_resolution)
 
         N = graph.shape[0]
 
@@ -84,8 +84,14 @@ class DStar:
                 f"Graph dimensions don't match the calculated grid size."
             )
 
-        start_rasterized = [(start[0] - x_min) / step_size, (start[1] - y_min) / step_size]
-        target_rasterized = [(target[0] - x_min) / step_size, (target[1] - y_min) / step_size]
+        start_rasterized = [
+            (start[0] - x_min) / grid_resolution,
+            (start[1] - y_min) / grid_resolution,
+        ]
+        target_rasterized = [
+            (target[0] - x_min) / grid_resolution,
+            (target[1] - y_min) / grid_resolution,
+        ]
 
         # Compute rasterized indices with clipping to handle floating-point errors at boundaries
         start_x = int(round(start_rasterized[0]))
@@ -286,8 +292,8 @@ class DStar:
         path = []
         for idx in path_indices:
             y, x = divmod(idx, width)
-            global_x = x * step_size + x_min
-            global_y = y * step_size + y_min
+            global_x = x * grid_resolution + x_min
+            global_y = y * grid_resolution + y_min
             path.append([global_x, global_y])
 
         path_array = np.array(path)

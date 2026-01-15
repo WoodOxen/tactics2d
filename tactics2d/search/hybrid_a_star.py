@@ -30,7 +30,7 @@ class HybridAStar:
         target: List[float],
         boundary: ArrayLike,
         obstacles: Any,
-        collide_fn: Callable[[List[float], List[float], Any], bool],
+        collide_fn: Callable[[ArrayLike, ArrayLike, Any], bool],
         step_size: float = 1.0,
         max_iter: int = 50000,
         steering_angles: List[float] = [-0.5, 0, 0.5],  # steering angles in radians

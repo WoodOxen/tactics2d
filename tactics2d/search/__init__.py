@@ -17,6 +17,18 @@ from .dijkstra import Dijkstra
 from .graph_utils import grid_to_csr
 from .hybrid_a_star import HybridAStar
 from .mcts import MCTS
-from .rrt import RRT, RRTStar
+from .rrt import RRT
+from .rrt_connect import RRTConnect
+from .rrt_star import RRTStar
 
-__all__ = ["AStar", "HybridAStar", "Dijkstra", "DStar", "MCTS", "RRT", "RRTStar", "grid_to_csr"]
+__all__ = [
+    "AStar",
+    "HybridAStar",
+    "Dijkstra",
+    "DStar",
+    "MCTS",
+    "RRT",
+    "RRTStar",
+    "RRTConnect",
+    "grid_to_csr",
+]
