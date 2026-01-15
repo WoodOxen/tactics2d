@@ -38,6 +38,14 @@ class DubinsPath:
         """
 
         def get_arc(point, heading, radius, radian, action):
+            # Handle zero-length arcs directly
+            if abs(radian) < 1e-15:
+                arc_curve = np.array([point])
+                yaw = np.array([heading])
+                end_point = point.copy()
+                end_heading = heading
+                return arc_curve, yaw, end_point, end_heading
+
             circle_center, _ = Circle.get_circle(
                 tangent_point=point, tangent_heading=heading, radius=radius, side=action
             )
@@ -47,17 +55,28 @@ class DubinsPath:
                 circle_center, radius, radian, start_angle, clockwise, step_size
             )
 
+            # Ensure at least one point (for zero-length arcs)
+            if arc_curve.shape[0] == 0:
+                arc_curve = np.array([point])
+
             end_angle = (start_angle - radian) if clockwise else (start_angle + radian)
             end_point = circle_center + np.array([np.cos(end_angle), np.sin(end_angle)]) * radius
-            end_heading = (start_heading - radian) if clockwise else (start_heading + radian)
+            end_heading = (heading - radian) if clockwise else (heading + radian)
             yaw = np.linspace(heading, end_heading, arc_curve.shape[0])
 
             return arc_curve, yaw, end_point, end_heading
 
         def get_straight_line(point, heading, radius, length):
+            # Handle zero-length segments directly
+            if abs(length) < 1e-15:
+                straight_line = np.array([point])
+                yaw = np.array([heading])
+                end_point = point.copy()
+                return straight_line, yaw, end_point, heading
+
             end_point = point + np.array([np.cos(heading), np.sin(heading)]) * radius * length
             total_length = np.linalg.norm(end_point - point)
-            step_num = int(np.ceil(total_length / step_size))
+            step_num = max(1, int(np.ceil(total_length / step_size)))
             x = np.linspace(point[0], end_point[0], step_num)
             y = np.linspace(point[1], end_point[1], step_num)
             straight_line = np.vstack((x, y)).T

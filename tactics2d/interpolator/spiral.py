@@ -13,7 +13,12 @@ class Spiral:
 
     @staticmethod
     def get_curve(
-        length: float, start_point: np.ndarray, heading: float, start_curvature: float, gamma: float
+        length: float,
+        start_point: np.ndarray,
+        heading: float,
+        start_curvature: float,
+        gamma: float,
+        n_interpolation: int = 100,
     ) -> np.ndarray:
         """This function gets the points on a spiral curve line.
 
@@ -23,15 +28,27 @@ class Spiral:
             heading (float): The heading of the start point. The unit is radian.
             start_curvature (float): The curvature of the start point.
             gamma (float): The rate of change of curvature
+            n_interpolation (int): The number of interpolation points. Defaults to 100.
 
         Returns:
-            np.ndarray: The points on the spiral curve line. The shape is (n_interpolate, 2).
+            np.ndarray: The points on the spiral curve line. The shape is (n_interpolation, 2).
         """
 
         # Start
         x_start, y_start = start_point
+
+        # Input validation
+        if length < 0:
+            raise ValueError("Length must be non-negative.")
+        if n_interpolation < 0:
+            raise ValueError("Number of interpolation points must be non-negative.")
+
+        # Return empty array for zero interpolation points
+        if n_interpolation == 0:
+            return np.empty((0, 2))
+
         # Interpolation
-        interpolations = np.linspace(0, length, int(length / 0.01) if length < 100 else 10000)
+        interpolations = np.linspace(0, length, n_interpolation)
 
         if gamma == 0 and start_curvature == 0:
             # Straight line

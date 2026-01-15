@@ -5,8 +5,9 @@
 
 CubicSpline::SplineParameters CubicSpline::get_parameters(
     const std::vector<std::array<double, 2>>& control_points,
-    std::pair<double, double> xx, BoundaryType boundary_type) {
+    std::pair<double, double> first_derivatives, BoundaryType boundary_type) {
     // Get the parameters of the cubic functions using Thomas algorithm
+    // first_derivatives contains (f'(x₀), f'(xₙ)) for Clamped boundary condition
 
     size_t n = control_points.size() - 1;
 
@@ -30,13 +31,13 @@ CubicSpline::SplineParameters CubicSpline::get_parameters(
 
     // Set boundary conditions in B vector
     if (boundary_type == BoundaryType::Clamped) {
-        B[0] = 6.0 * (slope[0] - xx.first);
-        B[n] = 6.0 * (xx.second - slope[n - 1]);
+        B[0] = 6.0 * (slope[0] - first_derivatives.first);
+        B[n] = 6.0 * (first_derivatives.second - slope[n - 1]);
     }
     // For Natural and NotAKnot, B[0] and B[n] remain 0
 
     // Solve for m using Thomas algorithm
-    std::vector<double> m = ThomasSolve(h, B, boundary_type, xx);
+    std::vector<double> m = ThomasSolve(h, B, boundary_type, first_derivatives);
 
     // Compute spline parameters a, b, c, d
     std::vector<double> a(n), b(n), c(n), d(n);
@@ -52,10 +53,29 @@ CubicSpline::SplineParameters CubicSpline::get_parameters(
 
 std::vector<std::array<double, 2>> CubicSpline::get_curve(
     const std::vector<std::array<double, 2>>& control_points,
-    std::pair<double, double> xx, int n_interpolation, BoundaryType boundary_type) {
+    std::pair<double, double> first_derivatives, int n_interpolation,
+    BoundaryType boundary_type) {
     // Get the interpolation points of a cubic spline curve
+    // first_derivatives: (f'(x₀), f'(xₙ)) for Clamped boundary condition (default 0,0)
 
-    auto [a, b, c, d] = get_parameters(control_points, xx, boundary_type);
+    // Input validation
+    size_t num_points = control_points.size();
+    if (num_points < 3) {
+        throw std::invalid_argument("Need at least 3 control points.");
+    }
+
+    if (n_interpolation < 2) {
+        throw std::invalid_argument("Number of interpolation points must be at least 2.");
+    }
+
+    // Check x-values are strictly increasing
+    for (size_t i = 1; i < num_points; ++i) {
+        if (control_points[i][0] <= control_points[i - 1][0]) {
+            throw std::invalid_argument("x-values must be strictly increasing.");
+        }
+    }
+
+    auto [a, b, c, d] = get_parameters(control_points, first_derivatives, boundary_type);
     size_t n = control_points.size() - 1;
 
     std::vector<std::array<double, 2>> curve_points;
@@ -115,12 +135,12 @@ std::vector<double> CubicSpline::Gauss(std::vector<std::vector<double>>& A,
     return x;
 }
 
-std::vector<double> CubicSpline::ThomasSolve(const std::vector<double>& h,
-                                             const std::vector<double>& B,
-                                             BoundaryType boundary_type,
-                                             std::pair<double, double> xx) {
+std::vector<double> CubicSpline::ThomasSolve(
+    const std::vector<double>& h, const std::vector<double>& B,
+    BoundaryType boundary_type, std::pair<double, double> first_derivatives) {
     // Solve the tridiagonal system for cubic spline parameters using Thomas algorithm
     // The system is: A * m = B, where A is (n+1) x (n+1)
+    // first_derivatives: (f'(x₀), f'(xₙ)) for Clamped boundary condition
     int n = h.size();  // h has size n, but matrix has size n+1
     int N = n + 1;     // N = n+1
 
@@ -177,7 +197,7 @@ std::vector<double> CubicSpline::ThomasSolve(const std::vector<double>& h,
         // Clamped boundary conditions
         b[0] = 2.0 * h[0];
         c[0] = h[0];
-        // d[0] already contains 6*(slope[0] - xx.first) from B
+        // d[0] already contains 6*(slope[0] - first_derivatives.first) from B
 
         for (int i = 1; i < n; ++i) {
             a[i] = h[i - 1];
@@ -189,7 +209,7 @@ std::vector<double> CubicSpline::ThomasSolve(const std::vector<double>& h,
         a[n] = h[n - 1];
         b[n] = 2.0 * h[n - 1];
         c[n] = 0.0;
-        // d[n] already contains 6*(xx.second - slope[n-1]) from B
+        // d[n] already contains 6*(first_derivatives.second - slope[n-1]) from B
     }
 
     // Thomas algorithm for tridiagonal system
@@ -263,8 +283,8 @@ std::vector<double> CubicSpline::BandedSolve(const std::vector<double>& h,
             std::swap(rhs[i], rhs[pivotRow]);
         }
 
-        // Check for singular matrix
-        if (std::abs(A[i][i]) < 1e-12) {
+        // Check for singular matrix (relative tolerance)
+        if (maxVal == 0.0 || std::abs(A[i][i]) < 1e-12 * maxVal) {
             // Singular or near-singular matrix
             // Return zeros or use a fallback
             return std::vector<double>(N, 0.0);

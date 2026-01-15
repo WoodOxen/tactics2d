@@ -34,7 +34,7 @@ class CubicSpline:
     @staticmethod
     def get_curve(
         control_points: np.ndarray,
-        xx: tuple = (0, 0),
+        first_derivatives: tuple = (0, 0),
         n_interpolation: int = 100,
         boundary_type: Union[int, BoundaryType] = BoundaryType.NotAKnot,
     ) -> np.ndarray:
@@ -42,7 +42,8 @@ class CubicSpline:
 
         Args:
             control_points (np.ndarray): The control points of the curve. The shape is (n + 1, 2).
-            xx (float): The first derivative of the curve at the first and the last control points. These conditions will be used when the boundary condition is "clamped". Defaults to (0, 0).
+            first_derivatives (tuple): The first derivatives (f'(x₀), f'(xₙ)) at the first and last control points.
+                                       Only used for Clamped boundary condition. Defaults to (0, 0).
             n_interpolation (int): The number of interpolations between every two control points. Defaults to 100.
             boundary_type (Union[int, BoundaryType]): The boundary condition type. It can be an integer value from 1 to 3 or a BoundaryType enum value. Defaults to NotAKnot.
 
@@ -75,7 +76,7 @@ class CubicSpline:
         # Compute the cubic spline curve points using the C++ implementation
         curve_points = cpp_CubicSpline.get_curve(
             control_points.tolist(),
-            xx,
+            first_derivatives,
             n_interpolation,
             cpp_CubicSpline.BoundaryType(boundary_type.value),
         )
