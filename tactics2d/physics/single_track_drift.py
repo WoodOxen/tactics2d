@@ -349,7 +349,9 @@ class SingleTrackDrift(PhysicsModelBase):
         # Completely refer to https://gitlab.lrz.de/tum-cps/commonroad-vehicle-models/-/blob/master/MATLAB/vehiclemodels/vehicleDynamics_STD.m . I haven't fully understood the implementation yet.
 
         dts = [float(self.delta_t) / 1000] * (interval // self.delta_t)
-        dts.append(float(interval % self.delta_t) / 1000)
+        remainder = interval % self.delta_t
+        if remainder > 0:
+            dts.append(float(remainder) / 1000)
 
         x, y = state.location
         v = state.speed
@@ -449,7 +451,7 @@ class SingleTrackDrift(PhysicsModelBase):
             omega_wf += d_omega_wf * dt
             omega_wr += d_omega_wr * dt
 
-            v = np.clip(v, *self.speed_range) if not self.speed_range is None else v
+            v = np.clip(v, *self.speed_range) if self.speed_range is not None else v
 
         state = State(
             frame=state.frame + interval,
@@ -488,8 +490,8 @@ class SingleTrackDrift(PhysicsModelBase):
             accel (float): The acceleration that is applied to the traffic participant.
             delta (float): The steering angle that is applied to the traffic participant.
         """
-        accel = np.clip(accel, *self.accel_range) if not self.accel_range is None else accel
-        delta = np.clip(delta, *self.steer_range) if not self.steer_range is None else delta
+        accel = np.clip(accel, *self.accel_range) if self.accel_range is not None else accel
+        delta = np.clip(delta, *self.steer_range) if self.steer_range is not None else delta
         interval = interval if interval is not None else self.interval
 
         next_state, next_omega_wf, next_omega_wr = self._step(
@@ -512,7 +514,10 @@ class SingleTrackDrift(PhysicsModelBase):
         Returns:
             True if the new state is valid, False otherwise.
         """
-        interval = interval if interval is None else state.frame - last_state.frame
+        interval = state.frame - last_state.frame if interval is None else interval
+        # Handle zero interval case
+        if interval == 0:
+            return True  # No time elapsed, state should be valid
         dt = float(interval) / 1000
         last_speed = last_state.speed
 
