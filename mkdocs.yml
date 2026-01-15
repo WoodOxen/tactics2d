@@ -33,9 +33,9 @@ nav:
     - tactics2d.physics: "api/physics.md"
     - tactics2d.sensor: "api/sensor.md"
     - tactics2d.traffic: "api/traffic.md"
-  - Tutorials:
-    - graph_search: "tutorial/graph_search_demo.ipynb"
-    - sampling_search: "tutorial/sampling_search_demo.ipynb"
+  - Tutorial:
+    - graph_search_demo: "tutorial/graph_search_demo.ipynb"
+    - sampling_search_demo: "tutorial/sampling_search_demo.ipynb"
   - Community: "community.md"
   - Publications: "publication.md"
 
@@ -97,26 +97,8 @@ theme:
     - toc.follow
     - toc.integrate
 
-extra:
-  alternate:
-    - name: English
-      link: /en/
-      lang: en
-    - name: 简体中文
-      link: /zh/
-      lang: zh
-
 plugins:
   - glightbox
-  - i18n:
-      languages:
-        - locale: en
-          name: English
-          default: true
-          build: true
-        - locale: zh
-          name: 简体中文
-          build: true
   - mkdocstrings:
       default_handler: python
       handlers:
