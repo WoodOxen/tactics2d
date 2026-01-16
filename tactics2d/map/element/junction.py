@@ -21,6 +21,8 @@ class Connection:
         lane_links (list): The lane links of the junction. Defaults to [].
     """
 
+    __slots__ = ("id_", "incoming_road", "connecting_road", "contact_point", "lane_links")
+
     def __init__(
         self,
         id_: str,
@@ -63,6 +65,8 @@ class Junction:
         id_ (str): The unique identifier of the junction.
         connections (dict): The connections of the junction. Defaults to an empty dictionary.
     """
+
+    __slots__ = ("id_", "connections")
 
     def __init__(self, id_: str, connections: dict = {}):
         """Initialize the junction.

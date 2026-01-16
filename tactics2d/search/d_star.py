@@ -28,7 +28,7 @@ class DStar:
         graph: csr_matrix,
         heuristic_fn: Callable[[ArrayLike, ArrayLike], float],
         grid_resolution: float,
-        max_iter: int = 100000,
+        max_iter: int = 1000000,  # Increased for complex graphs, especially 8-connectivity
         callback: Optional[Callable[[Dict], None]] = None,
     ):
         """
@@ -123,12 +123,6 @@ class DStar:
         rhs = np.inf * np.ones(N)  # one-step lookahead cost
         km = 0.0  # path cost modifier
 
-        # Priority queue U stores (key1, key2, node_index)
-        U = []
-        # Track which nodes are in queue with their current keys
-        in_queue = np.zeros(N, dtype=bool)
-        node_keys = {}  # node_idx -> (key1, key2)
-
         # Helper: index to rasterized coordinates
         def idx_to_coords(idx: int) -> Tuple[float, float]:
             x = idx % width
@@ -141,15 +135,30 @@ class DStar:
             coords2 = idx_to_coords(idx2)
             return heuristic_fn(coords1, coords2)
 
+        # Precompute heuristic values from all nodes to start_idx
+        h_cache = np.zeros(N)
+        for i in range(N):
+            h_cache[i] = heuristic(i, start_idx)
+
+        # Precompute neighbor lists for all nodes
+        neighbors_cache = [graph[i].nonzero()[1].tolist() for i in range(N)]
+
+        # Priority queue U stores (key1, key2, node_index)
+        U = []
+        # Track which nodes are in queue with their current keys
+        in_queue = np.zeros(N, dtype=bool)
+        node_keys = {}  # node_idx -> (key1, key2)
+
         # Helper: calculate key for node
         def calculate_key(idx: int) -> Tuple[float, float]:
             min_g_rhs = min(g[idx], rhs[idx])
-            h_val = heuristic(start_idx, idx)  # heuristic to start
+            # D* Lite heuristic: estimate from current node to start
+            h_val = h_cache[idx]  # Use precomputed heuristic value
             return (min_g_rhs + h_val + km, min_g_rhs)
 
         # Helper: get neighbors from graph
         def get_neighbors(idx: int) -> List[int]:
-            return graph[idx].nonzero()[1].tolist()
+            return neighbors_cache[idx]
 
         # Helper: get cost between nodes
         def get_cost(u: int, v: int) -> float:
@@ -163,9 +172,11 @@ class DStar:
                 min_cost = np.inf
                 for succ in succs:
                     cost = get_cost(u, succ) + g[succ]
-                    if cost < min_cost:
+                    if cost < min_cost - 1e-12:  # Add tolerance for floating-point comparison
                         min_cost = cost
-                rhs[u] = min_cost if not math.isinf(min_cost) else np.inf
+                rhs[u] = (
+                    min_cost if not np.isinf(min_cost) else np.inf
+                )  # Use np.isinf for numpy floats
 
             # Update in priority queue
             if in_queue[u]:
@@ -271,7 +282,10 @@ class DStar:
         # Reconstruct path by following minimum cost neighbors
         path_indices = []
         current = start_idx
-        while current != target_idx:
+        path_steps = 0
+        max_path_steps = N  # Safety limit: path cannot be longer than total nodes
+
+        while current != target_idx and path_steps < max_path_steps:
             path_indices.append(current)
             # Find neighbor minimizing c(current, neighbor) + g(neighbor)
             neighbors = get_neighbors(current)
@@ -279,13 +293,48 @@ class DStar:
             best_cost = np.inf
             for nb in neighbors:
                 cost = get_cost(current, nb) + g[nb]
-                if cost < best_cost:
+                if cost < best_cost - 1e-12:  # Add tolerance for floating-point comparison
                     best_cost = cost
                     best = nb
+
             if best == current:
-                # No progress, break to avoid infinite loop
-                break
+                # No progress, check if this node has infinite rhs (dead end)
+                if rhs[current] == np.inf:
+                    # Dead end, cannot proceed
+                    break
+                # Otherwise might be floating-point equality, try to continue
+                # but we need to ensure we don't get stuck in a loop
+                pass
+
             current = best
+            path_steps += 1
+
+        # Check if we reached the target
+        if current != target_idx:
+            # Failed to reconstruct path even though rhs[start_idx] is finite
+            # This indicates a bug in the algorithm or floating-point issues
+            if callback is not None:
+                state = {
+                    "iteration": iteration,
+                    "current_idx": current,
+                    "current_coords": idx_to_coords(current),
+                    "open_set_size": np.sum(in_queue),
+                    "g_current": g[current],
+                    "rhs_current": rhs[current],
+                    "g": g.copy(),
+                    "rhs": rhs.copy(),
+                    "in_queue": in_queue.copy(),
+                    "width": width,
+                    "height": height,
+                    "start_idx": start_idx,
+                    "target_idx": target_idx,
+                    "target_reached": False,
+                    "path_found": False,
+                    "path_reconstruction_failed": True,
+                }
+                callback(state)
+            return None
+
         path_indices.append(target_idx)
 
         # Convert indices to global coordinates

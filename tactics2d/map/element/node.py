@@ -25,6 +25,8 @@ class Node:
         location (Point): The location of the node expressed in geometry format. This attribute is **read-only**.
     """
 
+    __slots__ = ("id_", "x", "y")
+
     def __init__(self, id_: str, x: float, y: float):
         """Initialize an instance of this class.
 

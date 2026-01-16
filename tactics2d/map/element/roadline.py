@@ -34,6 +34,19 @@ class RoadLine:
         shape (list): The shape of the roadline. This attribute is **read-only**.
     """
 
+    __slots__ = (
+        "id_",
+        "geometry",
+        "type_",
+        "subtype",
+        "color",
+        "width",
+        "height",
+        "lane_change",
+        "temporary",
+        "custom_tags",
+    )
+
     def __init__(
         self,
         id_: str,
