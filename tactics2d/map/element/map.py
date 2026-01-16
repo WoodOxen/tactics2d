@@ -292,8 +292,9 @@ class Map:
 
         # Convert geometry results back to element IDs using geometry to ID mapping
         element_ids = []
-        for geom in results:
-            # Use id(geom) to lookup element ID
+        for idx in results:
+            # Get geometry by index from spatial_geometries list
+            geom = self._spatial_geometries[idx]
             elem_id = self._geometry_to_id.get(id(geom))
             if elem_id is not None:
                 element_ids.append(elem_id)
@@ -319,8 +320,9 @@ class Map:
 
         # Convert geometry results back to element IDs using geometry to ID mapping
         element_ids = []
-        for geom in results:
-            # Use id(geom) to lookup element ID
+        for idx in results:
+            # Get geometry by index from spatial_geometries list
+            geom = self._spatial_geometries[idx]
             elem_id = self._geometry_to_id.get(id(geom))
             if elem_id is not None:
                 element_ids.append(elem_id)

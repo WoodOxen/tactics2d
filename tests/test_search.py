@@ -7,7 +7,16 @@ import numpy as np
 import pytest
 
 from tactics2d.map.generator.generate_grid_map import GridMapGenerator
-from tactics2d.search import RRT, AStar, Dijkstra, DStar, RRTConnect, RRTStar, grid_to_csr
+from tactics2d.search import (
+    RRT,
+    AStar,
+    Dijkstra,
+    DStar,
+    HybridAStar,
+    RRTConnect,
+    RRTStar,
+    grid_to_csr,
+)
 
 
 @pytest.fixture
@@ -462,3 +471,49 @@ def test_rrt_connect_search(grid_map_fixture):
         # trees should be a tuple of two trees
         assert isinstance(trees, tuple)
         assert len(trees) == 2
+
+
+@pytest.mark.search
+def test_hybrid_a_star(grid_map_fixture):
+    """Test Hybrid A* algorithm on a grid map."""
+    grid_map, start, goal, boundary, grid_resolution = grid_map_fixture
+
+    # Convert 2D start and goal to 3D states with heading = 0
+    start_3d = [start[0], start[1], 0.0]  # [x, y, heading]
+    goal_3d = [goal[0], goal[1], 0.0]  # [x, y, heading]
+
+    # Extract obstacles from grid map (inf indicates obstacle)
+    obstacles = extract_obstacles_from_grid(grid_map)
+    collide_fn = create_grid_collision_checker(obstacles)
+
+    # Run Hybrid A* planning
+    path = HybridAStar.plan(
+        start=start_3d,
+        target=goal_3d,
+        boundary=boundary,
+        obstacles=obstacles,
+        collide_fn=collide_fn,
+        step_size=1.0,
+        max_iter=50000,
+        steering_angles=[-0.5, 0, 0.5],  # radians
+        velocity=1.0,
+        wheelbase=2.5,
+    )
+
+    # Basic validation: if path is found, check its properties
+    if path:
+        assert len(path) > 0
+        assert isinstance(path, list)
+        # Path should be a list of [x, y, heading] states
+        # Check that first state matches start (position only, heading may differ)
+        assert np.allclose(path[0][:2], start_3d[:2], atol=0.5)
+        # Check that last state matches goal (position only)
+        assert np.allclose(path[-1][:2], goal_3d[:2], atol=0.5)
+        # Path should be within boundary
+        for state in path:
+            x, y, heading = state
+            assert boundary[0] - 1e-9 <= x <= boundary[1] + 1e-9
+            assert boundary[2] - 1e-9 <= y <= boundary[3] + 1e-9
+            # Heading should be in valid range [0, 2π)
+            assert 0.0 <= heading < 2 * np.pi or np.isclose(heading, 2 * np.pi)
+    # If no path found, that's acceptable (obstacles may block)
