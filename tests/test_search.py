@@ -63,7 +63,8 @@ def grid_map_fixture():
 def grid_map_fixture_with_seed():
     """Generate a grid map with random parameters and fixed seed for reproducibility."""
     # Generate a random seed for this fixture instance
-    seed = np.random.randint(0, 2**32 - 1)  # 32-bit random seed
+    # Use 2**31-1 instead of 2**32-1 for Windows compatibility (int32 max)
+    seed = np.random.randint(0, 2**10 - 1)  # 31-bit random seed for Windows compatibility
 
     # Generate random size between 3 and 10 for both dimensions (very small for reliable testing)
     # Use the seed to ensure reproducibility for this fixture instance
