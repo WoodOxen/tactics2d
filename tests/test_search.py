@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from tactics2d.map.generator.generate_grid_map import GridMapGenerator
-from tactics2d.search import AStar, Dijkstra, DStar, grid_to_csr
+from tactics2d.search import RRT, AStar, Dijkstra, DStar, RRTConnect, RRTStar, grid_to_csr
 
 
 @pytest.fixture
@@ -91,6 +91,90 @@ def grid_map_fixture_with_seed():
 def euclidean_heuristic(a, b):
     """Euclidean distance heuristic for A* and D*."""
     return np.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
+
+
+def extract_obstacles_from_grid(grid_map):
+    """Extract obstacle coordinates from grid map.
+
+    Args:
+        grid_map: 2D numpy array with obstacles marked as np.inf
+
+    Returns:
+        list: List of (x, y) obstacle cell centers where x=col, y=row
+    """
+    height, width = grid_map.shape
+    obstacles = []
+    for row in range(height):
+        for col in range(width):
+            if np.isinf(grid_map[row, col]):
+                obstacles.append((col, row))
+    return obstacles
+
+
+def create_grid_collision_checker(obstacles):
+    """Create a collision checking function for grid obstacles.
+
+    Args:
+        obstacles: List of (x, y) obstacle cell centers
+
+    Returns:
+        function: collide_fn(p1, p2, obstacles) that returns True if line segment
+                  from p1 to p2 intersects any obstacle unit square.
+    """
+
+    def collide_fn(p1, p2, obstacles):
+        # p1, p2: (x, y) coordinates
+        # obstacles: list of (x, y) obstacle cell centers
+        # Each obstacle is a unit square centered at (ox, oy) with side length 1
+        # Use axis-aligned bounding box intersection test
+        # Parameterize segment: p1 + t*(p2-p1), t in [0,1]
+        x1, y1 = p1
+        x2, y2 = p2
+        dx = x2 - x1
+        dy = y2 - y1
+
+        for ox, oy in obstacles:
+            # Obstacle square bounds
+            ox_min = ox - 0.5
+            ox_max = ox + 0.5
+            oy_min = oy - 0.5
+            oy_max = oy + 0.5
+
+            # Check if segment intersects AABB using slab method
+            # Compute t for x and y slabs
+            if abs(dx) < 1e-9:
+                # Segment vertical, check if x within obstacle x range
+                if not (ox_min <= x1 <= ox_max):
+                    continue
+                tx_min = -np.inf
+                tx_max = np.inf
+            else:
+                tx1 = (ox_min - x1) / dx
+                tx2 = (ox_max - x1) / dx
+                tx_min = min(tx1, tx2)
+                tx_max = max(tx1, tx2)
+
+            if abs(dy) < 1e-9:
+                # Segment horizontal, check if y within obstacle y range
+                if not (oy_min <= y1 <= oy_max):
+                    continue
+                ty_min = -np.inf
+                ty_max = np.inf
+            else:
+                ty1 = (oy_min - y1) / dy
+                ty2 = (oy_max - y1) / dy
+                ty_min = min(ty1, ty2)
+                ty_max = max(ty1, ty2)
+
+            # Intersection of intervals
+            t_min = max(tx_min, ty_min, 0.0)
+            t_max = min(tx_max, ty_max, 1.0)
+
+            if t_min <= t_max:
+                return True  # collision
+        return False  # no collision
+
+    return collide_fn
 
 
 @pytest.mark.search
@@ -275,3 +359,106 @@ def test_search_algorithms_consistency(grid_map_fixture_with_seed, connectivity)
     # Different algorithms can produce different but equivalent paths
     # (e.g., different sequences of diagonal/straight moves with same total cost)
     # This satisfies the requirement to "allow different but equivalent paths"
+
+
+@pytest.mark.search
+def test_rrt_search(grid_map_fixture):
+    """Test RRT algorithm on a grid map."""
+    grid_map, start, goal, boundary, grid_resolution = grid_map_fixture
+
+    # Extract obstacles from grid map (inf indicates obstacle)
+    obstacles = extract_obstacles_from_grid(grid_map)
+    collide_fn = create_grid_collision_checker(obstacles)
+
+    # Run RRT planning
+    path, tree = RRT.plan(
+        start=start,
+        target=goal,
+        boundary=boundary,
+        obstacles=obstacles,
+        collide_fn=collide_fn,
+        extension_step=1.0,
+        max_iter=10000,
+        callback=None,
+    )
+
+    # Basic validation: if path is found, check its properties
+    if path:
+        assert len(path) > 0
+        # Path should be a list of [x, y] points
+        assert isinstance(path, list)
+        # Start and goal should match (within tolerance)
+        assert np.allclose(path[0], start, atol=1e-9)
+        assert np.allclose(path[-1], goal, atol=1e-9)
+        # Path should be within boundary
+        for point in path:
+            x, y = point
+            assert boundary[0] - 1e-9 <= x <= boundary[1] + 1e-9
+            assert boundary[2] - 1e-9 <= y <= boundary[3] + 1e-9
+    # If no path found, that's acceptable (obstacles may block)
+
+
+@pytest.mark.search
+def test_rrt_star_search(grid_map_fixture):
+    """Test RRT* algorithm on a grid map."""
+    grid_map, start, goal, boundary, grid_resolution = grid_map_fixture
+
+    obstacles = extract_obstacles_from_grid(grid_map)
+    collide_fn = create_grid_collision_checker(obstacles)
+
+    # Run RRT* planning with default radius
+    path, tree = RRTStar.plan(
+        start=start,
+        target=goal,
+        boundary=boundary,
+        obstacles=obstacles,
+        collide_fn=collide_fn,
+        extension_step=1.0,
+        max_iter=10000,
+        radius=3.0,
+        callback=None,
+    )
+
+    if path:
+        assert len(path) > 0
+        assert isinstance(path, list)
+        assert np.allclose(path[0], start, atol=1e-9)
+        assert np.allclose(path[-1], goal, atol=1e-9)
+        for point in path:
+            x, y = point
+            assert boundary[0] - 1e-9 <= x <= boundary[1] + 1e-9
+            assert boundary[2] - 1e-9 <= y <= boundary[3] + 1e-9
+
+
+@pytest.mark.search
+def test_rrt_connect_search(grid_map_fixture):
+    """Test RRT-Connect algorithm on a grid map."""
+    grid_map, start, goal, boundary, grid_resolution = grid_map_fixture
+
+    obstacles = extract_obstacles_from_grid(grid_map)
+    collide_fn = create_grid_collision_checker(obstacles)
+
+    # Run RRT-Connect planning
+    path, trees = RRTConnect.plan(
+        start=start,
+        target=goal,
+        boundary=boundary,
+        obstacles=obstacles,
+        collide_fn=collide_fn,
+        extension_step=1.0,
+        max_iter=10000,
+        callback=None,
+    )
+
+    if path:
+        assert len(path) > 0
+        assert isinstance(path, list)
+        assert np.allclose(path[0], start, atol=1e-9)
+        assert np.allclose(path[-1], goal, atol=1e-9)
+        for point in path:
+            x, y = point
+            assert boundary[0] - 1e-9 <= x <= boundary[1] + 1e-9
+            assert boundary[2] - 1e-9 <= y <= boundary[3] + 1e-9
+        # trees should be a tuple of two trees
+        assert isinstance(trees, tuple)
+        assert len(trees) == 2
