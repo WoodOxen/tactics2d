@@ -11,6 +11,9 @@ import numpy as np
 from numpy.typing import ArrayLike
 from scipy.sparse import csr_matrix
 
+# Tolerance for floating-point comparisons
+_FP_TOLERANCE = 1e-12
+
 
 class DStar:
     """This class implements the D* Lite algorithm for dynamic path planning.
@@ -166,13 +169,14 @@ class DStar:
 
         # UpdateVertex procedure from D* Lite
         def update_vertex(u: int):
+
             if u != target_idx:
                 # Compute min over successors
                 succs = get_neighbors(u)
                 min_cost = np.inf
                 for succ in succs:
                     cost = get_cost(u, succ) + g[succ]
-                    if cost < min_cost - 1e-12:  # Add tolerance for floating-point comparison
+                    if cost < min_cost - _FP_TOLERANCE:
                         min_cost = cost
                 rhs[u] = (
                     min_cost if not np.isinf(min_cost) else np.inf
@@ -182,7 +186,7 @@ class DStar:
             if in_queue[u]:
                 in_queue[u] = False  # Mark old entry as stale
 
-            if g[u] != rhs[u]:
+            if abs(g[u] - rhs[u]) > _FP_TOLERANCE:
                 key = calculate_key(u)
                 heapq.heappush(U, (key[0], key[1], u))
                 in_queue[u] = True
@@ -216,14 +220,14 @@ class DStar:
                 iteration += 1
                 continue
 
-            if g[u] > rhs[u]:
+            if g[u] > rhs[u] + _FP_TOLERANCE:
                 # Overconsistent
                 g[u] = rhs[u]
                 # Update all predecessors (neighbors in undirected graph)
                 preds = get_neighbors(u)
                 for pred in preds:
                     update_vertex(pred)
-            else:
+            elif g[u] < rhs[u] - _FP_TOLERANCE:
                 # Underconsistent
                 g[u] = np.inf
                 # Update this node and its neighbors
@@ -293,7 +297,7 @@ class DStar:
             best_cost = np.inf
             for nb in neighbors:
                 cost = get_cost(current, nb) + g[nb]
-                if cost < best_cost - 1e-12:  # Add tolerance for floating-point comparison
+                if cost < best_cost - _FP_TOLERANCE:
                     best_cost = cost
                     best = nb
 
