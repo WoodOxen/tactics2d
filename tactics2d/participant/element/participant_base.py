@@ -6,7 +6,7 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, List, Tuple
+from typing import Any, List, Optional, Tuple, Union
 
 from tactics2d.participant.trajectory import State, Trajectory
 
@@ -85,10 +85,17 @@ class ParticipantBase(ABC):
             else:
                 try:
                     if isinstance(__value, tuple):
-                        for __type in __annotations__[__name]:
-                            if isinstance(__value, __type):
-                                super().__setattr__(__name, __type(__value))
-                                break
+                        # Handle tuple type annotations (e.g., Union[Type1, Type2] stored as tuple)
+                        annotation = self.__annotations__[__name]
+                        if isinstance(annotation, tuple):
+                            for __type in annotation:
+                                if isinstance(__value, __type):
+                                    super().__setattr__(__name, __type(__value))
+                                    break
+                        else:
+                            # annotation is a single type
+                            if isinstance(__value, annotation):
+                                super().__setattr__(__name, annotation(__value))
                     else:
                         super().__setattr__(__name, self.__annotations__[__name](__value))
                 except:
@@ -125,7 +132,7 @@ class ParticipantBase(ABC):
 
     @property
     @abstractmethod
-    def geometry(self):
+    def geometry(self) -> Union["LinearRing", float, None]:
         """The geometry shape of the traffic participant. *It should be overridden in implementation.*"""
 
     @property

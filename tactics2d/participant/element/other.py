@@ -4,7 +4,7 @@
 """Other implementation."""
 
 
-from typing import Any, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 import numpy as np
 from shapely.affinity import affine_transform
@@ -49,7 +49,7 @@ class Other(ParticipantBase):
         super().__init__(id_, type_, trajectory, **kwargs)
 
     @property
-    def geometry(self):
+    def geometry(self) -> Optional[LinearRing]:
         if not self.length is None and not self.width is None:
             return LinearRing(
                 [
