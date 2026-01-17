@@ -1,2 +1,4 @@
 ignore:
   - "tactics2d/map/parser/fix_osm.py"
+  - "tactics2d/dataset_parser/womd_proto/pb2/*"
+  - "tactics2d/dataset_parser/womd_proto/pb3/*"

@@ -3,11 +3,15 @@
 
 """Tests for search algorithms."""
 
+import random
+
 import numpy as np
 import pytest
 
 from tactics2d.map.generator.generate_grid_map import GridMapGenerator
 from tactics2d.search import (
+    MCTS,
+    PRM,
     RRT,
     AStar,
     Dijkstra,
@@ -518,3 +522,158 @@ def test_hybrid_a_star(grid_map_fixture):
             # Heading should be in valid range [0, 2π)
             assert 0.0 <= heading < 2 * np.pi or np.isclose(heading, 2 * np.pi)
     # If no path found, that's acceptable (obstacles may block)
+
+
+@pytest.mark.search
+def test_prm_search(grid_map_fixture):
+    """Test PRM algorithm on a grid map."""
+    grid_map, start, goal, boundary, grid_resolution = grid_map_fixture
+
+    # Extract obstacles from grid map (inf indicates obstacle)
+    obstacles = extract_obstacles_from_grid(grid_map)
+    collide_fn = create_grid_collision_checker(obstacles)
+
+    # Run PRM planning with reduced samples for faster testing
+    path, roadmap = PRM.plan(
+        start=start,
+        target=goal,
+        boundary=boundary,
+        obstacles=obstacles,
+        collide_fn=collide_fn,
+        n_samples=100,  # Reduced for testing speed
+        k_nearest=5,  # Reduced for testing speed
+        max_iter=10000,
+        callback=None,
+    )
+
+    # Basic validation: if path is found, check its properties
+    if path:
+        assert len(path) > 0
+        assert isinstance(path, list)
+        # Start and goal should match (within tolerance)
+        assert np.allclose(path[0], start, atol=1e-9)
+        assert np.allclose(path[-1], goal, atol=1e-9)
+        # Path should be within boundary
+        for point in path:
+            x, y = point
+            assert boundary[0] - 1e-9 <= x <= boundary[1] + 1e-9
+            assert boundary[2] - 1e-9 <= y <= boundary[3] + 1e-9
+
+        # Roadmap should be a tuple (nodes, edges)
+        assert isinstance(roadmap, tuple)
+        assert len(roadmap) == 2
+        nodes, edges = roadmap
+        assert len(nodes) >= 2  # At least start and target
+        # Check that start and target are in nodes
+        # Start should be first node, target second node (by construction)
+        assert np.allclose(nodes[0], start, atol=1e-9)
+        assert np.allclose(nodes[1], goal, atol=1e-9)
+    # If no path found, that's acceptable (obstacles may block)
+    # Still check roadmap structure
+    else:
+        nodes, edges = roadmap
+        assert isinstance(nodes, list)
+        assert isinstance(edges, list)
+        if len(nodes) > 0:
+            assert np.allclose(nodes[0], start, atol=1e-9)
+            assert np.allclose(nodes[1], goal, atol=1e-9)
+
+
+@pytest.mark.search
+def test_mcts_search(grid_map_fixture):
+    """Test MCTS algorithm on a grid map."""
+    grid_map, start, goal, boundary, grid_resolution = grid_map_fixture
+    height, width = grid_map.shape
+
+    # Convert continuous start/goal to discrete grid indices
+    # start and goal are [x, y] where x=col, y=row
+    start_col, start_row = int(round(start[0])), int(round(start[1]))
+    goal_col, goal_row = int(round(goal[0])), int(round(goal[1]))
+    # Ensure within bounds
+    start_col = max(0, min(start_col, width - 1))
+    start_row = max(0, min(start_row, height - 1))
+    goal_col = max(0, min(goal_col, width - 1))
+    goal_row = max(0, min(goal_row, height - 1))
+
+    # Define state as (row, col) tuple
+    start_state = (start_row, start_col)
+    goal_state = (goal_row, goal_col)
+
+    # Helper function to check if state is within bounds
+    def in_bounds(state):
+        row, col = state
+        return 0 <= row < height and 0 <= col < width
+
+    # Terminal function: reached goal state
+    def terminal_fn(state):
+        return state == goal_state
+
+    # Expand function: four cardinal directions
+    def expand_fn(state):
+        row, col = state
+        candidates = []
+        # Up, down, left, right
+        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            new_state = (row + dr, col + dc)
+            if in_bounds(new_state):
+                # Optional: check obstacle (grid_map[row, col] == np.inf)
+                # For simplicity, ignore obstacles in this test
+                candidates.append(new_state)
+        return candidates
+
+    # Reward function: negative Manhattan distance to goal
+    def reward_fn(state):
+        row, col = state
+        gr, gc = goal_state
+        distance = abs(row - gr) + abs(col - gc)
+        # Negative reward proportional to distance
+        return -float(distance)
+
+    # Simulation function: random walk until terminal or max steps
+    def simulate_fn(state):
+        max_steps = 20
+        current = state
+        steps = 0
+        while not terminal_fn(current) and steps < max_steps:
+            candidates = expand_fn(current)
+            if candidates:
+                current = random.choice(candidates)
+            else:
+                break
+            steps += 1
+        return current
+
+    # Initialize MCTS with the functions
+    mcts = MCTS(
+        terminal_fn=terminal_fn,
+        expand_fn=expand_fn,
+        reward_fn=reward_fn,
+        simulate_fn=simulate_fn,
+        exploration_weight=1.0,
+    )
+
+    # Plan from start state with limited iterations
+    max_try = 100  # Small number for fast testing
+    path, root = mcts.plan(start=start_state, max_try=max_try)
+
+    # Basic validation
+    assert isinstance(path, list)
+    # Root should be a node with visits > 0
+    assert root.visits > 0
+    # total_reward could be negative (since reward is negative distance)
+
+    # If path is found, check basic properties
+    if path:
+        assert len(path) > 0
+        # First state should be start
+        assert path[0] == start_state
+        # All states should be within bounds
+        for state in path:
+            assert in_bounds(state)
+        # Last state should be goal or at least closer to goal?
+        # MCTS may not reach goal within limited iterations, so no strict check
+    # Additional check: root should have children after planning
+    assert len(root.children) > 0
+    # At least one child should have been visited
+    visited_children = [child for child in root.children if child.visits > 0]
+    assert len(visited_children) > 0

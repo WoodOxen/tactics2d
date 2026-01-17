@@ -16,6 +16,8 @@ from .d_star import DStar
 from .dijkstra import Dijkstra
 from .graph_utils import grid_to_csr
 from .hybrid_a_star import HybridAStar
+from .mcts import MCTS
+from .prm import PRM
 from .rrt import RRT
 from .rrt_connect import RRTConnect
 from .rrt_star import RRTStar
@@ -25,8 +27,10 @@ __all__ = [
     "HybridAStar",
     "Dijkstra",
     "DStar",
+    "PRM",
     "RRT",
     "RRTStar",
     "RRTConnect",
+    "MCTS",
     "grid_to_csr",
 ]
