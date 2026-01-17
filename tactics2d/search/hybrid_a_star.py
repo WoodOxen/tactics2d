@@ -6,11 +6,10 @@
 
 import heapq
 import math
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, List
 
 import numpy as np
 from numpy.typing import ArrayLike
-from scipy.sparse import csr_matrix
 
 
 class HybridAStar:
@@ -58,7 +57,6 @@ class HybridAStar:
 
         # State node structure: (x, y, heading, parent_idx, g_cost, h_cost)
         start_node = (start[0], start[1], start[2], -1, 0.0, HybridAStar._heuristic(start, target))
-        target_node = (target[0], target[1], target[2], -1, 0.0, 0.0)
 
         # Grid discretization for state space
         x_min, x_max, y_min, y_max = boundary
@@ -99,7 +97,7 @@ class HybridAStar:
         while open_set and iteration < max_iter:
             _, node_idx = heapq.heappop(open_set)
             current_node = nodes[node_idx]
-            x, y, heading, parent_idx, g_cost, h_cost = current_node
+            x, y, heading, parent_idx, g_cost, _ = current_node
 
             # Check if reached target
             if (
@@ -161,7 +159,6 @@ class HybridAStar:
     @staticmethod
     def _heuristic(state, target):
         """Combined heuristic: Euclidean distance + heading difference."""
-        import math
 
         dx = state[0] - target[0]
         dy = state[1] - target[1]

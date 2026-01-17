@@ -35,16 +35,19 @@ class InteractionParser:
 
         return file_id
 
-    def get_time_range(self, file: Union[int, str], folder: str) -> Tuple[float, float]:
+    def get_time_range(self, file: str, folder: str) -> Tuple[int, int]:
         """This function gets the time range of a single trajectory data file.
 
         Args:
-            file (Union[int, str]): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files:  `vehicle_tracks_%03d.csv % file`, `pedestrian_tracks_%03d.csv % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            file (str): The name of the trajectory file or the id as a string. The parser will extract the integer id from the string and parse the trajectory data from the following files: `vehicle_tracks_%03d.csv % file_id`, `pedestrian_tracks_%03d.csv % file_id`.
             folder (str): The path to the folder containing the trajectory data.
 
         Returns:
-            actual_stamp_range (Tuple[int, int]): The time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond (ms).
+            actual_time_range (Tuple[int, int]): The time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond (ms).
         """
+        # Convert to string if integer
+        if isinstance(file, int):
+            file = str(file)
         file_id = self._get_file_id(file)
         vehicle_file_path = os.path.join(folder, "vehicle_tracks_%03d.csv" % file_id)
 
@@ -60,17 +63,17 @@ class InteractionParser:
             start_frame = min(start_frame, ped_start)
             end_frame = max(end_frame, ped_end)
 
-        actual_stamp_range = (start_frame, end_frame)
-        return actual_stamp_range
+        actual_time_range = (start_frame, end_frame)
+        return actual_time_range
 
     def parse_vehicle(
-        self, file_path: str, time_range: Tuple[float, float] = None
+        self, file_path: str, time_range: Tuple[int, int] = None
     ) -> Tuple[dict, Tuple[int, int]]:
         """This function parses the vehicle trajectory file in INTERACTION dataset.
 
         Args:
             file_path: The path to the vehicle trajectory file.
-            time_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the stamp range is not given, the parser will parse the whole trajectory data.
+            time_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the time range is not given, the parser will parse the whole trajectory data.
 
         Returns:
             vehicles (dict): A dictionary of vehicles. The keys are the ids of the vehicles. The values are the vehicles.
@@ -131,14 +134,14 @@ class InteractionParser:
         return vehicles, actual_stamp_range
 
     def parse_pedestrians(
-        self, participants: dict, file_path: str, time_range: Tuple[float, float] = None
+        self, participants: dict, file_path: str, time_range: Tuple[int, int] = None
     ) -> Tuple[dict, Tuple[int, int]]:
         """This function parses the pedestrian trajectory file in INTERACTION dataset. Because the original dataset does not distinguish cyclist and pedestrian, this function calls a type guesser, which is built from other datasets, to guess the type of the participants.
 
         Args:
             participants (dict): A dictionary of participants.
             file_path (str): The path to the pedestrian trajectory file.
-            time_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the stamp range is not given, the parser will parse the whole trajectory data.
+            time_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the time range is not given, the parser will parse the whole trajectory data.
 
         Returns:
             participants (dict): A dictionary of participants. The keys are the ids of the participants. The values are the participants.
@@ -210,19 +213,22 @@ class InteractionParser:
         return participants, actual_stamp_range
 
     def parse_trajectory(
-        self, file: Union[int, str], folder: str, time_range: Tuple[float, float] = None
+        self, file: str, folder: str, time_range: Tuple[int, int] = None
     ) -> Tuple[dict, Tuple[int, int]]:
         """Parse the trajectory data of INTERACTION dataset. The states were collected at 10Hz.
 
         Args:
-            file (Union[int, str]): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: `vehicle_tracks_%03d.csv % file`, `pedestrian_tracks_%03d.csv % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            file (str): The name of the trajectory file or the id as a string. The parser will extract the integer id from the string and parse the trajectory data from the following files: `vehicle_tracks_%03d.csv % file_id`, `pedestrian_tracks_%03d.csv % file_id`.
             folder (str): The path to the folder containing the trajectory data.
-            time_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the stamp range is not given, the parser will parse the whole trajectory data.
+            time_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the time range is not given, the parser will parse the whole trajectory data.
 
         Returns:
             participants (dict): A dictionary of participants. The keys are the ids of the participants. The values are the participants.
             actual_stamp_range (Tuple[int, int]): The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond (ms).
         """
+        # Convert to string if integer
+        if isinstance(file, int):
+            file = str(file)
         file_id = self._get_file_id(file)
 
         vehicle_file_path = os.path.join(folder, "vehicle_tracks_%03d.csv" % file_id)

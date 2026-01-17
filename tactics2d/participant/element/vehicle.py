@@ -9,7 +9,7 @@ from typing import Any, Tuple
 
 import numpy as np
 from shapely.affinity import affine_transform
-from shapely.geometry import LinearRing
+from shapely.geometry import LinearRing, LineString
 
 from tactics2d.participant.trajectory import State, Trajectory
 from tactics2d.physics import SingleTrackKinematics

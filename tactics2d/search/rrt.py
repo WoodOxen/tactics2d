@@ -7,8 +7,6 @@ from typing import Any, Callable, Dict, Optional
 import numpy as np
 from numpy.typing import ArrayLike
 
-from tactics2d.participant.trajectory import State
-
 
 class RRT:
     """This class implements the RRT algorithm.

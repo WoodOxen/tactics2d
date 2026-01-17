@@ -64,25 +64,25 @@ class NuPlanParser:
         return location
 
     def parse_trajectory(
-        self, file: str, folder: str, stamp_range: Tuple[float, float] = None
-    ) -> Tuple[dict, List[int]]:
+        self, file: str, folder: str, time_range: Tuple[int, int] = None
+    ) -> Tuple[dict, Tuple[int, int]]:
         """This function parses trajectories from a single NuPlan database file.
 
         Args:
             file (str): The name of the trajectory data file. The file is expected to be a sqlite3 database file (.db).
             folder (str): The path to the folder containing the trajectory file.
-            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data.
+            time_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the time range is not given, the parser will parse the whole trajectory data.
 
         Returns:
             participants (dict): A dictionary of participants. The keys are the ids of the participants. The values are the participants.
-            stamps (List[int]): The actual time range of the trajectory data. Because NuPlan collects data at an unstable frequency, the parser will return a list of time stamps.
+            actual_time_range (Tuple[int, int]): The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
         """
         participants = dict()
         time_stamps = set()
         file_path = os.path.join(folder, file)
 
-        if stamp_range is None:
-            stamp_range = (-float("inf"), float("inf"))
+        if time_range is None:
+            time_range = (-float("inf"), float("inf"))
 
         with sqlite3.connect(file_path) as connection:
             cursor = connection.cursor()
@@ -110,7 +110,7 @@ class NuPlanParser:
                 cursor.execute("SELECT * FROM lidar_pc WHERE token=?;", (row[1],))
                 time_stamp = int(cursor.fetchone()[7] / 1000 - self._DATETIME)
 
-                if time_stamp < stamp_range[0] or time_stamp > stamp_range[1]:
+                if time_stamp < time_range[0] or time_stamp > time_range[1]:
                     continue
                 time_stamps.add(time_stamp)
 
@@ -121,9 +121,13 @@ class NuPlanParser:
 
         cursor.close()
         connection.close()
-        stamps = sorted(list(time_stamps))
 
-        return participants, stamps
+        if time_stamps:
+            actual_time_range = (min(time_stamps), max(time_stamps))
+        else:
+            actual_time_range = (np.inf, -np.inf)
+
+        return participants, actual_time_range
 
     def parse_map(self, file_path: str) -> Map:
         map_meta = gpd.read_file(file_path, layer="meta", engine="pyogrio")

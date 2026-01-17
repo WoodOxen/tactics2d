@@ -22,41 +22,41 @@ class CitySimParser:
         Zheng, Ou, et al. "CitySim: A drone-based vehicle trajectory dataset for safety-oriented research and digital twins." Transportation research record 2678.4 (2024): 606-621.
     """
 
-    def get_stamp_range(self, file: str, folder: str) -> Tuple[int, int]:
+    def get_time_range(self, file: str, folder: str) -> Tuple[int, int]:
         """This function gets the time range of a single trajectory data file.
 
         Args:
-            file (Union[int, str]): The name of the trajectory data file. The file is expected to be a csv file.
+            file (str): The name of the trajectory data file. The file is expected to be a csv file.
             folder (str): The path to the folder containing the trajectory data.
 
         Returns:
-            actual_stamp_range (Tuple[int, int]): The time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
+            actual_time_range (Tuple[int, int]): The time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
         """
         df_track = pl.read_csv(os.path.join(folder, file))
 
         start_frame = min(df_track["frameNum"])
         end_frame = max(df_track["frameNum"])
 
-        actual_stamp_range = (int(start_frame * 1000 / 30), int(end_frame * 1000 / 30))
-        return actual_stamp_range
+        actual_time_range = (int(start_frame * 1000 / 30), int(end_frame * 1000 / 30))
+        return actual_time_range
 
     def parse_trajectory(
-        self, file: str, folder: str, stamp_range: Tuple[int, int] = None, ids: list = None
+        self, file: str, folder: str, time_range: Tuple[int, int] = None, ids: list = None
     ) -> Tuple[dict, Tuple[int, int]]:
         """This function parses the trajectory data of CitySim datasets. The states were collected at 30Hz.
 
         Args:
             file (str): The name of the trajectory data file. The file is expected to be a csv file.
             folder (str): The path to the folder containing the trajectory data.
-            stamp_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+            time_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the time range is not given, the parser will parse the whole trajectory data. Defaults to None.
             ids (list, optional): The list of trajectory ids that needs to parse. If this value is not specified, the parser will parse all the trajectories within the time range. Defaults to None.
 
         Returns:
             participants (dict): A dictionary of participants. The keys are the ids of the participants. The values are the participants.
             actual_stamp_range (Tuple[int, int]): The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
         """
-        if stamp_range is None:
-            stamp_range = (-np.inf, np.inf)
+        if time_range is None:
+            time_range = (-np.inf, np.inf)
 
         df_track = pl.read_csv(os.path.join(folder, file))
 
@@ -74,8 +74,8 @@ class CitySimParser:
         # Filter by carId and time range
         df_track_filtered = df_track.filter(
             (pl.col("carId").is_in(participant_ids))
-            & (pl.col("frameNum (ms)") >= stamp_range[0])
-            & (pl.col("frameNum (ms)") <= stamp_range[1])
+            & (pl.col("frameNum (ms)") >= time_range[0])
+            & (pl.col("frameNum (ms)") <= time_range[1])
         )
 
         # Add converted columns

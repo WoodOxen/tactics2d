@@ -76,7 +76,7 @@ class WOMDParser:
 
     def parse_trajectory(
         self, scenario_id: Union[str, int] = None, **kwargs
-    ) -> Tuple[dict, List[int]]:
+    ) -> Tuple[dict, Tuple[int, int]]:
         """This function parses trajectories from a single WOMD file. Because the duration of the scenario has been well articulated, the parser will not provide an option to select time range within a single scenario. The states were collected at 10Hz.
 
         Args:
@@ -89,7 +89,7 @@ class WOMDParser:
 
         Returns:
             participants (dict): A dictionary of participants. If the scenario id is not found, return None.
-            stamps (List[int]): The actual time range of the trajectory data. Because WOMD collects data at an unstable frequency, the parser will return a list of time stamps.
+            actual_time_range (Tuple[int, int]): The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
 
         Raises:
             KeyError: Either dataset or file and folder should be given as keyword arguments.
@@ -118,7 +118,11 @@ class WOMDParser:
 
         # Use cached data instead of re-iterating the generator
         if not cached_data or data_id >= len(cached_data):
-            return participants, sorted(list(time_stamps))
+            if time_stamps:
+                actual_time_range = (min(time_stamps), max(time_stamps))
+            else:
+                actual_time_range = (np.inf, -np.inf)
+            return participants, actual_time_range
 
         proto_string = cached_data[data_id]
         scenario = scenario_pb.Scenario()
@@ -161,9 +165,12 @@ class WOMDParser:
             )
             participants[track.id] = participant
 
-        stamps = sorted(list(time_stamps))
+        if time_stamps:
+            actual_time_range = (min(time_stamps), max(time_stamps))
+        else:
+            actual_time_range = (np.inf, -np.inf)
 
-        return participants, stamps
+        return participants, actual_time_range
 
     def _join_lane_boundary(self, ids, map_):
         points = []

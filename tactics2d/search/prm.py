@@ -4,7 +4,6 @@
 """PRM (Probabilistic Roadmap) algorithm implementation."""
 
 import heapq
-import math
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
