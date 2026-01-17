@@ -14,34 +14,40 @@ nav.md-nav--secondary {
 }
 
 /******************* Callout ***************************/
-.admonition-title {
-	font-size: 16px;
-}
-
+/* Base font sizes using rem units for better scalability */
+.admonition-title,
 .admonition-abstract {
-	font-size: 16px;
+	font-size: 0.8rem; /* ~16px */
 }
 
-.admonition.info {
-	font-size: 16px;
-}
-
-.admonition.note {
-	font-size: 16px;
-}
-
-.admonition.quote {
-	font-size: 16px;
-}
-
+.admonition.info,
+.admonition.note,
+.admonition.quote,
 .admonition.warning {
-	font-size: 16px;
+	font-size: 0.8rem; /* ~14.4px */
+}
+
+/* Responsive font sizes for smaller screens */
+@media screen and (max-width: 768px) {
+	.admonition-title,
+	.admonition-abstract {
+		font-size: 0.8rem; /* ~15px on mobile */
+	}
+
+	.admonition.info,
+	.admonition.note,
+	.admonition.quote,
+	.admonition.warning {
+		font-size: 0.8rem; /* ~14px on mobile */
+	}
 }
 
 
 /******************* Code ***************************/
+/* Base code font size */
 code {
 	border-width: 1px;
+	font-size: 0.8rem; /* ~14px */
 }
 
 code.highlight{
@@ -55,6 +61,14 @@ code.language-python {
 	padding-left: 10px;
 	display: block;
 	font-weight: bold;
+	/* font-size inherited from code selector */
+}
+
+/* Responsive code font sizes */
+@media screen and (max-width: 768px) {
+	code {
+		font-size: 0.8rem; /* ~13px on mobile */
+	}
 }
 
 
