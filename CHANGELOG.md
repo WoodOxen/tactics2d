@@ -4,8 +4,15 @@
 
 ### Added
 
+- Added classic search algorithms: Dijkstra, A*, D*, Hybrid A*, RRT, RRT*, RRTConnect.
+- Added tests for classic search algorithms.
+- Added tutorial for classic search algorithms in grid world environment.
 - Added more claude configs to boost development efficiency.
 - Added document support for Chinese.
+
+### Changed
+
+- Fixed dependency vulnerability issue of protobuf.
 
 ## [0.1.9rc1] - 2026-01-09
 

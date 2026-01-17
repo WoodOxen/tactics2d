@@ -11,14 +11,10 @@ import numpy as np
 import tfrecord
 from shapely.geometry import LineString, Point, Polygon
 
-# if Version(google.protobuf.__version__) <= Version("3.20.3"):
-from tactics2d.dataset_parser.womd_proto import scenario_pbv2 as scenario_pb
+from tactics2d.dataset_parser.womd_proto import scenario_pb
 from tactics2d.map.element import Area, Lane, LaneRelationship, Map, Regulatory, RoadLine
 from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
-
-# else:
-# from tactics2d.dataset_parser.womd_proto import scenario_pbv3 as scenario_pb
 
 
 class WOMDParser:
