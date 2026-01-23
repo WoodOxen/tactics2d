@@ -29,6 +29,24 @@
             "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check_pytest_style.py"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check_changelog.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check_changelog.py"
+          }
+        ]
       }
     ]
   },
