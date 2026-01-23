@@ -4,7 +4,8 @@
 """Generator module."""
 
 
+from .generate_grid_map import GridMapGenerator
 from .generate_parking_lot import ParkingLotGenerator
 from .generate_racing_track import RacingTrackGenerator
 
-__all__ = ["RacingTrackGenerator", "ParkingLotGenerator"]
+__all__ = ["RacingTrackGenerator", "ParkingLotGenerator", "GridMapGenerator"]

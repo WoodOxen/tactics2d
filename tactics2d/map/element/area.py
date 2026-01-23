@@ -32,6 +32,21 @@ class Area:
         shape (List[list, list]): The shape of the area. The first list contains the outer shape, and the second list contains the inner shapes. Defaults to None. This attribute is **read-only**.
     """
 
+    __slots__ = (
+        "id_",
+        "geometry",
+        "line_ids",
+        "regulatory_ids",
+        "type_",
+        "subtype",
+        "color",
+        "location",
+        "inferred_participants",
+        "speed_limit_mandatory",
+        "custom_tags",
+        "speed_limit",
+    )
+
     _speed_units = ["km/h", "mi/h", "m/s", "mph"]
 
     def __init__(

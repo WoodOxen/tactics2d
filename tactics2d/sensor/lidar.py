@@ -55,7 +55,7 @@ class SingleLineLidar(SensorBase):
         self._freq_scan = freq_scan
         self._freq_detect = freq_detect
 
-        self.point_density = np.min(int(self._freq_detect / self._freq_scan), 1)
+        self.point_density = max(int(self._freq_detect / self._freq_scan), 1)
         self.angle_resolution = 2 * np.pi / self.point_density
         self.scan_result = np.full(self.point_density, float("inf"))
 
@@ -233,21 +233,35 @@ class SingleLineLidar(SensorBase):
         frame: int,
         participants: dict,
         participant_ids: list,
+        prev_road_id_set: set = None,
+        prev_participant_id_set: set = None,
         position: Point = None,
         heading: float = None,
     ):
-        """This function is used to update the camera's position and obtain the geometry data under specific rendering paradigm.
+        """This function is used to update the lidar's position and obtain the geometry data under specific rendering paradigm.
 
         Args:
             frame (int): The frame of the observation.
             participants (dict): The participants in the scenario.
             participant_ids (list): The list of participant IDs to be rendered.
+            prev_road_id_set (set, optional): The set of road IDs that were rendered in the previous frame. Defaults to None.
+            prev_participant_id_set (set, optional): The set of participant IDs that were rendered in the previous frame. Defaults to None.
             position (Point, optional): The position of the lidar. Defaults to None.
             heading (float, optional): The heading of the object that the lidar is attched to. Defaults to None.
 
         Returns:
-            geometry_data (dict):  The geometry data to be rendered, including a dict with two keys: frame, lidar_points. The lidar_points is a list of points.
+            geometry_data (dict): The geometry data to be rendered, including a dict with four keys: frame, map_data, participant_data, and lidar_data. The map_data is a dict with keys road_id_to_remove (list) and road_elements (list), while participant_data is a dict with keys participant_id_to_create (list), participant_id_to_remove (list), and participants (list). For lidar, map_data and participant_data are empty, and lidar points are included in the lidar_data key as {"points": list}.
+            road_id_set (set): The set of road IDs that were rendered in the current frame. Always an empty set for lidar.
+            participant_id_set (set): The set of participant IDs that were rendered in the current frame. Always an empty set for lidar.
         """
+        # Handle None parameters
+        if participant_ids is None:
+            participant_ids = []
+        if prev_road_id_set is None:
+            prev_road_id_set = set()
+        if prev_participant_id_set is None:
+            prev_participant_id_set = set()
+
         self._position = position
         self._heading = heading
         if None in [self._position, self._heading]:
@@ -263,6 +277,45 @@ class SingleLineLidar(SensorBase):
 
         lidar_points = self._get_points()
 
-        geometry_data = {"frame": frame, "lidar_points": lidar_points}
+        # Calculate sensor position in render coordinates
+        if hasattr(self, "transform_matrix"):
+            a, b, d, e, x_off, y_off = self.transform_matrix
+            sensor_x = self._position.x
+            sensor_y = self._position.y
+            sensor_x_render = a * sensor_x + b * sensor_y + x_off
+            sensor_y_render = d * sensor_x + e * sensor_y + y_off
+            sensor_position = [sensor_x_render, sensor_y_render]
+        else:
+            sensor_position = [self._position.x, self._position.y]
 
-        return geometry_data
+        # Create empty map_data and participant_data to match camera interface
+        map_data = {
+            "road_id_to_remove": list(
+                prev_road_id_set
+            ),  # Remove all previous roads (lidar doesn't track roads)
+            "road_elements": [],  # No road elements for lidar
+        }
+
+        participant_data = {
+            "participant_id_to_create": [],  # No participants to create
+            "participant_id_to_remove": list(
+                prev_participant_id_set
+            ),  # Remove all previous participants
+            "participants": [],  # No participant elements for lidar
+        }
+
+        geometry_data = {
+            "frame": frame,
+            "map_data": map_data,
+            "participant_data": participant_data,
+            "lidar_data": {
+                "points": lidar_points,
+                "sensor_position": sensor_position,
+            },  # Keep lidar points in separate key
+        }
+
+        # Return empty sets for road_id_set and participant_id_set
+        road_id_set = set()
+        participant_id_set = set()
+
+        return geometry_data, road_id_set, participant_id_set

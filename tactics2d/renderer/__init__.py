@@ -4,8 +4,9 @@
 """Renderer module."""
 
 
+from .matplotlib_config import COLOR_PALETTE, DEFAULT_COLOR, DEFAULT_ORDER
 from .matplotlib_renderer import MatplotlibRenderer
 
 # from .webgl_renderer import WebGLRenderer
 
-__all__ = ["MatplotlibRenderer"]
+__all__ = ["MatplotlibRenderer", "COLOR_PALETTE", "DEFAULT_COLOR", "DEFAULT_ORDER"]

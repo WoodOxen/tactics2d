@@ -33,6 +33,9 @@ nav:
     - tactics2d.physics: "api/physics.md"
     - tactics2d.sensor: "api/sensor.md"
     - tactics2d.traffic: "api/traffic.md"
+  - Tutorial:
+    - graph_search_demo: "tutorial/graph_search_demo.ipynb"
+    - sampling_search_demo: "tutorial/sampling_search_demo.ipynb"
   - Community: "community.md"
   - Publications: "publication.md"
 

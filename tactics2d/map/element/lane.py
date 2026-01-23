@@ -49,6 +49,27 @@ class Lane:
         shape (list): The shape of the lane. This attribute is **read-only**.
     """
 
+    __slots__ = (
+        "id_",
+        "left_side",
+        "right_side",
+        "line_ids",
+        "regulatory_ids",
+        "type_",
+        "subtype",
+        "color",
+        "location",
+        "inferred_participants",
+        "speed_limit_mandatory",
+        "custom_tags",
+        "geometry",
+        "speed_limit",
+        "predecessors",
+        "successors",
+        "left_neighbors",
+        "right_neighbors",
+    )
+
     _speed_units = ["km/h", "mi/h", "m/s", "mph"]
 
     def __init__(

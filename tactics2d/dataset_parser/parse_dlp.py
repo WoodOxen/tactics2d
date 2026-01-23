@@ -86,31 +86,31 @@ class DLPParser:
         return df
 
     def parse_trajectory(
-        self, file: Union[int, str], folder: str, stamp_range: Tuple[float, float] = None
+        self, file: str, folder: str, time_range: Tuple[int, int] = None
     ) -> Tuple[dict, Tuple[int, int]]:
         """This function parses trajectories from a series of DLP dataset files. The states were collected at 25Hz.
 
         Args:
-            file (Union[int, str]): The id or the name of the trajectory file. The file is expected to be a json file (.json). If the input is an integer, the parser will parse the trajectory data from the following files: `DJI_%04d_agents.json % file`, `DJI_%04d_frames.json % file`, `DJI_%04d_instances.json % file`, `DJI_%04d_obstacles.json % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            file (str): The name of the trajectory file or the id as a string. The file is expected to be a json file (.json). The parser will extract the integer id from the string and parse the trajectory data from the following files: `DJI_%04d_agents.json % file_id`, `DJI_%04d_frames.json % file_id`, `DJI_%04d_instances.json % file_id`, `DJI_%04d_obstacles.json % file_id`.
             folder (str): The path to the folder containing the trajectory data.
-            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the stamp range is not given, the parser will parse the whole trajectory data.
+            time_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the time range is not given, the parser will parse the whole trajectory data.
 
         Returns:
             participants (dict): A dictionary of vehicles. The keys are the ids of the vehicles. The values are the vehicles.
             actual_stamp_range (Tuple[int, int]): The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond (ms).
         """
-        if stamp_range is None:
-            stamp_range = (-np.inf, np.inf)
+        if time_range is None:
+            time_range = (-np.inf, np.inf)
 
         participants = {}
         id_cnt = 0
 
-        if isinstance(file, str):
-            file_id = [int(s) for s in file.split("_") if s.isdigit()][0]
-        elif isinstance(file, int):
-            file_id = file
-        else:
-            raise TypeError("The input file must be an integer or a string.")
+        # Convert to string if integer
+        if isinstance(file, int):
+            file = str(file)
+
+        # Extract integer id from string (e.g., "DJI_0001_agents.json" -> 1)
+        file_id = [int(s) for s in file.split("_") if s.isdigit()][0]
 
         with open(os.path.join(folder, "DJI_%04d_frames.json" % file_id), "rb") as f_frame:
             json_frame = orjson.loads(f_frame.read())
@@ -141,7 +141,7 @@ class DLPParser:
             (pl.col("timestamp") * 1000).cast(pl.Int64).alias("timestamp (ms)")
         )
         df_frame = df_frame.filter(
-            pl.col("timestamp (ms)").is_between(stamp_range[0], stamp_range[1], closed="both")
+            pl.col("timestamp (ms)").is_between(time_range[0], time_range[1], closed="both")
         )
 
         actual_stamp_range = (df_frame["timestamp (ms)"].min(), df_frame["timestamp (ms)"].max())

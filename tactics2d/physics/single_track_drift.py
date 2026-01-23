@@ -181,9 +181,7 @@ class SingleTrackDrift(PhysicsModelBase):
             if self.interval is not None:
                 self.delta_t = min(self.delta_t, self.interval)
 
-    def _pure_slip_longitudinal_tire_forces(
-        self, kappa: float, gamma: float, F_z: float
-    ) -> Tuple[float]:
+    def _pure_slip_longitudinal_tire_forces(self, kappa: float, gamma: float, F_z: float) -> float:
         S_hx = self.tire.p_hx1
         S_vx = self.tire.p_vx1 * F_z
         kappa = -kappa
@@ -205,7 +203,7 @@ class SingleTrackDrift(PhysicsModelBase):
 
     def _pure_slip_lateral_tire_forces(
         self, alpha: float, gamma: float, F_z: float
-    ) -> Tuple[float]:
+    ) -> Tuple[float, float]:
         S_hy = np.sign(gamma) * (self.tire.p_hy1 + self.tire.p_hy3 * np.abs(gamma))
         S_vy = S_hy * F_z
 
@@ -226,7 +224,7 @@ class SingleTrackDrift(PhysicsModelBase):
 
     def _combined_slip_longitudinal_tire_forces(
         self, kappa: float, alpha: float, F0_x: float
-    ) -> Tuple[float]:
+    ) -> float:
         S_hx_alpha = self.tire.r_hx1
         alpha_s = alpha + S_hx_alpha
 
@@ -251,9 +249,7 @@ class SingleTrackDrift(PhysicsModelBase):
 
         return F_x
 
-    def _combined_slip_lateral_tire_forces(
-        self, kappa, alpha, gamma, mu_y, F_z, F0_y
-    ) -> Tuple[float]:
+    def _combined_slip_lateral_tire_forces(self, kappa, alpha, gamma, mu_y, F_z, F0_y) -> float:
         S_hy_kappa = self.tire.r_hy1
         kappa_s = kappa + S_hy_kappa
 
@@ -291,25 +287,36 @@ class SingleTrackDrift(PhysicsModelBase):
         return F_y
 
     def _tire_forces(
-        self, v: float, delta: float, d_phi, beta: float, omega_wf: float, omega_wr: float
-    ) -> Tuple[float]:
+        self, v: float, delta: float, d_phi: float, beta: float, omega_wf: float, omega_wr: float
+    ) -> Tuple[float, float, float, float]:
+        # Use safe values to avoid division by zero
+        v_safe = v if np.abs(v) > 1e-6 else (1e-6 if v >= 0 else -1e-6)
+        cos_beta = np.cos(beta)
+        cos_beta_safe = cos_beta if np.abs(cos_beta) > 1e-6 else (1e-6 if cos_beta >= 0 else -1e-6)
+
         # compute lateral tire slip angles:
-        alpha_f = np.arctan((v * np.sin(beta) + d_phi * self.lf) / (v * np.cos(beta))) - delta
-        alpha_r = np.arctan((v * np.sin(beta) - d_phi * self.lr) / (v * np.cos(beta)))
+        alpha_f = (
+            np.arctan((v_safe * np.sin(beta) + d_phi * self.lf) / (v_safe * cos_beta_safe)) - delta
+        )
+        alpha_r = np.arctan((v_safe * np.sin(beta) - d_phi * self.lr) / (v_safe * cos_beta_safe))
 
         # compute vertical tire forces
         F_zf = (self.mass * self._G * self.lr) / self.wheel_base
         F_zr = (self.mass * self._G * self.lf) / self.wheel_base
 
-        # compute front and rear tire speeds
-        u_wf = v * np.cos(beta) * np.cos(delta) + (v * np.sin(beta) + self.lf * d_phi) * np.sin(
-            delta
-        )
-        u_wr = v * np.cos(beta)
+        # compute front and rear tire speeds with safe values
+        u_wf = v_safe * cos_beta_safe * np.cos(delta) + (
+            v_safe * np.sin(beta) + self.lf * d_phi
+        ) * np.sin(delta)
+        u_wr = v_safe * cos_beta_safe
 
-        # computer longitudinal tire slip
-        s_f = 1 - self.radius * omega_wf / u_wf
-        s_r = 1 - self.radius * omega_wr / u_wr
+        # protect against division by zero
+        u_wf_safe = u_wf if np.abs(u_wf) > 1e-6 else (1e-6 if u_wf >= 0 else -1e-6)
+        u_wr_safe = u_wr if np.abs(u_wr) > 1e-6 else (1e-6 if u_wr >= 0 else -1e-6)
+
+        # compute longitudinal tire slip
+        s_f = 1 - self.radius * omega_wf / u_wf_safe
+        s_r = 1 - self.radius * omega_wr / u_wr_safe
 
         # compute tire forces using Pacejka's magic formula
         # pure slip longitudinal tire forces
@@ -342,7 +349,9 @@ class SingleTrackDrift(PhysicsModelBase):
         # Completely refer to https://gitlab.lrz.de/tum-cps/commonroad-vehicle-models/-/blob/master/MATLAB/vehiclemodels/vehicleDynamics_STD.m . I haven't fully understood the implementation yet.
 
         dts = [float(self.delta_t) / 1000] * (interval // self.delta_t)
-        dts.append(float(interval % self.delta_t) / 1000)
+        remainder = interval % self.delta_t
+        if remainder > 0:
+            dts.append(float(remainder) / 1000)
 
         x, y = state.location
         v = state.speed
@@ -358,7 +367,12 @@ class SingleTrackDrift(PhysicsModelBase):
             T_E = 0
 
         for dt in dts:
-            F_lf, F_lr, F_sf, F_sr = self._tire_forces(v, delta, d_phi, beta, omega_wf, omega_wr)
+            # Use a safe velocity to avoid division by zero
+            v_safe = v if np.abs(v) > 1e-6 else (1e-6 if v >= 0 else -1e-6)
+
+            F_lf, F_lr, F_sf, F_sr = self._tire_forces(
+                v_safe, delta, d_phi, beta, omega_wf, omega_wr
+            )
 
             dx = v * np.cos(phi + beta)
             dy = v * np.sin(phi + beta)
@@ -374,7 +388,7 @@ class SingleTrackDrift(PhysicsModelBase):
                         + F_lf * np.cos(delta - beta)
                     )
                 )
-                d_beta = -d_phi + 1 / (self.mass * v) * (
+                d_beta = -d_phi + 1 / (self.mass * v_safe) * (
                     F_sf * np.cos(delta - beta)
                     + F_sr * np.cos(beta)
                     - F_lr * np.sin(beta)
@@ -437,7 +451,7 @@ class SingleTrackDrift(PhysicsModelBase):
             omega_wf += d_omega_wf * dt
             omega_wr += d_omega_wr * dt
 
-            v = np.clip(v, *self.speed_range) if not self.speed_range is None else v
+            v = np.clip(v, *self.speed_range) if self.speed_range is not None else v
 
         state = State(
             frame=state.frame + interval,
@@ -476,8 +490,8 @@ class SingleTrackDrift(PhysicsModelBase):
             accel (float): The acceleration that is applied to the traffic participant.
             delta (float): The steering angle that is applied to the traffic participant.
         """
-        accel = np.clip(accel, *self.accel_range) if not self.accel_range is None else accel
-        delta = np.clip(delta, *self.steer_range) if not self.steer_range is None else delta
+        accel = np.clip(accel, *self.accel_range) if self.accel_range is not None else accel
+        delta = np.clip(delta, *self.steer_range) if self.steer_range is not None else delta
         interval = interval if interval is not None else self.interval
 
         next_state, next_omega_wf, next_omega_wr = self._step(
@@ -500,7 +514,10 @@ class SingleTrackDrift(PhysicsModelBase):
         Returns:
             True if the new state is valid, False otherwise.
         """
-        interval = interval if interval is None else state.frame - last_state.frame
+        interval = state.frame - last_state.frame if interval is None else interval
+        # Handle zero interval case
+        if interval == 0:
+            return True  # No time elapsed, state should be valid
         dt = float(interval) / 1000
         last_speed = last_state.speed
 

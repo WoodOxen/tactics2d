@@ -39,11 +39,6 @@ class SingleTrackDynamics(PhysicsModelBase):
         I_z (float): The moment of inertia of the vehicle. The unit is kilogram per meter squared (kg/m$^2$). Defaults to 1500.
         cf (float): The cornering stiffness of the front wheel. The unit is 1/rad. Defaults to 20.89.
         cr (float): The cornering stiffness of the rear wheel. The unit is 1/rad. Defaults to 20.89.
-        steer_range (Union[float, Tuple[float, float]], optional): The steering angle range. The valid input is a float or a tuple of two floats represents (min steering angle, max steering angle). The unit is radian.
-
-            - When the steer_range is a non-negative float, the steering angle is constrained to be within the range [-steer_range, steer_range].
-            - When the steer_range is a tuple, the steering angle is constrained to be within the range [min steering angle, max steering angle].
-            - When the steer_range is negative or the min steering angle is not less than the max steering angle, the steer_range is set to None.
 
         speed_range (Union[float, Tuple[float, float]], optional): The speed range. The valid input is a float or a tuple of two floats represents (min speed, max speed). The unit is meter per second (m/s).
             - When the speed_range is a non-negative float, the speed is constrained to be within the range [-speed_range, speed_range].
@@ -143,11 +138,20 @@ class SingleTrackDynamics(PhysicsModelBase):
                 self.delta_t = min(self.delta_t, self.interval)
 
     def _step(self, state: State, accel: Tuple[float, float], delta: float, interval: int) -> State:
-        dts = [float(self.delta_t) / 1000] * (interval // self.delta_t)
-        dts.append(float(interval % self.delta_t) / 1000)
+        dt = float(self.delta_t) / 1000
+        n_steps = interval // self.delta_t
+        remainder = interval % self.delta_t
 
         factor_f = (self._G * self.lr - accel * self.mass_height) / self.wheel_base
         factor_r = (self._G * self.lf + accel * self.mass_height) / self.wheel_base
+
+        # Precompute constant combinations for efficiency
+        lf_cf_factor_f = self.lf * self.cf * factor_f
+        lr_cr_factor_r = self.lr * self.cr * factor_r
+        lf2_cf_factor_f = self.lf**2 * self.cf * factor_f
+        lr2_cr_factor_r = self.lr**2 * self.cr * factor_r
+        cf_factor_f = self.cf * factor_f
+        cr_factor_r = self.cr * factor_r
 
         x, y = state.location
         phi = state.heading
@@ -155,10 +159,14 @@ class SingleTrackDynamics(PhysicsModelBase):
         d_phi = v / self.wheel_base * np.tan(delta)
         beta = np.arctan(self.lr / self.lf * np.tan(delta))  # slip angle
 
-        for dt in dts:
+        # Main steps with standard delta_t
+        for _ in range(n_steps):
             dx = v * np.cos(phi + beta)
             dy = v * np.sin(phi + beta)
             dv = accel
+
+            # Use a safe velocity to avoid division by zero
+            v_safe = v if np.abs(v) > 1e-6 else (1e-6 if v >= 0 else -1e-6)
 
             if np.abs(v) >= 0.1:
                 dd_phi = (
@@ -166,20 +174,18 @@ class SingleTrackDynamics(PhysicsModelBase):
                     * self.mass
                     / self.I_z
                     * (
-                        self.lf * self.cf * factor_f * delta
-                        + (self.lr * self.cr * factor_r - self.lf * self.cf * factor_f) * beta
-                        - (self.lf**2 * self.cf * factor_f + self.lr**2 * self.cr * factor_r)
-                        * d_phi
-                        / (v)
+                        lf_cf_factor_f * delta
+                        + (lr_cr_factor_r - lf_cf_factor_f) * beta
+                        - (lf2_cf_factor_f + lr2_cr_factor_r) * d_phi / v_safe
                     )
                 )
                 d_beta = (
                     self.mu
-                    / v
+                    / v_safe
                     * (
-                        self.cf * factor_f * delta
-                        - (self.cr * factor_r + self.cf * factor_f) * beta
-                        + (self.cr * factor_r * self.lr - self.cf * factor_f * self.lf) * d_phi / v
+                        cf_factor_f * delta
+                        - (cr_factor_r + cf_factor_f) * beta
+                        + (lr_cr_factor_r - lf_cf_factor_f) * d_phi / v_safe
                     )
                     - d_phi
                 )
@@ -209,7 +215,7 @@ class SingleTrackDynamics(PhysicsModelBase):
             phi += d_phi * dt
             beta += d_beta * dt
 
-            v = np.clip(v, *self.speed_range) if not self.speed_range is None else v
+            v = np.clip(v, *self.speed_range) if self.speed_range is not None else v
 
         state = State(
             frame=state.frame + interval,
@@ -236,8 +242,8 @@ class SingleTrackDynamics(PhysicsModelBase):
             accel (float): The acceleration that is applied to the traffic participant.
             delta (float): The steering angle that is applied to the traffic participant.
         """
-        accel = np.clip(accel, *self.accel_range) if not self.accel_range is None else accel
-        delta = np.clip(delta, *self.steer_range) if not self.steer_range is None else delta
+        accel = np.clip(accel, *self.accel_range) if self.accel_range is not None else accel
+        delta = np.clip(delta, *self.steer_range) if self.steer_range is not None else delta
         interval = interval if interval is not None else self.interval
 
         next_state = self._step(state, accel, delta, interval)
@@ -258,7 +264,10 @@ class SingleTrackDynamics(PhysicsModelBase):
         Returns:
             True if the new state is valid, False otherwise.
         """
-        interval = interval if interval is None else state.frame - last_state.frame
+        interval = state.frame - last_state.frame if interval is None else interval
+        # Handle zero interval case
+        if interval == 0:
+            return True  # No time elapsed, state should be valid
         dt = float(interval) / 1000
         last_speed = last_state.speed
 

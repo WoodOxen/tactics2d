@@ -21,6 +21,16 @@ from tactics2d.interpolator import Bezier, BSpline, CubicSpline, Dubins, ReedsSh
 
 
 def compare_similarity(curve1: np.ndarray, curve2: np.ndarray, diff: float = 0.001) -> bool:
+    """Compare similarity between two curves using length ratio and Hausdorff distance.
+
+    Args:
+        curve1: First curve as numpy array of shape (n_points, 2).
+        curve2: Second curve as numpy array of shape (n_points, 2).
+        diff: Maximum allowed relative difference for length and shape.
+
+    Returns:
+        True if both length difference ratio and Hausdorff distance ratio are less than diff.
+    """
     len1 = np.linalg.norm(curve1[1:] - curve1[:-1], axis=1).sum()
     len2 = np.linalg.norm(curve2[1:] - curve2[:-1], axis=1).sum()
     len_diff = abs(len1 - len2)
@@ -61,9 +71,33 @@ def compare_similarity(curve1: np.ndarray, curve2: np.ndarray, diff: float = 0.0
         (2, np.random.uniform(-10, 10, (3, 2)), np.array(np.arange(0, 10)), 100),
         (3, None, None, 1000),
         (4, None, None, 1000),
+        # Edge case test: single control point (minimal length)
+        (1, np.array([[0, 0]]), np.array([0, 0, 1, 1]), 10),
+        # Edge case test: all control points identical (zero-length curve)
+        (2, np.array([[0, 0], [0, 0], [0, 0], [0, 0]]), None, 50),
+        # Edge case test: extreme curvature control points
+        (2, np.array([[0, 0], [0.1, 100], [0.2, -100], [0.3, 0]]), None, 100),
+        # Edge case test: minimal interpolation points
+        (2, np.array([[0, 0], [1, 0], [2, 1], [3, 0]]), None, 2),
+        # Edge case test: non-monotonic knot vector (should raise error)
+        (2, np.array([[0, 0], [1, 0], [2, 1]]), np.array([0, 2, 1, 3, 4, 5]), 100),
+        # Edge case test: invalid degree (should raise error)
+        (-1, np.array([[0, 0], [1, 0], [2, 1]]), None, 100),
     ],
 )
 def test_b_spline(degree, control_points, knots, n_interpolation):
+    """Test B-spline interpolation against SciPy implementation.
+
+    This test validates B-spline curve generation for various degrees,
+    control points, and knot vectors. It compares the custom implementation
+    with SciPy's BSpline as reference and includes edge case tests.
+
+    Args:
+        degree: Degree of the B-spline.
+        control_points: Control points as numpy array of shape (n, 2).
+        knots: Knot vector as numpy array, or None for uniform knots.
+        n_interpolation: Number of interpolation points.
+    """
     if control_points is None:
         n_control_point = np.random.randint(5, 100)
         control_points = np.zeros((n_control_point, 2))
@@ -140,9 +174,36 @@ def test_b_spline(degree, control_points, knots, n_interpolation):
         (4, None, 1000),
         (4, np.random.uniform(1, 5, (4, 2)), 100),
         (5, None, 1000),
+        # Edge case test: all control points identical (zero-length curve)
+        (2, np.array([[0, 0], [0, 0], [0, 0]]), 50),
+        # Edge case test: first and last control points coincide (closed curve)
+        (3, np.array([[0, 0], [1, 1], [-1, 1], [0, 0]]), 100),
+        # Edge case test: extreme curvature control points
+        (2, np.array([[0, 0], [0.5, 100], [1, 0]]), 100),
+        # Edge case test: minimal interpolation points
+        (2, np.array([[0, 0], [1, 0], [2, 1]]), 2),
+        # Edge case test: single control point (order 0? actual order 1 requires at least 2 points)
+        (1, np.array([[0, 0], [0, 0]]), 10),
+        # Edge case test: invalid order (should raise error)
+        (0, np.array([[0, 0], [1, 0]]), 100),
+        # Edge case test: mismatched control points count and order
+        (2, np.array([[0, 0], [1, 0], [2, 1], [3, 0]]), 100),  # 4 points correspond to order 3
+        # Edge case test: 1D control points (should raise error)
+        (2, np.array([0, 1, 2]), 100),
     ],
 )
 def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
+    """Test Bézier curve interpolation against reference Bernstein polynomial implementation.
+
+    This test validates Bézier curve generation for various orders and control points.
+    It checks endpoint interpolation, convex hull property, and compares with
+    a reference implementation using Bernstein polynomials.
+
+    Args:
+        order: Order of the Bézier curve (degree = order).
+        control_points: Control points as numpy array of shape (n, 2).
+        n_interpolation: Number of interpolation points.
+    """
     if control_points is None:
         control_points = np.zeros((order + 1, 2))
         for i in range(1, order + 1):
@@ -242,9 +303,37 @@ def test_bezier(order: int, control_points: np.ndarray, n_interpolation: int):
         ("clamped", None, None, 100),
         ("not-a-knot", None, None, 10),
         ("not-a-knot", None, None, 100),
+        # Edge case test: minimal number of control points (exactly 3)
+        ("natural", 3, np.array([[0, 0], [1, 1], [2, 0]]), 50),
+        # Edge case test: all control points have same y-value (straight line)
+        ("clamped", None, np.array([[0, 0], [1, 0], [2, 0], [3, 0]]), 100),
+        # Edge case test: extreme curvature control points
+        ("natural", None, np.array([[0, 0], [1, 100], [2, -100], [3, 0]]), 100),
+        # Edge case test: minimal interpolation points
+        ("not-a-knot", None, np.array([[0, 0], [1, 1], [2, 0], [3, 1]]), 2),
+        # Edge case test: non-increasing x-values (should raise error)
+        ("natural", None, np.array([[0, 0], [2, 1], [1, 2], [3, 0]]), 100),
+        # Edge case test: insufficient control points (less than 3)
+        ("natural", 2, np.array([[0, 0], [1, 1]]), 100),
+        # Edge case test: duplicate x-values with different y-values (should raise error)
+        ("clamped", None, np.array([[0, 0], [1, 1], [1, 2], [2, 0]]), 100),
+        # Edge case test: minimal x-interval
+        ("natural", None, np.array([[0, 0], [1e-10, 1], [2, 0]]), 100),
     ],
 )
 def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_interpolation: int):
+    """Test cubic spline interpolation against SciPy implementation.
+
+    This test validates cubic spline curve generation for various boundary conditions
+    (natural, clamped, not-a-knot) and control points. It compares the custom
+    implementation with SciPy's CubicSpline as reference and includes edge case tests.
+
+    Args:
+        boundary_type: Boundary condition type as string ("natural", "clamped", "not-a-knot").
+        n: Optional number of control points for random generation.
+        control_points: Control points as numpy array of shape (n, 2).
+        n_interpolation: Number of interpolation points between each control point pair.
+    """
     if boundary_type == "natural":
         my_cubic_spline = CubicSpline.BoundaryType.Natural
     elif boundary_type == "clamped":
@@ -322,9 +411,41 @@ def test_cubic_spline(boundary_type: str, n: int, control_points: np.ndarray, n_
         (7.5, np.array([10, 10]), 4, np.array([15, 5]), 2, 0.01),
         (7.5, np.array([10, 10]), 0.5, np.array([5, 5]), 2, 0.01),
         (-7.5, np.array([10, 10]), 4, np.array([15, 5]), 2, 0.01),
+        # Edge case test: same start and end points, same heading (zero length)
+        (7.5, np.array([0, 0]), 0, np.array([0, 0]), 0, 0.01),
+        # Edge case test: same start and end points, different heading (in-place turn)
+        (7.5, np.array([0, 0]), 0, np.array([0, 0]), np.pi / 2, 0.01),
+        # Edge case test: same start and end points, opposite heading
+        (7.5, np.array([0, 0]), 0, np.array([0, 0]), np.pi, 0.01),
+        # Edge case test: minimal turning radius
+        (0.1, np.array([0, 0]), 0, np.array([10, 0]), 0, 0.001),
+        # Edge case test: maximal turning radius
+        (100.0, np.array([0, 0]), 0, np.array([10, 0]), 0, 0.1),
+        # Edge case test: zero radius (should raise error)
+        (0.0, np.array([0, 0]), 0, np.array([10, 0]), 0, 0.01),
+        # Edge case test: minimal step size
+        (7.5, np.array([0, 0]), 0, np.array([10, 0]), 0, 1e-6),
+        # Edge case test: maximal step size
+        (7.5, np.array([0, 0]), 0, np.array([10, 0]), 0, 1.0),
+        # Edge case test: extreme heading values (beyond 2π)
+        (7.5, np.array([0, 0]), 10 * np.pi, np.array([10, 0]), 20 * np.pi, 0.01),
     ],
 )
 def test_dubins(radius, start_point, start_heading, end_point, end_heading, step_size):
+    """Test Dubins path generation for basic correctness.
+
+    This test validates Dubins path generation for various start/end configurations
+    and radius values. It checks that the computed curve length matches the
+    reported path length within tolerance.
+
+    Args:
+        radius: Minimum turning radius (positive for forward, negative for backward).
+        start_point: Starting position as numpy array (x, y).
+        start_heading: Starting heading angle in radians.
+        end_point: Ending position as numpy array (x, y).
+        end_heading: Ending heading angle in radians.
+        step_size: Step size for curve discretization.
+    """
     # t1 = time.time()
     try:
         dubins = Dubins(radius)
@@ -341,7 +462,10 @@ def test_dubins(radius, start_point, start_heading, end_point, end_heading, step
     curve = path.curve
 
     curve_length = np.linalg.norm(curve[1:] - curve[:-1], axis=1).sum()
-    assert abs(path.length - curve_length) / min(path.length, curve_length) < 0.01
+    if min(path.length, curve_length) == 0:
+        assert abs(path.length - curve_length) < 1e-10
+    else:
+        assert abs(path.length - curve_length) / min(path.length, curve_length) < 0.01
 
 
 @pytest.mark.math
@@ -356,8 +480,28 @@ def test_dubins(radius, start_point, start_heading, end_point, end_heading, step
         (7.5, np.array([10, 10]), 0.5, np.array([5, 5]), 2, 0.01),
         (-7.5, np.array([10, 10]), 4, np.array([15, 5]), 2, 0.01),
         (7.5, np.array([0, 0]), 0, np.array([0, 0]), np.pi, 0.01),  # Same point, flipped heading
-        # (7.5, np.array([0, 0]), 0, np.array([1e-5, 1e-5]), 0, 0.01),   # Near-zero displacement
+        (7.5, np.array([0, 0]), 0, np.array([1e-5, 1e-5]), 0, 0.01),  # Near-zero displacement
         (7.5, np.array([10, 10]), 7.0, np.array([-20, -10]), -3.0, 0.01),  # Out-of-range angles
+        # Edge case test: same start and end points, same heading (zero length)
+        (7.5, np.array([0, 0]), 0, np.array([0, 0]), 0, 0.01),
+        # Edge case test: same start and end points, different heading (in-place turn)
+        (7.5, np.array([0, 0]), 0, np.array([0, 0]), np.pi / 2, 0.01),
+        # Edge case test: minimal turning radius
+        (0.1, np.array([0, 0]), 0, np.array([10, 0]), 0, 0.001),
+        # Edge case test: maximal turning radius
+        (100.0, np.array([0, 0]), 0, np.array([10, 0]), 0, 0.1),
+        # Edge case test: zero radius (should raise error)
+        (0.0, np.array([0, 0]), 0, np.array([10, 0]), 0, 0.01),
+        # Edge case test: minimal step size
+        (7.5, np.array([0, 0]), 0, np.array([10, 0]), 0, 1e-6),
+        # Edge case test: maximal step size
+        (7.5, np.array([0, 0]), 0, np.array([10, 0]), 0, 1.0),
+        # Edge case test: extreme heading values (beyond 2π)
+        (7.5, np.array([0, 0]), 10 * np.pi, np.array([10, 0]), 20 * np.pi, 0.01),
+        # Edge case test: reverse driving scenario (specific to ReedsShepp)
+        (7.5, np.array([0, 0]), np.pi, np.array([10, 0]), np.pi, 0.01),  # reverse driving
+        # Edge case test: minimal negative radius (should raise error)
+        (-0.1, np.array([0, 0]), 0, np.array([10, 0]), 0, 0.01),
     ],
 )
 def test_reeds_shepp(radius, start_point, start_heading, end_point, end_heading, step_size):
@@ -376,18 +520,40 @@ def test_reeds_shepp(radius, start_point, start_heading, end_point, end_heading,
     curve = path.curve
 
     curve_length = np.linalg.norm(curve[1:] - curve[:-1], axis=1).sum()
-    assert abs(path.length - curve_length) / min(path.length, curve_length) < 0.01
+    if min(path.length, curve_length) == 0:
+        assert abs(path.length - curve_length) < 1e-10
+    else:
+        assert abs(path.length - curve_length) / min(path.length, curve_length) < 0.01
 
 
 @pytest.mark.math
 @pytest.mark.parametrize(
     "length, n_interpolation, gamma, start_curvature",
     [
-        (5.0, 500, 0.1, 0.0),  # 正常螺旋
-        (10.0, 1000, 0.0, 0.1),  # 圆弧
-        (8.0, 800, 0.0, 0.0),  # 直线
-        (105.0, 10000, 0.05, 0.05),  # 长曲线
-        (2.0, 200, -0.1, 0.2),  # 负 gamma（反向螺旋）
+        (5.0, 500, 0.1, 0.0),  # normal spiral
+        (10.0, 1000, 0.0, 0.1),  # circular arc
+        (8.0, 800, 0.0, 0.0),  # straight line
+        (105.0, 10000, 0.05, 0.05),  # long curve
+        (2.0, 200, -0.1, 0.2),  # negative gamma (reverse spiral)
+        # Edge case test: zero length
+        (0.0, 10, 0.1, 0.0),
+        # Edge case test: minimal length
+        (1e-6, 10, 0.1, 0.0),
+        # Edge case test: maximal length
+        (1000.0, 10000, 0.001, 0.0),
+        # Edge case test: extreme curvature values
+        (10.0, 1000, 10.0, 0.0),  # large gamma
+        (10.0, 1000, -10.0, 0.0),  # small gamma
+        (10.0, 1000, 0.0, 10.0),  # large start curvature
+        (10.0, 1000, 0.0, -10.0),  # small start curvature
+        # Edge case test: minimal interpolation points
+        (5.0, 2, 0.1, 0.0),
+        # Edge case test: negative length (should raise error?)
+        (-5.0, 500, 0.1, 0.0),
+        # Edge case test: zero interpolation points (should raise error?)
+        (5.0, 0, 0.1, 0.0),
+        # Edge case test: both gamma and start curvature zero (straight line)
+        (10.0, 1000, 0.0, 0.0),
     ],
 )
 def test_spiral(length, n_interpolation, gamma, start_curvature):
@@ -395,12 +561,25 @@ def test_spiral(length, n_interpolation, gamma, start_curvature):
     start_point = np.array([0.0, 0.0])
     heading = np.random.uniform(0, 2 * np.pi)
 
+    # Handle negative length (should raise ValueError)
+    if length < 0:
+        with pytest.raises(ValueError, match="Length must be non-negative."):
+            spiral.get_curve(length, start_point, heading, start_curvature, gamma, n_interpolation)
+        return
+
     t1 = time.time()
-    curve = spiral.get_curve(length, start_point, heading, start_curvature, gamma)
+    curve = spiral.get_curve(length, start_point, heading, start_curvature, gamma, n_interpolation)
     t2 = time.time()
 
     # Ensure correct number of points
-    assert len(curve) == n_interpolation, f"Expected {n_interpolation+1}, got {len(curve)}"
+    assert len(curve) == n_interpolation, f"Expected {n_interpolation}, got {len(curve)}"
+
+    # Skip further checks for empty curve
+    if n_interpolation == 0:
+        logging.info(
+            f"Spiral test (len={length}, gamma={gamma}) passed with zero interpolation points"
+        )
+        return
 
     # Check that the start point matches
     np.testing.assert_allclose(curve[0], start_point, atol=1e-6, err_msg="Start point mismatch")
@@ -408,8 +587,25 @@ def test_spiral(length, n_interpolation, gamma, start_curvature):
     # Check curve length
     segment_lengths = np.linalg.norm(curve[1:] - curve[:-1], axis=1)
     curve_length = segment_lengths.sum()
-    rel_error = abs(curve_length - length) / max(length, curve_length)
-    assert rel_error < 0.01, f"Length error too high: {rel_error:.4f}"
+
+    # Handle zero-length case to avoid division by zero
+    if max(length, curve_length) == 0:
+        rel_error = 0.0
+    else:
+        rel_error = abs(curve_length - length) / max(length, curve_length)
+
+    # Use larger tolerance for extreme gamma values due to numerical stability issues
+    if abs(gamma) > 5.0:
+        max_error = 0.05  # 5% tolerance for extreme gamma values
+    elif n_interpolation <= 2:
+        # Very few interpolation points cannot accurately represent curves
+        max_error = 0.2  # 20% tolerance for minimal interpolation points
+    else:
+        max_error = 0.01  # 1% tolerance for normal cases
+
+    assert (
+        rel_error < max_error
+    ), f"Length error too high: {rel_error:.4f} (max allowed: {max_error})"
 
     logging.info(
         f"Spiral test (len={length}, gamma={gamma}) passed in {t2 - t1:.4f}s. "

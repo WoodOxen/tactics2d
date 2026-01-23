@@ -6,7 +6,6 @@
 
 from .camera import BEVCamera
 from .lidar import SingleLineLidar
-from .matplotlib_renderer import MatplotlibRenderer
 from .sensor_base import SensorBase
 
-__all__ = ["SensorBase", "BEVCamera", "SingleLineLidar", "MatplotlibRenderer"]
+__all__ = ["SensorBase", "BEVCamera", "SingleLineLidar"]

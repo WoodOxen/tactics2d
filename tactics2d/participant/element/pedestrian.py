@@ -88,7 +88,7 @@ class Pedestrian(ParticipantBase):
             self._radius = 0
 
     @property
-    def geometry(self):
+    def geometry(self) -> float:
         return self._radius
 
     def load_from_template(self, type_name: str, overwrite: bool = True, template: dict = None):

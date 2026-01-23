@@ -125,14 +125,16 @@ class SingleTrackKinematics(PhysicsModelBase):
 
     def _step(self, state: State, accel: float, delta: float, interval: int) -> State:
         beta = np.arctan(self.lr / self.wheel_base * np.tan(delta))  # slip angle
-        dts = [float(self.delta_t) / 1000] * int(interval // self.delta_t)
-        dts.append(float(interval % self.delta_t) / 1000)
+        dt = float(self.delta_t) / 1000
+        n_steps = interval // self.delta_t
+        remainder = interval % self.delta_t
 
         x, y = state.location
         phi = state.heading
         v = state.speed
 
-        for dt in dts:
+        # Main steps with standard delta_t
+        for _ in range(n_steps):
             dx = v * np.cos(phi + beta)
             dy = v * np.sin(phi + beta)
             dv = accel
@@ -143,7 +145,22 @@ class SingleTrackKinematics(PhysicsModelBase):
             phi += dphi * dt
             v += dv * dt
 
-            v = np.clip(v, *self.speed_range) if not self.speed_range is None else v
+            v = np.clip(v, *self.speed_range) if self.speed_range is not None else v
+
+        # Remainder step if any
+        if remainder > 0:
+            dt_rem = float(remainder) / 1000
+            dx = v * np.cos(phi + beta)
+            dy = v * np.sin(phi + beta)
+            dv = accel
+            dphi = v / self.wheel_base * np.tan(delta) * np.cos(beta)
+
+            x += dx * dt_rem
+            y += dy * dt_rem
+            phi += dphi * dt_rem
+            v += dv * dt_rem
+
+            v = np.clip(v, *self.speed_range) if self.speed_range is not None else v
 
         state = State(
             frame=state.frame + interval,
@@ -172,8 +189,8 @@ class SingleTrackKinematics(PhysicsModelBase):
             accel (float): The acceleration that is applied to the traffic participant.
             delta (float): The steering angle that is applied to the traffic participant.
         """
-        accel = np.clip(accel, *self.accel_range) if not self.accel_range is None else accel
-        delta = np.clip(delta, *self.steer_range) if not self.steer_range is None else delta
+        accel = np.clip(accel, *self.accel_range) if self.accel_range is not None else accel
+        delta = np.clip(delta, *self.steer_range) if self.steer_range is not None else delta
         interval = interval if interval is not None else self.interval
 
         next_state = self._step(state, accel, delta, interval)
@@ -191,7 +208,10 @@ class SingleTrackKinematics(PhysicsModelBase):
         Returns:
             True if the new state is valid, False otherwise.
         """
-        interval = interval if interval is None else state.frame - last_state.frame
+        interval = state.frame - last_state.frame if interval is None else interval
+        # Handle zero interval case
+        if interval == 0:
+            return True  # No time elapsed, state should be valid
         dt = float(interval) / 1000
         last_speed = last_state.speed
 

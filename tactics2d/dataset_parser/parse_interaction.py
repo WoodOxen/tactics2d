@@ -9,7 +9,7 @@ import re
 from typing import Tuple, Union
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
 from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
 from tactics2d.participant.guess_type import GuessType
@@ -35,39 +35,45 @@ class InteractionParser:
 
         return file_id
 
-    def get_time_range(self, file: Union[int, str], folder: str) -> Tuple[float, float]:
+    def get_time_range(self, file: str, folder: str) -> Tuple[int, int]:
         """This function gets the time range of a single trajectory data file.
 
         Args:
-            file (Union[int, str]): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files:  `vehicle_tracks_%03d.csv % file`, `pedestrian_tracks_%03d.csv % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            file (str): The name of the trajectory file or the id as a string. The parser will extract the integer id from the string and parse the trajectory data from the following files: `vehicle_tracks_%03d.csv % file_id`, `pedestrian_tracks_%03d.csv % file_id`.
             folder (str): The path to the folder containing the trajectory data.
 
         Returns:
-            actual_stamp_range (Tuple[int, int]): The time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond (ms).
+            actual_time_range (Tuple[int, int]): The time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond (ms).
         """
+        # Convert to string if integer
+        if isinstance(file, int):
+            file = str(file)
         file_id = self._get_file_id(file)
         vehicle_file_path = os.path.join(folder, "vehicle_tracks_%03d.csv" % file_id)
-        df_vehicle = pd.read_csv(vehicle_file_path)
-        start_frame = int(min(df_vehicle["timestamp_ms"]))
-        end_frame = int(max(df_vehicle["timestamp_ms"]))
+
+        df_vehicle = pl.read_csv(vehicle_file_path)
+        start_frame = int(df_vehicle["timestamp_ms"].min())
+        end_frame = int(df_vehicle["timestamp_ms"].max())
 
         pedestrian_file_path = os.path.join(folder, "pedestrian_tracks_%03d.csv" % file_id)
         if os.path.exists(pedestrian_file_path):
-            df_pedestrian = pd.read_csv(pedestrian_file_path)
-            start_frame = min(start_frame, int(min(df_pedestrian["timestamp_ms"])))
-            end_frame = max(end_frame, int(max(df_pedestrian["timestamp_ms"])))
+            df_pedestrian = pl.read_csv(pedestrian_file_path)
+            ped_start = int(df_pedestrian["timestamp_ms"].min())
+            ped_end = int(df_pedestrian["timestamp_ms"].max())
+            start_frame = min(start_frame, ped_start)
+            end_frame = max(end_frame, ped_end)
 
-        actual_stamp_range = (start_frame, end_frame)
-        return actual_stamp_range
+        actual_time_range = (start_frame, end_frame)
+        return actual_time_range
 
     def parse_vehicle(
-        self, file_path: str, time_range: Tuple[float, float] = None
+        self, file_path: str, time_range: Tuple[int, int] = None
     ) -> Tuple[dict, Tuple[int, int]]:
         """This function parses the vehicle trajectory file in INTERACTION dataset.
 
         Args:
             file_path: The path to the vehicle trajectory file.
-            time_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the stamp range is not given, the parser will parse the whole trajectory data.
+            time_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the time range is not given, the parser will parse the whole trajectory data.
 
         Returns:
             vehicles (dict): A dictionary of vehicles. The keys are the ids of the vehicles. The values are the vehicles.
@@ -79,56 +85,63 @@ class InteractionParser:
         vehicles = dict()
         trajectories = dict()
 
-        df_vehicle = pd.read_csv(file_path)
-        actual_stamp_range = (np.inf, -np.inf)
-
-        for _, state_info in df_vehicle.iterrows():
-            time_stamp = state_info["timestamp_ms"]
-            if time_stamp < time_range[0] or time_stamp > time_range[1]:
-                continue
-
-            actual_stamp_range = (
-                min(actual_stamp_range[0], time_stamp),
-                max(actual_stamp_range[1], time_stamp),
+        # Read and filter data using polars
+        df = pl.read_csv(file_path)
+        # Filter by time range
+        if time_range[0] != -np.inf or time_range[1] != np.inf:
+            df = df.filter(
+                (pl.col("timestamp_ms") >= time_range[0])
+                & (pl.col("timestamp_ms") <= time_range[1])
             )
 
-            vehicle_id = state_info["track_id"]
-            if vehicle_id not in vehicles:
-                vehicle = Vehicle(
-                    id_=vehicle_id,
-                    type_=state_info["agent_type"],
-                    length=state_info["length"],
-                    width=state_info["width"],
+        # Calculate actual time range
+        if len(df) > 0:
+            actual_stamp_range = (int(df["timestamp_ms"].min()), int(df["timestamp_ms"].max()))
+        else:
+            actual_stamp_range = (np.inf, -np.inf)
+
+        # Group by track_id and process each vehicle
+        for track_id, group in df.group_by("track_id", maintain_order=False):
+            # Convert track_id to integer (polars may return tuple for single column group by)
+            vehicle_id = int(track_id[0]) if isinstance(track_id, tuple) else int(track_id)
+            # Get vehicle metadata from first row
+            vehicle = Vehicle(
+                id_=vehicle_id,
+                type_=group["agent_type"][0],
+                length=group["length"][0],
+                width=group["width"][0],
+            )
+            vehicles[vehicle_id] = vehicle
+
+            # Create trajectory and add states
+            trajectory = Trajectory(vehicle_id, fps=10)
+            # Iterate over rows in the group
+            for row in group.iter_rows(named=True):
+                state = State(
+                    frame=row["timestamp_ms"],
+                    x=row["x"],
+                    y=row["y"],
+                    heading=row["psi_rad"],
+                    vx=row["vx"],
+                    vy=row["vy"],
                 )
-                vehicles[vehicle_id] = vehicle
+                trajectory.add_state(state)
+            trajectories[vehicle_id] = trajectory
 
-            if vehicle_id not in trajectories:
-                trajectories[vehicle_id] = Trajectory(vehicle_id, fps=10)
-
-            state = State(
-                frame=time_stamp,
-                x=state_info["x"],
-                y=state_info["y"],
-                heading=state_info["psi_rad"],
-                vx=state_info["vx"],
-                vy=state_info["vy"],
-            )
-            trajectories[vehicle_id].add_state(state)
-
-        for vehicle_id, vehicle in vehicles.items():
-            vehicles[vehicle_id].bind_trajectory(trajectories[vehicle_id])
+            # Bind trajectory to vehicle
+            vehicle.bind_trajectory(trajectory)
 
         return vehicles, actual_stamp_range
 
     def parse_pedestrians(
-        self, participants: dict, file_path: str, time_range: Tuple[float, float] = None
+        self, participants: dict, file_path: str, time_range: Tuple[int, int] = None
     ) -> Tuple[dict, Tuple[int, int]]:
         """This function parses the pedestrian trajectory file in INTERACTION dataset. Because the original dataset does not distinguish cyclist and pedestrian, this function calls a type guesser, which is built from other datasets, to guess the type of the participants.
 
         Args:
             participants (dict): A dictionary of participants.
             file_path (str): The path to the pedestrian trajectory file.
-            time_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the stamp range is not given, the parser will parse the whole trajectory data.
+            time_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the time range is not given, the parser will parse the whole trajectory data.
 
         Returns:
             participants (dict): A dictionary of participants. The keys are the ids of the participants. The values are the participants.
@@ -139,35 +152,53 @@ class InteractionParser:
 
         trajectories = {}
         pedestrian_ids = {}
-        id_cnt = max(list(participants.keys())) + 1
+        if participants:
+            # Extract integer IDs from keys (may be tuples from polars group by)
+            keys = []
+            for k in participants.keys():
+                if isinstance(k, tuple):
+                    keys.append(k[0])
+                else:
+                    keys.append(k)
+            id_cnt = max(keys) + 1
+        else:
+            id_cnt = 0
 
-        df_pedestrian = pd.read_csv(file_path)
-        actual_stamp_range = (np.inf, -np.inf)
-
-        for _, state_info in df_pedestrian.iterrows():
-            time_stamp = state_info["timestamp_ms"]
-            if time_stamp < time_range[0] or time_stamp > time_range[1]:
-                continue
-
-            actual_stamp_range = (
-                min(actual_stamp_range[0], time_stamp),
-                max(actual_stamp_range[1], time_stamp),
+        # Read and filter data using polars
+        df = pl.read_csv(file_path)
+        # Filter by time range
+        if time_range[0] != -np.inf or time_range[1] != np.inf:
+            df = df.filter(
+                (pl.col("timestamp_ms") >= time_range[0])
+                & (pl.col("timestamp_ms") <= time_range[1])
             )
 
-            if state_info["track_id"] not in pedestrian_ids:
-                pedestrian_ids[state_info["track_id"]] = id_cnt
+        # Calculate actual time range
+        if len(df) > 0:
+            actual_stamp_range = (int(df["timestamp_ms"].min()), int(df["timestamp_ms"].max()))
+        else:
+            actual_stamp_range = (np.inf, -np.inf)
+
+        # Group by track_id and process each pedestrian/cyclist
+        for track_id, group in df.group_by("track_id", maintain_order=False):
+            # Unpack tuple if polars returned tuple for single column group by
+            if isinstance(track_id, tuple):
+                track_id = track_id[0]
+            # Map original track_id to new consecutive id
+            if track_id not in pedestrian_ids:
+                pedestrian_ids[track_id] = id_cnt
                 trajectories[id_cnt] = Trajectory(id_cnt, fps=10)
                 id_cnt += 1
 
-            state = State(
-                frame=state_info["timestamp_ms"],
-                x=state_info["x"],
-                y=state_info["y"],
-                vx=state_info["vx"],
-                vy=state_info["vy"],
-            )
-            trajectories[pedestrian_ids[state_info["track_id"]]].add_state(state)
+            mapped_id = pedestrian_ids[track_id]
+            # Add all states for this track
+            for row in group.iter_rows(named=True):
+                state = State(
+                    frame=row["timestamp_ms"], x=row["x"], y=row["y"], vx=row["vx"], vy=row["vy"]
+                )
+                trajectories[mapped_id].add_state(state)
 
+        # Guess type for each trajectory and create participant
         for trajectory_id, trajectory in trajectories.items():
             type_ = self._type_guesser.guess_by_trajectory(trajectory)
             if type_ == "pedestrian":
@@ -182,19 +213,22 @@ class InteractionParser:
         return participants, actual_stamp_range
 
     def parse_trajectory(
-        self, file: Union[int, str], folder: str, time_range: Tuple[float, float] = None
+        self, file: str, folder: str, time_range: Tuple[int, int] = None
     ) -> Tuple[dict, Tuple[int, int]]:
         """Parse the trajectory data of INTERACTION dataset. The states were collected at 10Hz.
 
         Args:
-            file (Union[int, str]): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: `vehicle_tracks_%03d.csv % file`, `pedestrian_tracks_%03d.csv % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            file (str): The name of the trajectory file or the id as a string. The parser will extract the integer id from the string and parse the trajectory data from the following files: `vehicle_tracks_%03d.csv % file_id`, `pedestrian_tracks_%03d.csv % file_id`.
             folder (str): The path to the folder containing the trajectory data.
-            time_range (Tuple[float, float], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the stamp range is not given, the parser will parse the whole trajectory data.
+            time_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond (ms). If the time range is not given, the parser will parse the whole trajectory data.
 
         Returns:
             participants (dict): A dictionary of participants. The keys are the ids of the participants. The values are the participants.
             actual_stamp_range (Tuple[int, int]): The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond (ms).
         """
+        # Convert to string if integer
+        if isinstance(file, int):
+            file = str(file)
         file_id = self._get_file_id(file)
 
         vehicle_file_path = os.path.join(folder, "vehicle_tracks_%03d.csv" % file_id)

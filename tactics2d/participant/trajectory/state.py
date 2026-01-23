@@ -85,19 +85,45 @@ class State:
         setattr(self, "ay", ay)
         setattr(self, "_accel", accel)
 
+        # Initialize cache variables
+        super().__setattr__("_cached_speed", None)
+        super().__setattr__("_cached_velocity", None)
+        super().__setattr__("_cached_accel", None)
+        super().__setattr__("_cached_acceleration", None)
+
+    def _invalidate_cache(self, attr_name: str) -> None:
+        """Invalidate cache based on which attribute changed."""
+        # Cache variables may not exist during __init__
+        if attr_name in {"vx", "vy", "_speed", "heading"}:
+            if hasattr(self, "_cached_speed"):
+                self._cached_speed = None
+            if hasattr(self, "_cached_velocity"):
+                self._cached_velocity = None
+        if attr_name in {"ax", "ay", "_accel", "heading"}:
+            if hasattr(self, "_cached_accel"):
+                self._cached_accel = None
+            if hasattr(self, "_cached_acceleration"):
+                self._cached_acceleration = None
+
     def __setattr__(self, __name: str, __value: Any) -> None:
         if __name in self.__annotations__:
             if __value is None:
                 super().__setattr__(__name, None)
+                self._invalidate_cache(__name)
             elif isinstance(__value, self.__annotations__[__name]):
                 super().__setattr__(__name, __value)
+                self._invalidate_cache(__name)
             else:
                 try:
                     super().__setattr__(__name, self.__annotations__[__name](__value))
+                    self._invalidate_cache(__name)
                 except:
                     raise ValueError(
                         f"Failed to convert {__value} to the expected type of {__name}: ({self.__annotations__[__name]})."
                     )
+        else:
+            super().__setattr__(__name, __value)
+            self._invalidate_cache(__name)
 
     def __str__(self):
         return f"{self.__class__.__name__}(frame={self.frame}, x={self.x}, y={self.y}, heading={self.heading}, vx={self.vx}, vy={self.vy}, speed={self.speed}, ax={self.ax}, ay={self.ay}, accel={self.accel})"
@@ -108,38 +134,72 @@ class State:
 
     @property
     def speed(self):
+        # Return cached value if available
+        if self._cached_speed is not None:
+            return self._cached_speed
+
         if not self._speed is None:
-            return self._speed
+            self._cached_speed = self._speed
+            return self._cached_speed
+
         if not None in [self.vx, self.vy]:
             self._speed = np.linalg.norm([self.vx, self.vy])
-            return self._speed
+            self._cached_speed = self._speed
+            return self._cached_speed
 
         return None
 
     @property
     def velocity(self) -> Tuple[float, float]:
+        # Return cached value if available
+        if self._cached_velocity is not None:
+            return self._cached_velocity
+
         if not None in [self.vx, self.vy]:
-            return (self.vx, self.vy)
+            self._cached_velocity = (self.vx, self.vy)
+            return self._cached_velocity
+
         if not None in [self.speed, self.heading]:
-            return (self.speed * np.cos(self.heading), self.speed * np.sin(self.heading))
+            self._cached_velocity = (
+                self.speed * np.cos(self.heading),
+                self.speed * np.sin(self.heading),
+            )
+            return self._cached_velocity
 
         return None
 
     @property
     def accel(self) -> float:
+        # Return cached value if available
+        if self._cached_accel is not None:
+            return self._cached_accel
+
         if not None in [self.ax, self.ay]:
-            return np.linalg.norm([self.ax, self.ay])
-        elif not self.acceleration is None:
-            return np.linalg.norm(self.acceleration)
+            self._cached_accel = np.linalg.norm([self.ax, self.ay])
+            return self._cached_accel
+
+        if not self.acceleration is None:
+            self._cached_accel = np.linalg.norm(self.acceleration)
+            return self._cached_accel
 
         return None
 
     @property
     def acceleration(self) -> Tuple[float, float]:
+        # Return cached value if available
+        if self._cached_acceleration is not None:
+            return self._cached_acceleration
+
         if not None in [self.ax, self.ay]:
-            return (self.ax, self.ay)
+            self._cached_acceleration = (self.ax, self.ay)
+            return self._cached_acceleration
+
         elif not None in [self._accel, self.heading]:
-            return (self._accel * np.cos(self.heading), self._accel * np.sin(self.heading))
+            self._cached_acceleration = (
+                self._accel * np.cos(self.heading),
+                self._accel * np.sin(self.heading),
+            )
+            return self._cached_acceleration
 
         return None
 

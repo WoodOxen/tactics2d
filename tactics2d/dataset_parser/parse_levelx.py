@@ -138,60 +138,62 @@ class LevelXParser:
 
         return file_id
 
-    def get_location(self, file: Union[int, str], folder: str) -> int:
+    def get_location(self, file: str, folder: str) -> int:
         """This function retrieves the location from which a trajectory data file is obtained.
 
         Args:
-            file (Union[int, str]): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: `%02d_recordingMeta.csv % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            file (str): The name of the trajectory file or the id as a string. The parser will extract the integer id from the string and parse the trajectory data from the following files: `%02d_recordingMeta.csv % file_id`.
             folder (str): The path to the folder containing the trajectory data.
 
         Returns:
             location_id (int): The id of the location.
         """
+        # Convert to string if integer
+        if isinstance(file, int):
+            file = str(file)
         file_id = self._get_file_id(file)
         df_meta = pd.read_csv(os.path.join(folder, "%02d_recordingMeta.csv" % file_id))
 
         return df_meta.iloc[0]["locationId"]
 
-    def get_stamp_range(self, file: Union[int, str], folder: str) -> Tuple[int, int]:
+    def get_time_range(self, file: str, folder: str) -> Tuple[int, int]:
         """This function gets the time range of a single trajectory data file.
 
         Args:
-            file (Union[int, str]): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: `%02d_tracksMeta.csv" % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            file (str): The name of the trajectory file or the id as a string. The parser will extract the integer id from the string and parse the trajectory data from the following files: `%02d_tracksMeta.csv % file_id`.
             folder (str): The path to the folder containing the trajectory data.
 
         Returns:
-            actual_stamp_range (Tuple[int, int]): The time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
+            actual_time_range (Tuple[int, int]): The time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
         """
+        # Convert to string if integer
+        if isinstance(file, int):
+            file = str(file)
         file_id = self._get_file_id(file)
         df_track_meta = pd.read_csv(os.path.join(folder, "%02d_tracksMeta.csv" % file_id))
         start_frame = int(min(df_track_meta["initialFrame"]) * 40)
         end_frame = int(max(df_track_meta["finalFrame"]) * 40)
 
-        actual_stamp_range = (start_frame, end_frame)
-        return actual_stamp_range
+        actual_time_range = (start_frame, end_frame)
+        return actual_time_range
 
     def parse_trajectory(
-        self,
-        file: Union[int, str],
-        folder: str,
-        stamp_range: Tuple[int, int] = None,
-        ids: list = None,
+        self, file: str, folder: str, time_range: Tuple[int, int] = None, ids: list = None
     ) -> Tuple[dict, Tuple[int, int]]:
         """This function parses the trajectory data of LevelX-series datasets. The states were collected at 25Hz.
 
         Args:
-            file (int): The id or the name of the trajectory file. If the input is an integer, the parser will parse the trajectory data from the following files: `%02d_tracks.csv % file` and `%02d_tracksMeta.csv % file`. If the input is a string, the parser will extract the integer id first and repeat the above process.
+            file (str): The name of the trajectory file or the id as a string. The parser will extract the integer id from the string and parse the trajectory data from the following files: `%02d_tracks.csv % file_id` and `%02d_tracksMeta.csv % file_id`.
             folder (str): The path to the folder containing the trajectory data.
-            stamp_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the stamp range is not given, the parser will parse the whole trajectory data. Defaults to None.
+            time_range (Tuple[int, int], optional): The time range of the trajectory data to parse. The unit of time stamp is millisecond. If the time range is not given, the parser will parse the whole trajectory data. Defaults to None.
             ids (list): The list of trajectory ids that needs to parse. If this value is not specified, the parser will parse all the trajectories within the time range. Defaults to None.
 
         Returns:
             participants (dict): A dictionary of participants. The keys are the ids of the participants. The values are the participants.
             actual_stamp_range (Tuple[int, int]): The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
         """
-        if stamp_range is None:
-            stamp_range = (-np.inf, np.inf)
+        if time_range is None:
+            time_range = (-np.inf, np.inf)
 
         if ids is not None:
             ids = {int(x) for x in ids}
@@ -199,6 +201,9 @@ class LevelXParser:
         # load the vehicles that have frame in the arbitrary range
         participants = dict()
 
+        # Convert to string if integer
+        if isinstance(file, int):
+            file = str(file)
         file_id = self._get_file_id(file)
 
         schema_overrides = (
@@ -221,7 +226,7 @@ class LevelXParser:
             first_stamp = participant_info["initialFrame"] * 40  # ms
             last_stamp = participant_info["finalFrame"] * 40  # ms
 
-            if last_stamp < stamp_range[0] or first_stamp > stamp_range[1]:
+            if last_stamp < time_range[0] or first_stamp > time_range[1]:
                 continue
 
             id_ = participant_info[self.id_key]
@@ -248,7 +253,7 @@ class LevelXParser:
             (pl.col("frame") * 40).alias("time_stamp")
         )
         df_track_filtered = df_track_filtered.filter(
-            (pl.col("time_stamp") >= stamp_range[0]) & (pl.col("time_stamp") <= stamp_range[1])
+            (pl.col("time_stamp") >= time_range[0]) & (pl.col("time_stamp") <= time_range[1])
         )
 
         if self.dataset == "highd":

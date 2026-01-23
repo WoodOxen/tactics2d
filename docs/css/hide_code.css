@@ -2,7 +2,7 @@
   display: block;
   width: 100%;
   padding: 2px 0;
-  font-size: 14px;
+  font-size: 0.7rem; /* ~14px */
   background-color: #f9fafb;
   border: none;
   color: #374151;
@@ -10,6 +10,13 @@
   text-align: left;
   font-family: inherit;
   transition: background-color 0.2s ease;
+}
+
+/* Responsive font size for smaller screens */
+@media screen and (max-width: 768px) {
+  .show-code-button {
+    font-size: 0.8125rem; /* ~13px */
+  }
 }
 
 .show-code-button:hover {

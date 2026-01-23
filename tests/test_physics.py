@@ -13,6 +13,17 @@ import os
 
 RENDER = "DISPLAY" in os.environ
 
+# Test constants for deterministic testing
+TEST_ACCEL_OFFSET_1 = 4.5  # For kinematics model test
+TEST_STEER_OFFSET_1 = 0.9  # For kinematics model test
+TEST_ACCEL_OFFSET_2 = 5.25  # For dynamics model test (average of 4.5 and 6)
+TEST_STEER_OFFSET_2 = 0.9  # For dynamics model test
+
+# Vehicle template constants for "medium_car"
+MEDIUM_CAR_LENGTH = 4.284  # meters
+MEDIUM_CAR_FRONT_OVERHANG = 0.880  # meters
+MEDIUM_CAR_REAR_OVERHANG = 0.767  # meters
+
 import logging
 import time
 
@@ -35,6 +46,9 @@ from tactics2d.physics import (
 )
 
 # fmt: off
+# Pedestrian actions for point mass model testing
+# Format: ((accel_x, accel_y), duration_ms)
+# Accelerations are in m/s², durations in milliseconds
 PEDESTRIAN_ACTION_LIST = [
     ((0, 0), 100), # stop for 0.1 second
     ((1, 0), 500), # accelerate for 0.5 second along x-axis, expected to reach 0.5 m/s
@@ -45,6 +59,9 @@ PEDESTRIAN_ACTION_LIST = [
     ((1, 1), 500), ((2, 2), 500), ((-2, -2), 2000), ((-1, 2), 500), ((2, -1), 500)
 ]
 
+# Vehicle actions for kinematic/dynamic/drift model testing
+# Format: ((acceleration, steering), duration_ms)
+# Acceleration in m/s², steering in radians, duration in milliseconds
 VEHICLE_ACTION_LIST = [
     ((0, 0), 1000),
     ((1, 0), 1000), ((-1, 0), 1000),
@@ -55,6 +72,42 @@ VEHICLE_ACTION_LIST = [
     ((0.1, 0.6), 5000), ((0.1, -0.6), 5000),
 ]
 # fmt: on
+
+
+def simulate_actions(model, action_list, initial_state, interval, model_type="standard"):
+    """
+    Simulate a sequence of actions using a physics model.
+
+    Args:
+        model: Physics model instance
+        action_list: List of (action, duration_ms) tuples
+        initial_state: Initial State object
+        interval: Simulation time step (ms)
+        model_type: Type of model ("standard", "drift" for drift model)
+
+    Returns:
+        List of (x, y) trajectory points
+    """
+    if model_type == "drift":
+        state = initial_state
+        omega_wf = 0
+        omega_wr = 0
+        trajectory = [(state.x, state.y)]
+        for action, duration in action_list:
+            for _ in np.arange(0, duration, interval):
+                state, omega_wf, omega_wr, _, _ = model.step(
+                    state, omega_wf, omega_wr, action[0], action[1], interval
+                )
+                trajectory.append((state.x, state.y))
+        return trajectory
+    else:
+        state = initial_state
+        trajectory = [(state.x, state.y)]
+        for action, duration in action_list:
+            for _ in np.arange(0, duration, interval):
+                state, _, _ = model.step(state, action[0], action[1], interval)
+                trajectory.append((state.x, state.y))
+        return trajectory
 
 
 class Visualizer:
@@ -192,7 +245,8 @@ def test_point_mass(speed_range, accel_range, interval, delta_t):
             last_state_euler = state_euler
     t3 = time.time()
 
-    assert hausdorff_distance(LineString(line_newton), LineString(line_euler)) < 0.01
+    distance = hausdorff_distance(LineString(line_newton), LineString(line_euler))
+    assert distance < 0.01, f"Hausdorff distance {distance:.6f} exceeds threshold 0.01"
     logging.info("The average fps for Newton's method is {:.2f} Hz.".format(cnt / (t2 + 1e-6 - t1)))
     logging.info("The average fps for Euler's method is {:.2f} Hz.".format(cnt / (t3 + 1e-6 - t2)))
 
@@ -219,8 +273,14 @@ def test_single_track_kinematic(interval, delta_t):
         delta_t=delta_t,
     )
 
-    assert physics_model_constrained.lf == 4.284 / 2 - 0.880
-    assert physics_model_constrained.lr == 4.284 / 2 - 0.767
+    expected_lf = MEDIUM_CAR_LENGTH / 2 - MEDIUM_CAR_FRONT_OVERHANG
+    assert (
+        physics_model_constrained.lf == expected_lf
+    ), f"lf mismatch: {physics_model_constrained.lf} != {expected_lf}"
+    expected_lr = MEDIUM_CAR_LENGTH / 2 - MEDIUM_CAR_REAR_OVERHANG
+    assert (
+        physics_model_constrained.lr == expected_lr
+    ), f"lr mismatch: {physics_model_constrained.lr} != {expected_lr}"
     logging.info(f"{vehicle.steer_range}, {vehicle.speed_range}, {vehicle.accel_range}")
 
     state_constrained = State(frame=0, x=10, y=10, heading=0, speed=0)
@@ -235,13 +295,12 @@ def test_single_track_kinematic(interval, delta_t):
         for _ in np.arange(0, duration, interval):
             state, _, _ = physics_model.step(
                 state_constrained,
-                action[0] + np.random.uniform(4, 5),
-                action[1] + np.random.uniform(0.8, 1.0),
+                action[0] + TEST_ACCEL_OFFSET_1,
+                action[1] + TEST_STEER_OFFSET_1,
                 interval,
             )
-            assert (
-                physics_model_constrained.verify_state(state, state_constrained, interval) is False
-            )
+            is_valid = physics_model_constrained.verify_state(state, state_constrained, interval)
+            assert not is_valid, "State should be invalid when using out-of-range actions"
 
             state_constrained, real_accel, real_steer = physics_model_constrained.step(
                 state_constrained, action[0], action[1], interval
@@ -257,7 +316,7 @@ def test_single_track_kinematic(interval, delta_t):
         visualizer.quit()
         logging.info(
             "The average fps for single track kinematics model is {:.2f} Hz.".format(
-                n_frame / (t2 + -t1)
+                n_frame / (t2 - t1)
             )
         )
 
@@ -296,13 +355,12 @@ def test_single_track_dynamics(interval, delta_t):
         for _ in np.arange(0, duration, interval):
             state, _, _ = physics_model.step(
                 state_constrained,
-                action[0] + np.random.uniform(4.5, 6),
-                action[1] + np.random.uniform(0.8, 1.0),
+                action[0] + TEST_ACCEL_OFFSET_2,
+                action[1] + TEST_STEER_OFFSET_2,
                 interval,
             )
-            assert (
-                physics_model_constrained.verify_state(state, state_constrained, interval) is False
-            )
+            is_valid = physics_model_constrained.verify_state(state, state_constrained, interval)
+            assert not is_valid, "State should be invalid when using out-of-range actions"
 
             state_constrained, real_accel, real_steer = physics_model_constrained.step(
                 state_constrained, action[0], action[1], interval
@@ -317,7 +375,7 @@ def test_single_track_dynamics(interval, delta_t):
         visualizer.quit()
         logging.info(
             "The average fps for single track dynamics model is {:.2f} Hz.".format(
-                n_frame / (t2 + -t1)
+                n_frame / (t2 - t1)
             )
         )
 
@@ -364,9 +422,7 @@ def test_single_track_drift(interval, delta_t):
         n_frame = int(np.sum([n_frame for _, n_frame in VEHICLE_ACTION_LIST]) / interval)
         visualizer.quit()
         logging.info(
-            "The average fps for single track dynamics model is {:.2f} Hz.".format(
-                n_frame / (t2 + -t1)
-            )
+            "The average fps for single track drift model is {:.2f} Hz.".format(n_frame / (t2 - t1))
         )
 
 

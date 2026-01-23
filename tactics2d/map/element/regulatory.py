@@ -7,6 +7,8 @@
 class RegulatoryMember:
     """This class implements the subelement of the Regulatory class."""
 
+    __slots__ = ("ref", "type_", "role")
+
     def __init__(self, ref: str, type_: str, role: str):
         self.ref = ref
         self.type_ = type_
@@ -32,6 +34,20 @@ class Regulatory:
         fallback (bool): Whether the regulatory element is a fallback. Defaults to False.
         custom_tags (dict): The custom tags of the regulatory element. Defaults to None.
     """
+
+    __slots__ = (
+        "id_",
+        "relations",
+        "ways",
+        "nodes",
+        "type_",
+        "subtype",
+        "position",
+        "location",
+        "dynamic",
+        "fallback",
+        "custom_tags",
+    )
 
     def __init__(
         self,

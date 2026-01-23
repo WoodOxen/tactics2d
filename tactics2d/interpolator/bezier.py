@@ -5,7 +5,6 @@
 
 
 import numpy as np
-
 from cpp_interpolator import Bezier as cpp_Bezier
 
 

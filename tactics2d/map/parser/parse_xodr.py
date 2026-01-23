@@ -80,10 +80,15 @@ class XODRParser:
         if length > 0.1:
             n_interpolate = int(length / 0.1)
 
-            for i in np.linspace(0.1, length, n_interpolate - 1):
-                x_end = x_start + i * np.cos(heading)
-                y_end = y_start + i * np.sin(heading)
-                points.append((x_end, y_end))
+            # Vectorized computation of intermediate points
+            if n_interpolate > 1:
+                distances = np.linspace(0.1, length, n_interpolate - 1)
+                cos_h = np.cos(heading)
+                sin_h = np.sin(heading)
+                x_points = x_start + distances * cos_h
+                y_points = y_start + distances * sin_h
+                # Add intermediate points
+                points.extend(zip(x_points, y_points))
 
         points.append((x_start + length * np.cos(heading), y_start + length * np.sin(heading)))
         return points
@@ -124,10 +129,12 @@ class XODRParser:
         arc_angle = length / radius * np.sign(curvature)
         start_heading = heading - np.pi / 2 * np.sign(curvature)
 
-        for i in np.linspace(start_heading, start_heading + arc_angle, n_interpolate):
-            x = center[0] + radius * np.cos(i)
-            y = center[1] + radius * np.sin(i)
-            points.append((x, y))
+        # Vectorized computation of arc points
+        if n_interpolate > 0:
+            angles = np.linspace(start_heading, start_heading + arc_angle, n_interpolate)
+            x_points = center[0] + radius * np.cos(angles)
+            y_points = center[1] + radius * np.sin(angles)
+            points = list(zip(x_points, y_points))
         return points
 
     def _get_poly3(self, xml_node: ET.Element) -> list:

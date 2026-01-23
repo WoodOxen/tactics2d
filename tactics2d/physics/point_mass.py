@@ -57,7 +57,7 @@ class PointMass(PhysicsModelBase):
             self.speed_range = None
 
         if isinstance(accel_range, float):
-            self.accel_range = None if accel_range < 0 else [0, speed_range]
+            self.accel_range = None if accel_range < 0 else [0, accel_range]
         elif hasattr(accel_range, "__len__") and len(accel_range) == 2:
             self.accel_range = [max(0, accel_range[0]), max(0, accel_range[1])]
             if self.accel_range[0] >= self.accel_range[1]:
@@ -106,9 +106,25 @@ class PointMass(PhysicsModelBase):
             a_ = ax**2 + ay**2
             b_ = 2 * (ax * vx + ay * vy)
             c_ = vx**2 + vy**2 - self.speed_range[0] ** 2
-            t1 = (-b_ - np.sqrt(b_**2 - 4 * a_ * c_)) / (
-                2 * a_
-            )  # assume the minimal speed is positive
+
+            # Handle cases where a_ is very small (acceleration near zero)
+            if np.abs(a_) < 1e-12:
+                # When acceleration is zero, use linear motion
+                if np.abs(b_) < 1e-12:
+                    # Both a_ and b_ are zero, velocity already at minimum speed
+                    t1 = 0.0
+                else:
+                    # Solve linear equation: b_ * t + c_ = 0
+                    t1 = -c_ / b_ if np.abs(b_) > 1e-12 else 0.0
+            else:
+                # Solve quadratic equation: a_ * t^2 + b_ * t + c_ = 0
+                discriminant = b_**2 - 4 * a_ * c_
+                # Ensure discriminant is non-negative (handle numerical errors)
+                discriminant = max(0.0, discriminant)
+                t1 = (-b_ - np.sqrt(discriminant)) / (2 * a_)
+
+            # Ensure t1 is within [0, dt]
+            t1 = np.clip(t1, 0.0, dt)
             t2 = dt - t1
             vx_min = vx + ax * t1
             vy_min = vy + ay * t1
@@ -125,7 +141,25 @@ class PointMass(PhysicsModelBase):
             a_ = ax**2 + ay**2
             b_ = 2 * (ax * vx + ay * vy)
             c_ = vx**2 + vy**2 - self.speed_range[1] ** 2
-            t1 = (-b_ + np.sqrt(b_**2 - 4 * a_ * c_)) / (2 * a_)
+
+            # Handle cases where a_ is very small (acceleration near zero)
+            if np.abs(a_) < 1e-12:
+                # When acceleration is zero, use linear motion
+                if np.abs(b_) < 1e-12:
+                    # Both a_ and b_ are zero, velocity already at maximum speed
+                    t1 = 0.0
+                else:
+                    # Solve linear equation: b_ * t + c_ = 0
+                    t1 = -c_ / b_ if np.abs(b_) > 1e-12 else 0.0
+            else:
+                # Solve quadratic equation: a_ * t^2 + b_ * t + c_ = 0
+                discriminant = b_**2 - 4 * a_ * c_
+                # Ensure discriminant is non-negative (handle numerical errors)
+                discriminant = max(0.0, discriminant)
+                t1 = (-b_ + np.sqrt(discriminant)) / (2 * a_)
+
+            # Ensure t1 is within [0, dt]
+            t1 = np.clip(t1, 0.0, dt)
             t2 = dt - t1
             vx_max = vx + ax * t1
             vy_max = vy + ay * t1
@@ -146,16 +180,19 @@ class PointMass(PhysicsModelBase):
         x, y = state.location
         heading = state.heading
         dts = [float(self.delta_t) / 1000] * (interval // self.delta_t)
-        dts.append(float(interval % self.delta_t) / 1000)
+        remainder = interval % self.delta_t
+        if remainder > 0:
+            dts.append(float(remainder) / 1000)
 
         for dt in dts:
             vx += ax * dt
             vy += ay * dt
             speed = np.linalg.norm([vx, vy])
             speed_clipped = (
-                np.clip(speed, *self.speed_range) if not self.speed_range is None else speed
+                np.clip(speed, *self.speed_range) if self.speed_range is not None else speed
             )
-            if speed != speed_clipped:
+            # Use tolerance for floating point comparison
+            if np.abs(speed - speed_clipped) > 1e-12:
                 vx = speed_clipped * np.cos(heading)
                 vy = speed_clipped * np.sin(heading)
 
@@ -184,7 +221,7 @@ class PointMass(PhysicsModelBase):
 
         accel_value = np.linalg.norm(accel)
         accel_value = (
-            np.clip(accel_value, *self.accel_range) if not self.accel_range is None else accel_value
+            np.clip(accel_value, *self.accel_range) if self.accel_range is not None else accel_value
         )
 
         if self.backend == "newton":
@@ -205,13 +242,16 @@ class PointMass(PhysicsModelBase):
         Returns:
             True if the new state is valid, False otherwise.
         """
-        interval = interval if not interval is None else state.frame - last_state.frame
+        interval = state.frame - last_state.frame if interval is None else interval
+        # Handle zero interval case
+        if interval == 0:
+            return True  # No time elapsed, state should be valid
         dt = interval / 1000  # convert to second
         denominator = 2 / dt**2
         ax = (state.x - last_state.x - last_state.vx * dt) * denominator
         ay = (state.y - last_state.y - last_state.vy * dt) * denominator
 
-        if not self.accel_range is None:
+        if self.accel_range is not None:
             accel = np.linalg.norm([ax, ay])
             if not self.accel_range[0] <= accel <= self.accel_range[1]:
                 return False
