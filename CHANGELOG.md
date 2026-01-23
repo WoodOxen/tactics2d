@@ -4,6 +4,8 @@
 
 ### Added
 
+- Added ControlBase, PIDController, and IDMController
+- Added tests for controllers.
 - Added classic search algorithms: Dijkstra, A*, D*, Hybrid A*, RRT, RRT*, RRTConnect.
 - Added tests for classic search algorithms.
 - Added tutorial for classic search algorithms in grid world environment.
@@ -11,6 +13,7 @@
 
 ### Changed
 
+- Aligned interface within controller module.
 - Fixed dependency vulnerability issue of protobuf.
 
 ## [0.1.9rc1] - 2026-01-09
