@@ -4,7 +4,9 @@
 """Pseudo lidar implementation."""
 
 
-from typing import Tuple
+import logging
+import time
+from typing import Dict, List, Set, Tuple
 
 import numpy as np
 from shapely.affinity import affine_transform
@@ -28,9 +30,6 @@ class SingleLineLidar(SensorBase):
         bind_id (Any): The unique identifier of object that the sensor is bound to. This attribute is **read-only** and can only be set using the `bind_with` method.
         is_bound (bool): Whether the sensor is bound to an object. This attribute is **read-only** once the instance is initialized.
     """
-
-    black = "#000000"
-    white = "#FFFFFF"
 
     def __init__(
         self,
@@ -67,26 +66,16 @@ class SingleLineLidar(SensorBase):
     def freq_detect(self) -> float:
         return self._freq_detect
 
-    def _update_transform_matrix(self):
-        theta = self._heading - np.pi / 2
-
-        self.transform_matrix = np.array(
-            [
-                np.cos(theta),
-                np.sin(theta),
-                np.sin(theta),
-                -np.cos(theta),
-                self.perception_range
-                - self._position.x * np.cos(theta)
-                - self._position.y * np.sin(theta),
-                self.perception_range
-                - self._position.x * np.sin(theta)
-                + self._position.y * np.cos(theta),
-            ]
-        )
-
     def _estimate_line_idx_range(self, polygon) -> Tuple[int, int]:
-        # estimate the lidar idx range that an obstacle may fall in
+        """Estimate the lidar index range that an obstacle may fall within.
+
+        Args:
+            polygon: Shapely polygon representing an obstacle.
+
+        Returns:
+            Tuple of (start_idx, end_idx) representing the range of lidar beam indices
+            that could intersect with the obstacle's bounding box.
+        """
         bound = polygon.bounds
         angles = [
             np.arctan2(bound[1] - self._position.y, bound[0] - self._position.x),
@@ -108,7 +97,15 @@ class SingleLineLidar(SensorBase):
         return line_idx_range
 
     def _rotate_and_filter_obstacles(self, ego_pos: tuple, obstacles: list):
-        # Rotate the obstacles around the vehicle and remove the obstacles out of perception range.
+        """Rotate obstacles to vehicle coordinate system and filter by perception range.
+
+        Args:
+            ego_pos: Tuple of (x, y, heading) representing vehicle position and orientation.
+            obstacles: List of shapely geometry objects (LinearRing or Polygon exterior).
+
+        Returns:
+            List of obstacles transformed to vehicle coordinate system and within perception range.
+        """
         origin = Point((0, 0))
         x, y, theta = ego_pos
         a = np.cos(theta)
@@ -126,6 +123,13 @@ class SingleLineLidar(SensorBase):
         return rotated_obstacles
 
     def _scan_obstacles(self, frame: int, participants: dict, participant_ids: list):
+        """Perform lidar scanning to detect obstacles and compute distances.
+
+        Args:
+            frame: Current frame number.
+            participants: Dictionary of all participants.
+            participant_ids: List of participant IDs to consider (excluding self).
+        """
         # Collect obstacles
         potential_obstacles = []
         for area in self.map_.areas.values():
@@ -209,6 +213,11 @@ class SingleLineLidar(SensorBase):
         self.scan_result = lidar_obs
 
     def _get_points(self):
+        """Convert lidar scan results to point cloud coordinates in render coordinate system.
+
+        Returns:
+            List of [x, y] point coordinates for detected obstacles.
+        """
         lidar_angles = np.linspace(0, 2 * np.pi, self.point_density, endpoint=False)
         mask = self.scan_result != float("inf")
         lidar_point_angles = lidar_angles[mask]
@@ -231,47 +240,34 @@ class SingleLineLidar(SensorBase):
     def update(
         self,
         frame: int,
-        participants: dict,
-        participant_ids: list,
-        prev_road_id_set: set = None,
-        prev_participant_id_set: set = None,
+        participants: Dict,
+        participant_ids: List,
+        prev_road_id_set: Set = None,
+        prev_participant_id_set: Set = None,
         position: Point = None,
         heading: float = None,
-    ):
+    ) -> Tuple[Dict, Set, Set]:
         """This function is used to update the lidar's position and obtain the geometry data under specific rendering paradigm.
 
         Args:
             frame (int): The frame of the observation.
-            participants (dict): The participants in the scenario.
-            participant_ids (list): The list of participant IDs to be rendered.
-            prev_road_id_set (set, optional): The set of road IDs that were rendered in the previous frame. Defaults to None.
-            prev_participant_id_set (set, optional): The set of participant IDs that were rendered in the previous frame. Defaults to None.
+            participants (Dict): The participants in the scenario.
+            participant_ids (List): The list of participant IDs to be rendered.
+            prev_road_id_set (Set, optional): The set of road IDs that were rendered in the previous frame. Defaults to None.
+            prev_participant_id_set (Set, optional): The set of participant IDs that were rendered in the previous frame. Defaults to None.
             position (Point, optional): The position of the lidar. Defaults to None.
-            heading (float, optional): The heading of the object that the lidar is attched to. Defaults to None.
+            heading (float, optional): The heading of the object that the lidar is attached to. Defaults to None.
 
         Returns:
-            geometry_data (dict): The geometry data to be rendered, including a dict with four keys: frame, map_data, participant_data, and lidar_data. The map_data is a dict with keys road_id_to_remove (list) and road_elements (list), while participant_data is a dict with keys participant_id_to_create (list), participant_id_to_remove (list), and participants (list). For lidar, map_data and participant_data are empty, and lidar points are included in the lidar_data key as {"points": list}.
-            road_id_set (set): The set of road IDs that were rendered in the current frame. Always an empty set for lidar.
-            participant_id_set (set): The set of participant IDs that were rendered in the current frame. Always an empty set for lidar.
+            geometry_data (Dict): The geometry data to be rendered in unified format.
+            road_id_set (Set): The set of road IDs that were rendered in the current frame. Always an empty set for lidar.
+            participant_id_set (Set): The set of participant IDs that were rendered in the current frame. Always an empty set for lidar.
         """
-        # Handle None parameters
-        if participant_ids is None:
-            participant_ids = []
-        if prev_road_id_set is None:
-            prev_road_id_set = set()
-        if prev_participant_id_set is None:
-            prev_participant_id_set = set()
-
-        self._position = position
-        self._heading = heading
-        if None in [self._position, self._heading]:
-            self._position = Point(
-                0.5 * (self.map_.boundary[0] + self.map_.boundary[1]),
-                0.5 * (self.map_.boundary[2] + self.map_.boundary[3]),
-            )
-            self._heading = np.pi / 2
-
-        self._update_transform_matrix()
+        # Use base class methods to setup parameters
+        participant_ids, prev_road_id_set, prev_participant_id_set = self._setup_update_parameters(
+            participant_ids, prev_road_id_set, prev_participant_id_set
+        )
+        self._set_position_heading(position, heading)
         self.scan_result = np.full(self.point_density, float("inf"))
         self._scan_obstacles(frame, participants, participant_ids)
 
@@ -285,33 +281,48 @@ class SingleLineLidar(SensorBase):
             sensor_x_render = a * sensor_x + b * sensor_y + x_off
             sensor_y_render = d * sensor_x + e * sensor_y + y_off
             sensor_position = [sensor_x_render, sensor_y_render]
+            logging.info(f"[DEBUG Lidar] Sensor position (render coords): {sensor_position}")
         else:
             sensor_position = [self._position.x, self._position.y]
+            logging.info(f"[DEBUG Lidar] Sensor position (no transform): {sensor_position}")
 
-        # Create empty map_data and participant_data to match camera interface
+        # Create empty map_data and participant_data for backward compatibility
         map_data = {
-            "road_id_to_remove": list(
-                prev_road_id_set
-            ),  # Remove all previous roads (lidar doesn't track roads)
+            "road_id_to_remove": list(prev_road_id_set),
             "road_elements": [],  # No road elements for lidar
         }
 
+        # Create point cloud data
+        point_clouds = []
+        if lidar_points:  # Only add if there are points
+            point_clouds.append(
+                {
+                    "id": "point_cloud",  # Fixed point cloud ID
+                    "points": lidar_points,  # Point cloud coordinates list
+                    "color": "red",  # Point cloud color
+                    "point_size": 2.0,  # Point size in pixels
+                    "alpha": 0.8,  # Transparency
+                    "type": "lidar_point_cloud",  # Type for resolving color and z-order
+                }
+            )
+
         participant_data = {
             "participant_id_to_create": [],  # No participants to create
-            "participant_id_to_remove": list(
-                prev_participant_id_set
-            ),  # Remove all previous participants
+            "participant_id_to_remove": list(prev_participant_id_set),
             "participants": [],  # No participant elements for lidar
+            "point_clouds": point_clouds,  # Point clouds for rendering
         }
 
+        # Unified geometry data format compatible with camera renderer
         geometry_data = {
             "frame": frame,
             "map_data": map_data,
             "participant_data": participant_data,
-            "lidar_data": {
-                "points": lidar_points,
-                "sensor_position": sensor_position,
-            },  # Keep lidar points in separate key
+            # Additional sensor metadata for backward compatibility
+            "sensor_type": "lidar",
+            "sensor_id": self.id_,
+            "sensor_position": sensor_position,
+            "metadata": {"timestamp": time.time(), "perception_range": self._perception_range},
         }
 
         # Return empty sets for road_id_set and participant_id_set

@@ -5,7 +5,7 @@
 
 
 from abc import ABC, abstractmethod
-from typing import Tuple, Union
+from typing import Dict, List, Set, Tuple, Union
 
 import numpy as np
 from shapely.geometry import Point
@@ -42,6 +42,7 @@ class SensorBase(ABC):
 
         self._id = id_
         self._map = map_
+        self.transform_matrix = None
 
         if perception_range is None:
             width = (map_.boundary[1] - map_.boundary[0]) / 2
@@ -88,11 +89,94 @@ class SensorBase(ABC):
     def bind_with(self, bind_id):
         self._bind_id = bind_id
 
+    def _update_transform_matrix(self):
+        theta = self._heading - np.pi / 2
+
+        self.transform_matrix = np.array(
+            [
+                np.cos(theta),
+                np.sin(theta),
+                np.sin(theta),
+                -np.cos(theta),
+                self.max_perception_distance
+                - self._position.x * np.cos(theta)
+                - self._position.y * np.sin(theta),
+                self.max_perception_distance
+                - self._position.x * np.sin(theta)
+                + self._position.y * np.cos(theta),
+            ]
+        )
+
     @abstractmethod
-    def update(self, participants, position: Point = None):
+    def update(
+        self,
+        frame: int,
+        participants: Dict,
+        participant_ids: List,
+        prev_road_id_set: Set = None,
+        prev_participant_id_set: Set = None,
+        position: Point = None,
+        heading: float = None,
+    ) -> Tuple[Dict, Set, Set]:
         """This function is used to update the sensor's position and observation.
 
         Args:
+            frame (int): The frame number of the observation.
             participants (Dict[int, Participant]): The participants in the scenario.
+            participant_ids (List[int]): The list of participant IDs to be considered.
+            prev_road_id_set (Set, optional): The set of road IDs that were rendered in the previous frame.
+                Used for incremental updates. Defaults to None.
+            prev_participant_id_set (Set, optional): The set of participant IDs that were rendered in the previous frame.
+                Used for incremental updates. Defaults to None.
             position (Point, optional): The position of the sensor. Defaults to None.
+            heading (float, optional): The heading of the sensor in radians. Defaults to None.
+
+        Returns:
+            Tuple[Dict, Set, Set]: (geometry_data, road_id_set, participant_id_set)
+                - geometry_data: A dictionary containing the geometry data for rendering
+                - road_id_set: The set of road IDs that were rendered in the current frame
+                - participant_id_set: The set of participant IDs that were rendered in the current frame
         """
+
+    def _setup_update_parameters(self, participant_ids, prev_road_id_set, prev_participant_id_set):
+        """Setup default values for update parameters.
+
+        Args:
+            participant_ids: List of participant IDs or None
+            prev_road_id_set: Set of road IDs from previous frame or None
+            prev_participant_id_set: Set of participant IDs from previous frame or None
+
+        Returns:
+            Tuple of (participant_ids, prev_road_id_set, prev_participant_id_set) with defaults applied
+        """
+        if participant_ids is None:
+            participant_ids = []
+        if prev_road_id_set is None:
+            prev_road_id_set = set()
+        if prev_participant_id_set is None:
+            prev_participant_id_set = set()
+
+        return participant_ids, prev_road_id_set, prev_participant_id_set
+
+    def _set_position_heading(self, position, heading):
+        """Set sensor position and heading with default values.
+
+        If position or heading is None, sets default position (map center) and heading (π/2).
+        Calls _update_transform_matrix() after setting values.
+
+        Args:
+            position: Point or None
+            heading: float or None
+        """
+        self._position = position
+        self._heading = heading
+
+        if None in [self._position, self._heading]:
+            # Set default position to map center
+            self._position = Point(
+                0.5 * (self.map_.boundary[0] + self.map_.boundary[1]),
+                0.5 * (self.map_.boundary[2] + self.map_.boundary[3]),
+            )
+            self._heading = np.pi / 2
+
+        self._update_transform_matrix()

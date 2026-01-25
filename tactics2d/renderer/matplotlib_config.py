@@ -81,6 +81,8 @@ DEFAULT_COLOR = {
     "bicycle": "light-orange",
     # default color for pedestrian class subtypes
     "pedestrian": "light-blue",
+    # default color for lidar point cloud
+    "lidar_point_cloud": "red",
 }
 
 DEFAULT_ORDER = {
@@ -127,6 +129,8 @@ DEFAULT_ORDER = {
     "truck": 6,
     "bus": 6,
     "heading_arrow": 7,
+    # default zorder for lidar point cloud
+    "lidar_point_cloud": 8,
     # default zorder for cyclist class subtypes
     "motorcycle": 6,
     "cyclist": 6,

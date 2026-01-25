@@ -16,8 +16,10 @@ matplotlib.use("Agg", force=True)
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.collections import PathCollection
 from matplotlib.lines import Line2D
 from matplotlib.patches import Circle, Polygon
+from matplotlib.path import Path
 from numpy.typing import ArrayLike
 from shapely.geometry import Point
 
@@ -51,28 +53,44 @@ class MatplotlibRenderer:
 
     def __init__(
         self,
-        xlim: Tuple[float, float],
-        ylim: Tuple[float, float],
         resolution: Tuple[float, float],
+        xlim: Optional[Tuple[float, float]] = None,
+        ylim: Optional[Tuple[float, float]] = None,
         dpi: int = 200,
+        auto_scale: bool = False,
+        margin: float = 10.0,
     ):
         """Initialize the MatplotlibRenderer.
 
         Args:
-            xlim (Tuple[float, float]): X-axis limits of the view (min, max).
-            ylim (Tuple[float, float]): Y-axis limits of the view (min, max).
+            xlim (Tuple[float, float]): X-axis limits of the view (min, max). If None and auto_scale=True,
+                will be calculated automatically. Defaults to None.
+            ylim (Tuple[float, float]): Y-axis limits of the view (min, max). If None and auto_scale=True,
+                will be calculated automatically. Defaults to None.
             resolution (Tuple[float, float]): Output resolution in pixels (width, height).
             dpi (int, optional): Dots per inch for rendering. Defaults to 200.
+            auto_scale (bool, optional): Enable automatic axis scaling based on geometry data.
+                Defaults to False.
+            margin (float, optional): Margin to add around geometry bounds for auto scaling.
+                Defaults to 10.0.
 
         Raises:
             ValueError: If resolution contains non-positive values.
         """
+        # Set default axis limits if not provided
+        if xlim is None:
+            xlim = (-100.0, 100.0)
+        if ylim is None:
+            ylim = (-100.0, 100.0)
+
         self.xlim = xlim
         self.ylim = ylim
         self.resolution = resolution
         self.dpi = dpi
         self.width = max(self.resolution[0] / self.dpi, 1)
         self.height = max(self.resolution[1] / self.dpi, 1)
+        self._auto_scale_enabled = auto_scale
+        self._margin = margin
 
         aspect_ratio = (self.ylim[1] - self.ylim[0]) / (self.xlim[1] - self.xlim[0])
         height = self.width * aspect_ratio
@@ -88,6 +106,8 @@ class MatplotlibRenderer:
         self.road_polygons = dict()
         self.road_polygon_geometry = dict()
         self.participants = dict()
+        self.point_collections = dict()  # Stores PathCollection objects for point clouds
+        self.point_collection_geometry = dict()  # Stores point geometry data
 
         self.fig, self.ax = plt.subplots()
         self.fig.set_size_inches(self.width, self.height)
@@ -97,6 +117,183 @@ class MatplotlibRenderer:
         self.ax.set_xlim(*xlim)
         self.ax.set_ylim(*ylim)
         self.ax.set_axis_off()
+
+    def _extract_coordinates(self, point_data):
+        """Extract x, y coordinates from various data types.
+
+        Supports: list, tuple, numpy array, or any indexable object with at least 2 elements.
+
+        Args:
+            point_data: Coordinate data in any supported format.
+
+        Returns:
+            Tuple of (x, y) coordinates or None if invalid.
+        """
+        try:
+            if hasattr(point_data, "__len__") and len(point_data) >= 2:
+                x = float(point_data[0])
+                y = float(point_data[1])
+                return x, y
+        except (TypeError, IndexError, ValueError):
+            pass
+        return None
+
+    def _calculate_bounds(
+        self, geometry_data: dict
+    ) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """Calculate bounds from geometry data in world coordinates.
+
+        Args:
+            geometry_data (dict): Geometry data containing map and participant information.
+
+        Returns:
+            Tuple[Tuple[float, float], Tuple[float, float]]: Bounds as ((min_x, max_x), (min_y, max_y)).
+        """
+        min_x, min_y = float("inf"), float("inf")
+        max_x, max_y = float("-inf"), float("-inf")
+
+        # Include camera position in bounds if set
+        if self.camera_position is not None:
+            min_x = min(min_x, self.camera_position[0])
+            min_y = min(min_y, self.camera_position[1])
+            max_x = max(max_x, self.camera_position[0])
+            max_y = max(max_y, self.camera_position[1])
+            print(f"[DEBUG Renderer] Camera position: {self.camera_position}")
+
+        # Check map elements
+        if "map_data" in geometry_data and "road_elements" in geometry_data["map_data"]:
+            for element in geometry_data["map_data"]["road_elements"]:
+                if "geometry" in element:
+                    for point in element["geometry"]:
+                        coords = self._extract_coordinates(point)
+                        if coords is not None:
+                            x, y = coords
+                            if x > 1000 or y > 1000 or x < -1000 or y < -1000:
+                                print(
+                                    f"[DEBUG Renderer] Large map point detected: ({x:.2f}, {y:.2f})"
+                                )
+                            min_x = min(min_x, x)
+                            min_y = min(min_y, y)
+                            max_x = max(max_x, x)
+                            max_y = max(max_y, y)
+            print(
+                f"[DEBUG Renderer] After map elements - min_x: {min_x:.2f}, max_x: {max_x:.2f}, min_y: {min_y:.2f}, max_y: {max_y:.2f}"
+            )
+
+        # Check participants
+        if (
+            "participant_data" in geometry_data
+            and "participants" in geometry_data["participant_data"]
+        ):
+            for participant in geometry_data["participant_data"]["participants"]:
+                if "position" in participant:
+                    pos = participant["position"]
+                    coords = self._extract_coordinates(pos)
+                    if coords is not None:
+                        x, y = coords
+                        if x > 1000 or y > 1000 or x < -1000 or y < -1000:
+                            print(
+                                f"[DEBUG Renderer] Large participant position detected: ({x:.2f}, {y:.2f})"
+                            )
+                        min_x = min(min_x, x)
+                        min_y = min(min_y, y)
+                        max_x = max(max_x, x)
+                        max_y = max(max_y, y)
+            print(
+                f"[DEBUG Renderer] After participants - min_x: {min_x:.2f}, max_x: {max_x:.2f}, min_y: {min_y:.2f}, max_y: {max_y:.2f}"
+            )
+
+        # Check point clouds (for lidar sensors)
+        if "participant_data" in geometry_data:
+            point_clouds = geometry_data["participant_data"].get("point_clouds", [])
+            for point_cloud in point_clouds:
+                if "points" in point_cloud:
+                    for point in point_cloud["points"]:
+                        coords = self._extract_coordinates(point)
+                        if coords is not None:
+                            x, y = coords
+                            if x > 1000 or y > 1000 or x < -1000 or y < -1000:
+                                print(f"[DEBUG Renderer] Large point detected: ({x:.2f}, {y:.2f})")
+                            min_x = min(min_x, x)
+                            min_y = min(min_y, y)
+                            max_x = max(max_x, x)
+                            max_y = max(max_y, y)
+
+        print(
+            f"[DEBUG Renderer] Point cloud bounds - min_x: {min_x:.2f}, max_x: {max_x:.2f}, min_y: {min_y:.2f}, max_y: {max_y:.2f}"
+        )
+        # Add margin
+        min_x -= self._margin
+        min_y -= self._margin
+        max_x += self._margin
+        max_y += self._margin
+
+        # Ensure valid bounds
+        if min_x == float("inf"):
+            min_x = -self._margin
+        if min_y == float("inf"):
+            min_y = -self._margin
+        if max_x == float("-inf"):
+            max_x = self._margin
+        if max_y == float("-inf"):
+            max_y = self._margin
+
+        return (min_x, max_x), (min_y, max_y)
+
+    def _calculate_camera_bounds(
+        self, world_bounds: Tuple[Tuple[float, float], Tuple[float, float]]
+    ) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """Transform world bounds to camera coordinates.
+
+        Args:
+            world_bounds: World coordinate bounds as ((min_x, max_x), (min_y, max_y)).
+
+        Returns:
+            Camera coordinate bounds as ((min_x, max_x), (min_y, max_y)).
+        """
+        if self.camera_position is None or self.camera_yaw is None:
+            return world_bounds
+
+        (min_x, max_x), (min_y, max_y) = world_bounds
+
+        # Transform four corner points to camera coordinates
+        corners = np.array([[min_x, min_y], [min_x, max_y], [max_x, min_y], [max_x, max_y]])
+        transformed = self._transform_to_camera_view(corners)
+
+        # Calculate new bounds
+        cam_min_x = transformed[:, 0].min()
+        cam_max_x = transformed[:, 0].max()
+        cam_min_y = transformed[:, 1].min()
+        cam_max_y = transformed[:, 1].max()
+
+        return (cam_min_x, cam_max_x), (cam_min_y, cam_max_y)
+
+    def auto_scale(self, geometry_data: dict) -> None:
+        """Automatically calculate and set axis limits based on geometry data.
+
+        Args:
+            geometry_data (dict): Geometry data containing map and participant information.
+        """
+        if not self._auto_scale_enabled:
+            return
+
+        # Calculate world coordinate bounds
+        world_bounds = self._calculate_bounds(geometry_data)
+
+        # Transform to camera coordinates
+        camera_bounds = self._calculate_camera_bounds(world_bounds)
+
+        # Set axis limits
+        (x_min, x_max), (y_min, y_max) = camera_bounds
+        self.ax.set_xlim(x_min, x_max)
+        self.ax.set_ylim(y_min, y_max)
+        print(
+            f"[DEBUG Renderer] Auto-scaled axis limits - x: {self.ax.get_xlim()}, y: {self.ax.get_ylim()}"
+        )
+
+        # Update attributes
+        self.xlim = (x_min, x_max)
+        self.ylim = (y_min, y_max)
 
     def _resolve_style(self, color_key: str, type_key) -> tuple:
         """Resolve style keys to concrete color value and z-order.
@@ -261,6 +458,50 @@ class MatplotlibRenderer:
 
         return lines
 
+    def _create_points(self, element: Dict[str, Any]) -> Optional[PathCollection]:
+        """Create a matplotlib PathCollection from point cloud data.
+
+        Args:
+            element: Point cloud element data with keys:
+                - "points": Point coordinates list [[x1, y1], [x2, y2], ...]
+                - "color": Point color (optional, default "red")
+                - "point_size": Point size (optional, default 2.0)
+                - "alpha": Transparency (optional, default 0.8)
+                - "type": Point type (used for resolving color and z-order)
+
+        Returns:
+            PathCollection object or None (if point list is empty)
+        """
+        # Parse point data
+        points = np.array(element.get("points", []))
+        print(f"[DEBUG Renderer] Creating point cloud with {len(points)} points")
+        if len(points) == 0:
+            print("[DEBUG Renderer] Empty point cloud, returning None")
+            return None
+        if len(points) > 0:
+            print(f"[DEBUG Renderer] Point shape: {points.shape}, first point: {points[0]}")
+
+        # Resolve color and z-order
+        color, z_order = self._resolve_style(
+            element.get("color", "red"), element.get("type", "lidar_point_cloud")
+        )
+
+        # Create PathCollection
+        # Use unit circle as marker path
+        unit_circle = Path.unit_circle()
+        collection = PathCollection(
+            (unit_circle,),  # Single path for all points
+            sizes=[element.get("point_size", 2.0)],
+            facecolors=color,
+            alpha=element.get("alpha", 0.8),
+            edgecolors="none",  # No border for better performance
+            zorder=z_order,
+            pickradius=0,  # Disable picking for better performance
+            offsets=points,  # Set point positions
+        )
+
+        return collection
+
     def _transform_to_camera_view(self, points: ArrayLike) -> np.ndarray:
         """Transform points from world coordinates to camera view coordinates.
 
@@ -350,6 +591,22 @@ class MatplotlibRenderer:
             transformed = self._transform_to_camera_view(transformed)
             line.set_data(transformed[:, 0], transformed[:, 1])
 
+    def _update_points(self, point_collection: PathCollection, points: ArrayLike) -> None:
+        """Update point collection coordinates and apply camera transformation.
+
+        Args:
+            point_collection: PathCollection object to update
+            points: New point coordinates array
+        """
+        if len(points) == 0:
+            return
+
+        # Apply camera transformation
+        transformed_points = self._transform_to_camera_view(points)
+
+        # Update PathCollection offsets
+        point_collection.set_offsets(transformed_points)
+
     def update(
         self, geometry_data: dict, camera_position: Union[Point, ArrayLike], camera_yaw: float = 0
     ):
@@ -421,6 +678,7 @@ class MatplotlibRenderer:
         participant_id_to_create = participant_data["participant_id_to_create"]
         participant_id_to_remove = participant_data["participant_id_to_remove"]
         participants = participant_data["participants"]
+        point_clouds = participant_data.get("point_clouds", [])  # Optional point clouds field
 
         # Add new road elements
         for element in road_elements:
@@ -499,6 +757,37 @@ class MatplotlibRenderer:
                 elif participant.get("shape") == "circle":
                     self._update_circle(self.participants[id_], participant["position"])
 
+        # Process point clouds
+        # Remove all existing point clouds (simple replacement approach)
+        for pc_id, collection in self.point_collections.items():
+            collection.remove()
+        self.point_collections.clear()
+        self.point_collection_geometry.clear()
+
+        # Add new point clouds
+        for point_cloud in point_clouds:
+            pc_id = point_cloud.get("id", "point_cloud")
+            if pc_id in self.point_collections:
+                # Should not happen since we just cleared, but handle just in case
+                continue
+
+            collection = self._create_points(point_cloud)
+            if collection is None:
+                continue
+
+            self.point_collections[pc_id] = collection
+            self.point_collection_geometry[pc_id] = point_cloud.get("points", [])
+            self.ax.add_collection(collection)
+
+        # Update existing point clouds (should be none after clear, but for completeness)
+        for pc_id, geometry in self.point_collection_geometry.items():
+            if pc_id in self.point_collections:
+                self._update_points(self.point_collections[pc_id], geometry)
+
+        # Auto-scale if enabled
+        if self._auto_scale_enabled:
+            self.auto_scale(geometry_data)
+
     def save_single_frame(
         self, save_to: Optional[str] = None, dpi: Optional[int] = None, return_array: bool = False
     ):
@@ -571,6 +860,12 @@ class MatplotlibRenderer:
             patch.remove()
         self.participants.clear()
 
+        # Remove point clouds
+        for collection in self.point_collections.values():
+            collection.remove()
+        self.point_collections.clear()
+        self.point_collection_geometry.clear()
+
         # Remove any remaining artists (patches, lines, texts, etc.)
         for patch in list(self.ax.patches):
             patch.remove()
@@ -580,6 +875,8 @@ class MatplotlibRenderer:
             text.remove()
         for artist in list(self.ax.artists):
             artist.remove()
+        for collection in list(self.ax.collections):
+            collection.remove()
 
         # Do NOT use ax.clear(), instead reapply axis limits and settings
         self.ax.set_xlim(*self.xlim)
