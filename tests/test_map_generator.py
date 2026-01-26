@@ -35,9 +35,9 @@ def test_parking_lot_generator():
     geometry_data, _, _ = camera.update(0, None, None, None, None, position)
 
     matplotlib_renderer = MatplotlibRenderer(
-        (boundary[0], boundary[1]),
-        (boundary[2], boundary[3]),
         resolution=((boundary[1] - boundary[0]) * 100, (boundary[3] - boundary[2]) * 100),
+        xlim=(boundary[0], boundary[1]),
+        ylim=(boundary[2], boundary[3]),
     )
 
     matplotlib_renderer.update(geometry_data, [position.x, position.y])
@@ -60,9 +60,9 @@ def test_racing_track_generator():
     geometry_data, _, _ = camera.update(0, None, None, None, None, position)
 
     matplotlib_renderer = MatplotlibRenderer(
-        (boundary[0], boundary[1]),
-        (boundary[2], boundary[3]),
         resolution=((boundary[1] - boundary[0]) * 10, (boundary[3] - boundary[2]) * 10),
+        xlim=(boundary[0], boundary[1]),
+        ylim=(boundary[2], boundary[3]),
     )
     matplotlib_renderer.update(geometry_data, position)
     matplotlib_renderer.save_single_frame(save_to="./tests/runtime/racing_track.png")
