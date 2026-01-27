@@ -40,7 +40,7 @@ class MatplotlibRenderer:
         dpi (int): Dots per inch for rendering.
         width (float): Figure width in inches.
         height (float): Figure height in inches.
-        camera_position (np.ndarray): Current camera position [x, y].
+        sensor_position (np.ndarray): Current camera position [x, y].
         camera_yaw (float): Current camera yaw angle in radians.
         road_lines (Dict[str, List[Line2D]]): Dictionary mapping road line IDs to Line2D objects.
         road_line_geometry (Dict[str, np.ndarray]): Dictionary mapping road line IDs to geometry data.
@@ -57,8 +57,7 @@ class MatplotlibRenderer:
         xlim: Optional[Tuple[float, float]] = None,
         ylim: Optional[Tuple[float, float]] = None,
         dpi: int = 200,
-        auto_scale: bool = False,
-        margin: float = 10.0,
+        auto_scale: bool = True,
     ):
         """Initialize the MatplotlibRenderer.
 
@@ -70,9 +69,7 @@ class MatplotlibRenderer:
             resolution (Tuple[float, float]): Output resolution in pixels (width, height).
             dpi (int, optional): Dots per inch for rendering. Defaults to 200.
             auto_scale (bool, optional): Enable automatic axis scaling based on geometry data.
-                Defaults to False.
-            margin (float, optional): Margin to add around geometry bounds for auto scaling.
-                Defaults to 10.0.
+                Defaults to True.
 
         Raises:
             ValueError: If resolution contains non-positive values.
@@ -90,16 +87,15 @@ class MatplotlibRenderer:
         self.width = max(self.resolution[0] / self.dpi, 1)
         self.height = max(self.resolution[1] / self.dpi, 1)
         self._auto_scale_enabled = auto_scale
-        self._margin = margin
 
-        aspect_ratio = (self.ylim[1] - self.ylim[0]) / (self.xlim[1] - self.xlim[0])
-        height = self.width * aspect_ratio
-        if height < 1:
-            self.width = self.height / aspect_ratio
-        else:
-            self.height = height
+        # aspect_ratio = (self.ylim[1] - self.ylim[0]) / (self.xlim[1] - self.xlim[0])
+        # height = self.width * aspect_ratio
+        # if height < 1:
+        #     self.width = self.height / aspect_ratio
+        # else:
+        #     self.height = height
 
-        self.camera_position = None
+        self.sensor_position = None
         self.camera_yaw = None
         self.road_lines = dict()
         self.road_line_geometry = dict()
@@ -111,7 +107,7 @@ class MatplotlibRenderer:
 
         self.fig, self.ax = plt.subplots()
         self.fig.set_size_inches(self.width, self.height)
-        self.fig.subplots_adjust(left=0, right=1, bottom=0, top=0.95)
+        self.fig.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=0.9)
 
         self.ax.set_aspect("equal")
         self.ax.set_xlim(*xlim)
@@ -139,7 +135,7 @@ class MatplotlibRenderer:
         return None
 
     def _calculate_bounds(
-        self, geometry_data: dict
+        self, geometry_data: dict, perception_range
     ) -> Tuple[Tuple[float, float], Tuple[float, float]]:
         """Calculate bounds from geometry data in world coordinates.
 
@@ -152,148 +148,88 @@ class MatplotlibRenderer:
         min_x, min_y = float("inf"), float("inf")
         max_x, max_y = float("-inf"), float("-inf")
 
-        # Include camera position in bounds if set
-        if self.camera_position is not None:
-            min_x = min(min_x, self.camera_position[0])
-            min_y = min(min_y, self.camera_position[1])
-            max_x = max(max_x, self.camera_position[0])
-            max_y = max(max_y, self.camera_position[1])
-            print(f"[DEBUG Renderer] Camera position: {self.camera_position}")
+        # Include sensor's position in bounds if set
+        if self.sensor_position is not None:
+            # Handle perception_range being a tuple (left, right, front, back) or scalar
+            if isinstance(perception_range, (list, tuple)) and len(perception_range) == 4:
+                # Use maximum range for symmetric bounding box
+                min_x = self.sensor_position[0] - perception_range[0]
+                max_x = self.sensor_position[0] + perception_range[1]
+                min_y = self.sensor_position[1] - perception_range[3]
+                max_y = self.sensor_position[1] + perception_range[2]
+            elif perception_range is not None:
+                min_x = self.sensor_position[0] - perception_range
+                max_x = self.sensor_position[0] + perception_range
+                min_y = self.sensor_position[1] - perception_range
+                max_y = self.sensor_position[1] + perception_range
+            else:
+                min_x, max_x = self.xlim
+                min_y, max_y = self.ylim
 
-        # Check map elements
-        if "map_data" in geometry_data and "road_elements" in geometry_data["map_data"]:
-            for element in geometry_data["map_data"]["road_elements"]:
-                if "geometry" in element:
-                    for point in element["geometry"]:
-                        coords = self._extract_coordinates(point)
-                        if coords is not None:
-                            x, y = coords
-                            if x > 1000 or y > 1000 or x < -1000 or y < -1000:
-                                print(
-                                    f"[DEBUG Renderer] Large map point detected: ({x:.2f}, {y:.2f})"
-                                )
-                            min_x = min(min_x, x)
-                            min_y = min(min_y, y)
-                            max_x = max(max_x, x)
-                            max_y = max(max_y, y)
-            print(
-                f"[DEBUG Renderer] After map elements - min_x: {min_x:.2f}, max_x: {max_x:.2f}, min_y: {min_y:.2f}, max_y: {max_y:.2f}"
-            )
-
-        # Check participants
-        if (
-            "participant_data" in geometry_data
-            and "participants" in geometry_data["participant_data"]
-        ):
-            for participant in geometry_data["participant_data"]["participants"]:
-                if "position" in participant:
-                    pos = participant["position"]
-                    coords = self._extract_coordinates(pos)
-                    if coords is not None:
-                        x, y = coords
-                        if x > 1000 or y > 1000 or x < -1000 or y < -1000:
-                            print(
-                                f"[DEBUG Renderer] Large participant position detected: ({x:.2f}, {y:.2f})"
-                            )
-                        min_x = min(min_x, x)
-                        min_y = min(min_y, y)
-                        max_x = max(max_x, x)
-                        max_y = max(max_y, y)
-            print(
-                f"[DEBUG Renderer] After participants - min_x: {min_x:.2f}, max_x: {max_x:.2f}, min_y: {min_y:.2f}, max_y: {max_y:.2f}"
-            )
-
-        # Check point clouds (for lidar sensors)
-        if "participant_data" in geometry_data:
-            point_clouds = geometry_data["participant_data"].get("point_clouds", [])
-            for point_cloud in point_clouds:
-                if "points" in point_cloud:
-                    for point in point_cloud["points"]:
-                        coords = self._extract_coordinates(point)
-                        if coords is not None:
-                            x, y = coords
-                            if x > 1000 or y > 1000 or x < -1000 or y < -1000:
-                                print(f"[DEBUG Renderer] Large point detected: ({x:.2f}, {y:.2f})")
-                            min_x = min(min_x, x)
-                            min_y = min(min_y, y)
-                            max_x = max(max_x, x)
-                            max_y = max(max_y, y)
-
-        print(
-            f"[DEBUG Renderer] Point cloud bounds - min_x: {min_x:.2f}, max_x: {max_x:.2f}, min_y: {min_y:.2f}, max_y: {max_y:.2f}"
-        )
-        # Add margin
-        min_x -= self._margin
-        min_y -= self._margin
-        max_x += self._margin
-        max_y += self._margin
-
-        # Ensure valid bounds
-        if min_x == float("inf"):
-            min_x = -self._margin
-        if min_y == float("inf"):
-            min_y = -self._margin
-        if max_x == float("-inf"):
-            max_x = self._margin
-        if max_y == float("-inf"):
-            max_y = self._margin
+        # Use map boundary as bounds
+        else:
+            min_x, max_x = self.xlim
+            min_y, max_y = self.ylim
 
         return (min_x, max_x), (min_y, max_y)
 
-    def _calculate_camera_bounds(
-        self, world_bounds: Tuple[Tuple[float, float], Tuple[float, float]]
-    ) -> Tuple[Tuple[float, float], Tuple[float, float]]:
-        """Transform world bounds to camera coordinates.
-
-        Args:
-            world_bounds: World coordinate bounds as ((min_x, max_x), (min_y, max_y)).
-
-        Returns:
-            Camera coordinate bounds as ((min_x, max_x), (min_y, max_y)).
-        """
-        if self.camera_position is None or self.camera_yaw is None:
-            return world_bounds
-
-        (min_x, max_x), (min_y, max_y) = world_bounds
-
-        # Transform four corner points to camera coordinates
-        corners = np.array([[min_x, min_y], [min_x, max_y], [max_x, min_y], [max_x, max_y]])
-        transformed = self._transform_to_camera_view(corners)
-
-        # Calculate new bounds
-        cam_min_x = transformed[:, 0].min()
-        cam_max_x = transformed[:, 0].max()
-        cam_min_y = transformed[:, 1].min()
-        cam_max_y = transformed[:, 1].max()
-
-        return (cam_min_x, cam_max_x), (cam_min_y, cam_max_y)
-
-    def auto_scale(self, geometry_data: dict) -> None:
+    def auto_scale(self, geometry_data: dict, perception_range) -> None:
         """Automatically calculate and set axis limits based on geometry data.
 
         Args:
             geometry_data (dict): Geometry data containing map and participant information.
+            perception_range: Perception range (scalar or tuple) used for sensor bounds calculation.
         """
         if not self._auto_scale_enabled:
             return
 
-        # Calculate world coordinate bounds
-        world_bounds = self._calculate_bounds(geometry_data)
+        # Calculate world coordinate bounds using existing method
+        world_bounds = self._calculate_bounds(geometry_data, perception_range)
+        (x_min, x_max), (y_min, y_max) = world_bounds
 
-        # Transform to camera coordinates
-        camera_bounds = self._calculate_camera_bounds(world_bounds)
+        # Calculate world dimensions
+        world_width = x_max - x_min
+        world_height = y_max - y_min
 
-        # Set axis limits
-        (x_min, x_max), (y_min, y_max) = camera_bounds
-        self.ax.set_xlim(x_min, x_max)
-        self.ax.set_ylim(y_min, y_max)
-        print(
-            f"[DEBUG Renderer] Auto-scaled axis limits - x: {self.ax.get_xlim()}, y: {self.ax.get_ylim()}"
-        )
+        # Handle edge cases with zero or negative dimensions
+        if world_width <= 0:
+            world_width = 1.0
+        if world_height <= 0:
+            world_height = 1.0
+
+        # Calculate center point
+        center_x = (x_min + x_max) / 2
+        center_y = (y_min + y_max) / 2
+
+        # Calculate resolution aspect ratio (height/width)
+        resolution_aspect = self.resolution[1] / self.resolution[0]
+
+        # Calculate current bounds aspect ratio
+        current_aspect = world_height / world_width
+
+        # Adjust bounds to match resolution aspect ratio
+        if current_aspect > resolution_aspect:
+            # Current bounds are taller relative to image - adjust width
+            new_width = world_height / resolution_aspect
+            new_height = world_height
+        else:
+            # Current bounds are wider relative to image - adjust height
+            new_width = world_width
+            new_height = world_width * resolution_aspect
+
+        # Calculate new centered bounds
+        new_x_min = center_x - new_width / 2
+        new_x_max = center_x + new_width / 2
+        new_y_min = center_y - new_height / 2
+        new_y_max = center_y + new_height / 2
+
+        # Update axis limits
+        self.ax.set_xlim(new_x_min, new_x_max)
+        self.ax.set_ylim(new_y_min, new_y_max)
 
         # Update attributes
-        self.xlim = (x_min, x_max)
-        self.ylim = (y_min, y_max)
+        self.xlim = (new_x_min, new_x_max)
+        self.ylim = (new_y_min, new_y_max)
 
     def _resolve_style(self, color_key: str, type_key) -> tuple:
         """Resolve style keys to concrete color value and z-order.
@@ -474,12 +410,6 @@ class MatplotlibRenderer:
         """
         # Parse point data
         points = np.array(element.get("points", []))
-        print(f"[DEBUG Renderer] Creating point cloud with {len(points)} points")
-        if len(points) == 0:
-            print("[DEBUG Renderer] Empty point cloud, returning None")
-            return None
-        if len(points) > 0:
-            print(f"[DEBUG Renderer] Point shape: {points.shape}, first point: {points[0]}")
 
         # Resolve color and z-order
         color, z_order = self._resolve_style(
@@ -491,7 +421,7 @@ class MatplotlibRenderer:
         unit_circle = Path.unit_circle()
         collection = PathCollection(
             (unit_circle,),  # Single path for all points
-            sizes=[element.get("point_size", 2.0)],
+            sizes=[element.get("point_size", 1.0)],
             facecolors=color,
             alpha=element.get("alpha", 0.8),
             edgecolors="none",  # No border for better performance
@@ -514,18 +444,20 @@ class MatplotlibRenderer:
         Raises:
             RuntimeError: If camera position or yaw is not set.
         """
-        if self.camera_position is None or self.camera_yaw is None:
+        if self.sensor_position is None or self.camera_yaw is None:
             raise RuntimeError("Camera position and yaw must be set before transformation.")
 
         points = np.array(points)
-        dx, dy = -self.camera_position
+
+        dx, dy = -self.sensor_position
         cos_theta = np.cos(-self.camera_yaw)
         sin_theta = np.sin(-self.camera_yaw)
 
         translated = points + np.array([dx, dy])
         rotated = np.dot(translated, np.array([[cos_theta, -sin_theta], [sin_theta, cos_theta]]))
+        transformed = rotated - np.array([dx, dy])
 
-        return rotated
+        return transformed
 
     def _update_polygon(
         self,
@@ -607,9 +539,7 @@ class MatplotlibRenderer:
         # Update PathCollection offsets
         point_collection.set_offsets(transformed_points)
 
-    def update(
-        self, geometry_data: dict, camera_position: Union[Point, ArrayLike], camera_yaw: float = 0
-    ):
+    def update(self, geometry_data: dict):
         """Update the renderer with new geometry data and camera view.
 
         This method processes geometry data to create, update, and remove
@@ -630,23 +560,28 @@ class MatplotlibRenderer:
                         "participants": List[Dict[str, Any]]
                     }
                 }
-            camera_position (Union[Point, ArrayLike]): Camera position as shapely Point
+            sensor_position (Union[Point, ArrayLike]): Camera position as shapely Point
                 or 2D array-like [x, y].
             camera_yaw (float, optional): Camera yaw angle in radians. Defaults to 0.
 
         Raises:
             KeyError: If required keys are missing in geometry_data.
-            ValueError: If camera_position is not 2D.
+            ValueError: If sensor_position is not 2D.
         """
-        if isinstance(camera_position, Point):
-            self.camera_position = np.array([camera_position.x, camera_position.y])
+        metadata = geometry_data["metadata"]
+        sensor_position = metadata["sensor_position"]
+        camera_yaw = metadata["sensor_yaw"]
+        perception_range = metadata.get("perception_range", None)
+
+        if isinstance(sensor_position, Point):
+            self.sensor_position = np.array([sensor_position.x, sensor_position.y])
         else:
-            camera_position_array = np.asarray(camera_position)
-            if camera_position_array.size != 2:
+            sensor_position_array = np.asarray(sensor_position)
+            if sensor_position_array.size != 2:
                 raise ValueError(
-                    f"Camera position must be 2D, got shape {camera_position_array.shape}"
+                    f"Camera position must be 2D, got shape {sensor_position_array.shape}"
                 )
-            self.camera_position = camera_position_array[:2]  # Ensure only first 2 elements
+            self.sensor_position = sensor_position_array[:2]  # Ensure only first 2 elements
 
         self.camera_yaw = camera_yaw
 
@@ -764,16 +699,12 @@ class MatplotlibRenderer:
         self.point_collections.clear()
         self.point_collection_geometry.clear()
 
-        # Add new point clouds
-        for point_cloud in point_clouds:
-            pc_id = point_cloud.get("id", "point_cloud")
-            if pc_id in self.point_collections:
-                # Should not happen since we just cleared, but handle just in case
-                continue
+        # Add new point clouds (simplified ID generation)
+        for i, point_cloud in enumerate(point_clouds):
+            # Generate simple ID: use point cloud's own id or simple index
+            pc_id = point_cloud.get("id", f"point_cloud_{i}")
 
             collection = self._create_points(point_cloud)
-            if collection is None:
-                continue
 
             self.point_collections[pc_id] = collection
             self.point_collection_geometry[pc_id] = point_cloud.get("points", [])
@@ -786,7 +717,7 @@ class MatplotlibRenderer:
 
         # Auto-scale if enabled
         if self._auto_scale_enabled:
-            self.auto_scale(geometry_data)
+            self.auto_scale(geometry_data, perception_range)
 
     def save_single_frame(
         self, save_to: Optional[str] = None, dpi: Optional[int] = None, return_array: bool = False
@@ -839,7 +770,7 @@ class MatplotlibRenderer:
         This method removes all road elements, participants, and resets camera state.
         The figure and axes are preserved with their original limits and settings.
         """
-        self.camera_position = None
+        self.sensor_position = None
         self.camera_yaw = None
 
         # Remove road lines
@@ -905,7 +836,7 @@ class MatplotlibRenderer:
         # Clear all references
         self.fig = None
         self.ax = None
-        self.camera_position = None
+        self.sensor_position = None
         self.camera_yaw = None
         self.road_lines.clear()
         self.road_line_geometry.clear()

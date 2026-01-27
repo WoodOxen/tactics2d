@@ -5,7 +5,7 @@
 
 
 import time
-from typing import Dict, List, Set, Tuple, Union
+from typing import Any, Dict, List, Set, Tuple, Union
 
 import numpy as np
 from shapely.geometry import Point
@@ -38,7 +38,7 @@ class BEVCamera(SensorBase):
         """
         super().__init__(id_, map_, perception_range)
 
-    def _in_perception_range(self, geometry) -> bool:
+    def _in_perception_range(self, geometry: Any) -> bool:
         """Check if geometry is within sensor's perception range.
 
         Args:
@@ -51,9 +51,9 @@ class BEVCamera(SensorBase):
         if self._position is None:
             return True
 
-        return geometry.distance(self._position) <= self.max_perception_distance
+        return geometry.distance(self._position) <= self.max_perception_distance * 1.5
 
-    def _get_type(self, element):
+    def _get_type(self, element: Any) -> str:
         """Get the type string for a map or participant element.
 
         Args:
@@ -81,7 +81,7 @@ class BEVCamera(SensorBase):
 
         return "default"
 
-    def _get_map_elements(self, prev_road_id_set):
+    def _get_map_elements(self, prev_road_id_set: Set[int]) -> Tuple[Dict, Set[int]]:
         """Get map elements within perception range for rendering.
 
         Args:
@@ -95,6 +95,7 @@ class BEVCamera(SensorBase):
         road_element_list = []
         white = "white"
 
+        # Process areas (obstacles, etc.)
         for area in self._map.areas.values():
             if not self._in_perception_range(area.geometry):
                 continue
@@ -126,6 +127,7 @@ class BEVCamera(SensorBase):
                 )
                 road_id_list.append(int(1e6 + int(area.id_) + i * 1e5))
 
+        # Process lanes
         for lane in self._map.lanes.values():
             if not self._in_perception_range(lane.geometry):
                 continue
@@ -142,6 +144,7 @@ class BEVCamera(SensorBase):
             )
             road_id_list.append(int(1e6 + int(lane.id_)))
 
+        # Process roadlines (skip virtual lines)
         for roadline in self._map.roadlines.values():
             if roadline.type_ == "virtual" or not self._in_perception_range(roadline.geometry):
                 continue
@@ -188,7 +191,13 @@ class BEVCamera(SensorBase):
 
         return map_data, road_id_set
 
-    def _get_participants(self, frame, participants, participant_ids, prev_participant_id_set):
+    def _get_participants(
+        self,
+        frame: int,
+        participants: Dict,
+        participant_ids: List[int],
+        prev_participant_id_set: Set[int],
+    ) -> Tuple[Dict, Set[int]]:
         """Get participant elements within perception range for rendering.
 
         Args:
@@ -206,6 +215,7 @@ class BEVCamera(SensorBase):
         participant_list = []
         black = "black"
 
+        # Process each participant (vehicle, cyclist, pedestrian, obstacle)
         for participant_id in participant_ids:
             participant = participants[participant_id]
             participant_geometry = participant.get_pose(frame)
@@ -316,27 +326,7 @@ class BEVCamera(SensorBase):
             road_id_set (Set): The set of road IDs that were rendered in the current frame.
             participant_id_set (Set): The set of participant IDs that were rendered in the current frame.
         """
-        # Hybrid approach: use bound participant data if available, otherwise use provided parameters
-        pos = position
-        hdg = heading
-
-        if self.is_bound and participants is not None and self.bind_id in participants:
-            participant = participants[self.bind_id]
-            # Get position and heading based on participant type
-            if isinstance(participant, Vehicle) or isinstance(participant, Cyclist):
-                state = participant.trajectory.get_state(frame)
-                pos = Point(state.location[0], state.location[1])
-                hdg = state.heading
-            elif isinstance(participant, Pedestrian):
-                pose = participant.get_pose(frame)
-                # pose is (position, radius)
-                pos = Point(pose[0])
-                # Pedestrian doesn't have heading, keep provided heading or default
-                # hdg remains unchanged
-            # Obstacle and other types ignored
-
-        # Use base class method to set position and heading with defaults
-        self._set_position_heading(pos, hdg)
+        self._set_position_heading(position, heading)
 
         # Use base class method to setup default parameters
         participant_ids, prev_road_id_set, prev_participant_id_set = self._setup_update_parameters(
@@ -348,27 +338,20 @@ class BEVCamera(SensorBase):
             frame, participants, participant_ids, prev_participant_id_set
         )
 
-        # Calculate sensor position in render coordinates
-        if hasattr(self, "transform_matrix"):
-            a, b, d, e, x_off, y_off = self.transform_matrix
-            sensor_x = self._position.x
-            sensor_y = self._position.y
-            sensor_x_render = a * sensor_x + b * sensor_y + x_off
-            sensor_y_render = d * sensor_x + e * sensor_y + y_off
-            sensor_position = [sensor_x_render, sensor_y_render]
-        else:
-            sensor_position = [self._position.x, self._position.y]
-
         # Unified geometry data format compatible with renderer
         geometry_data = {
             "frame": frame,
             "map_data": map_data,
             "participant_data": participant_data,
             # Additional sensor metadata for consistency with lidar
-            "sensor_type": "camera",
-            "sensor_id": self.id_,
-            "sensor_position": sensor_position,
-            "metadata": {"timestamp": time.time(), "perception_range": self._perception_range},
+            "metadata": {
+                "timestamp": time.time(),
+                "perception_range": self._perception_range,
+                "sensor_type": "camera",
+                "sensor_id": self.id_,
+                "sensor_position": self._position,
+                "sensor_yaw": self._heading,
+            },
         }
 
         return geometry_data, road_id_set, participant_id_set

@@ -5,7 +5,7 @@
 
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 from shapely.geometry import Point
@@ -59,37 +59,47 @@ class SensorBase(ABC):
             self._perception_range = perception_range
 
     @property
-    def id_(self):
+    def id_(self) -> int:
         return self._id
 
     @property
-    def map_(self):
+    def map_(self) -> Map:
         return self._map
 
     @property
-    def perception_range(self):
+    def perception_range(self) -> Union[float, Tuple[float, float, float, float]]:
         return self._perception_range
 
     @property
-    def max_perception_distance(self):
+    def max_perception_distance(self) -> float:
         return np.max(self.perception_range)
 
     @property
-    def position(self):
+    def position(self) -> Point:
         return self._position
 
     @property
-    def bind_id(self):
+    def bind_id(self) -> Optional[int]:
         return self._bind_id
 
     @property
-    def is_bound(self):
+    def is_bound(self) -> bool:
         return self._bind_id is not None
 
-    def bind_with(self, bind_id):
+    def bind_with(self, bind_id: int) -> None:
+        """Bind the sensor to a participant with the given ID.
+
+        Args:
+            bind_id: ID of the participant to bind to.
+        """
         self._bind_id = bind_id
 
-    def _update_transform_matrix(self):
+    def _update_transform_matrix(self) -> None:
+        """Update the transformation matrix for sensor coordinate conversion.
+
+        The transformation matrix converts points from global coordinate system to sensor-local
+        coordinate system, adjusting for sensor position and heading (theta = heading - π/2).
+        """
         theta = self._heading - np.pi / 2
 
         self.transform_matrix = np.array(
@@ -98,12 +108,8 @@ class SensorBase(ABC):
                 np.sin(theta),
                 np.sin(theta),
                 -np.cos(theta),
-                self.max_perception_distance
-                - self._position.x * np.cos(theta)
-                - self._position.y * np.sin(theta),
-                self.max_perception_distance
-                - self._position.x * np.sin(theta)
-                + self._position.y * np.cos(theta),
+                -self._position.x * np.cos(theta) - self._position.y * np.sin(theta),
+                -self._position.x * np.sin(theta) + self._position.y * np.cos(theta),
             ]
         )
 
@@ -138,7 +144,12 @@ class SensorBase(ABC):
                 - participant_id_set: The set of participant IDs that were rendered in the current frame
         """
 
-    def _setup_update_parameters(self, participant_ids, prev_road_id_set, prev_participant_id_set):
+    def _setup_update_parameters(
+        self,
+        participant_ids: Optional[List[int]],
+        prev_road_id_set: Optional[Set[int]],
+        prev_participant_id_set: Optional[Set[int]],
+    ) -> Tuple[List[int], Set[int], Set[int]]:
         """Setup default values for update parameters.
 
         Args:
@@ -158,7 +169,7 @@ class SensorBase(ABC):
 
         return participant_ids, prev_road_id_set, prev_participant_id_set
 
-    def _set_position_heading(self, position, heading):
+    def _set_position_heading(self, position: Optional[Point], heading: Optional[float]) -> None:
         """Set sensor position and heading with default values.
 
         If position or heading is None, sets default position (map center) and heading (π/2).
@@ -177,6 +188,6 @@ class SensorBase(ABC):
                 0.5 * (self.map_.boundary[0] + self.map_.boundary[1]),
                 0.5 * (self.map_.boundary[2] + self.map_.boundary[3]),
             )
-            self._heading = np.pi / 2
+            self._heading = 0
 
         self._update_transform_matrix()
