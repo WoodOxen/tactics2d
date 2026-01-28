@@ -49,7 +49,6 @@ class SingleLineLidar(SensorBase):
         """
         super().__init__(id_, map_, perception_range)
 
-        self._perception_range = perception_range
         self._freq_scan = freq_scan
         self._freq_detect = freq_detect
 
@@ -119,7 +118,10 @@ class SingleLineLidar(SensorBase):
         for i, obs in enumerate(obstacles):
             rotated_obs = affine_transform(obs, affine_mat)
             distance = rotated_obs.distance(origin)
-            in_range = distance < self.perception_range
+            in_range = distance < self.max_perception_distance
+
+            if in_range:
+                rotated_obstacles.append(rotated_obs)
 
         return rotated_obstacles
 
@@ -193,11 +195,13 @@ class SingleLineLidar(SensorBase):
         # - Points not on the lidar ray segment (within perception range)
         # - Points not on the obstacle edge segment
         # - Parallel lines (det = 0)
-        tmp_inf = self.perception_range * 10
+        tmp_inf = self.max_perception_distance * 10
         tmp_zero = 1e-8
         # the false positive intersections on line L1(not on ray L1)
-        lidar_line_x = (np.cos(theta) * self.perception_range).reshape(-1, 1)  # (point_density, 1)
-        lidar_line_y = (np.sin(theta) * self.perception_range).reshape(-1, 1)
+        lidar_line_x = (np.cos(theta) * self.max_perception_distance).reshape(
+            -1, 1
+        )  # (point_density, 1)
+        lidar_line_y = (np.sin(theta) * self.max_perception_distance).reshape(-1, 1)
         raw_x[raw_x > np.maximum(tmp_zero, lidar_line_x) + tmp_zero] = tmp_inf
         raw_x[raw_x < np.minimum(-tmp_zero, lidar_line_x) - tmp_zero] = tmp_inf
         raw_y[raw_y > np.maximum(tmp_zero, lidar_line_y) + tmp_zero] = tmp_inf
@@ -212,8 +216,8 @@ class SingleLineLidar(SensorBase):
 
         # Compute minimum distance for each lidar beam (closest intersection)
         lidar_obs = np.min(np.sqrt(raw_x**2 + raw_y**2), axis=1)  # (point_density,)
-        lidar_obs = np.clip(lidar_obs, 0, self.perception_range)
-        lidar_obs[lidar_obs == self.perception_range] = float("inf")
+        lidar_obs = np.clip(lidar_obs, 0, self.max_perception_distance)
+        lidar_obs[lidar_obs == self.max_perception_distance] = float("inf")
         self.scan_result = lidar_obs
 
     def _get_points(self) -> List[List[float]]:

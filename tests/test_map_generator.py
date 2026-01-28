@@ -40,7 +40,7 @@ def test_parking_lot_generator():
         ylim=(boundary[2], boundary[3]),
     )
 
-    matplotlib_renderer.update(geometry_data, [position.x, position.y])
+    matplotlib_renderer.update(geometry_data)
     matplotlib_renderer.save_single_frame(save_to="./tests/runtime/parking_lot.png")
 
     assert isinstance(start_state, State), "start_state should be a State object."
@@ -64,7 +64,7 @@ def test_racing_track_generator():
         xlim=(boundary[0], boundary[1]),
         ylim=(boundary[2], boundary[3]),
     )
-    matplotlib_renderer.update(geometry_data, position)
+    matplotlib_renderer.update(geometry_data)
     matplotlib_renderer.save_single_frame(save_to="./tests/runtime/racing_track.png")
 
     assert isinstance(map_.customs["start_state"], State), "start_state should be a State object."

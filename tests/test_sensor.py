@@ -525,6 +525,8 @@ class TestSingleLineLidar:
             # Old format: direct list of coordinates
             points = point_clouds
 
+        assert len(points) > 0, "Lidar should detect at least one point"
+
         # Check point cloud properties
         assert all(
             isinstance(p, (list, tuple)) for p in points
