@@ -4,7 +4,8 @@
 """Pseudo lidar implementation."""
 
 
-from typing import Tuple
+import time
+from typing import Dict, List, Set, Tuple
 
 import numpy as np
 from shapely.affinity import affine_transform
@@ -29,9 +30,6 @@ class SingleLineLidar(SensorBase):
         is_bound (bool): Whether the sensor is bound to an object. This attribute is **read-only** once the instance is initialized.
     """
 
-    black = "#000000"
-    white = "#FFFFFF"
-
     def __init__(
         self,
         id_: int,
@@ -51,7 +49,6 @@ class SingleLineLidar(SensorBase):
         """
         super().__init__(id_, map_, perception_range)
 
-        self._perception_range = perception_range
         self._freq_scan = freq_scan
         self._freq_detect = freq_detect
 
@@ -67,26 +64,16 @@ class SingleLineLidar(SensorBase):
     def freq_detect(self) -> float:
         return self._freq_detect
 
-    def _update_transform_matrix(self):
-        theta = self._heading - np.pi / 2
-
-        self.transform_matrix = np.array(
-            [
-                np.cos(theta),
-                np.sin(theta),
-                np.sin(theta),
-                -np.cos(theta),
-                self.perception_range
-                - self._position.x * np.cos(theta)
-                - self._position.y * np.sin(theta),
-                self.perception_range
-                - self._position.x * np.sin(theta)
-                + self._position.y * np.cos(theta),
-            ]
-        )
-
     def _estimate_line_idx_range(self, polygon) -> Tuple[int, int]:
-        # estimate the lidar idx range that an obstacle may fall in
+        """Estimate the lidar index range that an obstacle may fall within.
+
+        Args:
+            polygon: Shapely polygon representing an obstacle.
+
+        Returns:
+            Tuple of (start_idx, end_idx) representing the range of lidar beam indices
+            that could intersect with the obstacle's bounding box.
+        """
         bound = polygon.bounds
         angles = [
             np.arctan2(bound[1] - self._position.y, bound[0] - self._position.x),
@@ -107,8 +94,18 @@ class SingleLineLidar(SensorBase):
 
         return line_idx_range
 
-    def _rotate_and_filter_obstacles(self, ego_pos: tuple, obstacles: list):
-        # Rotate the obstacles around the vehicle and remove the obstacles out of perception range.
+    def _rotate_and_filter_obstacles(
+        self, ego_pos: Tuple[float, float, float], obstacles: List
+    ) -> List:
+        """Rotate obstacles to vehicle coordinate system and filter by perception range.
+
+        Args:
+            ego_pos: Tuple of (x, y, heading) representing vehicle position and orientation.
+            obstacles: List of shapely geometry objects (LinearRing or Polygon exterior).
+
+        Returns:
+            List of obstacles transformed to vehicle coordinate system and within perception range.
+        """
         origin = Point((0, 0))
         x, y, theta = ego_pos
         a = np.cos(theta)
@@ -118,14 +115,24 @@ class SingleLineLidar(SensorBase):
         affine_mat = [a, b, -b, a, x_off, y_off]
 
         rotated_obstacles = []
-        for obs in obstacles:
+        for i, obs in enumerate(obstacles):
             rotated_obs = affine_transform(obs, affine_mat)
-            if rotated_obs.distance(origin) < self.perception_range:
+            distance = rotated_obs.distance(origin)
+            in_range = distance < self.max_perception_distance
+
+            if in_range:
                 rotated_obstacles.append(rotated_obs)
 
         return rotated_obstacles
 
-    def _scan_obstacles(self, frame: int, participants: dict, participant_ids: list):
+    def _scan_obstacles(self, frame: int, participants: Dict, participant_ids: List[int]) -> None:
+        """Perform lidar scanning to detect obstacles and compute distances.
+
+        Args:
+            frame: Current frame number.
+            participants: Dictionary of all participants.
+            participant_ids: List of participant IDs to consider (excluding self).
+        """
         # Collect obstacles
         potential_obstacles = []
         for area in self.map_.areas.values():
@@ -148,10 +155,9 @@ class SingleLineLidar(SensorBase):
             (self._position.x, self._position.y, self._heading), potential_obstacles
         )
 
-        # Line 1: the lidar ray, ax + by + c = 0
-        theta = np.array(
-            [a * np.pi / self.point_density * 2 for a in range(self.point_density)]
-        )  # (point_density,)
+        # Line 1: the lidar ray, ax + by + c = 0 (c = 0 because ray passes through origin)
+        # Compute line parameters for each lidar beam (theta = angle)
+        theta = np.linspace(0, 2 * np.pi, self.point_density, endpoint=False)  # (point_density,)
         a = np.sin(theta).reshape(-1, 1)  # (point_density, 1)
         b = -np.cos(theta).reshape(-1, 1)
         c = 0
@@ -178,19 +184,24 @@ class SingleLineLidar(SensorBase):
         e = (x1s - x2s).reshape(1, -1)
         f = (y1s * x2s - x1s * y2s).reshape(1, -1)
 
-        # calculate the intersections
+        # Calculate intersection points between lidar rays and obstacle edges using determinant method
         det = a * e - b * d  # (point_density, E)
         parallel_line_pos = det == 0  # (point_density, E)
         det[parallel_line_pos] = 1  # temporarily set "1" to avoid "divided by zero"
         raw_x = (b * f - c * e) / det  # (point_density, E)
         raw_y = (c * d - a * f) / det
 
-        # select the true intersections, set the false positive intersections to inf
-        tmp_inf = self.perception_range * 10
+        # Filter out false positive intersections:
+        # - Points not on the lidar ray segment (within perception range)
+        # - Points not on the obstacle edge segment
+        # - Parallel lines (det = 0)
+        tmp_inf = self.max_perception_distance * 10
         tmp_zero = 1e-8
         # the false positive intersections on line L1(not on ray L1)
-        lidar_line_x = (np.cos(theta) * self.perception_range).reshape(-1, 1)  # (point_density, 1)
-        lidar_line_y = (np.sin(theta) * self.perception_range).reshape(-1, 1)
+        lidar_line_x = (np.cos(theta) * self.max_perception_distance).reshape(
+            -1, 1
+        )  # (point_density, 1)
+        lidar_line_y = (np.sin(theta) * self.max_perception_distance).reshape(-1, 1)
         raw_x[raw_x > np.maximum(tmp_zero, lidar_line_x) + tmp_zero] = tmp_inf
         raw_x[raw_x < np.minimum(-tmp_zero, lidar_line_x) - tmp_zero] = tmp_inf
         raw_y[raw_y > np.maximum(tmp_zero, lidar_line_y) + tmp_zero] = tmp_inf
@@ -203,115 +214,110 @@ class SingleLineLidar(SensorBase):
         # the (L1, L2) which are parallel
         raw_x[parallel_line_pos] = tmp_inf
 
+        # Compute minimum distance for each lidar beam (closest intersection)
         lidar_obs = np.min(np.sqrt(raw_x**2 + raw_y**2), axis=1)  # (point_density,)
-        lidar_obs = np.clip(lidar_obs, 0, self.perception_range)
-        lidar_obs[lidar_obs == self.perception_range] = float("inf")
+        lidar_obs = np.clip(lidar_obs, 0, self.max_perception_distance)
+        lidar_obs[lidar_obs == self.max_perception_distance] = float("inf")
         self.scan_result = lidar_obs
 
-    def _get_points(self):
+    def _get_points(self) -> List[List[float]]:
+        """Convert lidar scan results to point cloud coordinates in render coordinate system.
+
+        Returns:
+            List of [x, y] point coordinates for all lidar beams.
+            Points with no detection are placed at max_perception_distance.
+        """
         lidar_angles = np.linspace(0, 2 * np.pi, self.point_density, endpoint=False)
-        mask = self.scan_result != float("inf")
-        lidar_point_angles = lidar_angles[mask]
-        lidar_point_position = self.scan_result[mask]
 
-        point_x_ego = self._position.x + lidar_point_position * np.cos(
-            lidar_point_angles + self._heading
-        )
-        point_y_ego = self._position.y + lidar_point_position * np.sin(
-            lidar_point_angles + self._heading
-        )
+        valid_mask = self.scan_result != float("inf")
+        valid_points = np.sum(valid_mask)
 
-        a, b, d, e, x_off, y_off = self.transform_matrix
-        point_x_render = a * point_x_ego + b * point_y_ego + x_off
-        point_y_render = d * point_x_ego + e * point_y_ego + y_off
-        points = np.stack([point_x_render, point_y_render], axis=1)
+        valid_distances = self.scan_result[valid_mask]
+        valid_angles = lidar_angles[valid_mask]
+
+        point_x_ego = self._position.x + valid_distances * np.cos(valid_angles + self._heading)
+        point_y_ego = self._position.y + valid_distances * np.sin(valid_angles + self._heading)
+
+        # TODO: Coordinate transformation to render space may be needed; see self.transform_matrix
+        points = np.stack([point_x_ego, point_y_ego], axis=1)
 
         return points.tolist()
 
     def update(
         self,
         frame: int,
-        participants: dict,
-        participant_ids: list,
-        prev_road_id_set: set = None,
-        prev_participant_id_set: set = None,
+        participants: Dict,
+        participant_ids: List,
+        prev_road_id_set: Set = None,
+        prev_participant_id_set: Set = None,
         position: Point = None,
         heading: float = None,
-    ):
+    ) -> Tuple[Dict, Set, Set]:
         """This function is used to update the lidar's position and obtain the geometry data under specific rendering paradigm.
 
         Args:
             frame (int): The frame of the observation.
-            participants (dict): The participants in the scenario.
-            participant_ids (list): The list of participant IDs to be rendered.
-            prev_road_id_set (set, optional): The set of road IDs that were rendered in the previous frame. Defaults to None.
-            prev_participant_id_set (set, optional): The set of participant IDs that were rendered in the previous frame. Defaults to None.
+            participants (Dict): The participants in the scenario.
+            participant_ids (List): The list of participant IDs to be rendered.
+            prev_road_id_set (Set, optional): The set of road IDs that were rendered in the previous frame. Defaults to None.
+            prev_participant_id_set (Set, optional): The set of participant IDs that were rendered in the previous frame. Defaults to None.
             position (Point, optional): The position of the lidar. Defaults to None.
-            heading (float, optional): The heading of the object that the lidar is attched to. Defaults to None.
+            heading (float, optional): The heading of the object that the lidar is attached to. Defaults to None.
 
         Returns:
-            geometry_data (dict): The geometry data to be rendered, including a dict with four keys: frame, map_data, participant_data, and lidar_data. The map_data is a dict with keys road_id_to_remove (list) and road_elements (list), while participant_data is a dict with keys participant_id_to_create (list), participant_id_to_remove (list), and participants (list). For lidar, map_data and participant_data are empty, and lidar points are included in the lidar_data key as {"points": list}.
-            road_id_set (set): The set of road IDs that were rendered in the current frame. Always an empty set for lidar.
-            participant_id_set (set): The set of participant IDs that were rendered in the current frame. Always an empty set for lidar.
+            geometry_data (Dict): The geometry data to be rendered in unified format.
+            road_id_set (Set): The set of road IDs that were rendered in the current frame. Always an empty set for lidar.
+            participant_id_set (Set): The set of participant IDs that were rendered in the current frame. Always an empty set for lidar.
         """
-        # Handle None parameters
-        if participant_ids is None:
-            participant_ids = []
-        if prev_road_id_set is None:
-            prev_road_id_set = set()
-        if prev_participant_id_set is None:
-            prev_participant_id_set = set()
+        self._set_position_heading(position, heading)
 
-        self._position = position
-        self._heading = heading
-        if None in [self._position, self._heading]:
-            self._position = Point(
-                0.5 * (self.map_.boundary[0] + self.map_.boundary[1]),
-                0.5 * (self.map_.boundary[2] + self.map_.boundary[3]),
-            )
-            self._heading = np.pi / 2
+        # Use base class methods to setup parameters
+        participant_ids, prev_road_id_set, prev_participant_id_set = self._setup_update_parameters(
+            participant_ids, prev_road_id_set, prev_participant_id_set
+        )
 
-        self._update_transform_matrix()
         self.scan_result = np.full(self.point_density, float("inf"))
         self._scan_obstacles(frame, participants, participant_ids)
 
-        lidar_points = self._get_points()
-
-        # Calculate sensor position in render coordinates
-        if hasattr(self, "transform_matrix"):
-            a, b, d, e, x_off, y_off = self.transform_matrix
-            sensor_x = self._position.x
-            sensor_y = self._position.y
-            sensor_x_render = a * sensor_x + b * sensor_y + x_off
-            sensor_y_render = d * sensor_x + e * sensor_y + y_off
-            sensor_position = [sensor_x_render, sensor_y_render]
-        else:
-            sensor_position = [self._position.x, self._position.y]
-
-        # Create empty map_data and participant_data to match camera interface
+        # Create empty map_data and participant_data for backward compatibility
         map_data = {
-            "road_id_to_remove": list(
-                prev_road_id_set
-            ),  # Remove all previous roads (lidar doesn't track roads)
+            "road_id_to_remove": list(prev_road_id_set),
             "road_elements": [],  # No road elements for lidar
         }
 
+        # Create point cloud data in standardized format
+        point_clouds = [
+            {
+                "id": "lidar_0",  # Fixed ID as there's only one lidar
+                "points": self._get_points(),  # Use existing method to get coordinates
+                "type": "lidar_point_cloud",
+                "color": "red",
+                "point_size": 1.0,
+                "alpha": 0.8,
+            }
+        ]
+
         participant_data = {
             "participant_id_to_create": [],  # No participants to create
-            "participant_id_to_remove": list(
-                prev_participant_id_set
-            ),  # Remove all previous participants
+            "participant_id_to_remove": list(prev_participant_id_set),
             "participants": [],  # No participant elements for lidar
+            "point_clouds": point_clouds,  # Point clouds for rendering in standardized format
         }
 
+        # Unified geometry data format compatible with camera renderer
         geometry_data = {
             "frame": frame,
             "map_data": map_data,
             "participant_data": participant_data,
-            "lidar_data": {
-                "points": lidar_points,
-                "sensor_position": sensor_position,
-            },  # Keep lidar points in separate key
+            # Additional sensor metadata for backward compatibility
+            "metadata": {
+                "timestamp": time.time(),
+                "perception_range": self._perception_range,
+                "sensor_type": "lidar",
+                "sensor_id": self.id_,
+                "sensor_position": self._position,
+                "sensor_yaw": self._heading,
+            },
         }
 
         # Return empty sets for road_id_set and participant_id_set

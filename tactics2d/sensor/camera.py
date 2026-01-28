@@ -4,7 +4,8 @@
 """Camera implementation."""
 
 
-from typing import Tuple, Union
+import time
+from typing import Any, Dict, List, Set, Tuple, Union
 
 import numpy as np
 from shapely.geometry import Point
@@ -37,15 +38,30 @@ class BEVCamera(SensorBase):
         """
         super().__init__(id_, map_, perception_range)
 
-        self._map_rendered = False
+    def _in_perception_range(self, geometry: Any) -> bool:
+        """Check if geometry is within sensor's perception range.
 
-    def _in_perception_range(self, geometry) -> bool:
+        Args:
+            geometry: Shapely geometry object to check.
+
+        Returns:
+            True if geometry is within perception range or sensor has no position,
+            False otherwise.
+        """
         if self._position is None:
             return True
 
-        return geometry.distance(self._position) <= self.max_perception_distance * 2
+        return geometry.distance(self._position) <= self.max_perception_distance * 1.5
 
-    def _get_type(self, element):
+    def _get_type(self, element: Any) -> str:
+        """Get the type string for a map or participant element.
+
+        Args:
+            element: Map element (Area, Lane, RoadLine) or participant element.
+
+        Returns:
+            String type identifier for the element.
+        """
         if hasattr(element, "subtype") and element.subtype:
             return element.subtype
         elif hasattr(element, "type_") and element.type_:
@@ -65,11 +81,21 @@ class BEVCamera(SensorBase):
 
         return "default"
 
-    def _get_map_elements(self, prev_road_id_set):
+    def _get_map_elements(self, prev_road_id_set: Set[int]) -> Tuple[Dict, Set[int]]:
+        """Get map elements within perception range for rendering.
+
+        Args:
+            prev_road_id_set: Set of road IDs from previous frame.
+
+        Returns:
+            Tuple of (map_data, road_id_set) where map_data contains road elements
+            to remove and create, and road_id_set is the set of road IDs in current frame.
+        """
         road_id_list = []
         road_element_list = []
         white = "white"
 
+        # Process areas (obstacles, etc.)
         for area in self._map.areas.values():
             if not self._in_perception_range(area.geometry):
                 continue
@@ -101,6 +127,7 @@ class BEVCamera(SensorBase):
                 )
                 road_id_list.append(int(1e6 + int(area.id_) + i * 1e5))
 
+        # Process lanes
         for lane in self._map.lanes.values():
             if not self._in_perception_range(lane.geometry):
                 continue
@@ -117,6 +144,7 @@ class BEVCamera(SensorBase):
             )
             road_id_list.append(int(1e6 + int(lane.id_)))
 
+        # Process roadlines (skip virtual lines)
         for roadline in self._map.roadlines.values():
             if roadline.type_ == "virtual" or not self._in_perception_range(roadline.geometry):
                 continue
@@ -163,11 +191,31 @@ class BEVCamera(SensorBase):
 
         return map_data, road_id_set
 
-    def _get_participants(self, frame, participants, participant_ids, prev_participant_id_set):
+    def _get_participants(
+        self,
+        frame: int,
+        participants: Dict,
+        participant_ids: List[int],
+        prev_participant_id_set: Set[int],
+    ) -> Tuple[Dict, Set[int]]:
+        """Get participant elements within perception range for rendering.
+
+        Args:
+            frame: Current frame number.
+            participants: Dictionary of all participants.
+            participant_ids: List of participant IDs to consider.
+            prev_participant_id_set: Set of participant IDs from previous frame.
+
+        Returns:
+            Tuple of (participant_data, participant_id_set) where participant_data contains
+            participant elements to remove and create, and participant_id_set is the set of
+            participant IDs in current frame.
+        """
         participant_id_list = []
         participant_list = []
         black = "black"
 
+        # Process each participant (vehicle, cyclist, pedestrian, obstacle)
         for participant_id in participant_ids:
             participant = participants[participant_id]
             participant_geometry = participant.get_pose(frame)
@@ -189,7 +237,7 @@ class BEVCamera(SensorBase):
                 state = participant.trajectory.get_state(frame)
                 position = list(state.location)
                 heading = state.heading
-                id_ = abs(participant.id_)
+                id_ = abs(int(participant.id_))
 
                 participant_list.append(
                     {
@@ -220,7 +268,7 @@ class BEVCamera(SensorBase):
                 participant_id_list.append(id_ + 0.5)
 
             elif isinstance(participant, Pedestrian):
-                id_ = abs(participant.id_)
+                id_ = abs(int(participant.id_))
                 participant_list.append(
                     {
                         "id": id_,
@@ -253,40 +301,57 @@ class BEVCamera(SensorBase):
     def update(
         self,
         frame: int,
-        participants: dict,
-        participant_ids: list,
-        prev_road_id_set: set,
-        prev_participant_id_set: set,
+        participants: Dict,
+        participant_ids: List,
+        prev_road_id_set: Set = None,
+        prev_participant_id_set: Set = None,
         position: Point = None,
-    ):
+        heading: float = None,
+    ) -> Tuple[Dict, Set, Set]:
         """This function is used to update the camera's position and obtain the geometry data under specific rendering paradigm.
 
         Args:
             frame (int): The frame of the observation.
-            participants (dict): The participants in the scenario.
-            participant_ids (list): The list of participant IDs to be rendered.
-            prev_road_id_set (set): The set of road IDs that were rendered in the previous frame.
-            prev_participant_id_set (set): The set of participant IDs that were rendered in the previous frame.
+            participants (Dict): The participants in the scenario.
+            participant_ids (List): The list of participant IDs to be rendered.
+            prev_road_id_set (Set, optional): The set of road IDs that were rendered in the previous frame.
+                Defaults to None.
+            prev_participant_id_set (Set, optional): The set of participant IDs that were rendered in the previous frame.
+                Defaults to None.
             position (Point, optional): The position of the camera. Defaults to None.
+            heading (float, optional): The heading of the camera in radians. Defaults to None.
 
         Returns:
-            geometry_data (dict): The geometry data to be rendered, including a dict with three keys: frame, map_data, and participant_data. The map_data is a dict with keys road_id_to_remove (list) and road_elements (dict), while participant_data is a dict with keys participant_id_to_create (list), participant_id_to_remove (list), and participants (dict).
-            road_id_set (set): The set of road IDs that were rendered in the current frame.
-            participant_id_set (set): The set of participant IDs that were rendered in the current frame.
+            geometry_data (Dict): The geometry data to be rendered in unified format.
+            road_id_set (Set): The set of road IDs that were rendered in the current frame.
+            participant_id_set (Set): The set of participant IDs that were rendered in the current frame.
         """
-        self._position = position
+        self._set_position_heading(position, heading)
 
-        if participant_ids is None:
-            participant_ids = dict()
-        if prev_road_id_set is None:
-            prev_road_id_set = set()
-        if prev_participant_id_set is None:
-            prev_participant_id_set = set()
+        # Use base class method to setup default parameters
+        participant_ids, prev_road_id_set, prev_participant_id_set = self._setup_update_parameters(
+            participant_ids, prev_road_id_set, prev_participant_id_set
+        )
 
         map_data, road_id_set = self._get_map_elements(prev_road_id_set)
         participant_data, participant_id_set = self._get_participants(
             frame, participants, participant_ids, prev_participant_id_set
         )
 
-        geometry_data = {"frame": frame, "map_data": map_data, "participant_data": participant_data}
+        # Unified geometry data format compatible with renderer
+        geometry_data = {
+            "frame": frame,
+            "map_data": map_data,
+            "participant_data": participant_data,
+            # Additional sensor metadata for consistency with lidar
+            "metadata": {
+                "timestamp": time.time(),
+                "perception_range": self._perception_range,
+                "sensor_type": "camera",
+                "sensor_id": self.id_,
+                "sensor_position": self._position,
+                "sensor_yaw": self._heading,
+            },
+        }
+
         return geometry_data, road_id_set, participant_id_set

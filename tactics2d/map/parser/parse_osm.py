@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import logging
-from collections import deque
 from typing import Tuple
 
 import defusedxml.ElementTree as ET
@@ -31,30 +30,19 @@ class OSMParser:
         self.lanelet2 = lanelet2
 
     def _append_point_list(self, point_list, new_points, component_id):
-        # Optimized version using deque for O(1) operations at both ends
-        # point_list is expected to be a collections.deque
-        # new_points is a list or deque
-
         if point_list[-1] == new_points[0]:
-            # Normal append: point_list end connects to new_points start
-            # Extend from index 1 to avoid duplicate point
-            point_list.extend(new_points[1:])
+            pass
         elif point_list[0] == new_points[0]:
-            # Need to prepend new_points in reverse order (excluding first point)
-            # Reverse new_points[1:] and prepend
-            point_list.extendleft(reversed(new_points[1:]))
+            point_list.reverse()
         elif point_list[0] == new_points[-1]:
-            # Need to prepend new_points (excluding last point)
-            point_list.extendleft(
-                new_points[-2::-1]
-            )  # new_points[-2], new_points[-3], ..., new_points[0]
+            point_list.reverse()
+            new_points.reverse()
         elif point_list[-1] == new_points[-1]:
-            # Need to append new_points in reverse order (excluding last point)
-            point_list.extend(
-                reversed(new_points[-2::-1])
-            )  # new_points[-2], new_points[-3], ..., new_points[0]
+            new_points.reverse()
         else:
             raise SyntaxError(f"Points on the side of relation {component_id} is not continuous.")
+
+        point_list += new_points[1:]
 
     def _get_tags(self, xml_node: ET.Element) -> dict:
         tags = dict()
@@ -128,11 +116,11 @@ class OSMParser:
             elif member.attrib["role"] == "regulatory_element":
                 regulatory_ids.append(member_id)
 
-        outer_point_list = deque()
+        outer_point_list = []
         for line_id in line_ids["outer"]:
             if len(outer_point_list) == 0:
                 if map_.roadlines.get(line_id):
-                    outer_point_list = deque(map_.roadlines[line_id].geometry.coords)
+                    outer_point_list = list(map_.roadlines[line_id].geometry.coords)
             else:
                 if map_.roadlines.get(line_id):
                     new_points = list(map_.roadlines[line_id].geometry.coords)
@@ -148,12 +136,12 @@ class OSMParser:
         if outer_point_list[0] != outer_point_list[-1]:
             logging.warning(f"The outer boundary of area {area_id} is not closed.")
 
-        inner_point_list = [deque()]
+        inner_point_list = [[]]
         inner_idx = 0
         for line_id in line_ids["inner"]:
             if len(inner_point_list[inner_idx]) == 0:
                 if map_.roadlines.get(line_id):
-                    inner_point_list[inner_idx] = deque(map_.roadlines[line_id].geometry.coords)
+                    inner_point_list[inner_idx] = list(map_.roadlines[line_id].geometry.coords)
             else:
                 if map_.roadlines.get(line_id):
                     new_points = list(map_.roadlines[line_id].geometry.coords)
@@ -164,7 +152,7 @@ class OSMParser:
                         return None
 
             if inner_point_list[inner_idx][0] == inner_point_list[inner_idx][-1]:
-                inner_point_list.append(deque())
+                inner_point_list.append([])
                 inner_idx += 1
         if len(inner_point_list[-1]) == 0:
             del inner_point_list[-1]
@@ -297,7 +285,7 @@ class OSMParser:
             road_element = self._load_area(xml_node, map_)
 
         elif type_ == "route":
-            point_list = deque()
+            point_list = []
             line_ids = []
             for member in xml_node.findall("member"):
                 if member.attrib["type"] == "way":
@@ -305,7 +293,7 @@ class OSMParser:
             for line_id in line_ids:
                 if len(point_list) == 0:
                     if map_.roadlines.get(line_id):
-                        point_list = deque(map_.roadlines[line_id].geometry.coords)
+                        point_list = list(map_.roadlines[line_id].geometry.coords)
                 if map_.roadlines.get(line_id):
                     new_points = list(map_.roadlines[line_id].geometry.coords)
                     try:
@@ -373,7 +361,7 @@ class OSMParser:
 
         point_list = dict()
         for side in ["left", "right"]:
-            point_list[side] = deque(map_.roadlines[line_ids[side][0]].geometry.coords)
+            point_list[side] = list(map_.roadlines[line_ids[side][0]].geometry.coords)
             for line_id in line_ids[side][1:]:
                 new_nodes = list(map_.roadlines[line_id].geometry.coords)
                 self._append_point_list(point_list[side], new_nodes, lane_id)
@@ -420,23 +408,23 @@ class OSMParser:
             elif member.attrib["role"] == "regulatory_element":
                 regulatory_ids.append(member_id)
 
-        outer_point_list = deque(map_.roadlines[line_ids["outer"][0]].geometry.coords)
+        outer_point_list = list(map_.roadlines[line_ids["outer"][0]].geometry.coords)
         for line_id in line_ids["outer"][1:]:
             new_points = list(map_.roadlines[line_id].geometry.coords)
             self._append_point_list(outer_point_list, new_points, area_id)
         if outer_point_list[0] != outer_point_list[-1]:
             logging.warning(f"The outer boundary of area {area_id} is not closed.")
 
-        inner_point_list = [deque()]
+        inner_point_list = [[]]
         inner_idx = 0
         for line_id in line_ids["inner"]:
             if len(inner_point_list[inner_idx]) == 0:
-                inner_point_list[inner_idx] = deque(map_.roadlines[line_id].geometry.coords)
+                inner_point_list[inner_idx] = list(map_.roadlines[line_id].geometry.coords)
             else:
                 new_points = list(map_.roadlines[line_id].geometry.coords)
                 self._append_point_list(inner_point_list[inner_idx], new_points, area_id)
             if inner_point_list[inner_idx][0] == inner_point_list[inner_idx][-1]:
-                inner_point_list.append(deque())
+                inner_point_list.append([])
                 inner_idx += 1
         if len(inner_point_list[-1]) == 0:
             del inner_point_list[-1]

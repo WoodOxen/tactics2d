@@ -34,11 +34,11 @@ def test_osm_parser():
     geometry_data, _, _ = camera.update(0, None, None, None, None, position)
 
     matplotlib_renderer = MatplotlibRenderer(
-        (boundary[0], boundary[1]),
-        (boundary[2], boundary[3]),
         resolution=((boundary[1] - boundary[0]) * 100, (boundary[3] - boundary[2]) * 100),
+        xlim=(boundary[0], boundary[1]),
+        ylim=(boundary[2], boundary[3]),
     )
-    matplotlib_renderer.update(geometry_data, (position.x, position.y))
+    matplotlib_renderer.update(geometry_data)
     matplotlib_renderer.save_single_frame(save_to="./tests/runtime/raw.png")
 
 
@@ -79,12 +79,12 @@ def test_lanelet2_parser(map_folder, map_configs):
             geometry_data, _, _ = camera.update(0, None, None, None, None, position)
 
             matplotlib_renderer = MatplotlibRenderer(
-                (boundary[0], boundary[1]),
-                (boundary[2], boundary[3]),
                 resolution=((boundary[1] - boundary[0]) * 10, (boundary[3] - boundary[2]) * 10),
+                xlim=(boundary[0], boundary[1]),
+                ylim=(boundary[2], boundary[3]),
             )
 
-            matplotlib_renderer.update(geometry_data, [position.x, position.y])
+            matplotlib_renderer.update(geometry_data)
             matplotlib_renderer.save_single_frame(save_to=f"./tests/runtime/{map_name}.png")
 
             matplotlib_renderer.destroy()
@@ -123,10 +123,10 @@ def test_xodr_parser(map_path, img_path):
     geometry_data, _, _ = camera.update(0, None, None, None, None, position)
 
     matplotlib_renderer = MatplotlibRenderer(
-        (boundary[0], boundary[1]),
-        (boundary[2], boundary[3]),
         resolution=((boundary[1] - boundary[0]) * 10, (boundary[3] - boundary[2]) * 10),
+        xlim=(boundary[0], boundary[1]),
+        ylim=(boundary[2], boundary[3]),
     )
 
-    matplotlib_renderer.update(geometry_data, [position.x, position.y])
+    matplotlib_renderer.update(geometry_data)
     matplotlib_renderer.save_single_frame(save_to=img_path)
