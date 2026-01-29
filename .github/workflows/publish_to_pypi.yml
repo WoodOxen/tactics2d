@@ -28,22 +28,35 @@ jobs:
           python -m pip install --upgrade pip
           pip install cibuildwheel
 
-      - name: Build wheels with cibuildwheel
+      - name: Build wheels (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+          CIBW_ARCHS_LINUX: x86_64
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+          CIBW_TEST_COMMAND: "python -c 'import tactics2d'"
         run: |
           cibuildwheel --output-dir dist
+
+      - name: Build wheels (Windows)
+        if: matrix.os == 'windows-latest'
         env:
-          # Explicitly specify supported CPython versions
           CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
-          CIBW_SKIP: "pp*"
-
-          # Restrict architecture to x86_64 for stability
-          CIBW_ARCHS: x86_64
-
-          # Use a widely compatible manylinux image
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-
-          # Minimal sanity check instead of skipping all tests
+          # Windows supports AMD64/ARM64/x86; use AMD64 for x86_64 equivalent
+          CIBW_ARCHS: AMD64
           CIBW_TEST_COMMAND: "python -c 'import tactics2d'"
+        run: |
+          cibuildwheel --output-dir dist
+
+      - name: Build wheels (macOS)
+        if: matrix.os == 'macos-latest'
+        env:
+          CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+          # For macOS, default archs are fine; set to universal2 if you want both
+          CIBW_ARCHS: "x86_64"
+          CIBW_TEST_COMMAND: "python -c 'import tactics2d'"
+        run: |
+          cibuildwheel --output-dir dist
 
       - name: Upload built wheels as artifacts
         uses: actions/upload-artifact@v4
