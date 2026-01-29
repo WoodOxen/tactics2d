@@ -83,15 +83,39 @@ jobs:
         run: |
           python .github/scripts/create_source_archive.py ${{ steps.get_version.outputs.version }}
 
-      - name: Create Git tag
-        id: create_tag
+      - name: Install GitHub CLI
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt update
+          sudo apt install gh -y
+
+      - name: Create draft GitHub Release
+        id: create_draft_release
+        run: |
           TAG_NAME="v${{ steps.get_version.outputs.version }}"
-          git tag -a "$TAG_NAME" -m "Release ${{ steps.get_version.outputs.version }}"
-          git push origin "$TAG_NAME"
+          RELEASE_NOTES_FILE="release_notes.txt"
+
+          # 检测是否为预发布版本
+          PRERELEASE_FLAG=""
+          if [[ "${{ steps.get_version.outputs.version }}" =~ rc|beta|alpha ]]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          # 创建草稿Release（同时创建标签）
+          gh release create "$TAG_NAME" \
+            --title "Release ${{ steps.get_version.outputs.version }}" \
+            --notes-file "$RELEASE_NOTES_FILE" \
+            --draft \
+            $PRERELEASE_FLAG \
+            --repo "${{ github.repository }}"
+
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "release_created=true" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -100,24 +124,21 @@ jobs:
           packages-dir: final_dist/
           verbose: true
 
-      # GitHub Release steps
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Publish GitHub Release
+        if: steps.publish_pypi.outcome == 'success'
+        run: |
+          gh release edit "${{ steps.create_draft_release.outputs.tag_name }}" \
+            --draft=false \
+            --repo "${{ github.repository }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.create_tag.outputs.tag_name }}
-          release_name: Release ${{ steps.get_version.outputs.version }}
-          body: ${{ steps.extract_notes.outputs.release_notes }}
-          draft: false
-          prerelease: ${{ contains(steps.get_version.outputs.version, 'rc') || contains(steps.get_version.outputs.version, 'beta') || contains(steps.get_version.outputs.version, 'alpha') }}
 
       - name: Upload wheel packages to Release
+        if: steps.publish_pypi.outcome == 'success'
         run: |
           for wheel in final_dist/*.whl; do
             echo "Uploading $wheel"
-            gh release upload ${{ steps.create_tag.outputs.tag_name }} "$wheel" \
+            gh release upload ${{ steps.create_draft_release.outputs.tag_name }} "$wheel" \
               --clobber \
               --repo ${{ github.repository }}
           done
@@ -125,9 +146,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload source archive to Release
+        if: steps.publish_pypi.outcome == 'success'
         run: |
-          gh release upload ${{ steps.create_tag.outputs.tag_name }} "tactics2d-${{ steps.get_version.outputs.version }}.tar.gz" \
+          gh release upload ${{ steps.create_draft_release.outputs.tag_name }} "tactics2d-${{ steps.get_version.outputs.version }}.tar.gz" \
             --clobber \
             --repo ${{ github.repository }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean up on PyPI failure
+        if: steps.publish_pypi.outcome == "failure"
+        run: |
+          echo "PyPI publishing failed. Cleaning up draft release and tag..."
+          gh release delete "${{ steps.create_draft_release.outputs.tag_name }}" \
+            --yes \
+            --repo "${{ github.repository }}"
+          echo "Draft release and tag deleted."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
