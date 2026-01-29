@@ -41,12 +41,18 @@ jobs:
           path: dist/
 
   publish:
-    name: Publish to PyPI
+    name: Publish to PyPI and Create Release
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write  # For creating Release and tags
+      id-token: write  # For PyPI publishing
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Download all wheel artifacts
         uses: actions/download-artifact@v4
         with:
@@ -57,9 +63,71 @@ jobs:
           mkdir -p final_dist
           find dist -name '*.whl' -exec cp {} final_dist/ \;
 
+      # Release preparation steps
+      - name: Get current version from pyproject.toml
+        id: get_version
+        run: |
+          VERSION=$(grep -oP 'version = "\K[^"]+' pyproject.toml)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+
+      - name: Extract release notes from CHANGELOG.md
+        id: extract_notes
+        run: |
+          python .github/scripts/extract_changelog.py ${{ steps.get_version.outputs.version }}
+          echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+          cat release_notes.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create source archive
+        run: |
+          python .github/scripts/create_source_archive.py ${{ steps.get_version.outputs.version }}
+
+      - name: Create Git tag
+        id: create_tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          TAG_NAME="v${{ steps.get_version.outputs.version }}"
+          git tag -a "$TAG_NAME" -m "Release ${{ steps.get_version.outputs.version }}"
+          git push origin "$TAG_NAME"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
           packages-dir: final_dist/
           verbose: true
+
+      # GitHub Release steps
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.create_tag.outputs.tag_name }}
+          release_name: Release ${{ steps.get_version.outputs.version }}
+          body: ${{ steps.extract_notes.outputs.release_notes }}
+          draft: false
+          prerelease: ${{ contains(steps.get_version.outputs.version, 'rc') || contains(steps.get_version.outputs.version, 'beta') || contains(steps.get_version.outputs.version, 'alpha') }}
+
+      - name: Upload wheel packages to Release
+        run: |
+          for wheel in final_dist/*.whl; do
+            echo "Uploading $wheel"
+            gh release upload ${{ steps.create_tag.outputs.tag_name }} "$wheel" \
+              --clobber \
+              --repo ${{ github.repository }}
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload source archive to Release
+        run: |
+          gh release upload ${{ steps.create_tag.outputs.tag_name }} "tactics2d-${{ steps.get_version.outputs.version }}.tar.gz" \
+            --clobber \
+            --repo ${{ github.repository }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
