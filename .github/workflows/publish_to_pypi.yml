@@ -2,6 +2,11 @@ name: Build and Publish to PyPI
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (must match pyproject.toml)'
+        required: true
+        type: string
 
 jobs:
   build:
@@ -34,7 +39,7 @@ jobs:
           CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
           CIBW_ARCHS_LINUX: x86_64
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-          CIBW_TEST_COMMAND: "python -c 'import tactics2d'"
+          CIBW_TEST_COMMAND: 'python -c "import tactics2d"'
         run: |
           cibuildwheel --output-dir dist
 
@@ -44,7 +49,7 @@ jobs:
           CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
           # Windows supports AMD64/ARM64/x86; use AMD64 for x86_64 equivalent
           CIBW_ARCHS: AMD64
-          CIBW_TEST_COMMAND: "python -c 'import tactics2d'"
+          CIBW_TEST_COMMAND: 'python -c "import tactics2d"'
         run: |
           cibuildwheel --output-dir dist
 
@@ -53,8 +58,8 @@ jobs:
         env:
           CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
           # For macOS, default archs are fine; set to universal2 if you want both
-          CIBW_ARCHS: "x86_64"
-          CIBW_TEST_COMMAND: "python -c 'import tactics2d'"
+          CIBW_ARCHS: "universal2"
+          CIBW_TEST_COMMAND: 'python -c "import tactics2d"'
         run: |
           cibuildwheel --output-dir dist
 
@@ -78,6 +83,19 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Validate version input
+        run: |
+          CURRENT_VERSION=$(python .github/scripts/get_version.py)
+          INPUT_VERSION="${{ github.event.inputs.version }}"
+
+          if [ "$CURRENT_VERSION" != "$INPUT_VERSION" ]; then
+            echo "Error: Version mismatch"
+            echo "Current version in pyproject.toml: $CURRENT_VERSION"
+            echo "Input version: $INPUT_VERSION"
+            exit 1
+          fi
+          echo "Version validation passed: $CURRENT_VERSION"
 
       - name: Download all wheel artifacts
         uses: actions/download-artifact@v4
@@ -123,26 +141,22 @@ jobs:
           sudo apt update
           sudo apt install gh -y
 
-      - name: Create draft GitHub Release (creates tag)
+      - name: Check existing draft GitHub Release
         id: create_draft_release
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
           TAG="v${VERSION}"
 
-          PRERELEASE_FLAG=""
-          if [[ "$VERSION" =~ (rc|beta|alpha) ]]; then
-            PRERELEASE_FLAG="--prerelease"
+          # Check if draft release exists
+          if gh release view "$TAG" --json draft 2>/dev/null | grep -q '"draft": true'; then
+            echo "Draft release $TAG exists"
+            echo "tag_name=$TAG" >> $GITHUB_OUTPUT
+            echo "release_created=true" >> $GITHUB_OUTPUT
+          else
+            echo "Error: Draft release $TAG does not exist or is not in draft state"
+            echo "Please run the test stage workflow first to create a draft release."
+            exit 1
           fi
-
-          gh release create "$TAG" \
-            --title "Release $VERSION" \
-            --notes-file release_notes.txt \
-            --draft \
-            $PRERELEASE_FLAG \
-            --repo "${{ github.repository }}"
-
-          echo "tag_name=$TAG" >> $GITHUB_OUTPUT
-          echo "release_created=true" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -158,7 +172,18 @@ jobs:
       - name: Publish GitHub Release
         if: steps.publish_pypi.outcome == 'success'
         run: |
-          gh release edit "${{ steps.create_draft_release.outputs.tag_name }}" --draft=false
+          VERSION="${{ steps.get_version.outputs.version }}"
+          TAG="v${VERSION}"
+
+          PRERELEASE_FLAG=""
+          if [[ "$VERSION" =~ (rc|beta|alpha) ]]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          gh release edit "$TAG" \
+            --title "Release $VERSION" \
+            --draft=false \
+            $PRERELEASE_FLAG
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -185,14 +210,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Clean up on PyPI failure
+      # Clean up on PyPI failure (production stage - do not delete draft release)
       - name: Clean up on PyPI failure
         if: steps.publish_pypi.outcome == 'failure'
         run: |
-          echo "PyPI publishing failed. Cleaning up draft release and tag..."
-          gh release delete "${{ steps.create_draft_release.outputs.tag_name }}" \
-            --yes \
-            --repo "${{ github.repository }}"
-          echo "Draft release and tag deleted."
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "PyPI publishing failed in production stage."
+          echo "Draft release ${{ steps.create_draft_release.outputs.tag_name }} is kept for manual inspection."
+          echo "Please investigate the failure and either fix the issue or manually delete the draft release if needed."
