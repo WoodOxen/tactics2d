@@ -50,6 +50,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
 
     steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
       - name: Download all wheel artifacts
         uses: actions/download-artifact@v4
         with:
@@ -63,7 +66,9 @@ jobs:
       - name: Read package version from pyproject.toml
         id: get_version
         run: |
-          version=$(python ../.github/scripts/get_version.py)
+          pwd
+          ls
+          version=$(python .github/scripts/get_version.py)
           echo "version=$version" >> $GITHUB_OUTPUT
           echo "Read version: $version"
 
