@@ -34,8 +34,9 @@ jobs:
         env:
           CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-* cp313-*"
           CIBW_SKIP: "pp*"
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014  # Optional: to ensure compatibility
-          CIBW_TEST_SKIP: "*"  # Skip testing inside build pipeline
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+          CIBW_TEST_SKIP: "*"
+          CIBW_BEFORE_BUILD: "pip install --upgrade setuptools"
 
       - name: Upload built artifacts
         uses: actions/upload-artifact@v4
