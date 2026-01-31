@@ -2,11 +2,17 @@ name: Build and Publish to PyPI
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (must match pyproject.toml)'
+        required: true
+        type: string
 
 jobs:
   build:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -15,51 +21,200 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      # Python here is only used to run cibuildwheel itself,
+      # NOT the Python versions that wheels are built for.
+      - name: Set up Python for cibuildwheel
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"  # just for cibuildwheel tool, not the built wheels
+          python-version: "3.11"
 
       - name: Install cibuildwheel
         run: |
           python -m pip install --upgrade pip
           pip install cibuildwheel
 
-      - name: Build wheels with cibuildwheel
+      - name: Build wheels (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+          CIBW_ARCHS_LINUX: x86_64
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          CIBW_SKIP: "*musllinux*"
+          CIBW_TEST_COMMAND: 'python -c "import tactics2d"'
+          CIBW_BEFORE_BUILD: "pip install --upgrade setuptools"
         run: |
           cibuildwheel --output-dir dist
-        env:
-          CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-* cp313-*"
-          CIBW_SKIP: "pp*"
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014  # Optional: to ensure compatibility
-          CIBW_TEST_SKIP: "*"  # Skip testing inside build pipeline
 
-      - name: Upload built artifacts
+      - name: Build wheels (Windows)
+        if: matrix.os == 'windows-latest'
+        env:
+          CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+          CIBW_ARCHS: AMD64
+          CIBW_TEST_COMMAND: 'python -c "import tactics2d"'
+          CIBW_BEFORE_BUILD: "pip install --upgrade setuptools"
+        run: |
+          cibuildwheel --output-dir dist
+
+      - name: Build wheels (macOS)
+        if: matrix.os == 'macos-latest'
+        env:
+          CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+          CIBW_ARCHS: "universal2"
+          CIBW_TEST_COMMAND: 'python -c "import tactics2d"'
+          CIBW_BEFORE_BUILD: "pip install --upgrade setuptools"
+        run: |
+          cibuildwheel --output-dir dist
+
+      - name: Upload built wheels as artifacts
         uses: actions/upload-artifact@v4
         with:
           name: built-wheels-${{ matrix.os }}
           path: dist/
 
   publish:
-    name: Publish to PyPI
+    name: Publish to PyPI and GitHub Release
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+
+    # Only allow manual publishing
+
+    permissions:
+      contents: write     # required for creating tags and releases
+      id-token: write     # required for PyPI Trusted Publishing (OIDC)
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate version input
+        run: |
+          CURRENT_VERSION=$(python .github/scripts/get_version.py)
+          INPUT_VERSION="${{ github.event.inputs.version }}"
+
+          if [ "$CURRENT_VERSION" != "$INPUT_VERSION" ]; then
+            echo "Error: Version mismatch"
+            echo "Current version in pyproject.toml: $CURRENT_VERSION"
+            echo "Input version: $INPUT_VERSION"
+            exit 1
+          fi
+          echo "Version validation passed: $CURRENT_VERSION"
+
       - name: Download all wheel artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist
 
-      - name: Merge all artifacts into dist/
+      - name: Prepare final distribution directory
         run: |
           mkdir -p final_dist
           find dist -name '*.whl' -exec cp {} final_dist/ \;
 
+      # Build a standard PEP 517 sdist (required / recommended by PyPI)
+      - name: Build sdist
+        run: |
+          python -m pip install --upgrade build
+          python -m build --sdist --outdir final_dist
+
+      - name: Read package version from pyproject.toml
+        id: get_version
+        run: |
+          version=$(python .github/scripts/get_version.py)
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "Read version: $version"
+
+      - name: Validate version consistency
+        run: |
+          PYPROJECT_VERSION=$(python .github/scripts/get_version.py)
+          echo "pyproject.toml version: $PYPROJECT_VERSION"
+          echo "Workflow version: ${{ steps.get_version.outputs.version }}"
+          if [ "$PYPROJECT_VERSION" != "${{ steps.get_version.outputs.version }}" ]; then
+            echo "Error: Version mismatch between pyproject.toml and workflow"
+            exit 1
+          fi
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          python .github/scripts/extract_changelog.py ${{ steps.get_version.outputs.version }}
+
+      # Create draft GitHub Release before PyPI publication
+      - name: Install GitHub CLI
+        run: |
+          sudo apt update
+          sudo apt install gh -y
+
+      - name: Check existing draft GitHub Release
+        id: create_draft_release
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          TAG="v${VERSION}"
+
+          # Check if draft release exists
+          if gh release view "$TAG" --json draft 2>/dev/null | grep -q '"draft": true'; then
+            echo "Draft release $TAG exists"
+            echo "tag_name=$TAG" >> $GITHUB_OUTPUT
+            echo "release_created=true" >> $GITHUB_OUTPUT
+          else
+            echo "Error: Draft release $TAG does not exist or is not in draft state"
+            echo "Please run the test stage workflow first to create a draft release."
+            exit 1
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Publish to PyPI (only if draft release succeeded)
       - name: Publish to PyPI
+        id: publish_pypi
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
           packages-dir: final_dist/
           verbose: true
+
+      # Publish GitHub Release (only if PyPI succeeded)
+      - name: Publish GitHub Release
+        if: steps.publish_pypi.outcome == 'success'
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          TAG="v${VERSION}"
+
+          PRERELEASE_FLAG=""
+          if [[ "$VERSION" =~ (rc|beta|alpha) ]]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          gh release edit "$TAG" \
+            --title "Release $VERSION" \
+            --draft=false \
+            $PRERELEASE_FLAG
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload wheel packages to Release (only if PyPI succeeded)
+      - name: Upload wheel packages to Release
+        if: steps.publish_pypi.outcome == 'success'
+        run: |
+          for wheel in final_dist/*.whl; do
+            echo "Uploading $wheel"
+            gh release upload "${{ steps.create_draft_release.outputs.tag_name }}" "$wheel" \
+              --clobber \
+              --repo "${{ github.repository }}"
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Upload source archive to Release (only if PyPI succeeded)
+      - name: Upload source archive to Release
+        if: steps.publish_pypi.outcome == 'success'
+        run: |
+          gh release upload "${{ steps.create_draft_release.outputs.tag_name }}" "final_dist/tactics2d-${{ steps.get_version.outputs.version }}.tar.gz" \
+            --clobber \
+            --repo "${{ github.repository }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Clean up on PyPI failure (production stage - do not delete draft release)
+      - name: Clean up on PyPI failure
+        if: steps.publish_pypi.outcome == 'failure'
+        run: |
+          echo "PyPI publishing failed in production stage."
+          echo "Draft release ${{ steps.create_draft_release.outputs.tag_name }} is kept for manual inspection."
+          echo "Please investigate the failure and either fix the issue or manually delete the draft release if needed."
