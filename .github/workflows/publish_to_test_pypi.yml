@@ -66,8 +66,6 @@ jobs:
       - name: Read package version from pyproject.toml
         id: get_version
         run: |
-          pwd
-          ls
           version=$(python .github/scripts/get_version.py)
           echo "version=$version" >> $GITHUB_OUTPUT
           echo "Read version: $version"

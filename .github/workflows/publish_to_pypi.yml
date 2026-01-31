@@ -66,7 +66,7 @@ jobs:
       - name: Upload built wheels as artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: built-wheels
+          name: built-wheels-${{ matrix.os }}
           path: dist/*.whl
 
   publish:
@@ -100,13 +100,12 @@ jobs:
       - name: Download all wheel artifacts
         uses: actions/download-artifact@v4
         with:
-          name: built-wheels
           path: dist
 
       - name: Prepare final distribution directory
         run: |
           mkdir -p final_dist
-          cp dist/*.whl final_dist/
+          find dist -name '*.whl' -exec cp {} final_dist/ \;
 
       # Build a standard PEP 517 sdist (required / recommended by PyPI)
       - name: Build sdist
