@@ -67,7 +67,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: built-wheels-${{ matrix.os }}
-          path: dist/*.whl
+          path: dist/
 
   publish:
     name: Publish to PyPI and GitHub Release
