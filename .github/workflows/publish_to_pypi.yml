@@ -132,65 +132,103 @@ jobs:
             exit 1
           fi
 
+      - name: Check if version exists on PyPI
+        id: check_pypi_version
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          echo "Checking if version $VERSION exists on PyPI..."
+          if python .github/scripts/check_pypi_version.py "$VERSION"; then
+            echo "Version $VERSION already exists on PyPI"
+            echo "version_exists=true" >> $GITHUB_OUTPUT
+            echo "pypi_outcome=skipped" >> $GITHUB_OUTPUT
+          else
+            echo "Version $VERSION does not exist on PyPI"
+            echo "version_exists=false" >> $GITHUB_OUTPUT
+            echo "pypi_outcome=needed" >> $GITHUB_OUTPUT
+          fi
+
       - name: Extract release notes from CHANGELOG.md
         run: |
           python .github/scripts/extract_changelog.py ${{ steps.get_version.outputs.version }}
 
       # Create draft GitHub Release before PyPI publication
-      - name: Install GitHub CLI
+      - name: Install GitHub CLI and jq
         run: |
           sudo apt update
-          sudo apt install gh -y
+          sudo apt install gh jq -y
 
       - name: Check existing draft GitHub Release
         id: create_draft_release
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
           TAG="v${VERSION}"
+          EXPECTED_TITLE="Release $VERSION (Test)"
 
-          # Check if draft release exists
+          # First try to find draft release by tag
           if gh release view "$TAG" --json draft 2>/dev/null | grep -q '"draft": true'; then
             echo "Draft release $TAG exists"
             echo "tag_name=$TAG" >> $GITHUB_OUTPUT
             echo "release_created=true" >> $GITHUB_OUTPUT
           else
-            echo "Error: Draft release $TAG does not exist or is not in draft state"
-            echo "Please run the test stage workflow first to create a draft release."
-            exit 1
+            echo "Draft release with tag $TAG not found, searching for untagged draft releases..."
+
+            # List all draft releases and look for one with matching title
+            DRAFT_TAG=$(gh release list --limit 20 --json tagName,title,draft \
+              --jq '.[] | select(.draft == true) | select(.title == "'"$EXPECTED_TITLE"'") | .tagName' | head -n1)
+
+            if [ -n "$DRAFT_TAG" ]; then
+              echo "Found draft release with title '$EXPECTED_TITLE'"
+              echo "Tag: $DRAFT_TAG"
+
+              # If tag is untagged-*, we need to tag it properly
+              if [[ "$DRAFT_TAG" == untagged-* ]]; then
+                echo "Warning: Draft release has untagged-* tag. It may not work properly with gh release view."
+                echo "Consider manually tagging this release or re-running the test workflow."
+              fi
+
+              echo "tag_name=$DRAFT_TAG" >> $GITHUB_OUTPUT
+              echo "release_created=true" >> $GITHUB_OUTPUT
+            else
+              echo "Error: No draft release found for version $VERSION"
+              echo "Searched for draft releases with title: $EXPECTED_TITLE"
+              echo "Please run the test stage workflow first to create a draft release."
+              exit 1
+            fi
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Publish to PyPI (only if draft release succeeded)
+      # Publish to PyPI (only if draft release succeeded and version doesn't exist)
       - name: Publish to PyPI
         id: publish_pypi
+        if: steps.check_pypi_version.outputs.version_exists != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: final_dist/
           verbose: true
 
-      # Publish GitHub Release (only if PyPI succeeded)
+      # Publish GitHub Release (only if PyPI succeeded or version already exists)
       - name: Publish GitHub Release
-        if: steps.publish_pypi.outcome == 'success'
+        if: steps.publish_pypi.outcome == 'success' || steps.check_pypi_version.outputs.version_exists == 'true'
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
-          TAG="v${VERSION}"
+          DRAFT_TAG="${{ steps.create_draft_release.outputs.tag_name }}"
 
           PRERELEASE_FLAG=""
           if [[ "$VERSION" =~ (rc|beta|alpha) ]]; then
             PRERELEASE_FLAG="--prerelease"
           fi
 
-          gh release edit "$TAG" \
+          gh release edit "$DRAFT_TAG" \
             --title "Release $VERSION" \
             --draft=false \
             $PRERELEASE_FLAG
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload wheel packages to Release (only if PyPI succeeded)
+      # Upload wheel packages to Release (only if PyPI succeeded or version already exists)
       - name: Upload wheel packages to Release
-        if: steps.publish_pypi.outcome == 'success'
+        if: steps.publish_pypi.outcome == 'success' || steps.check_pypi_version.outputs.version_exists == 'true'
         run: |
           for wheel in final_dist/*.whl; do
             echo "Uploading $wheel"
@@ -201,9 +239,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload source archive to Release (only if PyPI succeeded)
+      # Upload source archive to Release (only if PyPI succeeded or version already exists)
       - name: Upload source archive to Release
-        if: steps.publish_pypi.outcome == 'success'
+        if: steps.publish_pypi.outcome == 'success' || steps.check_pypi_version.outputs.version_exists == 'true'
         run: |
           gh release upload "${{ steps.create_draft_release.outputs.tag_name }}" "final_dist/tactics2d-${{ steps.get_version.outputs.version }}.tar.gz" \
             --clobber \
@@ -212,8 +250,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Clean up on PyPI failure (production stage - do not delete draft release)
+      # Only clean up if PyPI failed for reasons other than version already existing
       - name: Clean up on PyPI failure
-        if: steps.publish_pypi.outcome == 'failure'
+        if: steps.publish_pypi.outcome == 'failure' && steps.check_pypi_version.outputs.version_exists != 'true'
         run: |
           echo "PyPI publishing failed in production stage."
           echo "Draft release ${{ steps.create_draft_release.outputs.tag_name }} is kept for manual inspection."
