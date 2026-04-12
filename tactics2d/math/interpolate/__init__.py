@@ -11,5 +11,6 @@ from .cubic_spline import CubicSpline
 from .dubins import Dubins
 from .reeds_shepp import ReedsShepp
 from .spiral import Spiral
+from .param_poly3 import ParamPoly3
 
 __all__ = ["BSpline", "Bezier", "CubicSpline", "Dubins", "ReedsShepp", "Spiral"]

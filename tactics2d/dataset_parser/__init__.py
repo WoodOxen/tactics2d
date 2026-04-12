@@ -22,4 +22,5 @@ __all__ = [
     "NGSIMParser",
     "NuPlanParser",
     "WOMDParser",
+    "DriveInsightDParser",
 ]
