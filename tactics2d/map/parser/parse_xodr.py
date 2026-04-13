@@ -16,8 +16,8 @@ from shapely.geometry import LineString, Polygon
 from shapely.validation import make_valid
 
 from tactics2d.map.element import Area, Connection, Junction, Lane, Map, RoadLine
-from tactics2d.math.geometry import Circle
-from tactics2d.math.interpolate import ParamPoly3, Spiral
+from tactics2d.geometry import Circle
+from tactics2d.interpolator import ParamPoly3, Spiral
 
 
 # ---------------------------------------------------------------------------
