@@ -3,10 +3,9 @@
 
 """PID controller implementation."""
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 import numpy as np
-from scipy.interpolate import interp1d
 
 from tactics2d.participant.trajectory.state import State
 
@@ -368,7 +367,7 @@ class PIDController(ControllerBase):
                 # Clamp steering to physical limits
                 steering = self._clamp_output(steering, -self.max_steering, self.max_steering)
 
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 if self.control_mode == "lateral":
                     # In lateral-only mode, re-raise the error
                     raise
@@ -397,7 +396,7 @@ class PIDController(ControllerBase):
                 # Clamp acceleration to physical limits
                 acceleration = self._clamp_output(lon_output, self.min_accel, self.max_accel)
 
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 if self.control_mode == "longitudinal":
                     # In longitudinal-only mode, re-raise the error
                     raise

@@ -5,7 +5,6 @@
 
 
 import numpy as np
-from scipy.interpolate import interp1d
 from shapely.geometry import LineString, Point
 
 from tactics2d.participant.trajectory.state import State

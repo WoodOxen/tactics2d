@@ -162,12 +162,12 @@ class ParkingEnv(gym.Env):
         else:
             time_penalty = -np.tanh(self.scenario_manager.cnt_step / self.max_step) * 0.001
             if self._max_iou == -np.inf:
-                iou_reward = iou if not iou is None else 0
+                iou_reward = iou if iou is not None else 0
             else:
-                iou_reward = iou - self._max_iou if not iou is None else 0
+                iou_reward = iou - self._max_iou if iou is not None else 0
 
             reward = time_penalty + iou_reward
-            self._max_iou = max(self._max_iou, iou) if not iou is None else self._max_iou
+            self._max_iou = max(self._max_iou, iou) if iou is not None else self._max_iou
 
             curr_dist_to_target = np.linalg.norm(
                 np.array(

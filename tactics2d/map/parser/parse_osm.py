@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Tuple
 
 import defusedxml.ElementTree as ET
 from pyproj import Proj
@@ -178,7 +177,7 @@ class OSMParser:
         min_lat = float(xml_node.get("minlat"))
         max_lat = float(xml_node.get("maxlat"))
 
-        if not None in [min_lon, max_lon, min_lat, max_lat]:
+        if None not in [min_lon, max_lon, min_lat, max_lat]:
             return (min_lon, max_lon, min_lat, max_lat)
 
         return None
@@ -199,7 +198,7 @@ class OSMParser:
         min_lat = float(xml_node.get("minlat"))
         max_lat = float(xml_node.get("maxlat"))
 
-        if not None in [min_lat, max_lat, min_lon, max_lon]:
+        if None not in [min_lat, max_lat, min_lon, max_lon]:
             min_x, min_y = projector(min_lon, min_lat)
             max_x, max_y = projector(max_lon, max_lat)
             return (min_x - origin[0], max_x - origin[0], min_y - origin[1], max_y - origin[1])
@@ -467,7 +466,7 @@ class OSMParser:
 
         projector = Proj(**project_rule) if project_rule else None
 
-        to_project = not None in [projector, gps_origin]
+        to_project = None not in [projector, gps_origin]
 
         if to_project:
             origin = projector(*gps_origin)

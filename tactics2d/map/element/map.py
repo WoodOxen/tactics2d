@@ -506,7 +506,7 @@ class Map:
         Args:
             id_ (str): The id of the road element.
         """
-        if not id_ in self.ids:
+        if id_ not in self.ids:
             warnings.warn(f"Cannot find element with id {id_}.")
             return None
 

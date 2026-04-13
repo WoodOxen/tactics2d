@@ -124,7 +124,7 @@ class Trajectory:
         """
         # check input type first
         if not isinstance(state, State):
-            raise ValueError(f"The input state is not a valid State object.")
+            raise ValueError("The input state is not a valid State object.")
 
         if state.frame in self._history_states:
             self._history_states[state.frame] = state

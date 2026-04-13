@@ -122,7 +122,7 @@ class Lane:
         self.speed_limit_mandatory = speed_limit_mandatory
         self.custom_tags = custom_tags
 
-        if not None in [left_side, right_side]:
+        if None not in [left_side, right_side]:
             self.geometry = LinearRing(
                 list(left_side.coords) + list(reversed(list(right_side.coords)))
             )
@@ -137,7 +137,7 @@ class Lane:
         self.right_neighbors = set()
 
     def _set_speed_limit_unit(self, speed_limit: float, speed_limit_unit: str):
-        if not speed_limit_unit in self._speed_units:
+        if speed_limit_unit not in self._speed_units:
             logging.warning(
                 "Invalid speed limit unit %s. The legal units types are %s"
                 % (speed_limit_unit, ", ".join(self._speed_units))

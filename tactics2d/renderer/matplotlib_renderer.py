@@ -6,7 +6,7 @@
 
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 # Set matplotlib backend to Agg before import
 os.environ["MPLBACKEND"] = "Agg"

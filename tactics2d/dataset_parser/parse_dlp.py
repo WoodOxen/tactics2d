@@ -5,7 +5,7 @@
 
 
 import os
-from typing import Tuple, Union
+from typing import Tuple
 
 import numpy as np
 import orjson

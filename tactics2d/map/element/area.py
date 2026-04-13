@@ -97,7 +97,7 @@ class Area:
         self._set_speed_limit_unit(speed_limit, speed_limit_unit)
 
     def _set_speed_limit_unit(self, speed_limit: float, speed_limit_unit: str):
-        if not speed_limit_unit in self._speed_units:
+        if speed_limit_unit not in self._speed_units:
             logging.warning(
                 "Invalid speed limit unit %s. The legal units types are %s"
                 % (speed_limit_unit, ", ".join(self._speed_units))

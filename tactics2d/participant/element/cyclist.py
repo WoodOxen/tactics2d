@@ -84,7 +84,7 @@ class Cyclist(ParticipantBase):
 
         if not self.verify:
             self.physics_model = None
-        elif not "physics_model" in kwargs or kwargs["physics_model"] is None:
+        elif "physics_model" not in kwargs or kwargs["physics_model"] is None:
             self.physics_model = SingleTrackKinematics(
                 lf=self.length / 2,
                 lr=self.length / 2,
