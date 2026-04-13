@@ -1,6 +1,8 @@
 name: Test Modules
 
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
   pull_request_target:
     types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
@@ -19,7 +21,7 @@ jobs:
     steps:
       - name: Check whether test run is allowed
         id: check
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const owner = context.repo.owner;
@@ -35,6 +37,7 @@ jobs:
             const pullRequest = context.payload.pull_request;
             const prAuthor = pullRequest.user?.login;
             const isDependabotPr = prAuthor === 'dependabot[bot]';
+            const isSameRepoPr = pullRequest.head?.repo?.full_name === `${owner}/${repo}`;
 
             async function getPermission(username) {
               if (!username) return 'none';
@@ -49,6 +52,15 @@ jobs:
                 core.info(`Cannot get permission for ${username}: ${error.message}`);
                 return 'none';
               }
+            }
+
+            if (context.eventName === 'pull_request') {
+              const authorPermission = await getPermission(prAuthor);
+              const allowed = isSameRepoPr && !isDependabotPr && allowedPermissions.has(authorPermission);
+
+              core.setOutput('allowed', allowed ? 'true' : 'false');
+              core.setOutput('reason', allowed ? `internal-pr-${prAuthor}-${authorPermission}` : `pull-request-not-allowed-${prAuthor}-${authorPermission}`);
+              return;
             }
 
             if (isDependabotPr) {

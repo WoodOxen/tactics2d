@@ -1,45 +1,60 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-title: "🐛 Bug: "
+about: Report a reproducible problem to help us improve Tactics2D
+title: "Bug: "
 labels: bug
 assignees: ''
 
 ---
 
-您可以使用中文描述Bug。
-You are welcome to describe the bug in English.
+Please provide enough detail so maintainers can reproduce and debug quickly.
+欢迎使用中文或英文描述问题，并尽量提供可复现信息。
 
-**描述Bug**
-**Describe the bug**
+## Summary
 
-- 操作系统版本 (OS version):
-- Python版本 (Python version):
+A clear and concise description of the bug.
+请简洁描述你遇到的问题。
 
-**简单描述你遇到的Bug**
-**A clear and concise description of what the bug is.**
+## Environment
 
-**如何重现错误**
-**To Reproduce**
-我们该如何复现Bug？
-Steps to reproduce the behavior:
+- OS version:
+- Python version:
+- Tactics2D version/commit (if known):
 
-**预期代码表现**
-**Expected behavior**
-简单描述你原本想通过这些操作达到的效果。
-A clear and concise description of what you expected to happen.
+## Steps To Reproduce
 
-**报错信息**
-**Error Message**
-如果方便，请用代码格式提供命令行输出的报错信息。
-If applicable, paste the complete error message to help explain your problem.
+How can we reproduce this issue?
+我们如何稳定复现这个问题？
 
-**截图信息**
-**Screenshots**
-如果方便，请提供与Bug相关的截图。
-If applicable, add screenshots to help explain your problem.
+1.
+2.
+3.
 
-**其他信息**
-**Additional context**
-欢迎补充任何有助于更快定位问题的线索。
-Add any other context about the problem here.
+## Expected Behavior
+
+What did you expect to happen?
+你期望的行为是什么？
+
+## Actual Behavior
+
+What actually happened?
+实际发生了什么？
+
+## Error Log
+
+If available, paste the full traceback or CLI output.
+如果方便，请贴出完整报错或命令行输出。
+
+```text
+
+```
+
+## Screenshots or Artifacts
+
+If applicable, include screenshots, recordings, or files.
+如有必要，请附截图、录屏或相关文件。
+
+## Additional Context
+
+Anything else maintainers should know.
+补充任何有助于定位问题的上下文信息。
