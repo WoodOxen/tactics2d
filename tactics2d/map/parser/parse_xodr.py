@@ -98,9 +98,17 @@ def _signed_curvature(points: np.ndarray, s_vals: np.ndarray) -> np.ndarray:
 def _eval_cubic_poly(records: list, s: float, s_key: str = "s") -> float:
     """Evaluate a piecewise cubic polynomial at arc-length s.
 
-    records is a list of dicts each containing keys s_key, a, b, c, d.
     The active record is the one with the largest start value not exceeding s.
-    Returns 0.0 when records is empty.
+
+    Args:
+        records (list): List of dicts each containing keys ``s_key``, ``a``,
+            ``b``, ``c``, and ``d`` defining the polynomial segments.
+        s (float): The arc-length value at which to evaluate the polynomial.
+        s_key (str): The key used for the segment start value in each record.
+            Defaults to ``"s"``.
+
+    Returns:
+        float: The evaluated polynomial value. Returns 0.0 when records is empty.
     """
     if not records:
         return 0.0
@@ -357,7 +365,19 @@ class XODRParser:
     # Header
     # ------------------------------------------------------------------
 
-    def load_header(self, node: ET.Element):
+    def load_header(self, node: ET.Element) -> tuple:
+        """Parse the ``<header>`` element of an OpenDRIVE file.
+
+        Args:
+            node (ET.Element): The ``<header>`` XML element.
+
+        Returns:
+            tuple:
+                info (dict): Header attributes including name, version, date,
+                    and geographic bounding box.
+                projector (CRS or None): A pyproj CRS object parsed from the
+                    ``<geoReference>`` child element, or None if absent.
+        """
         attrs = ("revMajor", "revMinor", "name", "version", "date",
                  "north", "south", "east", "west", "vendor")
         info = {a: node.get(a) for a in attrs}
@@ -634,14 +654,17 @@ class XODRParser:
     # Road loading
     # ------------------------------------------------------------------
 
-    def load_road(self, road_node: ET.Element):
+    def load_road(self, road_node: ET.Element) -> tuple:
         """Parse a <road> element.
 
-        Returns
-        -------
-        lanes     : list of Lane
-        roadlines : list of RoadLine
-        objects   : list of Area
+        Args:
+            road_node (ET.Element): The ``<road>`` XML element to parse.
+
+        Returns:
+            tuple:
+                lanes (list[Lane]): List of parsed Lane objects.
+                roadlines (list[RoadLine]): List of parsed RoadLine objects.
+                objects (list[Area]): List of parsed Area objects.
         """
         lanes, roadlines, objects = [], [], []
         type_node = road_node.find("type")
