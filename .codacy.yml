@@ -1,7 +1,7 @@
 ---
 # Codacy local configuration
 # Goal: keep normal quality checks, but suppress Bandit assert warnings (B101)
-# under tests by excluding tests from Bandit only.
+# by excluding tests and tactics2d/dataset_parser/womd_proto from Bandit.
 
 engines:
   bandit:
