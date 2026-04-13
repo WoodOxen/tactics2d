@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  issues: read
 
 jobs:
   authorize-test-modules:
@@ -23,6 +24,7 @@ jobs:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
+            const allowedPermissions = new Set(['admin', 'maintain', 'write']);
 
             if (context.eventName === 'workflow_dispatch') {
               core.setOutput('allowed', 'true');
@@ -32,12 +34,33 @@ jobs:
 
             const pullRequest = context.payload.pull_request;
             const prAuthor = pullRequest.user?.login;
-            const isInternalPr = pullRequest.head?.repo?.full_name === `${owner}/${repo}`;
             const isDependabotPr = prAuthor === 'dependabot[bot]';
 
-            if (isInternalPr || isDependabotPr) {
+            async function getPermission(username) {
+              if (!username) return 'none';
+              try {
+                const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner,
+                  repo,
+                  username,
+                });
+                return data.permission || 'none';
+              } catch (error) {
+                core.info(`Cannot get permission for ${username}: ${error.message}`);
+                return 'none';
+              }
+            }
+
+            if (isDependabotPr) {
               core.setOutput('allowed', 'true');
-              core.setOutput('reason', isInternalPr ? 'internal-pr' : 'dependabot-pr');
+              core.setOutput('reason', 'dependabot-pr');
+              return;
+            }
+
+            const authorPermission = await getPermission(prAuthor);
+            if (allowedPermissions.has(authorPermission)) {
+              core.setOutput('allowed', 'true');
+              core.setOutput('reason', `internal-author-${prAuthor}-${authorPermission}`);
               return;
             }
 
@@ -66,17 +89,11 @@ jobs:
             }
 
             const labeler = latestSafeLabelEvent.actor.login;
-            const { data: permissionData } = await github.rest.repos.getCollaboratorPermissionLevel({
-              owner,
-              repo,
-              username: labeler,
-            });
-
-            const allowedPermissions = new Set(['admin', 'maintain', 'write']);
-            const allowed = allowedPermissions.has(permissionData.permission);
+            const labelerPermission = await getPermission(labeler);
+            const allowed = allowedPermissions.has(labelerPermission);
 
             core.setOutput('allowed', allowed ? 'true' : 'false');
-            core.setOutput('reason', allowed ? `safe-label-by-${labeler}` : `unsafe-label-by-${labeler}`);
+            core.setOutput('reason', allowed ? `safe-label-by-${labeler}-${labelerPermission}` : `unsafe-label-by-${labeler}-${labelerPermission}`);
 
   test-modules:
     needs: [authorize-test-modules]
