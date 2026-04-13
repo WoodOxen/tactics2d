@@ -8,7 +8,6 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-import numpy as np
 import pytest
 
 from tactics2d.controller import (

@@ -7,8 +7,8 @@
 from typing import Tuple
 
 import numpy as np
-from cpp_geometry import Circle as cpp_Circle
 
+from cpp_geometry import Circle as cpp_Circle
 from tactics2d.geometry.direction import RelativeDirection
 
 
@@ -83,7 +83,7 @@ class Circle:
 
             if isinstance(side, str):
                 side = RelativeDirection.from_string(side)
-            if not side in [RelativeDirection.LEFT, RelativeDirection.RIGHT]:
+            if side not in [RelativeDirection.LEFT, RelativeDirection.RIGHT]:
                 raise ValueError(
                     f"Invalid side: {side}. "
                     "Must be 'L'/'R' or a RelativeDirection enum value (LEFT/RIGHT)."

@@ -5,7 +5,6 @@
 
 
 import os
-import sys
 
 # Set environment variables before any imports
 os.environ["MPLBACKEND"] = "Agg"

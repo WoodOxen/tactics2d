@@ -75,7 +75,7 @@ class Pedestrian(ParticipantBase):
         self.speed_range = (-self.max_speed, self.max_speed)
         self.accel_range = (-self.max_accel, self.max_accel)
 
-        if not "physics_model" in kwargs or kwargs["physics_model"] is None:
+        if "physics_model" not in kwargs or kwargs["physics_model"] is None:
             self.physics_model = PointMass(
                 speed_range=self.speed_range, accel_range=self.accel_range
             )

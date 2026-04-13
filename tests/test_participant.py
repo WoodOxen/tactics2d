@@ -157,7 +157,6 @@ def test_participant_base_color():
 @pytest.mark.participant
 def test_state_setters():
     """Test State class setter methods."""
-    import numpy as np
 
     state = State(frame=0, x=5.0, y=6.0, heading=0.5)
 

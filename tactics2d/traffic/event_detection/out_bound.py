@@ -24,7 +24,7 @@ class OutBound(EventBase):
             boundary (tuple): The boundary of the map. The boundary is represented by a tuple of four elements (xmin, xmax, ymin, ymax)
         """
         self.map_boundary = None
-        if not boundary is None:
+        if boundary is not None:
             self.map_boundary = Polygon(
                 [
                     (boundary[0], boundary[2]),
@@ -54,7 +54,7 @@ class OutBound(EventBase):
             boundary (tuple): The boundary of the map. The boundary is represented by a tuple of four elements (xmin, xmax, ymin, ymax)
         """
         self.map_boundary = None
-        if not boundary is None:
+        if boundary is not None:
             self.map_boundary = Polygon(
                 [
                     (boundary[0], boundary[2]),

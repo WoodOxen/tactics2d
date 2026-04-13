@@ -14,7 +14,6 @@ import numpy as np
 
 # Import map elements
 from tactics2d.map.element import Area, Junction, Lane, Map, Node, Regulatory, RoadLine
-from tactics2d.map.element.lane import LaneRelationship
 
 
 def test_boundary_incremental_update():
@@ -132,7 +131,7 @@ def test_slots_optimization():
                 assert not hasattr(instance, "__dict__"), f"{cls.__name__} should not have __dict__"
             # For other classes, we would need proper geometry objects
             # but we can at least verify __slots__ is defined
-        except Exception as e:
+        except Exception:
             # Creation might fail due to missing geometry, that's OK for this test
             pass
 

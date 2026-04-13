@@ -93,7 +93,7 @@ def main():
     extractor = ReleaseChangelogExtractor()
 
     if not extractor.load_changelog():
-        print(f"Error: Could not load CHANGELOG.md")
+        print("Error: Could not load CHANGELOG.md")
         sys.exit(1)
 
     changes = extractor.extract_version_changes(version)

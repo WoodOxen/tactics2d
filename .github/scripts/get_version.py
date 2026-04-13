@@ -9,7 +9,6 @@ except ImportError:
         import tomli as tomllib
     except ImportError:
         # Fallback for minimal environments
-        import json
         import re
 
         with open("pyproject.toml") as f:

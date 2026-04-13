@@ -196,16 +196,16 @@ class XODRParser:
         """
         geometry = []
 
-        if not xml_node.find("line") is None:
+        if xml_node.find("line") is not None:
             geometry = self._get_line(xml_node)
-        elif not xml_node.find("spiral") is None:
+        elif xml_node.find("spiral") is not None:
             geometry = self._get_spiral(xml_node)
-        elif not xml_node.find("arc") is None:
+        elif xml_node.find("arc") is not None:
             geometry = self._get_arc(xml_node)
             # geometry = []
-        elif not xml_node.find("poly3") is None:
+        elif xml_node.find("poly3") is not None:
             geometry = self._get_poly3(xml_node)
-        elif not xml_node.find("paramPoly3") is None:
+        elif xml_node.find("paramPoly3") is not None:
             geometry = self._get_param_poly3(xml_node)
 
         if len(geometry) >= 2:
@@ -243,7 +243,7 @@ class XODRParser:
 
         project_node = xml_node.find("geoReference")
         projector = None
-        if not project_node is None:
+        if project_node is not None:
             project_rule = project_node.text
             projector = CRS.from_proj4(project_rule)
 
@@ -397,7 +397,7 @@ class XODRParser:
         y_origin = y + t * np.cos(heading)
         # object_heading = heading + relative_heading * orientation
 
-        if not None in [width, length]:
+        if None not in [width, length]:
             shape = Polygon(
                 [
                     [0.5 * width, -0.5 * length],
@@ -407,7 +407,7 @@ class XODRParser:
                 ]
             )
 
-        elif not radius is None:
+        elif radius is not None:
             shape = np.array(
                 [
                     (np.cos(theta) * radius, np.sin(theta) * radius)
@@ -520,7 +520,7 @@ class XODRParser:
                     raise ValueError("Center line must be defined.")
                 roadlines.append(part_refline)
 
-            if not lane_section_node.find("left") is None:
+            if lane_section_node.find("left") is not None:
                 lane_nodes = sorted(
                     lane_section_node.find("left").findall("lane"), key=lambda x: x.attrib["id"]
                 )
@@ -533,7 +533,7 @@ class XODRParser:
                     lanes.append(lane)
                     roadlines.append(ref_line)
 
-            if not lane_section_node.find("right") is None:
+            if lane_section_node.find("right") is not None:
                 lane_nodes = sorted(
                     lane_section_node.find("right").findall("lane"), key=lambda x: x.attrib["id"]
                 )
@@ -549,7 +549,7 @@ class XODRParser:
             raise ValueError("Road must have lanes element.")
 
         objects_node = xml_node.find("objects")
-        if not objects_node is None:
+        if objects_node is not None:
             headings = self.get_headings(points)
             for object_node in objects_node.findall("object"):
                 area = self.load_object(points, s_points, headings, object_node)
@@ -592,7 +592,7 @@ class XODRParser:
             header_info, projector = self.load_header(header_node)
 
         map_ = Map(header_info["name"] if header_info["name"] != "" else None)
-        if not projector is None:
+        if projector is not None:
             to_project = True
 
         for road in xml_root.findall("road"):

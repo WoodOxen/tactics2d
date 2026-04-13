@@ -124,12 +124,12 @@ class Vehicle(ParticipantBase):
             logging.warning("Invalid driven mode. The default mode FWD will be used.")
 
         if self.verify:
-            if "physics_model" in kwargs and not kwargs["physics_model"] is None:
+            if "physics_model" in kwargs and kwargs["physics_model"] is not None:
                 self.physics_model = kwargs["physics_model"]
             else:
                 self._auto_construct_physics_model()
 
-        if not None in [self.length, self.width]:
+        if None not in [self.length, self.width]:
             self._bbox = LinearRing(
                 [
                     [0.5 * self.length, -0.5 * self.width],
@@ -148,7 +148,7 @@ class Vehicle(ParticipantBase):
     def _auto_construct_physics_model(self):
         # Auto-construct the physics model for front-wheel-drive (FWD) vehicles.
         if self.driven_mode == "FWD":
-            if not None in [self.front_overhang, self.rear_overhang]:
+            if None not in [self.front_overhang, self.rear_overhang]:
                 self.physics_model = SingleTrackKinematics(
                     lf=self.length / 2 - self.front_overhang,
                     lr=self.length / 2 - self.rear_overhang,
@@ -156,7 +156,7 @@ class Vehicle(ParticipantBase):
                     speed_range=self.speed_range,
                     accel_range=self.accel_range,
                 )
-            elif not self.length is None:
+            elif self.length is not None:
                 self.physics_model = SingleTrackKinematics(
                     lf=self.length / 2,
                     lr=self.length / 2,
@@ -210,7 +210,7 @@ class Vehicle(ParticipantBase):
         self.speed_range = (-16.67, self.max_speed)
         self.accel_range = (-self.max_decel, self.max_accel)
 
-        if not None in [self.length, self.width]:
+        if None not in [self.length, self.width]:
             self._bbox = LinearRing(
                 [
                     [0.5 * self.length, -0.5 * self.width],
