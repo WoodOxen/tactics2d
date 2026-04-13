@@ -1,4 +1,4 @@
-##! python3
+#! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
 # @File: test_dataset_parser.py
 # @Description: This file implements the test cases for the dataset parser.
@@ -28,6 +28,7 @@ from tactics2d.dataset_parser import (
     NuPlanParser,
     WOMDParser,
 )
+from tactics2d.dataset_parser.parse_driveinsightd import DriveInsightDParser
 
 
 @pytest.mark.dataset_parser
@@ -215,3 +216,36 @@ def test_womd_parser(scenario_id):
     assert len(participants) == 83
     logging.info(f"The time needed to parse trajectories in a WOMD scenario: {t2 - t1}s")
     logging.info(f"The time needed to parse the map for a WOMD scenario: {t3 - t2}s")
+
+
+@pytest.mark.dataset_parser
+@pytest.mark.parametrize(
+    "scenario_id, stamp_range, expected",
+    [
+        ("6", None,                          13),
+        ("6", (-float("inf"), float("inf")), 13),
+        ("6", (0, 5000),                     9),
+    ],
+)
+def test_driveinsightd_parser(scenario_id: str, stamp_range: tuple, expected: int):
+    folder_path = "./tactics2d/data/trajectory_sample/DriveInsightD/jp_taito"
+    map_name    = "jp_taito.xodr"
+
+    if not os.path.isdir(folder_path):
+        pytest.skip(f"Dataset folder not found: {folder_path}")
+
+    dataset_parser = DriveInsightDParser()
+
+    t1 = time.time()
+    participants, _ = dataset_parser.parse_trajectory(
+        file=scenario_id, folder=folder_path, stamp_range=stamp_range
+    )
+    t2 = time.time()
+    _ = dataset_parser.parse(
+        scenario_id=scenario_id, folder=folder_path, map_name=map_name
+    )
+    t3 = time.time()
+
+    assert len(participants) == expected
+    logging.info(f"The time needed to parse a DriveInsightD trajectory file: {t2 - t1}s")
+    logging.info(f"The time needed to parse a DriveInsightD map file: {t3 - t2}s")

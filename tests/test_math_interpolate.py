@@ -381,3 +381,34 @@ def test_spiral(length, n_interpolation):
     curve_length = np.linalg.norm(curve[1:] - curve[:-1], axis=1).sum()
     assert abs(length - curve_length) / min(length, curve_length) < 0.01
     assert len(curve) == n_interpolation
+
+
+@pytest.mark.math
+@pytest.mark.parametrize(
+    "length, start_point, heading, aU, bU, cU, dU, aV, bV, cV, dV, p_range_type",
+    [
+        (10.0, (0.0, 0.0), 0.0,   0.0, 1.0, 0.0, 0.0,  0.0, 0.0, 0.0, 0.0,  "normalized"),
+        (10.0, (0.0, 0.0), 0.0,   0.0, 1.0, 0.0, 0.0,  0.0, 0.0, 0.0, 0.0,  "arcLength"),
+        (5.0,  (1.0, 2.0), 0.785, 0.0, 1.0, 0.1, 0.01, 0.0, 0.5, 0.0, 0.0,  "normalized"),
+        (20.0, (0.0, 0.0), 1.57,  0.0, 1.0, 0.0, 0.0,  0.0, 0.0, 0.1, 0.0,  "arcLength"),
+    ],
+)
+def test_param_poly3(
+    length, start_point, heading, aU, bU, cU, dU, aV, bV, cV, dV, p_range_type
+):
+    curve = ParamPoly3.get_curve(
+        length, start_point, heading,
+        aU, bU, cU, dU, aV, bV, cV, dV,
+        p_range_type,
+    )
+
+    assert isinstance(curve, np.ndarray), "Output must be a numpy array."
+    assert curve.ndim == 2 and curve.shape[1] == 2, "Output shape must be (n, 2)."
+    assert len(curve) >= 2, "Curve must have at least two points."
+    assert np.allclose(curve[0], start_point, atol=1e-6), (
+        "The first point of the curve must equal start_point."
+    )
+    diffs = np.linalg.norm(np.diff(curve, axis=0), axis=1)
+    assert np.all(diffs < length), (
+        "Curve contains a jump larger than the total segment length."
+    )

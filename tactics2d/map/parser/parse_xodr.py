@@ -5,53 +5,6 @@
 # @Author: Tactics2D Team
 # @Version: 1.0.0
 
-"""OpenDRIVE (.xodr) map parser for the Tactics2D simulator.
-
-Design notes on offset-curve generation
-----------------------------------------
-The canonical approach (followed by libopendrive and esmini) for building lane
-boundary polylines from an OpenDRIVE reference line is:
-
-  P_border(s, t) = P_ref(s) + t * n_ref(s)
-
-where
-
-  * s   is the arc-length parameter along the *reference line* (not the
-        boundary).  Every width polynomial w(s) is defined w.r.t. this same
-        s-coordinate, so all layers must share the identical s-sample array.
-  * t   is the signed lateral distance from the reference line to the boundary
-        being evaluated.  For left lanes t > 0; for right lanes t < 0.
-  * n_ref(s) is the unit left-pointing normal of the reference line at s.
-
-Accumulated offset (lane stacking)
-------------------------------------
-Lane widths are stacked:  t_k = sum_{i=1}^{k} w_i(s) * sign_i
-
-where sign_i = +1 for left lanes and -1 for right lanes.  All boundaries are
-evaluated from the *same* reference-line normal n_ref(s), NOT from a normal
-re-derived from the previous boundary's polyline.
-
-Curvature and self-intersection
----------------------------------
-On a curved reference line of signed curvature kappa(s), the offset curve has
-a shorter arc on the inner side and a longer arc on the outer side.  A sample
-at offset t introduces a local scale factor (1 - kappa * t).  When
-|t| > 1/|kappa|, this factor becomes negative, meaning the offset curve has
-crossed the centre of curvature and would self-intersect (swallowtail
-artefact).
-
-We handle this by computing the correction factor for every sample and, when
-it would be <= 0, clamping the lateral displacement to 99% of the collapse
-boundary.  This is topology-preserving: we never drop a sample (which would
-break the 1-to-1 s-correspondence required by subsequent width accumulation).
-
-Post-processing
-----------------
-After building each offset polyline we run a single Shapely make_valid pass.
-On very tight junction arcs (r ~2 m with 3-m lanes) residual micro-loops may
-still appear due to floating-point rounding; make_valid removes them cleanly.
-"""
-
 import logging
 import xml.etree.ElementTree as ET
 from typing import Union
@@ -262,10 +215,24 @@ def _sanitise_linestring(pts: np.ndarray,
 class XODRParser:
     """Parser for the OpenDRIVE (.xodr) map format.
 
-    Usage
-    -----
-    >>> parser = XODRParser()
-    >>> map_ = parser.parse("path/to/map.xodr")
+    Converts an OpenDRIVE file into a Tactics2D Map object containing lanes,
+    road-mark lines, junctions, and optional area objects (crosswalks, etc.).
+
+    The parser follows the canonical offset-curve approach used by libopendrive
+    and esmini:
+
+        P_border(s, t) = P_ref(s) + t * n_ref(s)
+
+    where s is the arc-length along the reference line, t is the signed lateral
+    distance, and n_ref(s) is the unit left-pointing normal.  Lane widths are
+    accumulated outward from the centre lane so that all boundaries share the
+    same s-sample array, preserving the 1-to-1 correspondence required by the
+    width polynomials.  Curvature-aware clamping prevents swallowtail
+    self-intersections on tight curves.
+
+    Example:
+        >>> parser = XODRParser()
+        >>> map_ = parser.parse("path/to/map.xodr")
     """
 
     _ROADMARK_SUBTYPE: dict = {
@@ -782,7 +749,14 @@ class XODRParser:
             seg_lo_t    = lane_offset_t[mask]
             seg_center  = center_pts[mask]
 
-            # Centre-line RoadLine
+            # Guard against degenerate single-point segments — keep all arrays in sync
+            if len(seg_center) < 2:
+                seg_ref_pts = np.vstack([seg_ref_pts, seg_ref_pts])
+                seg_ref_s   = np.append(seg_ref_s,   seg_ref_s[-1])
+                seg_ref_n   = np.vstack([seg_ref_n,   seg_ref_n])
+                seg_lo_t    = np.append(seg_lo_t,    seg_lo_t[-1])
+                seg_center  = np.vstack([seg_center,  seg_center])
+
             center_line = RoadLine(
                 id_=self._next_id(),
                 geometry=LineString(seg_center.tolist()),
@@ -899,14 +873,12 @@ class XODRParser:
     def parse(self, file_path: str) -> Map:
         """Parse an OpenDRIVE file and return a Tactics2D Map object.
 
-        Parameters
-        ----------
-        file_path : str
-            Path to the .xodr file.
+        Args:
+            file_path (str): Absolute or relative path to the .xodr file.
 
-        Returns
-        -------
-        map_ : Map
+        Returns:
+            Map: A Tactics2D Map populated with lanes, roadlines, junctions,
+                and area objects parsed from the OpenDRIVE file.
         """
         xml_root = ET.parse(file_path).getroot()
 

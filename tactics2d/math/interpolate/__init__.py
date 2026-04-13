@@ -13,4 +13,4 @@ from .reeds_shepp import ReedsShepp
 from .spiral import Spiral
 from .param_poly3 import ParamPoly3
 
-__all__ = ["BSpline", "Bezier", "CubicSpline", "Dubins", "ReedsShepp", "Spiral"]
+__all__ = ["BSpline", "Bezier", "CubicSpline", "Dubins", "ReedsShepp", "Spiral", "ParamPoly3"]

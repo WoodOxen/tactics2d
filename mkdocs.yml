@@ -12,20 +12,31 @@ nav:
   - Home: "index.md"
   - Release Notes: "release_notes.md"
   - Installation: "installation.md"
-  - Tutorial:
-    - Visualize Interpolation: "./tutorial/interpolator_visualization.ipynb"
-    - Visualize Datasets: "./tutorial/dataset_visualization.ipynb"
-    - Train an Agent in Parking Environment: "./tutorial/train_parking_demo.ipynb"
-  - Dataset Support: "./dataset-support/dataset-support.md"
+  - Dataset Support:
+    - "dataset_support/index.md"
+    - CitySim: "dataset_support/citysim.ipynb"
+    - DLP: "dataset_support/dlp.ipynb"
+    - highD: "dataset_support/highd.ipynb"
+    - inD: "dataset_support/ind.ipynb"
+    - rounD: "dataset_support/round.ipynb"
+    - exiD: "dataset_support/exid.ipynb"
+    - uniD: "dataset_support/unid.ipynb"
+    - nuPlan: "dataset_support/nuplan.ipynb"
+    - DriveInsight: "./dataset-support/driveinsightd.ipynb"
   - Python API:
-      - tactics2d.dataset_parser: "api/dataset_parser.md"
-      - tactics2d.envs: "api/envs.md"
-      - tactics2d.map: "api/map.md"
-      - tactics2d.math: "api/math.md"
-      - tactics2d.participant: "api/participant.md"
-      - tactics2d.physics: "api/physics.md"
-      - tactics2d.sensor: "api/sensor.md"
-      - tactics2d.traffic: "api/traffic.md"
+    - tactics2d.controller: "api/controller.md"
+    - tactics2d.dataset_parser: "api/dataset_parser.md"
+    - tactics2d.envs: "api/envs.md"
+    - tactics2d.geometry: "api/geometry.md"
+    - tactics2d.interpolator: "api/interpolator.md"
+    - tactics2d.map: "api/map.md"
+    - tactics2d.participant: "api/participant.md"
+    - tactics2d.physics: "api/physics.md"
+    - tactics2d.sensor: "api/sensor.md"
+    - tactics2d.traffic: "api/traffic.md"
+  - Tutorial:
+    - graph_search_demo: "tutorial/graph_search_demo.ipynb"
+    - sampling_search_demo: "tutorial/sampling_search_demo.ipynb"
   - Community: "community.md"
   - Publications: "publication.md"
 
@@ -70,14 +81,22 @@ theme:
         name: Switch to light mode
   font:
     text: "Roboto Slab"
-    code: "Ubuntu Mono"
+    code: "Cousine"
   features:
     - content.action.view
     - content.code.copy
     - content.code.prettify
     - navigation.expand
     - navigation.footer
+    - navigation.indexes
+    - navigation.integrate
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.top
+    - navigation.sections
     - search.suggest
+    - toc.follow
+    - toc.integrate
 
 plugins:
   - glightbox
@@ -89,26 +108,34 @@ plugins:
             show_source: false
             heading_level: 1
             show_root_heading: true
+            docstring_section_style: list
   - mkdocs-jupyter:
       execute: false
       include_requirejs: true
       include_source: true
       kernel_name: python3
-  - search
+  - search:
+      lang: en
 
 markdown_extensions:
   - abbr
   - admonition
   - attr_list
+  - toc:
+      toc_depth: 2
+  - pymdownx.arithmatex:
+      generic: true
   - pymdownx.details
   - pymdownx.superfences
   - pymdownx.emoji
 
 extra_javascript:
   - javascripts/katex.js
-  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/katex.min.js
-  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/contrib/auto-render.min.js
+  - javascripts/hide_code.js
+  - https://unpkg.com/katex@0/dist/katex.min.js
+  - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
 
 extra_css:
-  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.7/katex.min.css
   - css/extra_for_material.css
+  - css/hide_code.css
+  - https://unpkg.com/katex@0/dist/katex.min.css
