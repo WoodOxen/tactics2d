@@ -1,0 +1,38 @@
+{
+  "name": "changelog-checker",
+  "description": "CHANGELOG.md format checker and PR description generator for Tactics2D project",
+  "version": "1.0",
+  "filePatterns": ["CHANGELOG.md"],
+  "format": {
+    "standard": "Keep a Changelog",
+    "requiredSections": ["[Unreleased]"],
+    "sectionHeaders": ["### Added", "### Changed", "### Fixed", "### Removed"],
+    "entryFormat": "- Item description"
+  },
+  "actions": [
+    {
+      "type": "suggest",
+      "trigger": "fileCreated",
+      "message": "CHANGELOG.md file created. Ensure it follows 'Keep a Changelog' format with [Unreleased] section and proper version headers."
+    },
+    {
+      "type": "validate",
+      "trigger": "fileModified",
+      "check": "formatCompliance",
+      "message": "CHANGELOG.md format issues detected. Please ensure:\n1. [Unreleased] section exists and has content\n2. Section headers use ### Added/Changed/Fixed/Removed\n3. Entries start with '- '\n4. Version headers follow format: [version] - YYYY-MM-DD"
+    },
+    {
+      "type": "extract",
+      "trigger": "prCreate",
+      "output": "prDescription",
+      "message": "CHANGELOG.md [Unreleased] section changes extracted for PR description:"
+    },
+    {
+      "type": "warn",
+      "trigger": "prCreateNoChanges",
+      "message": "Warning: CHANGELOG.md [Unreleased] section appears empty or unchanged. Consider adding release notes before creating PR."
+    }
+  ],
+  "prDescriptionTemplate": "## Summary\n{summary}\n\n## Changes from CHANGELOG.md\n{changes}\n\n🤖 Generated from CHANGELOG.md [Unreleased] section",
+  "enabled": true
+}

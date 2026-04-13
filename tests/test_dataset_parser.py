@@ -1,9 +1,8 @@
 #! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: test_dataset_parser.py
-# @Description: This file implements the test cases for the dataset parser.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Tests for dataset parser."""
 
 
 import sys
@@ -11,7 +10,6 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-import json
 import logging
 import os
 import time
@@ -20,7 +18,8 @@ from zipfile import ZipFile
 import pytest
 
 from tactics2d.dataset_parser import (
-    ArgoverseParser,
+    Argoverse2Parser,
+    CitySimParser,
     DLPParser,
     InteractionParser,
     LevelXParser,
@@ -29,6 +28,7 @@ from tactics2d.dataset_parser import (
     WOMDParser,
 )
 from tactics2d.dataset_parser.parse_driveinsightd import DriveInsightDParser
+from tactics2d.map.map_config import NUPLAN_MAP_CONFIG
 
 
 @pytest.mark.dataset_parser
@@ -40,10 +40,10 @@ from tactics2d.dataset_parser.parse_driveinsightd import DriveInsightDParser
         ("val/00a0ec58-1fb9-4a2b-bfd7-f4e5da7a9eff", 73),
     ],
 )
-def test_argoverse_parser(sub_folder, expected):
+def test_argoverse2_parser(sub_folder, expected):
     dataset_folder = "./tactics2d/data/trajectory_sample/Argoverse"
     folder = os.path.join(dataset_folder, sub_folder)
-    dataset_parser = ArgoverseParser()
+    dataset_parser = Argoverse2Parser()
     files = os.listdir(folder)
     map_file = [file for file in files if ".json" in file][0]
     trajectory_files = [file for file in files if ".parquet" in file][0]
@@ -53,9 +53,25 @@ def test_argoverse_parser(sub_folder, expected):
     t2 = time.time()
     _ = dataset_parser.parse_map(map_file, folder)
     t3 = time.time()
+
     assert len(participants) == expected
     logging.info(f"The time needed to parse an Argoverse trajectory file: {t2 - t1}s")
     logging.info(f"The time needed to parse an Argoverse map file: {t3 - t2}s")
+
+
+@pytest.mark.dataset_parser
+@pytest.mark.parametrize("ids, expected", [(None, 136), ([1, 2, 3], 3)])
+def test_citysim_parser(ids, expected):
+    folder = "./tactics2d/data/trajectory_sample/CitySim/Intersection B (Non-Signalized Intersection)/Trajectories"
+    file = "IntersectionB-01.csv"
+    dataset_parser = CitySimParser()
+
+    t1 = time.time()
+    participants, _ = dataset_parser.parse_trajectory(file, folder, ids=ids)
+    t2 = time.time()
+
+    assert len(participants) == expected
+    logging.info(f"The time needed to parse a CitySim trajectory file: {t2 - t1}s")
 
 
 @pytest.mark.dataset_parser
@@ -67,7 +83,7 @@ def test_argoverse_parser(sub_folder, expected):
         ("rounD", "00", (-float("inf"), float("inf")), 348),
         ("exiD", "01_tracks.csv", None, 871),
         ("uniD", "00_tracksMeta.csv", None, 362),
-        ("highD", "01_recordkingMeta.csv", (0, 10000), 20),
+        ("highD", "01_recordingMeta.csv", (0, 10000), 20),
         ("inD", 0, (0, 10000), 10),
         ("rounD", 0, (0, 10000), 12),
         ("exiD", 1, (0, 10000), 38),
@@ -145,9 +161,14 @@ def test_dlp_parser(file_id: int, stamp_range: tuple, expected: int):
 def test_ngsim_parser(file, stamp_range, ids):
     folder = "./tactics2d/data/trajectory_sample/NGSIM"
     parser = NGSIMParser()
+
+    t1 = time.time()
     participants, _ = parser.parse_trajectory(file, folder, stamp_range, ids)
+    t2 = time.time()
+
     if ids is not None:
         assert len(ids) == len(participants)
+    logging.info(f"The time needed to parse a NGSIM file: {t2 - t1}s.")
 
     parser.extract_meta_data(file, folder)
 
@@ -174,9 +195,7 @@ def test_ngsim_parser(file, stamp_range, ids):
 )
 def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
     folder_path = "./tactics2d/data/trajectory_sample/NuPlan/data/cache"
-    map_folder_path = "./tactics2d/data/map"
-    with open("./tactics2d/dataset_parser/map.config") as f:
-        configs = json.load(f)
+    map_folder_path = "./tactics2d/data/map/NuPlan"
 
     dataset_parser = NuPlanParser()
 
@@ -184,7 +203,7 @@ def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
     participants, _ = dataset_parser.parse_trajectory(file_name, folder_path, stamp_range)
     t2 = time.time()
     location = dataset_parser.get_location(file_name, folder_path)
-    map_path = configs[location]["gpkg_path"]
+    map_path = NUPLAN_MAP_CONFIG[location]["gpkg_file"]
 
     try:
         _ = dataset_parser.parse_map(map_path, map_folder_path)
@@ -224,7 +243,7 @@ def test_womd_parser(scenario_id):
     [
         ("6", None,                          13),
         ("6", (-float("inf"), float("inf")), 13),
-        ("6", (0, 5000),                     9),
+        ("6", (0, 5000),                      9),
     ],
 )
 def test_driveinsightd_parser(scenario_id: str, stamp_range: tuple, expected: int):

@@ -1,9 +1,7 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: area.py
-# @Description: This file defines a class for a map area.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Area implementation."""
 
 
 import logging
@@ -33,6 +31,21 @@ class Area:
         custom_tags (dict): The custom tags of the lane. Defaults to None.
         shape (List[list, list]): The shape of the area. The first list contains the outer shape, and the second list contains the inner shapes. Defaults to None. This attribute is **read-only**.
     """
+
+    __slots__ = (
+        "id_",
+        "geometry",
+        "line_ids",
+        "regulatory_ids",
+        "type_",
+        "subtype",
+        "color",
+        "location",
+        "inferred_participants",
+        "speed_limit_mandatory",
+        "custom_tags",
+        "speed_limit",
+    )
 
     _speed_units = ["km/h", "mi/h", "m/s", "mph"]
 

@@ -1,9 +1,8 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: __init__.py
-# @Description: This file defines the event detection module for the traffic scenario.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Event detection module."""
+
 
 from .arrival import Arrival
 from .collision import DynamicCollision, StaticCollision

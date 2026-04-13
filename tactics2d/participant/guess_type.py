@@ -1,9 +1,8 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: guess_type.py
-# @Description: This file implements a guesser that predicts the class of traffic participant.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Guess type implementation."""
+
 
 import os
 

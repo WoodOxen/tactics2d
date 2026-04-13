@@ -1,16 +1,15 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: vehicle.py
-# @Description: This file defines a class for a four-wheeled vehicle.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Vehicle implementation."""
+
 
 import logging
 from typing import Any, Tuple
 
 import numpy as np
-from shapely.affinity import affine_transform, translate
-from shapely.geometry import LinearRing
+from shapely.affinity import affine_transform
+from shapely.geometry import LinearRing, LineString
 
 from tactics2d.participant.trajectory import State, Trajectory
 from tactics2d.physics import SingleTrackKinematics
@@ -38,7 +37,7 @@ class Vehicle(ParticipantBase):
         id_ (int): The unique identifier of the vehicle.
         type_ (str): The type of the vehicle. Defaults to "medium_car".
         trajectory (Trajectory): The trajectory of the vehicle. Defaults to an empty trajectory.
-        color (tuple): The color of the vehicle. The color of the traffic participant. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to light-turquoise (43, 203, 186).
+        color (tuple): The color of the vehicle. The color of the traffic participant. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to light-turquoise "#2bcbba".
         length (float): The length of the vehicle. The unit is meter. Defaults to None.
         width (float): The width of the vehicle. The unit is meter. Defaults to None.
         height (float): The height of the vehicle. The unit is meter. Defaults to None.
@@ -55,8 +54,8 @@ class Vehicle(ParticipantBase):
         speed_range (Tuple[float, float]): The range of the vehicle speed. The unit is meter per second (m/s). Defaults to (-16.67, 55.56) (= -60~200 km/h).
         accel_range (Tuple[float, float]): The range of the vehicle acceleration. The unit is meter per second squared. Defaults to (-10, 3).
         verify (bool): Whether to verify the trajectory to bind or the state to add. Defaults to False.
-        physics_model (PhysicsModelBase): The physics model of the cyclist. Defaults to SingleTrackKinematics.
-        shape (float): The shape of the cyclist. It is represented as a bounding box with its original point located at the mass center. This attribute is **read-only**.
+        physics_model (PhysicsModelBase): The physics model of the vehicle. Defaults to SingleTrackKinematics.
+        geometry (LinearRing): The geometry shape of the vehicle. It is represented as a bounding box with its original point located at the center. This attribute is **read-only**.
         current_state (State): The current state of the traffic participant. This attribute is **read-only**.
     """
 
@@ -76,7 +75,7 @@ class Vehicle(ParticipantBase):
         "max_decel": float,
         "verify": bool,
     }
-    _default_color = (43, 203, 186, 255)  # light-turquoise
+    _default_color = "#2bcbba"  # light-turquoise
     _driven_modes = {"FWD", "RWD", "4WD", "AWD"}
 
     def __init__(
@@ -288,30 +287,22 @@ class Vehicle(ParticipantBase):
             frame_range (Tuple[int, int], optional): The requested frame range. The first element is the start frame, and the second element is the end frame. The unit is millisecond (ms).
 
         Returns:
-            The trace of the cyclist within the requested frame range.
+            LinearRing: The trace of the vehicle within the requested frame range, represented as a polygon buffer around the trajectory centerline.
         """
-        # states = self.get_states(frame_range)
-        # trace = None
-        # if len(states) == 0:
-        #     pass
-        # elif len(states) == 1:
-        #     trace = self.get_pose(frame=states[0].frame)
-        # else:
-        #     center_line = []
-        #     start_pose = np.array(list(self.get_pose(frame=states[0].frame).coords))
-        #     end_pose = np.array(list(self.get_pose(frame=states[-1].frame).coords))
-        #     start_point = tuple(np.mean(start_pose[2:4], axis=0))  # the midpoint of the rear
-        #     end_point = tuple(np.mean(end_pose[0:2], axis=0))  # the midpoint of the front
-        #     center_line.append(start_point)
-        #     for state in states:
-        #         trajectory.append(state.location)
-        #     center_line.append(end_point)
-        #     trajectory = LineString(trajectory)
 
-        #     left_bound = trajectory.offset_curve(self.width / 2)
-        #     right_bound = trajectory.offset_curve(-self.width / 2)
+        trace_points = self.trajectory.get_trace(frame_range)
+        if not trace_points:
+            # Return empty LinearRing if no points
+            return LinearRing()
 
-        #     trace = LinearRing(list(left_bound.coords) + list(reversed(list(right_bound.coords))))
-
-        # return trace
-        return None
+        center_line = LineString(trace_points)
+        if self.width is not None:
+            buffer = center_line.buffer(self.width / 2, cap_style="square")
+            return LinearRing(buffer.exterior.coords)
+        else:
+            # If width is not available, return the center line as a closed ring
+            # by duplicating the first point at the end
+            coords = list(center_line.coords)
+            if len(coords) >= 2:
+                coords.append(coords[0])
+            return LinearRing(coords)

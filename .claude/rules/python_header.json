@@ -1,0 +1,73 @@
+{
+  "name": "python-header-style",
+  "description": "Python file header style rules for Tactics2D project",
+  "version": "1.0",
+  "filePatterns": ["*.py"],
+  "header": {
+    "copyright": "# Copyright (C) {year}, Tactics2D Authors. Released under the GNU GPLv3.",
+    "license": "# SPDX-License-Identifier: GPL-3.0-or-later",
+    "separator": ""
+  },
+  "descriptionRules": {
+    "general": {
+      "maxWords": 10,
+      "endWithPeriod": true,
+      "usePresentTense": true,
+      "capitalizeFirst": true
+    },
+    "patterns": [
+      {
+        "pattern": "__init__.py",
+        "template": "{module_name} module."
+      },
+      {
+        "pattern": "test_*.py",
+        "template": "Tests for {test_subject}."
+      },
+      {
+        "pattern": "parse_*.py",
+        "template": "{dataset_name} parser implementation."
+      },
+      {
+        "pattern": "envs/*.py",
+        "template": "{environment_type} environment implementation."
+      },
+      {
+        "pattern": "*2*.py",
+        "template": "{source} to {target} converter implementation."
+      },
+      {
+        "pattern": "generate_*.py",
+        "template": "{what} generator implementation."
+      },
+      {
+        "pattern": "*controller.py",
+        "template": "{controller_type} controller implementation."
+      },
+      {
+        "pattern": "*",
+        "template": "{function_name} implementation."
+      }
+    ]
+  },
+  "properNouns": [
+    "Argoverse", "Waymo", "NuPlan", "NGSIM", "INTERACTION", "highD", "inD", "rounD", "exiD", "uniD", "CitySim", "DLP",
+    "OSM", "XODR", "GIS", "GPKG", "PB2",
+    "WebGL", "FastAPI", "Matplotlib", "WebSocket", "TraCI", "SUMO", "LiDAR", "PID", "PPO", "TD3",
+    "LevelX", "Reeds-Shepp", "Dubins", "Bezier", "Clothoid"
+  ],
+  "actions": [
+    {
+      "type": "suggest",
+      "trigger": "fileCreated",
+      "message": "Python file header should follow Tactics2D style guide. Use standard copyright, license, and description format."
+    },
+    {
+      "type": "validate",
+      "trigger": "fileModified",
+      "check": "headerFormat",
+      "message": "Python file header does not conform to style guide. Please update according to .claude/.python_header_style.md"
+    }
+  ],
+  "enabled": true
+}

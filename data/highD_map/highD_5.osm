@@ -1,0 +1,87 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<osm version='0.6' generator='JOSM'>
+  <node id='101818' visible='true' version='1' lat='0.0' lon='0.0' />
+  <node id='101819' visible='true' version='1' lat='0.0' lon='0.006' />
+  <node id='101820' visible='true' version='1' lat='-0.00003589739' lon='0.0' />
+  <node id='101821' visible='true' version='1' lat='-0.00003589739' lon='0.006' />
+  <node id='101822' visible='true' version='1' lat='-0.00007179478' lon='0.0' />
+  <node id='101823' visible='true' version='1' lat='-0.00007179478' lon='0.006' />
+  <node id='101824' visible='true' version='1' lat='-0.00011379473' lon='0.0' />
+  <node id='101825' visible='true' version='1' lat='-0.00011379473' lon='0.006' />
+  <node id='101826' visible='true' version='1' lat='-0.00014969211' lon='0.0' />
+  <node id='101827' visible='true' version='1' lat='-0.00014969211' lon='0.006' />
+  <node id='101828' visible='true' version='1' lat='-0.00018558951' lon='0.0' />
+  <node id='101829' visible='true' version='1' lat='-0.00018558951' lon='0.006' />
+  <way id='101830' action='modify' visible='true' version='1'>
+    <nd ref='101819' />
+    <nd ref='101818' />
+    <tag k='subtype' v='solid' />
+    <tag k='type' v='line_thin' />
+  </way>
+  <way id='101831' visible='true' version='1'>
+    <nd ref='101821' />
+    <nd ref='101820' />
+    <tag k='subtype' v='dashed' />
+    <tag k='type' v='line_thin' />
+  </way>
+  <way id='101832' action='modify' visible='true' version='1'>
+    <nd ref='101823' />
+    <nd ref='101822' />
+    <tag k='subtype' v='solid' />
+    <tag k='type' v='line_thin' />
+  </way>
+  <way id='101833' action='modify' visible='true' version='1'>
+    <nd ref='101824' />
+    <nd ref='101825' />
+    <tag k='subtype' v='solid' />
+    <tag k='type' v='line_thin' />
+  </way>
+  <way id='101834' visible='true' version='1'>
+    <nd ref='101826' />
+    <nd ref='101827' />
+    <tag k='subtype' v='dashed' />
+    <tag k='type' v='line_thin' />
+  </way>
+  <way id='101835' action='modify' visible='true' version='1'>
+    <nd ref='101828' />
+    <nd ref='101829' />
+    <tag k='subtype' v='solid' />
+    <tag k='type' v='line_thin' />
+  </way>
+  <relation id='99762' visible='true' version='1'>
+    <member type='way' ref='101830' role='right' />
+    <member type='way' ref='101831' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='highway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='99763' visible='true' version='1'>
+    <member type='way' ref='101831' role='right' />
+    <member type='way' ref='101832' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='highway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='99764' visible='true' version='1'>
+    <member type='way' ref='101833' role='left' />
+    <member type='way' ref='101834' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='highway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='99765' visible='true' version='1'>
+    <member type='way' ref='101834' role='left' />
+    <member type='way' ref='101835' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='highway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+</osm>

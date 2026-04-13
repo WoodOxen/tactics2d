@@ -1,9 +1,7 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: train_racing_agent.py
-# @Description: This script gives an example on how to train a PPO model in tactics2d's racing environment.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Train racing agent implementation."""
 
 
 import sys
@@ -21,8 +19,6 @@ import torch.nn as nn
 import tqdm
 import wandb
 from rllib.algorithms.ppo import *
-
-from tactics2d.envs import RacingEnv
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

@@ -19,7 +19,8 @@ EN | [CN](README.CN.md)
 ## About
 
 > [!note]
-> This is the official codebase for Course AU7043 in Shanghai Jiao Tong University.
+> This is the official codebase for Course AU7043 in Shanghai Jiao Tong University under branch `AU7043`.
+>
 
 `tactics2d` is an open-source Python library that provides diverse and challenging traffic scenarios for the development and evaluation of reinforcement learning-based decision-making models in autonomous driving. `tactics2d` stands out with the following key features:
 
@@ -51,8 +52,9 @@ We have conducted testing for the execution and construction of `tactics2d` on t
 | System | 3.8 | 3.9 | 3.10 | 3.11 |
 | --- | --- | --- | --- | --- |
 | Ubuntu 18.04 | :white_check_mark: | - | - | - |
-| Ubuntu 20.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Ubuntu 20.04 | :white_check_mark: | :white_check_mark: | - | - |
 | Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 | MacOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 

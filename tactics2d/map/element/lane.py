@@ -1,9 +1,7 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: lane.py
-# @Description: This file defines a class for a map lane.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Lane implementation."""
 
 
 import logging
@@ -51,13 +49,35 @@ class Lane:
         shape (list): The shape of the lane. This attribute is **read-only**.
     """
 
+    __slots__ = (
+        "id_",
+        "left_side",
+        "right_side",
+        "line_ids",
+        "regulatory_ids",
+        "type_",
+        "subtype",
+        "color",
+        "location",
+        "inferred_participants",
+        "speed_limit_mandatory",
+        "custom_tags",
+        "geometry",
+        "speed_limit",
+        "predecessors",
+        "successors",
+        "left_neighbors",
+        "right_neighbors",
+    )
+
     _speed_units = ["km/h", "mi/h", "m/s", "mph"]
 
     def __init__(
         self,
         id_: str,
-        left_side: LineString,
-        right_side: LineString,
+        left_side: LineString = None,
+        right_side: LineString = None,
+        geometry: LinearRing = None,
         line_ids: set = dict(left=[], right=[]),
         regulatory_ids: set = set(),
         type_: str = "lanelet",
@@ -74,19 +94,20 @@ class Lane:
 
         Args:
             id_ (str): The unique identifier of the lane.
-            left_side (LineString): The left side of the lane.
-            right_side (LineString): The right side of the lane.
+            left_side (LineString, optional): The left side of the lane. Defaults to None.
+            right_side (LineString, optional): The right side of the lane. Defaults to None.
+            geometry (LinearRing, optional): The geometry of the lane. This parameter only takes effect when the `left_side` or `right_side` is None. Defaults to None.
             line_ids (set, optional): The ids of the lines that make up the lane.
             regulatory_ids (set, optional): The ids of the regulations that apply to the lane.
             type_ (str, optional): The type of the lane.
-            subtype (str, optional): The subtype of the lane.
-            color (Any, optional): The color of the lane. If not specified, the color will be assigned based on the rendering template later.
-            location (str, optional): The location of the lane (urban, nonurban, etc.).
-            inferred_participants (list, optional): The allowing type of traffic participants that can pass the lane. If not specified, the lane is not restricted to any type of traffic participants.
-            speed_limit (float, optional): The speed limit in this lane.
+            subtype (str, optional): The subtype of the lane. Defaults to None.
+            color (Any, optional): The color of the lane. If not specified, the color will be assigned based on the rendering template later. Defaults to None.
+            location (str, optional): The location of the lane (urban, nonurban, etc.). Defaults to None.
+            inferred_participants (list, optional): The allowing type of traffic participants that can pass the lane. If not specified, the lane is not restricted to any type of traffic participants. Defaults to None.
+            speed_limit (float, optional): The speed limit in this lane. Defaults to None.
             speed_limit_unit (str, optional): The unit of speed limit in this lane. The valid units are `km/h`, `mi/h`, and `m/s`. Defaults to "km/h". The speed limit will be automatically converted to `m/s` when initializing the instance. If the unit is invalid, the speed limit will be set to None.
             speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or not.
-            custom_tags (dict, optional): The custom tags of the lane.
+            custom_tags (dict, optional): The custom tags of the lane. Defaults to None.
         """
         self.id_ = id_
         self.left_side = left_side
@@ -106,7 +127,7 @@ class Lane:
                 list(left_side.coords) + list(reversed(list(right_side.coords)))
             )
         else:
-            self.geometry = None
+            self.geometry = geometry
 
         self._set_speed_limit_unit(speed_limit, speed_limit_unit)
 

@@ -1,9 +1,7 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: roadline.py
-# @Description: This file defines a class for a roadline.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Roadline implementation."""
 
 
 import logging
@@ -35,6 +33,19 @@ class RoadLine:
         end (Point): The end point of the roadline. This attribute is **read-only**.
         shape (list): The shape of the roadline. This attribute is **read-only**.
     """
+
+    __slots__ = (
+        "id_",
+        "geometry",
+        "type_",
+        "subtype",
+        "color",
+        "width",
+        "height",
+        "lane_change",
+        "temporary",
+        "custom_tags",
+    )
 
     def __init__(
         self,

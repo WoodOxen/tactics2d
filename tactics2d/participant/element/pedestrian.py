@@ -1,9 +1,8 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: pedestrian.py
-# @Description: This file defines a class for a pedestrian.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Pedestrian implementation."""
+
 
 import logging
 from typing import Any, Tuple
@@ -24,7 +23,7 @@ class Pedestrian(ParticipantBase):
         id_ (Any): The unique identifier of the pedestrian.
         type_ (str): The type of the pedestrian. Defaults to "adult_male".
         trajectory (Trajectory): The trajectory of the pedestrian. Defaults to an empty trajectory.
-        color (Any): The color of the pedestrian. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to light-blue (69, 170, 242).
+        color (Any): The color of the pedestrian. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to light-blue "#45aaf2".
         length (float): The length of the pedestrian. The unit is meter. Defaults to None.
         width (float): The width of the pedestrian. The unit is meter. Defaults to 0.4.
         height (float): The height of the pedestrian. The unit is meter. Defaults to None.
@@ -47,7 +46,7 @@ class Pedestrian(ParticipantBase):
         "max_accel": float,
         "verify": bool,
     }
-    _default_color = (69, 170, 242, 255)  # light-blue
+    _default_color = "#45aaf2"  # light-blue
 
     def __init__(
         self, id_: Any, type_: str = "adult_male", trajectory: Trajectory = None, **kwargs
@@ -83,10 +82,13 @@ class Pedestrian(ParticipantBase):
         else:
             self.physics_model = kwargs["physics_model"]
 
-        self._radius = self.width / 2
+        if hasattr(self, "width") and self.width is not None:
+            self._radius = self.width / 2
+        else:
+            self._radius = 0
 
     @property
-    def geometry(self):
+    def geometry(self) -> float:
         return self._radius
 
     def load_from_template(self, type_name: str, overwrite: bool = True, template: dict = None):

@@ -1,9 +1,7 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: completed.py
-# @Description: This script defines the event detector to check whether the agent has arrived at a target area.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Arrival implementation."""
 
 
 from shapely.geometry import Polygon

@@ -1,9 +1,7 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: off_lane.py
-# @Description: This script defines the event to check whether the agent is off the road.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Off lane implementation."""
 
 
 from .event_base import EventBase

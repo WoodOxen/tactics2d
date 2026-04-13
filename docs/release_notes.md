@@ -12,6 +12,32 @@
 
 ---
 
+## Version 0.1.8 - 2025-05-22
+
+### Added
+
+- Add data parser for NGSIM.
+- Add data parser for CitySim.
+- Add carla sensor base class.
+- Add a new tutorial for pure pursuit controller in racing environment.
+- Add controller class for pure pursuit controller.
+- Add Chinese README.
+- Add data analysis for LevelX datasets (highD, inD, rounD, exiD, uniD) and CitySim.
+
+### Changed
+
+- Boost LevelX datasets by polars, 10 times faster than before.
+- Move `test` to `tests` in the root directory.
+- Improve map rendering speed.
+- Improve the running efficiency of Bezier and b_spline interpolators by adding c++ implementation.
+- Change the interface of `tactics2d.map.parser.OSMParser` and `tactics2d.map.parser.XODRParser`.
+
+### Fixed
+
+- Fix `type_node is none` bug
+- Fix bugs in test_b_spline.py.
+- Fix pygame window unresponsive where events aren't handled
+
 ## Version 0.1.7 - 2024-05-22
 
 ### Bug Fixes

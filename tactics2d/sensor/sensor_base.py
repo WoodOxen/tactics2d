@@ -1,128 +1,193 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: sensor_base.py
-# @Description: This file defines the base class for all the pseudo sensors provided in tactics2d.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
 
-import logging
+"""Base implementation."""
+
+
 from abc import ABC, abstractmethod
-from typing import Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
-import pygame
 from shapely.geometry import Point
 
 from tactics2d.map.element import Map
 
 
 class SensorBase(ABC):
-    """This class define an interface for all the pseudo sensors provided in tactics2d.
+    """This class defines a base interface for sensors.
 
     Attributes:
-        id_ (int): The unique identifier of the sensor.
-        map_ (Map): The map that the sensor is attached to.
-        perception_range (Union[float, Tuple[float]]): The distance from the sensor to its maximum detection range in (left, right, front, back). When this value is undefined, the sensor is assumed to detect the whole map. Defaults to None.
-        window_size (Tuple[int, int]): The size of the rendering window. Defaults to (200, 200).
-        off_screen (bool): Whether to render the sensor off screen. Defaults to True.
-        scale (float): The scale of the rendering window.
-        bind_id (int): The unique identifier of the participant that the sensor is bound to.
-        surface (pygame.Surface): The rendering surface of the sensor. This attribute is **read-only**.
-        heading (float): The heading of the sensor. This attribute is **read-only**.
-        position (Point): The position of the sensor. This attribute is **read-only**.
-        max_perception_distance (float): The maximum detection range of the sensor. This attribute is **read-only**.
+        id_ (int): The unique identifier of the sensor. This attribute is **read-only** once the instance is initialized.
+        map_ (Map): The map that the sensor is attached to. This attribute is **read-only** once the instance is initialized.
+        perception_range (Union[float, Tuple[float]]): The distance from the sensor to its maximum detection range in (left, right, front, back). When this value is undefined, the sensor is assumed to detect the whole map. Defaults to None. This attribute is **read-only** once the instance is initialized.
+        position (Point): The position of the sensor in the global 2D coordinate system.
+        bind_id (Any): The unique identifier of object that the sensor is bound to. This attribute is **read-only** and can only be set using the `bind_with` method.
+        is_bound (bool): Whether the sensor is bound to an object. This attribute is **read-only** once the instance is initialized.
     """
 
-    def __init__(
-        self,
-        id_: int,
-        map_: Map,
-        perception_range: Union[float, Tuple[float]] = None,
-        window_size: Tuple[int, int] = (200, 200),
-        off_screen: bool = True,
-    ):
+    _id = None
+    _map = None
+    _perception_range = None
+    _bind_id = None
+    _position = None
+
+    def __init__(self, id_: int, map_: Map, perception_range: Union[float, Tuple[float]] = None):
         """Initialize the sensor.
 
         Args:
             id_ (int): The unique identifier of the sensor.
             map_ (Map): The map that the sensor is attached to.
-            perception_range (Union[float, Tuple[float]], optional): The distance from the sensor to its maximum detection range in (left, right, front, back). When this value is undefined, the sensor is assumed to detect the whole map.
-            window_size (Tuple[int, int], optional): The size of the rendering window.
-            off_screen (bool, optional): Whether to render the sensor off screen.
+            perception_range (Union[float, Tuple[float]], optional): The distance from the sensor to its maximum detection range in (left, right, front, back). When this value is undefined, the sensor is assumed to detect the whole map. This can be a single float value or a tuple of four values representing the perception range in each direction (left, right, front, back). Defaults to None.
         """
-        self.id_ = id_
-        self.map_ = map_
-        self.off_screen = off_screen
-        self.window_size = window_size
-        self._surface = pygame.Surface(self.window_size)
-        self._bind_id = None
-        self._heading = None
-        self._position = None
+
+        self._id = id_
+        self._map = map_
+        self.transform_matrix = None
 
         if perception_range is None:
             width = (map_.boundary[1] - map_.boundary[0]) / 2
             height = (map_.boundary[3] - map_.boundary[2]) / 2
-            self.perception_range = (width, width, height, height)
+            self._perception_range = (width, width, height, height)
         elif isinstance(perception_range, float) or isinstance(perception_range, int):
-            self.perception_range = (
+            self._perception_range = (
                 perception_range,
                 perception_range,
                 perception_range,
                 perception_range,
             )
         else:
-            self.perception_range = perception_range
-
-        perception_width = self.perception_range[0] + self.perception_range[1]
-        perception_height = self.perception_range[2] + self.perception_range[3]
-
-        scale_width = window_size[0] / perception_width
-        scale_height = window_size[1] / perception_height
-        self.scale = max(scale_width, scale_height)
-
-        if scale_width != scale_height:
-            logging.warning(
-                "The x-y proportion of the perception range and the rendering window is inconsistent. "
-            )
+            self._perception_range = perception_range
 
     @property
-    def heading(self):
-        return self._heading
+    def id_(self) -> int:
+        return self._id
 
     @property
-    def position(self):
-        return self._position
+    def map_(self) -> Map:
+        return self._map
 
     @property
-    def max_perception_distance(self):
+    def perception_range(self) -> Union[float, Tuple[float, float, float, float]]:
+        return self._perception_range
+
+    @property
+    def max_perception_distance(self) -> float:
         return np.max(self.perception_range)
 
     @property
-    def surface(self):
-        return self._surface
+    def position(self) -> Point:
+        return self._position
 
     @property
-    def bind_id(self):
+    def bind_id(self) -> Optional[int]:
         return self._bind_id
 
-    def set_bind_id(self, bind_id):
-        """This function is used to set the bind id of the sensor.
+    @property
+    def is_bound(self) -> bool:
+        return self._bind_id is not None
+
+    def bind_with(self, bind_id: int) -> None:
+        """Bind the sensor to a participant with the given ID.
 
         Args:
-            bind_id (int): The unique identifier of the participant that the sensor is bound to.
+            bind_id: ID of the participant to bind to.
         """
         self._bind_id = bind_id
 
+    def _update_transform_matrix(self) -> None:
+        """Update the transformation matrix for sensor coordinate conversion.
+
+        The transformation matrix converts points from global coordinate system to sensor-local
+        coordinate system, adjusting for sensor position and heading (theta = heading - π/2).
+        """
+        theta = self._heading - np.pi / 2
+
+        self.transform_matrix = np.array(
+            [
+                np.cos(theta),
+                np.sin(theta),
+                np.sin(theta),
+                -np.cos(theta),
+                -self._position.x * np.cos(theta) - self._position.y * np.sin(theta),
+                -self._position.x * np.sin(theta) + self._position.y * np.cos(theta),
+            ]
+        )
+
     @abstractmethod
-    def update(self, participants, position: Point = None, heading: float = None):
-        """This function is used to update the sensor's location and observation.
+    def update(
+        self,
+        frame: int,
+        participants: Dict,
+        participant_ids: List,
+        prev_road_id_set: Set = None,
+        prev_participant_id_set: Set = None,
+        position: Point = None,
+        heading: float = None,
+    ) -> Tuple[Dict, Set, Set]:
+        """This function is used to update the sensor's position and observation.
 
         Args:
+            frame (int): The frame number of the observation.
             participants (Dict[int, Participant]): The participants in the scenario.
+            participant_ids (List[int]): The list of participant IDs to be considered.
+            prev_road_id_set (Set, optional): The set of road IDs that were rendered in the previous frame.
+                Used for incremental updates. Defaults to None.
+            prev_participant_id_set (Set, optional): The set of participant IDs that were rendered in the previous frame.
+                Used for incremental updates. Defaults to None.
             position (Point, optional): The position of the sensor. Defaults to None.
-            heading (float, optional): The heading of the sensor. Defaults to None.
+            heading (float, optional): The heading of the sensor in radians. Defaults to None.
+
+        Returns:
+            Tuple[Dict, Set, Set]: (geometry_data, road_id_set, participant_id_set)
+                - geometry_data: A dictionary containing the geometry data for rendering
+                - road_id_set: The set of road IDs that were rendered in the current frame
+                - participant_id_set: The set of participant IDs that were rendered in the current frame
         """
 
-    @abstractmethod
-    def get_observation(self):
-        """This function is used to get the observation of the sensor from the viewpoint."""
+    def _setup_update_parameters(
+        self,
+        participant_ids: Optional[List[int]],
+        prev_road_id_set: Optional[Set[int]],
+        prev_participant_id_set: Optional[Set[int]],
+    ) -> Tuple[List[int], Set[int], Set[int]]:
+        """Setup default values for update parameters.
+
+        Args:
+            participant_ids: List of participant IDs or None
+            prev_road_id_set: Set of road IDs from previous frame or None
+            prev_participant_id_set: Set of participant IDs from previous frame or None
+
+        Returns:
+            Tuple of (participant_ids, prev_road_id_set, prev_participant_id_set) with defaults applied
+        """
+        if participant_ids is None:
+            participant_ids = []
+        if prev_road_id_set is None:
+            prev_road_id_set = set()
+        if prev_participant_id_set is None:
+            prev_participant_id_set = set()
+
+        return participant_ids, prev_road_id_set, prev_participant_id_set
+
+    def _set_position_heading(self, position: Optional[Point], heading: Optional[float]) -> None:
+        """Set sensor position and heading with default values.
+
+        If position or heading is None, sets default position (map center) and heading (π/2).
+        Calls _update_transform_matrix() after setting values.
+
+        Args:
+            position: Point or None
+            heading: float or None
+        """
+        self._position = position
+        self._heading = heading
+
+        if None in [self._position, self._heading]:
+            # Set default position to map center
+            self._position = Point(
+                0.5 * (self.map_.boundary[0] + self.map_.boundary[1]),
+                0.5 * (self.map_.boundary[2] + self.map_.boundary[3]),
+            )
+            self._heading = 0
+
+        self._update_transform_matrix()

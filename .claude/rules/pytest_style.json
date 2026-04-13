@@ -1,0 +1,52 @@
+{
+  "name": "pytest-style-guide",
+  "description": "Pytest test code style guidelines for Tactics2D project",
+  "version": "1.0",
+  "filePatterns": ["test_*.py", "*/test_*.py"],
+  "importOrder": {
+    "standardLibs": ["sys", "os", "time", "logging", "json", "pathlib", "math", "random"],
+    "thirdPartyLibs": ["numpy", "pytest", "shapely", "matplotlib"],
+    "projectLibs": ["tactics2d"]
+  },
+  "testStructure": {
+    "preferClassStructure": false,
+    "classNamePattern": "Test{ClassName}",
+    "methodNamePattern": "test_{behavior}_{condition}",
+    "functionNamePattern": "test_{behavior}_{condition}",
+    "fixtureNamePattern": "{resource_name}",
+    "requirePytestMarkers": true
+  },
+  "documentation": {
+    "classDocstring": "Test suite for {ClassName} class.",
+    "methodDocstring": "Test {behavior} under {condition}.",
+    "fixtureDocstring": "Create {resource} for testing."
+  },
+  "assertionStyle": {
+    "preferSimpleAssert": true,
+    "avoidComplexLogic": true,
+    "useTypeChecking": "isinstance",
+    "useCollectionChecking": "len() or in operator"
+  },
+  "codeFormatting": {
+    "lineLength": 100,
+    "indentSpaces": 4,
+    "multilineArgsVerticalAlign": true
+  },
+  "pytestMarkers": {
+    "required": true,
+    "commonMarkers": ["env", "math", "dataset_parser", "map_element", "map_generator", "map_parser", "participant", "physics", "render", "search"]
+  },
+  "actions": [
+    {
+      "type": "suggest",
+      "trigger": "fileCreated",
+      "message": "Pytest test file created. Consider following Tactics2D test style guidelines:\n1. Use function-style tests with pytest markers (required)\n2. Organize imports: standard libs → third-party libs → project modules\n3. Add descriptive docstrings for test functions\n4. All test functions must have pytest markers (@pytest.mark.*)\n5. Follow black formatting (line-length=100)\n6. Use simple assert statements with clear conditions"
+    },
+    {
+      "type": "suggest",
+      "trigger": "fileModified",
+      "message": "Pytest test file modified. Review test style guidelines:\n- Import order consistency\n- Test function naming and docstrings\n- Documentation clarity\n- Assertion simplicity\n- Pytest marker usage (required for all test functions)"
+    }
+  ],
+  "enabled": true
+}

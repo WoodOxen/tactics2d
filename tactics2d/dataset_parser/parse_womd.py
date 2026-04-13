@@ -1,28 +1,20 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: parse_womd.py
-# @Description: This file implements a parser for Waymo Open Motion Dataset v1.2.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Waymo Open Motion Dataset parser implementation."""
+
 
 import os
-
-# from packaging.version import Version
 from typing import List, Tuple, Union
 
-import google.protobuf
 import numpy as np
-import tensorflow as tf
+import tfrecord
 from shapely.geometry import LineString, Point, Polygon
 
-# if Version(google.protobuf.__version__) <= Version("3.20.3"):
-from tactics2d.dataset_parser.womd_proto import scenario_pbv2 as scenario_pb
+from tactics2d.dataset_parser.womd_proto import scenario_pb
 from tactics2d.map.element import Area, Lane, LaneRelationship, Map, Regulatory, RoadLine
 from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
-
-# else:
-# from tactics2d.dataset_parser.womd_proto import scenario_pbv3 as scenario_pb
 
 
 class WOMDParser:
@@ -31,7 +23,7 @@ class WOMDParser:
     !!! quote "Reference"
         Ettinger, Scott, et al. "Large scale interactive motion forecasting for autonomous driving: The waymo open motion dataset." Proceedings of the IEEE/CVF International Conference on Computer Vision. 2021.
 
-    Because loading the tfrecord file is time consuming, the trajectory and the map parsers provide two ways to load the file. The first way is to load the file directly from the given file path. The second way is to load the file from a tf.data.TFRecordDataset object. If the tf.data.TFRecordDataset object is given, the parser will ignore the file path.
+    Because loading the tfrecord file is time consuming, the trajectory and the map parsers provide two ways to load the file. The first way is to load the file directly from the given file path. The second way is to load the file from a tfrecord.tfrecord_iterator object. If the tfrecord.tfrecord_iterator object is given, the parser will ignore the file path.
     """
 
     _TYPE_MAPPING = {0: "unknown", 1: "vehicle", 2: "pedestrian", 3: "cyclist", 4: "other"}
@@ -52,42 +44,52 @@ class WOMDParser:
 
     _LANE_TYPE_MAPPING = {0: "road", 1: "highway", 2: "road", 3: "bicycle_lane"}
 
-    def get_scenario_ids(self, dataset) -> List[str]:
+    def get_scenario_ids(
+        self, dataset, cache_data=False
+    ) -> Union[List[str], Tuple[List[str], List[bytes]]]:
         """This function get the list of scenario ids from the given tfrecord file.
 
         Args:
-            dataset (tf.data.TFRecordDataset): The dataset to parse.
+            dataset (tfrecord.tfrecord_iterator): The dataset to parse.
+            cache_data (bool): If True, also cache the raw data bytes for each scenario.
 
         Returns:
             id_list (List[str]): A list of scenario ids looking like ["637f20cafde22ff8", ...].
+            If cache_data is True, returns a tuple (id_list, data_list) where data_list contains
+            the raw bytes for each scenario.
         """
 
         id_list = []
+        data_list = [] if cache_data else None
 
         for data in dataset:
-            proto_string = data.numpy()
+            proto_bytes = data.tobytes()
+            if cache_data and data_list is not None:
+                data_list.append(proto_bytes)
             scenario = scenario_pb.Scenario()
-            scenario.ParseFromString(proto_string)
+            scenario.ParseFromString(proto_bytes)
             id_list.append(scenario.scenario_id)
 
+        if cache_data:
+            return id_list, data_list
         return id_list
 
     def parse_trajectory(
         self, scenario_id: Union[str, int] = None, **kwargs
-    ) -> Tuple[dict, List[int]]:
+    ) -> Tuple[dict, Tuple[int, int]]:
         """This function parses trajectories from a single WOMD file. Because the duration of the scenario has been well articulated, the parser will not provide an option to select time range within a single scenario. The states were collected at 10Hz.
 
         Args:
             scenario_id (Union[str, int], optional): The id of the scenario to parse. If the scenario id is a string, the parser will search for the scenario id in the file. If the scenario id is an integer, the parser will parse `scenario_id`-th scenario in the file. If the scenario id is None or is not found, the first scenario in the file will be parsed.
 
         Keyword Args:
-            dataset (tf.data.TFRecordDataset, optional): The dataset to parse.
+            dataset (tfrecord.tfrecord_iterator, optional): The dataset to parse.
             file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file (.tfrecord).
             folder (str, optional): The path to the folder containing the tfrecord file.
 
         Returns:
             participants (dict): A dictionary of participants. If the scenario id is not found, return None.
-            stamps (List[int]): The actual time range of the trajectory data. Because WOMD collects data at an unstable frequency, the parser will return a list of time stamps.
+            actual_time_range (Tuple[int, int]): The actual time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
 
         Raises:
             KeyError: Either dataset or file and folder should be given as keyword arguments.
@@ -99,13 +101,13 @@ class WOMDParser:
             dataset = kwargs["dataset"]
         elif "file" in kwargs and "folder" in kwargs:
             file_path = os.path.join(kwargs["folder"], kwargs["file"])
-            dataset = tf.data.TFRecordDataset(file_path, compression_type="")
+            dataset = tfrecord.tfrecord_iterator(file_path, compression_type=None)
         else:
             raise KeyError(
                 "Either dataset or file and folder should be given as keyword arguments."
             )
 
-        scenario_ids = self.get_scenario_ids(dataset)
+        scenario_ids, cached_data = self.get_scenario_ids(dataset, cache_data=True)
 
         data_id = 0
         if isinstance(scenario_id, str):
@@ -114,14 +116,15 @@ class WOMDParser:
         elif isinstance(scenario_id, int):
             data_id = scenario_id % len(scenario_ids)
 
-        data = None
-        cnt = 0
-        for data in dataset:
-            if cnt == data_id:
-                break
-            cnt += 1
+        # Use cached data instead of re-iterating the generator
+        if not cached_data or data_id >= len(cached_data):
+            if time_stamps:
+                actual_time_range = (min(time_stamps), max(time_stamps))
+            else:
+                actual_time_range = (np.inf, -np.inf)
+            return participants, actual_time_range
 
-        proto_string = data.numpy()
+        proto_string = cached_data[data_id]
         scenario = scenario_pb.Scenario()
         scenario.ParseFromString(proto_string)
 
@@ -162,9 +165,12 @@ class WOMDParser:
             )
             participants[track.id] = participant
 
-        stamps = sorted(list(time_stamps))
+        if time_stamps:
+            actual_time_range = (min(time_stamps), max(time_stamps))
+        else:
+            actual_time_range = (np.inf, -np.inf)
 
-        return participants, stamps
+        return participants, actual_time_range
 
     def _join_lane_boundary(self, ids, map_):
         points = []
@@ -289,7 +295,7 @@ class WOMDParser:
             scenario_id (str, optional): The id of the scenario to parse. If the scenario id is not given, the first scenario in the file will be parsed.
 
         Keyword Args:
-            dataset (tf.data.TFRecordDataset, optional): The dataset to parse.
+            dataset (tfrecord.tfrecord_iterator, optional): The dataset to parse.
             file (str, optional): The name of the trajectory file. The file is expected to be a tfrecord file (.tfrecord).
             folder (str, optional): The path to the folder containing the tfrecord file.
 
@@ -304,7 +310,7 @@ class WOMDParser:
             dataset = kwargs["dataset"]
         elif "file" in kwargs and "folder" in kwargs:
             file_path = os.path.join(kwargs["folder"], kwargs["file"])
-            dataset = tf.data.TFRecordDataset(file_path, compression_type="")
+            dataset = tfrecord.tfrecord_iterator(file_path, compression_type=None)
         else:
             raise KeyError(
                 "Either dataset or file and folder should be given as keyword arguments."
@@ -313,7 +319,7 @@ class WOMDParser:
         map_ = None
 
         for data in dataset:
-            proto_string = data.numpy()
+            proto_string = data.tobytes()
             scenario = scenario_pb.Scenario()
             scenario.ParseFromString(proto_string)
 

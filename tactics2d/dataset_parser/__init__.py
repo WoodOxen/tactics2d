@@ -1,11 +1,11 @@
-# #! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: __init__.py
-# @Description: Initialize the dataset parser module.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 
-from .parse_argoverse import ArgoverseParser
+"""Dataset parser module."""
+
+
+from .parse_argoverse2 import Argoverse2Parser
+from .parse_citysim import CitySimParser
 from .parse_dlp import DLPParser
 from .parse_interaction import InteractionParser
 from .parse_levelx import LevelXParser
@@ -15,7 +15,8 @@ from .parse_womd import WOMDParser
 from .parse_driveinsightd import DriveInsightDParser
 
 __all__ = [
-    "ArgoverseParser",
+    "Argoverse2Parser",
+    "CitySimParser",
     "DLPParser",
     "InteractionParser",
     "LevelXParser",

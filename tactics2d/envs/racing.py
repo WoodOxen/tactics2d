@@ -1,9 +1,7 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: racing.py
-# @Description: This script defines a racing environment.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2022, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Racing environment implementation."""
 
 
 import logging
@@ -20,7 +18,6 @@ from tactics2d.map.generator import RacingTrackGenerator
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State
 from tactics2d.physics import SingleTrackKinematics
-from tactics2d.sensor import RenderManager, TopDownCamera
 from tactics2d.traffic import ScenarioManager, ScenarioStatus, TrafficStatus
 from tactics2d.traffic.event_detection import NoAction, OffLane, OutBound, TimeExceed
 
@@ -235,9 +232,9 @@ class RacingEnv(gym.Env):
             self.map_ = Map(name="racing_track", scenario_type="racing")
             self.map_generator = RacingTrackGenerator()
 
-            self.render_manager = RenderManager(
-                fps=self.render_fps, windows_size=self._window_size, off_screen=self.off_screen
-            )
+            # self.render_manager = RenderManager(
+            #     fps=self.render_fps, windows_size=self._window_size, off_screen=self.off_screen
+            # )
 
             self.tile_visited = dict()
             self.tile_visiting = None

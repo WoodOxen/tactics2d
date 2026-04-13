@@ -1,9 +1,7 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: junction.py
-# @Description: This file defines a class for a junction.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Junction implementation."""
 
 
 import logging
@@ -22,6 +20,8 @@ class Connection:
         contact_point (str): The contact point of the junction. Defaults to "start".
         lane_links (list): The lane links of the junction. Defaults to [].
     """
+
+    __slots__ = ("id_", "incoming_road", "connecting_road", "contact_point", "lane_links")
 
     def __init__(
         self,
@@ -65,6 +65,8 @@ class Junction:
         id_ (str): The unique identifier of the junction.
         connections (dict): The connections of the junction. Defaults to an empty dictionary.
     """
+
+    __slots__ = ("id_", "connections")
 
     def __init__(self, id_: str, connections: dict = {}):
         """Initialize the junction.

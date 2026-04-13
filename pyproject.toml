@@ -1,6 +1,6 @@
 [project]
 name = "tactics2d"
-version = "0.1.8"
+version = "0.1.9rc3"
 description = "Tactics2D: A Reinforcement Learning Environment Library with Generative Scenarios for Driving Decision-making"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }
@@ -22,16 +22,24 @@ classifiers = [
 ]
 dynamic = ["dependencies"]
 
+[project.scripts]
+tactics2d = "tactics2d.cli:main"
+
 [project.urls]
 Documentation = "https://tactics2d.readthedocs.io/en/latest/"
 Repository = "https://github.com/WoodOxen/tactics2d"
 
 [project.optional-dependencies]
 test = [
-    "bezier",
-    "Pillow",
-    "pytest",
-    "pytest-cov",
+    "Pillow>=9.5.0",
+    "pytest>=7.4.4",
+    "pytest-cov>=4.1.0",
+]
+dev = [
+    "pre-commit==3.5.0",
+    "black",
+    "isort",
+    "clang-format",
 ]
 
 [build-system]
@@ -46,7 +54,11 @@ build-backend = "setuptools.build_meta"
 include-package-data = true
 
 [tool.setuptools.package-data]
-tactics2d = ["tactics2d/participant/trajectory_classifier.m", "tactics2d/dataset_parser/map.config"]
+tactics2d = [
+    "tactics2d/participant/trajectory_classifier.m",
+    "tactics2d/frontend/static/**",
+    "tactics2d/frontend/templates/*",
+]
 
 [tool.setuptools.packages.find]
 exclude = ["test", "tactics2d/data/"]

@@ -1,11 +1,10 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: other.py
-# @Description: This file defines a class for a traffic participant of an unknown type/undefined.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
 
-from typing import Any, Tuple, Union
+"""Other implementation."""
+
+
+from typing import Any, Optional, Tuple, Union
 
 import numpy as np
 from shapely.affinity import affine_transform
@@ -24,7 +23,7 @@ class Other(ParticipantBase):
         id_ (Any): The unique identifier of the traffic participant.
         type_ (str): The type of the traffic participant. Defaults to "unknown".
         trajectory (Trajectory): The trajectory of the traffic participant. Defaults to an empty trajectory.
-        color (Any): The color of the traffic participant. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors. Defaults to black (0, 0, 0).
+        color (Any): The color of the traffic participant. This attribute will be left to the sensor module to verify and convert to the appropriate type. You can refer to [Matplotlib's way](https://matplotlib.org/stable/users/explain/colors/colors.html) to specify validate colors.
         length (float): The length of the traffic participant. The unit is meter. Defaults to None.
         width (float): The width of the traffic participant. The unit is meter. Defaults to None.
         height (float): The height of the traffic participant. The unit is meter. Defaults to None.
@@ -50,7 +49,7 @@ class Other(ParticipantBase):
         super().__init__(id_, type_, trajectory, **kwargs)
 
     @property
-    def geometry(self):
+    def geometry(self) -> Optional[LinearRing]:
         if not self.length is None and not self.width is None:
             return LinearRing(
                 [

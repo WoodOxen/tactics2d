@@ -1,13 +1,13 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: regulatory.py
-# @Description: This file defines a class for a regulatory element.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Regulatory implementation."""
 
 
 class RegulatoryMember:
     """This class implements the subelement of the Regulatory class."""
+
+    __slots__ = ("ref", "type_", "role")
 
     def __init__(self, ref: str, type_: str, role: str):
         self.ref = ref
@@ -34,6 +34,20 @@ class Regulatory:
         fallback (bool): Whether the regulatory element is a fallback. Defaults to False.
         custom_tags (dict): The custom tags of the regulatory element. Defaults to None.
     """
+
+    __slots__ = (
+        "id_",
+        "relations",
+        "ways",
+        "nodes",
+        "type_",
+        "subtype",
+        "position",
+        "location",
+        "dynamic",
+        "fallback",
+        "custom_tags",
+    )
 
     def __init__(
         self,

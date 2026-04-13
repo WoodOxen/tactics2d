@@ -1,0 +1,3515 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<osm version='0.6' generator='JOSM'>
+  <node id='10000' visible='true' version='1' lat='50.7683356651' lon='6.10207421187' />
+  <node id='10001' visible='true' version='1' lat='50.76832227351' lon='6.10199661909' />
+  <node id='10002' visible='true' version='1' lat='50.768225769' lon='6.10150298964' />
+  <node id='10003' visible='true' version='1' lat='50.76835785403' lon='6.10206621719' />
+  <node id='10004' visible='true' version='1' lat='50.76833573156' lon='6.10192257878' />
+  <node id='10005' visible='true' version='1' lat='50.76825027618' lon='6.10149275478' />
+  <node id='10006' visible='true' version='1' lat='50.76838153388' lon='6.10204931315' />
+  <node id='10007' visible='true' version='1' lat='50.76836690259' lon='6.10198225792' />
+  <node id='10008' visible='true' version='1' lat='50.7683856378' lon='6.10197139502' />
+  <node id='10009' visible='true' version='1' lat='50.76836531223' lon='6.1018702757' />
+  <node id='10010' visible='true' version='1' lat='50.76832958217' lon='6.10169056769' />
+  <node id='10011' visible='true' version='1' lat='50.76830031955' lon='6.10154103454' />
+  <node id='10012' visible='true' version='1' lat='50.76828568822' lon='6.10147196766' />
+  <node id='10013' visible='true' version='1' lat='50.76831717736' lon='6.10163088854' />
+  <node id='10014' visible='true' version='1' lat='50.76835216527' lon='6.10180875253' />
+  <node id='10015' visible='true' version='1' lat='50.76837474835' lon='6.10192324933' />
+  <node id='10016' visible='true' version='1' lat='50.76837135559' lon='6.10201813247' />
+  <node id='10017' visible='true' version='1' lat='50.76833281962' lon='6.10209738079' />
+  <node id='10018' visible='true' version='1' lat='50.76832739544' lon='6.10211680948' />
+  <node id='10019' visible='true' version='1' lat='50.76830691551' lon='6.10214731907' />
+  <node id='10020' visible='true' version='1' lat='50.76828335591' lon='6.10216230087' />
+  <node id='10021' visible='true' version='1' lat='50.76821910507' lon='6.10220722821' />
+  <node id='10022' visible='true' version='1' lat='50.76817075801' lon='6.10224578496' />
+  <node id='10023' visible='true' version='1' lat='50.76811520123' lon='6.10228635337' />
+  <node id='10024' visible='true' version='1' lat='50.76808911921' lon='6.10230579939' />
+  <node id='10025' visible='true' version='1' lat='50.76806900846' lon='6.10232062303' />
+  <node id='10026' visible='true' version='1' lat='50.76804140816' lon='6.10234167393' />
+  <node id='10027' visible='true' version='1' lat='50.76800472363' lon='6.10236749019' />
+  <node id='10028' visible='true' version='1' lat='50.7679776039' lon='6.10238732511' />
+  <node id='10029' visible='true' version='1' lat='50.76794961336' lon='6.10240777696' />
+  <node id='10030' visible='true' version='1' lat='50.7683948931' lon='6.10233731501' />
+  <node id='10031' visible='true' version='1' lat='50.76840761595' lon='6.10243655674' />
+  <node id='10032' visible='true' version='1' lat='50.76842966889' lon='6.10259279542' />
+  <node id='10033' visible='true' version='1' lat='50.76844875316' lon='6.10272891752' />
+  <node id='10034' visible='true' version='1' lat='50.76847928797' lon='6.10294349425' />
+  <node id='10035' visible='true' version='1' lat='50.76852339378' lon='6.10328279369' />
+  <node id='10036' visible='true' version='1' lat='50.76849031443' lon='6.103286817' />
+  <node id='10037' visible='true' version='1' lat='50.76846698923' lon='6.10308967464' />
+  <node id='10038' visible='true' version='1' lat='50.76843263756' lon='6.10282145374' />
+  <node id='10039' visible='true' version='1' lat='50.768403375' lon='6.10260620646' />
+  <node id='10040' visible='true' version='1' lat='50.76837453652' lon='6.1023949825' />
+  <node id='10041' visible='true' version='1' lat='50.76835502812' lon='6.10228300028' />
+  <node id='10042' visible='true' version='1' lat='50.76834400163' lon='6.10226355426' />
+  <node id='10043' visible='true' version='1' lat='50.76832970433' lon='6.10224739058' />
+  <node id='10044' visible='true' version='1' lat='50.76830765067' lon='6.10224128575' />
+  <node id='10045' visible='true' version='1' lat='50.76828383483' lon='6.10225450235' />
+  <node id='10046' visible='true' version='1' lat='50.76820617033' lon='6.10230982237' />
+  <node id='10047' visible='true' version='1' lat='50.76810396285' lon='6.10238492422' />
+  <node id='10048' visible='true' version='1' lat='50.76799327317' lon='6.10247276656' />
+  <node id='10049' visible='true' version='1' lat='50.76796909953' lon='6.10249020092' />
+  <node id='10050' visible='true' version='1' lat='50.76795934525' lon='6.10245466165' />
+  <node id='10051' visible='true' version='1' lat='50.76806409763' lon='6.10237486593' />
+  <node id='10052' visible='true' version='1' lat='50.76816503291' lon='6.10229775243' />
+  <node id='10053' visible='true' version='1' lat='50.76830517323' lon='6.10219752382' />
+  <node id='10054' visible='true' version='1' lat='50.76831486303' lon='6.10219464661' />
+  <node id='10055' visible='true' version='1' lat='50.76843094118' lon='6.10217839412' />
+  <node id='10056' visible='true' version='1' lat='50.76846402057' lon='6.10216230087' />
+  <node id='10057' visible='true' version='1' lat='50.76849837222' lon='6.10211804442' />
+  <node id='10058' visible='true' version='1' lat='50.76854714304' lon='6.10202953153' />
+  <node id='10059' visible='true' version='1' lat='50.76862772081' lon='6.10189139776' />
+  <node id='10060' visible='true' version='1' lat='50.76870829843' lon='6.10174924068' />
+  <node id='10061' visible='true' version='1' lat='50.76880711186' lon='6.10157221489' />
+  <node id='10062' visible='true' version='1' lat='50.76883934281' lon='6.10151655905' />
+  <node id='10063' visible='true' version='1' lat='50.76847874481' lon='6.10208578893' />
+  <node id='10064' visible='true' version='1' lat='50.76849819685' lon='6.10205250566' />
+  <node id='10065' visible='true' version='1' lat='50.76852739013' lon='6.10199985281' />
+  <node id='10066' visible='true' version='1' lat='50.76859761019' lon='6.10188603334' />
+  <node id='10067' visible='true' version='1' lat='50.7686875179' lon='6.10172912411' />
+  <node id='10068' visible='true' version='1' lat='50.76875834131' lon='6.10160976581' />
+  <node id='10069' visible='true' version='1' lat='50.76882534779' lon='6.10148705475' />
+  <node id='10070' visible='true' version='1' lat='50.76885927509' lon='6.10155008666' />
+  <node id='10071' visible='true' version='1' lat='50.76878081818' lon='6.10168352656' />
+  <node id='10072' visible='true' version='1' lat='50.76870320933' lon='6.10181428425' />
+  <node id='10073' visible='true' version='1' lat='50.76863365811' lon='6.10194101863' />
+  <node id='10074' visible='true' version='1' lat='50.76856894996' lon='6.10205317742' />
+  <node id='10075' visible='true' version='1' lat='50.76851830465' lon='6.10214285485' />
+  <node id='10076' visible='true' version='1' lat='50.76849625175' lon='6.1021857702' />
+  <node id='10077' visible='true' version='1' lat='50.7684695338' lon='6.1022320383' />
+  <node id='10078' visible='true' version='1' lat='50.76845002545' lon='6.10226690702' />
+  <node id='10079' visible='true' version='1' lat='50.76843475803' lon='6.10228769414' />
+  <node id='10080' visible='true' version='1' lat='50.76842457975' lon='6.10231317513' />
+  <node id='10081' visible='true' version='1' lat='50.76841991471' lon='6.10233530335' />
+  <node id='10082' visible='true' version='1' lat='50.7684203388' lon='6.10237486593' />
+  <node id='10083' visible='true' version='1' lat='50.7684292448' lon='6.10242716901' />
+  <node id='10084' visible='true' version='1' lat='50.76843433394' lon='6.10246539049' />
+  <node id='10085' visible='true' version='1' lat='50.76844748088' lon='6.10250025921' />
+  <node id='10086' visible='true' version='1' lat='50.76850346136' lon='6.10233798556' />
+  <node id='10087' visible='true' version='1' lat='50.76849922041' lon='6.10230714016' />
+  <node id='10088' visible='true' version='1' lat='50.7684538423' lon='6.10251568191' />
+  <node id='10089' visible='true' version='1' lat='50.76846868561' lon='6.10256865554' />
+  <node id='10090' visible='true' version='1' lat='50.76848225664' lon='6.1026759439' />
+  <node id='10091' visible='true' version='1' lat='50.76850049269' lon='6.10282279484' />
+  <node id='10092' visible='true' version='1' lat='50.76852763472' lon='6.10302597217' />
+  <node id='10093' visible='true' version='1' lat='50.76856198633' lon='6.10331162743' />
+  <node id='10094' visible='true' version='1' lat='50.76861118117' lon='6.1036884778' />
+  <node id='10095' visible='true' version='1' lat='50.76865147002' lon='6.10367439621' />
+  <node id='10096' visible='true' version='1' lat='50.76859336925' lon='6.10322713785' />
+  <node id='10097' visible='true' version='1' lat='50.76854883942' lon='6.10286235742' />
+  <node id='10098' visible='true' version='1' lat='50.76854587076' lon='6.10370993547' />
+  <node id='10099' visible='true' version='1' lat='50.76858022235' lon='6.10369317167' />
+  <node id='10100' visible='true' version='1' lat='50.76839616538' lon='6.10207378797' />
+  <node id='10101' visible='true' version='1' lat='50.76841864242' lon='6.10209457509' />
+  <node id='10102' visible='true' version='1' lat='50.76844069536' lon='6.10210061006' />
+  <node id='10103' visible='true' version='1' lat='50.76846698923' lon='6.10209323399' />
+  <node id='10104' visible='true' version='1' lat='50.76839616538' lon='6.10229238801' />
+  <node id='10105' visible='true' version='1' lat='50.76841143281' lon='6.10224880211' />
+  <node id='10106' visible='true' version='1' lat='50.76843899898' lon='6.10218979351' />
+  <node id='10107' visible='true' version='1' lat='50.76838429071' lon='6.10226958923' />
+  <node id='10108' visible='true' version='1' lat='50.76836817509' lon='6.10220655732' />
+  <node id='10109' visible='true' version='1' lat='50.76838047385' lon='6.10224276714' />
+  <node id='10110' visible='true' version='1' lat='50.76837538471' lon='6.10222399168' />
+  <node id='10111' visible='true' version='1' lat='50.76836245352' lon='6.102101113' />
+  <node id='10112' visible='true' version='1' lat='50.76834015531' lon='6.10219611122' />
+  <node id='10113' visible='true' version='1' lat='50.76835979951' lon='6.10211321233' />
+  <node id='10114' visible='true' version='1' lat='50.76835842089' lon='6.10213547878' />
+  <node id='10115' visible='true' version='1' lat='50.76834993898' lon='6.1021716886' />
+  <node id='10116' visible='true' version='1' lat='50.76835460403' lon='6.10215693645' />
+  <node id='10117' visible='true' version='1' lat='50.76844451221' lon='6.10216498308' />
+  <node id='10118' visible='true' version='1' lat='50.76840634367' lon='6.10215425424' />
+  <node id='10119' visible='true' version='1' lat='50.76838344252' lon='6.10213614933' />
+  <node id='10120' visible='true' version='1' lat='50.76836859918' lon='6.10210731558' />
+  <node id='10121' visible='true' version='1' lat='50.76845373288' lon='6.10209695272' />
+  <node id='10122' visible='true' version='1' lat='50.76837321208' lon='6.10212247285' />
+  <node id='10123' visible='true' version='1' lat='50.76836499437' lon='6.1022434377' />
+  <node id='10124' visible='true' version='1' lat='50.76840273885' lon='6.10224075549' />
+  <node id='10125' visible='true' version='1' lat='50.7684413315' lon='6.10223974966' />
+  <node id='10126' visible='true' version='1' lat='50.76847207837' lon='6.1022166156' />
+  <node id='10127' visible='true' version='1' lat='50.76848694179' lon='6.10220189249' />
+  <node id='10128' visible='true' version='1' lat='50.76839321864' lon='6.10214987994' />
+  <node id='10129' visible='true' version='1' lat='50.76838768348' lon='6.10209189288' />
+  <node id='10130' visible='true' version='1' lat='50.76841482557' lon='6.1022910469' />
+  <node id='10131' visible='true' version='1' lat='50.768403375' lon='6.10219716959' />
+  <node id='10132' visible='true' version='1' lat='50.76839319671' lon='6.10211737387' />
+  <node id='10133' visible='true' version='1' lat='50.76841255785' lon='6.10226781366' />
+  <node id='10134' visible='true' version='1' lat='50.76841779423' lon='6.10210463338' />
+  <node id='10135' visible='true' version='1' lat='50.76834230525' lon='6.10213078491' />
+  <node id='10136' visible='true' version='1' lat='50.76840464729' lon='6.10224679045' />
+  <node id='10137' visible='true' version='1' lat='50.76839743767' lon='6.10221125118' />
+  <node id='10138' visible='true' version='1' lat='50.76838217024' lon='6.1021703475' />
+  <node id='10139' visible='true' version='1' lat='50.76836351004' lon='6.10215157203' />
+  <node id='10140' visible='true' version='1' lat='50.7683380643' lon='6.10214553706' />
+  <node id='10141' visible='true' version='1' lat='50.76839234852' lon='6.10219046406' />
+  <node id='10142' visible='true' version='1' lat='50.76834569802' lon='6.10216498308' />
+  <node id='10143' visible='true' version='1' lat='50.76835248355' lon='6.10221795671' />
+  <node id='10144' visible='true' version='1' lat='50.76836435823' lon='6.10232725672' />
+  <node id='10145' visible='true' version='1' lat='50.76836667801' lon='6.10235263711' />
+  <node id='10146' visible='true' version='1' lat='50.76833551972' lon='6.10218442909' />
+  <node id='10147' visible='true' version='1' lat='50.7683669028' lon='6.10231049292' />
+  <node id='10148' visible='true' version='1' lat='50.76837071966' lon='6.10225751929' />
+  <node id='10149' visible='true' version='1' lat='50.76838153409' lon='6.10221594505' />
+  <node id='10150' visible='true' version='1' lat='50.76840464729' lon='6.10216095977' />
+  <node id='10151' visible='true' version='1' lat='50.76843645441' lon='6.10211268' />
+  <node id='10152' visible='true' version='1' lat='50.76846698923' lon='6.1022166156' />
+  <node id='10153' visible='true' version='1' lat='50.76843984717' lon='6.1022306972' />
+  <node id='10154' visible='true' version='1' lat='50.76841312919' lon='6.10222399168' />
+  <node id='10155' visible='true' version='1' lat='50.76839150033' lon='6.10221259229' />
+  <node id='10156' visible='true' version='1' lat='50.76836181365' lon='6.10217705302' />
+  <node id='10157' visible='true' version='1' lat='50.76834288624' lon='6.10211264318' />
+  <node id='10158' visible='true' version='1' lat='50.76844875316' lon='6.10217370026' />
+  <node id='10159' visible='true' version='1' lat='50.76837453652' lon='6.10219851069' />
+  <node id='10160' visible='true' version='1' lat='50.76840353121' lon='6.10192873744' />
+  <node id='10161' visible='true' version='1' lat='50.76847931741' lon='6.10195685079' />
+  <node id='10162' visible='true' version='1' lat='50.76834742426' lon='6.10198861792' />
+  <node id='10163' visible='true' version='1' lat='50.76834495554' lon='6.10176952539' />
+  <node id='10164' visible='true' version='1' lat='50.76833657965' lon='6.10172409547' />
+  <node id='10165' visible='true' version='1' lat='50.76828477318' lon='6.10181253588' />
+  <node id='10166' visible='true' version='1' lat='50.76830453639' lon='6.10190772074' />
+  <node id='10167' visible='true' version='1' lat='50.768418168' lon='6.10251608255' />
+  <node id='10168' visible='true' version='1' lat='50.76839228076' lon='6.10252494802' />
+  <node id='10169' visible='true' version='1' lat='50.76851126626' lon='6.1024008063' />
+  <node id='10170' visible='true' version='1' lat='50.76838162739' lon='6.10244691872' />
+  <node id='10171' visible='true' version='1' lat='50.7683669028' lon='6.10175192289' />
+  <node id='10172' visible='true' version='1' lat='50.76838683528' lon='6.10185585849' />
+  <node id='10173' visible='true' version='1' lat='50.76794357549' lon='6.10238171387' />
+  <node id='10174' visible='true' version='1' lat='50.76829218587' lon='6.10210978763' />
+  <node id='10175' visible='true' version='1' lat='50.76829976548' lon='6.10210343418' />
+  <node id='10176' visible='true' version='1' lat='50.76828007892' lon='6.10201163893' />
+  <node id='10177' visible='true' version='1' lat='50.76826521293' lon='6.10193388738' />
+  <node id='10178' visible='true' version='1' lat='50.76824369637' lon='6.10183803308' />
+  <node id='10179' visible='true' version='1' lat='50.76830221893' lon='6.10200539057' />
+  <node id='10180' visible='true' version='1' lat='50.76826744236' lon='6.10181978949' />
+  <node id='10181' visible='true' version='1' lat='50.76820616039' lon='6.10151167073' />
+  <node id='10182' visible='true' version='1' lat='50.76824999742' lon='6.10173218665' />
+  <node id='10183' visible='true' version='1' lat='50.76828686048' lon='6.10191645888' />
+  <node id='10184' visible='true' version='1' lat='50.76829794156' lon='6.10209403495' />
+  <node id='10185' visible='true' version='1' lat='50.76824645952' lon='6.10233128004' />
+  <node id='10186' visible='true' version='1' lat='50.76823061941' lon='6.10225162686' />
+  <node id='10187' visible='true' version='1' lat='50.76824063073' lon='6.1022855081' />
+  <node id='10188' visible='true' version='1' lat='50.76821161976' lon='6.10217060353' />
+  <node id='10189' visible='true' version='1' lat='50.76832364504' lon='6.10276244514' />
+  <node id='10190' visible='true' version='1' lat='50.76833212696' lon='6.10276110403' />
+  <node id='10191' visible='true' version='1' lat='50.76837368833' lon='6.10274635188' />
+  <node id='10192' visible='true' version='1' lat='50.76834866669' lon='6.10254719786' />
+  <node id='10193' visible='true' version='1' lat='50.76827953905' lon='6.10234402053' />
+  <node id='10194' visible='true' version='1' lat='50.76831558722' lon='6.10232955112' />
+  <node id='10195' visible='true' version='1' lat='50.76832933378' lon='6.10245102563' />
+  <node id='10196' visible='true' version='1' lat='50.76829523061' lon='6.10246002607' />
+  <node id='10197' visible='true' version='1' lat='50.76834866669' lon='6.10250897638' />
+  <node id='10198' visible='true' version='1' lat='50.7683669028' lon='6.10250092976'>
+    <tag k='type' v='road_border' />
+  </node>
+  <node id='10199' visible='true' version='1' lat='50.76836987147' lon='6.1025270813' />
+  <node id='10200' visible='true' version='1' lat='50.76835417993' lon='6.10253579848' />
+  <node id='10201' visible='true' version='1' lat='50.7683630508' lon='6.10275012766' />
+  <node id='10202' visible='true' version='1' lat='50.76847335065' lon='6.10359325938' />
+  <node id='10203' visible='true' version='1' lat='50.76843603032' lon='6.10360398822' />
+  <node id='10204' visible='true' version='1' lat='50.76851457177' lon='6.10198117464' />
+  <node id='10205' visible='true' version='1' lat='50.76857343685' lon='6.10188133948' />
+  <node id='10206' visible='true' version='1' lat='50.76862390397' lon='6.10179148547' />
+  <node id='10207' visible='true' version='1' lat='50.76872823077' lon='6.10161110692' />
+  <node id='10208' visible='true' version='1' lat='50.76881177687' lon='6.1014709615' />
+  <node id='10209' visible='true' version='1' lat='50.76854154622' lon='6.10185067497' />
+  <node id='10210' visible='true' version='1' lat='50.76859243746' lon='6.10175679765' />
+  <node id='10211' visible='true' version='1' lat='50.76869506797' lon='6.10158178351' />
+  <node id='10212' visible='true' version='1' lat='50.76877819003' lon='6.10143828533' />
+  <node id='10213' visible='true' version='1' lat='50.76852323415' lon='6.10224287006' />
+  <node id='10214' visible='true' version='1' lat='50.76855042138' lon='6.10219430864' />
+  <node id='10215' visible='true' version='1' lat='50.76859776571' lon='6.10210223282' />
+  <node id='10216' visible='true' version='1' lat='50.76861475206' lon='6.10206754068' />
+  <node id='10217' visible='true' version='1' lat='50.7686764915' lon='6.10195577078' />
+  <node id='10218' visible='true' version='1' lat='50.76880541549' lon='6.10172711246' />
+  <node id='10219' visible='true' version='1' lat='50.76888175191' lon='6.10159099035' />
+  <node id='10220' visible='true' version='1' lat='50.76858509943' lon='6.10207009993' />
+  <node id='10221' visible='true' version='1' lat='50.76861796666' lon='6.10201209716' />
+  <node id='10222' visible='true' version='1' lat='50.76868560949' lon='6.10189039193' />
+  <node id='10223' visible='true' version='1' lat='50.76877615317' lon='6.10173180632' />
+  <node id='10224' visible='true' version='1' lat='50.76887072555' lon='6.10156953268' />
+  <node id='10225' visible='true' version='1' lat='50.76855702025' lon='6.10218026052' />
+  <node id='10226' visible='true' version='1' lat='50.76829103409' lon='6.10206298891' />
+  <node id='10227' visible='true' version='1' lat='50.76867459344' lon='6.10366179586' />
+  <node id='10228' visible='true' version='1' lat='50.76848803999' lon='6.10240853314' />
+  <node id='10229' visible='true' version='1' lat='50.7684910751' lon='6.10243095759' />
+  <node id='10230' visible='true' version='1' lat='50.76851960632' lon='6.10242643119' />
+  <node id='10231' visible='true' version='1' lat='50.7685310279' lon='6.1040653275' />
+  <node id='10232' visible='true' version='1' lat='50.7685785264' lon='6.10404521093' />
+  <node id='10233' visible='true' version='1' lat='50.76848395301' lon='6.10333710842' />
+  <node id='10234' visible='true' version='1' lat='50.76844196764' lon='6.1029890918' />
+  <node id='10235' visible='true' version='1' lat='50.76838386662' lon='6.102542504' />
+  <node id='10236' visible='true' version='1' lat='50.76838222121' lon='6.10253007993' />
+  <node id='10237' visible='true' version='1' lat='50.76853469625' lon='6.10371703978' />
+  <node id='10238' visible='true' version='1' lat='50.76824325699' lon='6.10231450502' />
+  <node id='10239' visible='true' version='1' lat='50.76812559184' lon='6.10240504078' />
+  <node id='10240' visible='true' version='1' lat='50.76805943255' lon='6.1024553322' />
+  <node id='10241' visible='true' version='1' lat='50.76797461282' lon='6.1025156819' />
+  <node id='10242' visible='true' version='1' lat='50.76797800561' lon='6.10253043406' />
+  <node id='10243' visible='true' version='1' lat='50.76806240124' lon='6.1024680727' />
+  <node id='10244' visible='true' version='1' lat='50.76813322559' lon='6.10241711073' />
+  <node id='10245' visible='true' version='1' lat='50.76827211533' lon='6.10247459558' />
+  <node id='10246' visible='true' version='1' lat='50.76779097756' lon='6.10265113346' />
+  <node id='10247' visible='true' version='1' lat='50.76767434972' lon='6.10273964636' />
+  <node id='10248' visible='true' version='1' lat='50.76763024311' lon='6.1027825617' />
+  <node id='10249' visible='true' version='1' lat='50.76760140415' lon='6.10278591447' />
+  <node id='10250' visible='true' version='1' lat='50.76761497543' lon='6.1027657979' />
+  <node id='10251' visible='true' version='1' lat='50.76765187232' lon='6.10273025863' />
+  <node id='10252' visible='true' version='1' lat='50.76771930448' lon='6.10268399052' />
+  <node id='10253' visible='true' version='1' lat='50.76778843296' lon='6.10263302855' />
+  <node id='10254' visible='true' version='1' lat='50.76787706993' lon='6.10256127946' />
+  <node id='10255' visible='true' version='1' lat='50.76919430623' lon='6.10083863005' />
+  <node id='10256' visible='true' version='1' lat='50.76918158359' lon='6.10081985459' />
+  <node id='10257' visible='true' version='1' lat='50.76828887293' lon='6.10169111188' />
+  <node id='10258' visible='true' version='1' lat='50.7682651831' lon='6.10171501872' />
+  <node id='10259' visible='true' version='1' lat='50.768351886' lon='6.1016741663' />
+  <node id='10260' visible='true' version='1' lat='50.76830991228' lon='6.10145682768' />
+  <node id='10261' visible='true' version='1' lat='50.7681846262' lon='6.10152175639' />
+  <node id='10262' visible='true' version='1' lat='50.7681955679' lon='6.10235407881' />
+  <node id='10263' visible='true' version='1' lat='50.76820065686' lon='6.10233731534'>
+    <tag k='type' v='virtual' />
+  </node>
+  <node id='10264' visible='true' version='1' lat='50.76820765446' lon='6.10232356902' />
+  <node id='10265' visible='true' version='1' lat='50.7682152882' lon='6.10231149908' />
+  <node id='10266' visible='true' version='1' lat='50.76822624049' lon='6.10230190343' />
+  <node id='10267' visible='true' version='1' lat='50.76823986578' lon='6.10231247599' />
+  <node id='10268' visible='true' version='1' lat='50.76849587927' lon='6.10232742221' />
+  <node id='10269' visible='true' version='1' lat='50.76848244526' lon='6.10235755483' />
+  <node id='10270' visible='true' version='1' lat='50.76845870143' lon='6.10239015734' />
+  <node id='10271' visible='true' version='1' lat='50.76843933146' lon='6.10233236198' />
+  <node id='10272' visible='true' version='1' lat='50.7684615132' lon='6.10233581982' />
+  <node id='10273' visible='true' version='1' lat='50.76848213285' lon='6.10234224153' />
+  <node id='10274' visible='true' version='1' lat='50.76850025313' lon='6.10236397653' />
+  <node id='10275' visible='true' version='1' lat='50.76825578492' lon='6.10234001863' />
+  <node id='10276' visible='true' version='1' lat='50.7682646889' lon='6.1023516271' />
+  <node id='10277' visible='true' version='1' lat='50.76830342899' lon='6.1025857724' />
+  <node id='10278' visible='true' version='1' lat='50.76834685533' lon='6.10255119398' />
+  <node id='10279' visible='true' version='1' lat='50.76833592065' lon='6.10254279636' />
+  <node id='10280' visible='true' version='1' lat='50.7683193624' lon='6.10249982033' />
+  <node id='10281' visible='true' version='1' lat='50.76829749301' lon='6.10246919373' />
+  <node id='10282' visible='true' version='1' lat='50.76836685019' lon='6.1024479527' />
+  <node id='10283' visible='true' version='1' lat='50.76835279131' lon='6.10243362735' />
+  <node id='10284' visible='true' version='1' lat='50.76833748275' lon='6.10240892848' />
+  <node id='10285' visible='true' version='1' lat='50.76832498596' lon='6.10236743438' />
+  <node id='10286' visible='true' version='1' lat='50.76835546785' lon='6.10235727362' />
+  <node id='10287' visible='true' version='1' lat='50.76834779259' lon='6.10236101267' />
+  <node id='10288' visible='true' version='1' lat='50.76834091936' lon='6.10237336211' />
+  <node id='10289' visible='true' version='1' lat='50.76833060951' lon='6.10240349473' />
+  <node id='10290' visible='true' version='1' lat='50.76836997438' lon='6.1024588202' />
+  <node id='10291' visible='true' version='1' lat='50.76836028938' lon='6.10247166361' />
+  <node id='10292' visible='true' version='1' lat='50.76835091679' lon='6.10249586851' />
+  <node id='10293' visible='true' version='1' lat='50.7683188115' lon='6.10247619815' />
+  <node id='10294' visible='true' version='1' lat='50.76830284837' lon='6.10253390528' />
+  <node id='10295' visible='true' version='1' lat='50.76836028938' lon='6.10236051869' />
+  <node id='10296' visible='true' version='1' lat='50.76835997696' lon='6.10239410916' />
+  <node id='10297' visible='true' version='1' lat='50.76836278873' lon='6.10241831405' />
+  <node id='10298' visible='true' version='1' lat='50.7683718489' lon='6.10247956725' />
+  <node id='10299' visible='true' version='1' lat='50.76832896483' lon='6.10238064576' />
+  <node id='10300' visible='true' version='1' lat='50.76834029437' lon='6.10228271749' />
+  <node id='10301' visible='true' version='1' lat='50.76831467595' lon='6.10227110903' />
+  <node id='10302' visible='true' version='1' lat='50.76827593587' lon='6.10230025369' />
+  <node id='10303' visible='true' version='1' lat='50.76824969257' lon='6.10231433205' />
+  <node id='10304' visible='true' version='1' lat='50.76826859399' lon='6.10232272967' />
+  <node id='10305' visible='true' version='1' lat='50.76827577966' lon='6.10233063331' />
+  <node id='10306' visible='true' version='1' lat='50.76826234559' lon='6.1023175429' />
+  <node id='10307' visible='true' version='1' lat='50.76828015354' lon='6.10247314579' />
+  <node id='10308' visible='true' version='1' lat='50.76828227647' lon='6.10253135661' />
+  <node id='10309' visible='true' version='1' lat='50.76827911409' lon='6.10246497798' />
+  <node id='10310' visible='true' version='1' lat='50.76828608952' lon='6.10252575439' />
+  <node id='10311' visible='true' version='1' lat='50.7682935876' lon='6.10251093507' />
+  <node id='10312' visible='true' version='1' lat='50.76829608696' lon='6.10247487471' />
+  <node id='10313' visible='true' version='1' lat='50.76825656582' lon='6.10233483211' />
+  <node id='10314' visible='true' version='1' lat='50.768284215' lon='6.10247116988' />
+  <node id='10315' visible='true' version='1' lat='50.76830389746' lon='6.1024840133' />
+  <node id='10316' visible='true' version='1' lat='50.7682921979' lon='6.10253142676' />
+  <node id='10317' visible='true' version='1' lat='50.76849164963' lon='6.10201558379' />
+  <node id='10318' visible='true' version='1' lat='50.76848213285' lon='6.10202412006' />
+  <node id='10319' visible='true' version='1' lat='50.7684577172' lon='6.10202816083' />
+  <node id='10320' visible='true' version='1' lat='50.76842858966' lon='6.1020201804' />
+  <node id='10321' visible='true' version='1' lat='50.76839137511' lon='6.10200485495' />
+  <node id='10322' visible='true' version='1' lat='50.76851681131' lon='6.10189914378' />
+  <node id='10323' visible='true' version='1' lat='50.76845163417' lon='6.10194691851' />
+  <node id='10324' visible='true' version='1' lat='50.76849900345' lon='6.10193767402' />
+  <node id='10325' visible='true' version='1' lat='50.76849150541' lon='6.10195101141' />
+  <node id='10326' visible='true' version='1' lat='50.76839590519' lon='6.10199843324' />
+  <node id='10327' visible='true' version='1' lat='50.76838059665' lon='6.10201177063' />
+  <node id='10328' visible='true' version='1' lat='50.7683415442' lon='6.10203696348' />
+  <node id='10329' visible='true' version='1' lat='50.76832545459' lon='6.10205548763' />
+  <node id='10330' visible='true' version='1' lat='50.7683098336' lon='6.10209302992' />
+  <node id='10331' visible='true' version='1' lat='50.76837809713' lon='6.10205128907' />
+  <node id='10332' visible='true' version='1' lat='50.76839840439' lon='6.10203918662' />
+  <node id='10333' visible='true' version='1' lat='50.76843152083' lon='6.10203054202' />
+  <node id='10334' visible='true' version='1' lat='50.76844400608' lon='6.10202769553' />
+  <node id='10335' visible='true' version='1' lat='50.76833080219' lon='6.10204109091' />
+  <node id='10336' visible='true' version='1' lat='50.76841168221' lon='6.10202510827' />
+  <node id='10337' visible='true' version='1' lat='50.76841402535' lon='6.10199843349' />
+  <node id='10338' visible='true' version='1' lat='50.76842074237' lon='6.10196854785' />
+  <node id='10339' visible='true' version='1' lat='50.76840746455' lon='6.10198213223' />
+  <node id='10340' visible='true' version='1' lat='50.76842589728' lon='6.10198386115' />
+  <node id='10341' visible='true' version='1' lat='50.76843995614' lon='6.10200633712' />
+  <node id='10342' visible='true' version='1' lat='50.76845510846' lon='6.10202313236' />
+  <node id='10343' visible='true' version='1' lat='50.76847791504' lon='6.10205524089' />
+  <node id='10344' visible='true' version='1' lat='50.7685158739' lon='6.10211476517' />
+  <node id='10345' visible='true' version='1' lat='50.76853035416' lon='6.1021377976' />
+  <node id='10346' visible='true' version='1' lat='50.76853664973' lon='6.10215971712' />
+  <node id='10347' visible='true' version='1' lat='50.7685396177' lon='6.10219404855' />
+  <node id='10348' visible='true' version='1' lat='50.76849197388' lon='6.10225431379' />
+  <node id='10349' visible='true' version='1' lat='50.76850165886' lon='6.1022147956' />
+  <node id='10350' visible='true' version='1' lat='50.76850775102' lon='6.10219380156' />
+  <node id='10351' visible='true' version='1' lat='50.76850165886' lon='6.10217577138' />
+  <node id='10352' visible='true' version='1' lat='50.76847619673' lon='6.10212316279' />
+  <node id='10353' visible='true' version='1' lat='50.76843658523' lon='6.1020488062' />
+  <node id='10354' visible='true' version='1' lat='50.76841862113' lon='6.10202608323' />
+  <node id='10355' visible='true' version='1' lat='50.76840206291' lon='6.1020028663' />
+  <node id='10356' visible='true' version='1' lat='50.76850696997' lon='6.10217997019' />
+  <node id='10357' visible='true' version='1' lat='50.76852930789' lon='6.10218071116' />
+  <node id='10358' visible='true' version='1' lat='50.76855383273' lon='6.10216786774' />
+  <node id='10359' visible='true' version='1' lat='50.76852609661' lon='6.1021324816' />
+  <node id='10360' visible='true' version='1' lat='50.76849214374' lon='6.10215611172' />
+  <node id='10361' visible='true' version='1' lat='50.76850912553' lon='6.10209852852' />
+  <node id='10362' visible='true' version='1' lat='50.76847510327' lon='6.1022869163' />
+  <node id='10363' visible='true' version='1' lat='50.7684624503' lon='6.10231013324' />
+  <node id='10364' visible='true' version='1' lat='50.76840924871' lon='6.10201620344' />
+  <node id='10365' visible='true' version='1' lat='50.76844698557' lon='6.10201695764' />
+  <node id='10366' visible='true' version='1' lat='50.76841442222' lon='6.101936782' />
+  <node id='10367' visible='true' version='1' lat='50.76831041629' lon='6.10205082024' />
+  <node id='10368' visible='true' version='1' lat='50.76832061192' lon='6.10208413857' />
+  <node id='10369' visible='true' version='1' lat='50.76831092691' lon='6.10208265664' />
+  <node id='10370' visible='true' version='1' lat='50.76830210104' lon='6.102074753' />
+  <node id='10371' visible='true' version='1' lat='50.76831772196' lon='6.10213489487' />
+  <node id='10372' visible='true' version='1' lat='50.76832436096' lon='6.10206240356' />
+  <node id='10373' visible='true' version='1' lat='50.76835287768' lon='6.10202965222' />
+  <node id='10374' visible='true' version='1' lat='50.76831811256' lon='6.10207351805' />
+  <node id='10375' visible='true' version='1' lat='50.76833906092' lon='6.10222701442' />
+  <node id='10376' visible='true' version='1' lat='50.76830818087' lon='6.10222370302' />
+  <node id='10377' visible='true' version='1' lat='50.76830717787' lon='6.10226468732' />
+  <node id='10378' visible='true' version='1' lat='50.76829811769' lon='6.10227901266' />
+  <node id='10379' visible='true' version='1' lat='50.7683392009' lon='6.10226024152' />
+  <node id='10380' visible='true' version='1' lat='50.7683360767' lon='6.10227234397' />
+  <node id='10381' visible='true' version='1' lat='50.76832404854' lon='6.10230297057' />
+  <node id='10382' visible='true' version='1' lat='50.76831061449' lon='6.10232717546' />
+  <node id='10383' visible='true' version='1' lat='50.76831794775' lon='6.10209420653' />
+  <node id='10384' visible='true' version='1' lat='50.76831589754' lon='6.10208131013' />
+  <node id='10385' visible='true' version='1' lat='50.76829906156' lon='6.1021527379' />
+  <node id='10386' visible='true' version='1' lat='50.76830347463' lon='6.1021564436' />
+  <node id='10387' visible='true' version='1' lat='50.76832675886' lon='6.1021496309' />
+  <node id='10388' visible='true' version='1' lat='50.76831889361' lon='6.10212168085' />
+  <node id='10389' visible='true' version='1' lat='50.76830780271' lon='6.10210735551' />
+  <node id='10390' visible='true' version='1' lat='50.76831405111' lon='6.10211501216' />
+  <node id='10391' visible='true' version='1' lat='50.76858085691' lon='6.10207154214' />
+  <node id='10392' visible='true' version='1' lat='50.76856992227' lon='6.10207178913' />
+  <node id='10393' visible='true' version='1' lat='50.76855773796' lon='6.10208364459' />
+  <node id='10394' visible='true' version='1' lat='50.76853555626' lon='6.10211674108' />
+  <node id='10395' visible='true' version='1' lat='50.76829943352' lon='6.1021017235' />
+  <node id='10396' visible='true' version='1' lat='50.76831825808' lon='6.10224069595' />
+  <node id='10397' visible='true' version='1' lat='50.76833463579' lon='6.10225251458' />
+  <node id='10398' visible='true' version='1' lat='50.76832520874' lon='6.10224381852' />
+  <node id='10399' visible='true' version='1' lat='50.76835857084' lon='6.10220034688' />
+  <node id='10400' visible='true' version='1' lat='50.76839168738' lon='6.10216934968' />
+  <node id='10401' visible='true' version='1' lat='50.76838793834' lon='6.10218886178' />
+  <node id='10402' visible='true' version='1' lat='50.76837481673' lon='6.10220738594' />
+  <node id='10403' visible='true' version='1' lat='50.76835844229' lon='6.10222351571' />
+  <node id='10404' visible='true' version='1' lat='50.76831737749' lon='6.10209061941' />
+  <node id='10405' visible='true' version='1' lat='50.76844240426' lon='6.10203069848' />
+  <node id='10406' visible='true' version='1' lat='50.7684875047' lon='6.10207155466' />
+  <node id='10407' visible='true' version='1' lat='50.76843237541' lon='6.10206303124' />
+  <node id='10408' visible='true' version='1' lat='50.76842214841' lon='6.10214168669' />
+  <node id='10409' visible='true' version='1' lat='50.7683502918' lon='6.10223406072' />
+  <node id='10410' visible='true' version='1' lat='50.76834685518' lon='6.10219380156' />
+  <node id='10411' visible='true' version='1' lat='50.76835529051' lon='6.10207104817' />
+  <node id='10412' visible='true' version='1' lat='50.76833701384' lon='6.10208037218' />
+  <node id='10413' visible='true' version='1' lat='50.76839578776' lon='6.10232692866' />
+  <node id='10414' visible='true' version='1' lat='50.76841941447' lon='6.10231692562' />
+  <node id='10415' visible='true' version='1' lat='50.76850571261' lon='6.10203855686' />
+  <node id='10416' visible='true' version='1' lat='50.76853245239' lon='6.10205619321' />
+  <node id='10417' visible='true' version='1' lat='50.76855193943' lon='6.10208309892' />
+  <node id='10418' visible='true' version='1' lat='50.76849152233' lon='6.1020627428' />
+  <node id='10419' visible='true' version='1' lat='50.7684840072' lon='6.10205869873' />
+  <node id='10420' visible='true' version='1' lat='50.76848267934' lon='6.10195644553' />
+  <node id='10421' visible='true' version='1' lat='50.76834984499' lon='6.10228745993' />
+  <node id='10422' visible='true' version='1' lat='50.76835511721' lon='6.10231246683' />
+  <node id='10423' visible='true' version='1' lat='50.76834008022' lon='6.10224345351' />
+  <node id='10424' visible='true' version='1' lat='50.76846256426' lon='6.10209571289' />
+  <node id='10425' visible='true' version='1' lat='50.76847782039' lon='6.10204085571' />
+  <node id='10426' visible='true' version='1' lat='50.76847695789' lon='6.10204799661' />
+  <node id='10427' visible='true' version='1' lat='50.76847273467' lon='6.10196384438' />
+  <node id='10428' visible='true' version='1' lat='50.76846004098' lon='6.1019835278' />
+  <node id='10429' visible='true' version='1' lat='50.76845164368' lon='6.1020046254' />
+  <node id='10430' visible='true' version='1' lat='50.76844744371' lon='6.10202315365' />
+  <node id='10431' visible='true' version='1' lat='50.76844789991' lon='6.10203614441' />
+  <node id='10432' visible='true' version='1' lat='50.768450619' lon='6.10205445482' />
+  <node id='10433' visible='true' version='1' lat='50.76843536279' lon='6.10195502612' />
+  <node id='10434' visible='true' version='1' lat='50.76823492758' lon='6.10230213177' />
+  <node id='10435' visible='true' version='1' lat='50.7683855952' lon='6.10224937402' />
+  <node id='10436' visible='true' version='1' lat='50.76839949786' lon='6.10223998845' />
+  <node id='10437' visible='true' version='1' lat='50.76835216631' lon='6.1021490966' />
+  <node id='10438' visible='true' version='1' lat='50.76805434379' lon='6.10015466675' />
+  <node id='10439' visible='true' version='1' lat='50.76792202577' lon='6.09945058554' />
+  <node id='10440' visible='true' version='1' lat='50.76789997259' lon='6.09945594996' />
+  <node id='10441' visible='true' version='1' lat='50.7678609554' lon='6.09946734935' />
+  <node id='10442' visible='true' version='1' lat='50.76808742345' lon='6.10079202667' />
+  <node id='10443' visible='true' version='1' lat='50.76783423624' lon='6.09947942063' />
+  <node id='10444' visible='true' version='1' lat='50.76806876314' lon='6.10080040857' />
+  <node id='10445' visible='true' version='1' lat='50.76781515172' lon='6.09948947892' />
+  <node id='10446' visible='true' version='1' lat='50.76803568431' lon='6.10073938698' />
+  <node id='10447' visible='true' version='1' lat='50.7677973395' lon='6.09949752554' />
+  <node id='10448' visible='true' version='1' lat='50.76872102248' lon='6.10421150655' />
+  <node id='10449' visible='true' version='1' lat='50.76866843501' lon='6.10415383906' />
+  <node id='10450' visible='true' version='1' lat='50.76873796859' lon='6.10418064262' />
+  <node id='10451' visible='true' version='1' lat='50.76863450672' lon='6.1041565226' />
+  <node id='10452' visible='true' version='1' lat='50.76850473406' lon='6.1041551815' />
+  <node id='10453' visible='true' version='1' lat='50.76801430089' lon='6.10040851315' />
+  <node id='10454' visible='true' version='1' lat='50.76799497834' lon='6.10041901066' />
+  <node id='10455' visible='true' version='1' lat='50.76920872522' lon='6.10086545214' />
+  <node id='10456' visible='true' version='1' lat='50.76922399239' lon='6.10089629754' />
+  <node id='10457' visible='true' version='1' lat='50.76923629093' lon='6.10091641411' />
+  <node id='10458' visible='true' version='1' lat='50.76925028582' lon='6.10094860062' />
+  <node id='10459' visible='true' version='1' lat='50.76756917363' lon='6.10267460078' />
+  <node id='10460' visible='true' version='1' lat='50.76757595843' lon='6.10270276532' />
+  <node id='10461' visible='true' version='1' lat='50.76758613689' lon='6.10273897514' />
+  <node id='10462' visible='true' version='1' lat='50.76863874765' lon='6.10434025392' />
+  <node id='10463' visible='true' version='1' lat='50.76868285331' lon='6.10466748342' />
+  <node id='10464' visible='true' version='1' lat='50.76876088629' lon='6.10524415836' />
+  <node id='10465' visible='true' version='1' lat='50.7686837015' lon='6.10451459751' />
+  <node id='10466' visible='true' version='1' lat='50.76878378725' lon='6.10524147615' />
+  <node id='10467' visible='true' version='1' lat='50.76916122736' lon='6.10078900918' />
+  <node id='10468' visible='true' version='1' lat='50.76859549014' lon='6.10417395696' />
+  <node id='10469' visible='true' version='1' lat='50.7685717409' lon='6.10415786371' />
+  <node id='10470' visible='true' version='1' lat='50.76861415025' lon='6.10430002078' />
+  <node id='10471' visible='true' version='1' lat='50.76874392261' lon='6.10444217786' />
+  <node id='10472' visible='true' version='1' lat='50.76871381206' lon='6.10450453922' />
+  <node id='10473' visible='true' version='1' lat='50.76880902069' lon='6.1052548872' />
+  <node id='10474' visible='true' version='1' lat='50.7688433721' lon='6.10519386694' />
+  <node id='10475' visible='true' version='1' lat='50.76877783239' lon='6.10445154708' />
+  <node id='10476' visible='true' version='1' lat='50.76886436461' lon='6.10519990191' />
+  <node id='10477' visible='true' version='1' lat='50.7685824491' lon='6.10405200208' />
+  <node id='10478' visible='true' version='1' lat='50.76859382223' lon='6.10429931437' />
+  <node id='10479' visible='true' version='1' lat='50.76872186981' lon='6.10525488719' />
+  <node id='10480' visible='true' version='1' lat='50.76874222624' lon='6.10524952278' />
+  <node id='10481' visible='true' version='1' lat='50.76831346716' lon='6.10169760749' />
+  <node id='10482' visible='true' version='1' lat='50.76827105754' lon='6.10148437187' />
+  <node id='10483' visible='true' version='1' lat='50.76822907198' lon='6.10127717122' />
+  <node id='10484' visible='true' version='1' lat='50.76807300412' lon='6.10046982631' />
+  <node id='10485' visible='true' version='1' lat='50.76795425648' lon='6.09984621271' />
+  <node id='10486' visible='true' version='1' lat='50.76788173545' lon='6.09947204456' />
+  <way id='20000' visible='true' version='1'>
+    <nd ref='10224' />
+    <nd ref='10070' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20001' visible='true' version='1'>
+    <nd ref='10460' />
+    <nd ref='10029' />
+    <nd ref='10028' />
+    <nd ref='10027' />
+    <nd ref='10026' />
+    <nd ref='10025' />
+    <nd ref='10024' />
+    <nd ref='10023' />
+    <nd ref='10022' />
+    <nd ref='10021' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20002' visible='true' version='1'>
+    <nd ref='10099' />
+    <nd ref='10035' />
+    <nd ref='10034' />
+    <nd ref='10033' />
+    <nd ref='10032' />
+    <nd ref='10167' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20003' visible='true' version='1'>
+    <nd ref='10098' />
+    <nd ref='10036' />
+    <nd ref='10037' />
+    <nd ref='10038' />
+    <nd ref='10039' />
+    <nd ref='10168' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20004' visible='true' version='1'>
+    <nd ref='10058' />
+    <nd ref='10059' />
+    <nd ref='10060' />
+    <nd ref='10061' />
+    <nd ref='10062' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20005' visible='true' version='1'>
+    <nd ref='10065' />
+    <nd ref='10066' />
+    <nd ref='10067' />
+    <nd ref='10068' />
+    <nd ref='10069' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20006' visible='true' version='1'>
+    <nd ref='10359' />
+    <nd ref='10075' />
+    <nd ref='10351' />
+    <nd ref='10076' />
+    <nd ref='10127' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20007' visible='true' version='1'>
+    <nd ref='10085' />
+    <nd ref='10088' />
+    <nd ref='10089' />
+    <nd ref='10090' />
+    <nd ref='10091' />
+    <nd ref='10092' />
+    <nd ref='10093' />
+    <nd ref='10094' />
+    <tag k='subtype' v='solid' />
+    <tag k='type' v='line_thin' />
+  </way>
+  <way id='20008' visible='true' version='1'>
+    <nd ref='10112' />
+    <nd ref='10399' />
+    <nd ref='10108' />
+    <nd ref='10110' />
+    <nd ref='10109' />
+    <nd ref='10107' />
+    <nd ref='10030' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20009' visible='true' version='1'>
+    <nd ref='10114' />
+    <nd ref='10116' />
+    <nd ref='10115' />
+    <nd ref='10146' />
+    <nd ref='10054' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20010' visible='true' version='1'>
+    <nd ref='10127' />
+    <nd ref='10152' />
+    <nd ref='10153' />
+    <nd ref='10154' />
+    <nd ref='10155' />
+    <nd ref='10159' />
+    <nd ref='10156' />
+    <nd ref='10437' />
+    <nd ref='10157' />
+    <nd ref='10000' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20011' visible='true' version='1'>
+    <nd ref='10140' />
+    <nd ref='10139' />
+    <nd ref='10138' />
+    <nd ref='10141' />
+    <nd ref='10137' />
+    <nd ref='10136' />
+    <nd ref='10081' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20012' visible='true' version='1'>
+    <nd ref='10121' />
+    <nd ref='10134' />
+    <nd ref='10135' />
+    <nd ref='10019' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20013' visible='true' version='1'>
+    <nd ref='10145' />
+    <nd ref='10147' />
+    <nd ref='10148' />
+    <nd ref='10149' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20014' visible='true' version='1'>
+    <nd ref='10257' />
+    <nd ref='10005' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20015' visible='true' version='1'>
+    <nd ref='10003' />
+    <nd ref='10373' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20016' visible='true' version='1'>
+    <nd ref='10121' />
+    <nd ref='10102' />
+    <nd ref='10101' />
+    <nd ref='10100' />
+    <nd ref='10006' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20017' visible='true' version='1'>
+    <nd ref='10006' />
+    <nd ref='10016' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20018' visible='true' version='1'>
+    <nd ref='10162' />
+    <nd ref='10004' />
+    <nd ref='10257' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20019' visible='true' version='1'>
+    <nd ref='10000' />
+    <nd ref='10335' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20020' visible='true' version='1'>
+    <nd ref='10008' />
+    <nd ref='10015' />
+    <nd ref='10009' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20021' visible='true' version='1'>
+    <nd ref='10009' />
+    <nd ref='10014' />
+    <nd ref='10163' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20022' visible='true' version='1'>
+    <nd ref='10258' />
+    <nd ref='10002' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20023' visible='true' version='1'>
+    <nd ref='10001' />
+    <nd ref='10166' />
+    <nd ref='10165' />
+    <nd ref='10258' />
+    <tag k='subtype' v='solid' />
+    <tag k='type' v='line_thin' />
+  </way>
+  <way id='20024' visible='true' version='1'>
+    <nd ref='10007' />
+    <nd ref='10008' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20025' visible='true' version='1'>
+    <nd ref='10396' />
+    <nd ref='10423' />
+    <nd ref='10123' />
+    <nd ref='10124' />
+    <nd ref='10125' />
+    <nd ref='10126' />
+    <nd ref='10127' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20026' visible='true' version='1'>
+    <nd ref='10461' />
+    <nd ref='10050' />
+    <nd ref='10051' />
+    <nd ref='10052' />
+    <nd ref='10186' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20027' visible='true' version='1'>
+    <nd ref='10187' />
+    <nd ref='10046' />
+    <nd ref='10047' />
+    <nd ref='10048' />
+    <nd ref='10049' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20028' visible='true' version='1'>
+    <nd ref='10030' />
+    <nd ref='10104' />
+    <nd ref='10105' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20029' visible='true' version='1'>
+    <nd ref='10056' />
+    <nd ref='10117' />
+    <nd ref='10118' />
+    <nd ref='10119' />
+    <nd ref='10122' />
+    <nd ref='10120' />
+    <nd ref='10003' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20030' visible='true' version='1'>
+    <nd ref='10081' />
+    <nd ref='10130' />
+    <nd ref='10133' />
+    <nd ref='10131' />
+    <nd ref='10132' />
+    <nd ref='10006' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20031' visible='true' version='1'>
+    <nd ref='10030' />
+    <nd ref='10111' />
+    <nd ref='10003' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20032' visible='true' version='1'>
+    <nd ref='10000' />
+    <nd ref='10142' />
+    <nd ref='10143' />
+    <nd ref='10144' />
+    <nd ref='10145' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20033' visible='true' version='1'>
+    <nd ref='10054' />
+    <nd ref='10055' />
+    <nd ref='10158' />
+    <nd ref='10056' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20034' visible='true' version='1'>
+    <nd ref='10018' />
+    <nd ref='10017' />
+    <nd ref='10000' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20035' visible='true' version='1'>
+    <nd ref='10145' />
+    <nd ref='10041' />
+    <nd ref='10042' />
+    <nd ref='10397' />
+    <nd ref='10043' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20036' visible='true' version='1'>
+    <nd ref='10167' />
+    <nd ref='10031' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20037' visible='true' version='1'>
+    <nd ref='10170' />
+    <nd ref='10040' />
+    <nd ref='10145' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20038' visible='true' version='1'>
+    <nd ref='10081' />
+    <nd ref='10082' />
+    <nd ref='10083' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20039' visible='true' version='1'>
+    <nd ref='10169' />
+    <nd ref='10086' />
+    <nd ref='10087' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20040' visible='true' version='1'>
+    <nd ref='10087' />
+    <nd ref='10079' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20041' visible='true' version='1'>
+    <nd ref='10079' />
+    <nd ref='10080' />
+    <nd ref='10081' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20042' visible='true' version='1'>
+    <nd ref='10095' />
+    <nd ref='10096' />
+    <nd ref='10097' />
+    <nd ref='10229' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20043' visible='true' version='1'>
+    <nd ref='10083' />
+    <nd ref='10228' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20044' visible='true' version='1'>
+    <nd ref='10083' />
+    <nd ref='10084' />
+    <nd ref='10085' />
+    <tag k='subtype' v='solid' />
+    <tag k='type' v='line_thin' />
+  </way>
+  <way id='20045' visible='true' version='1'>
+    <nd ref='10031' />
+    <nd ref='10030' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20046' visible='true' version='1'>
+    <nd ref='10168' />
+    <nd ref='10170' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20047' visible='true' version='1'>
+    <nd ref='10056' />
+    <nd ref='10057' />
+    <nd ref='10361' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20048' visible='true' version='1'>
+    <nd ref='10070' />
+    <nd ref='10071' />
+    <nd ref='10072' />
+    <nd ref='10073' />
+    <nd ref='10074' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20049' visible='true' version='1'>
+    <nd ref='10121' />
+    <nd ref='10103' />
+    <nd ref='10063' />
+    <nd ref='10418' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20050' visible='true' version='1'>
+    <nd ref='10127' />
+    <nd ref='10077' />
+    <nd ref='10078' />
+    <nd ref='10079' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20051' visible='true' version='1'>
+    <nd ref='10105' />
+    <nd ref='10106' />
+    <nd ref='10056' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20052' visible='true' version='1'>
+    <nd ref='10149' />
+    <nd ref='10150' />
+    <nd ref='10151' />
+    <nd ref='10121' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20053' visible='true' version='1'>
+    <nd ref='10171' />
+    <nd ref='10172' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20054' visible='true' version='1'>
+    <nd ref='10001' />
+    <nd ref='10179' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20055' visible='true' version='1'>
+    <nd ref='10261' />
+    <nd ref='10446' />
+    <nd ref='10447' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20056' visible='true' version='1'>
+    <nd ref='10180' />
+    <nd ref='10182' />
+    <nd ref='10181' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20057' visible='true' version='1'>
+    <nd ref='10183' />
+    <nd ref='10180' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20058' visible='true' version='1'>
+    <nd ref='10177' />
+    <nd ref='10178' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20059' visible='true' version='1'>
+    <nd ref='10176' />
+    <nd ref='10177' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20060' visible='true' version='1'>
+    <nd ref='10179' />
+    <nd ref='10183' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20061' visible='true' version='1'>
+    <nd ref='10174' />
+    <nd ref='10175' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20062' visible='true' version='1'>
+    <nd ref='10459' />
+    <nd ref='10173' />
+    <nd ref='10188' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20063' visible='true' version='1'>
+    <nd ref='10172' />
+    <nd ref='10160' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20064' visible='true' version='1'>
+    <nd ref='10044' />
+    <nd ref='10045' />
+    <nd ref='10187' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20065' visible='true' version='1'>
+    <nd ref='10186' />
+    <nd ref='10053' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20066' visible='true' version='1'>
+    <nd ref='10021' />
+    <nd ref='10020' />
+    <nd ref='10385' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20067' visible='true' version='1'>
+    <nd ref='10188' />
+    <nd ref='10174' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20068' visible='true' version='1'>
+    <nd ref='10245' />
+    <nd ref='10308' />
+    <nd ref='10189' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20069' visible='true' version='1'>
+    <nd ref='10194' />
+    <nd ref='10195' />
+    <nd ref='10196' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20070' visible='true' version='1'>
+    <nd ref='10197' />
+    <nd ref='10198' />
+    <nd ref='10199' />
+    <nd ref='10200' />
+    <nd ref='10197' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20071' visible='true' version='1'>
+    <nd ref='10201' />
+    <nd ref='10191' />
+    <nd ref='10192' />
+    <nd ref='10236' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20072' visible='true' version='1'>
+    <nd ref='10190' />
+    <nd ref='10201' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20073' visible='true' version='1'>
+    <nd ref='10236' />
+    <nd ref='10235' />
+    <nd ref='10234' />
+    <nd ref='10233' />
+    <nd ref='10237' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20074' visible='true' version='1'>
+    <nd ref='10190' />
+    <nd ref='10203' />
+    <nd ref='10452' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20075' visible='true' version='1'>
+    <nd ref='10204' />
+    <nd ref='10205' />
+    <nd ref='10206' />
+    <nd ref='10207' />
+    <nd ref='10208' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20076' visible='true' version='1'>
+    <nd ref='10317' />
+    <nd ref='10318' />
+    <nd ref='10319' />
+    <nd ref='10334' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20077' visible='true' version='1'>
+    <nd ref='10215' />
+    <nd ref='10216' />
+    <nd ref='10217' />
+    <nd ref='10218' />
+    <nd ref='10219' />
+    <nd ref='10458' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20078' visible='true' version='1'>
+    <nd ref='10220' />
+    <nd ref='10221' />
+    <nd ref='10222' />
+    <nd ref='10223' />
+    <nd ref='10224' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20079' visible='true' version='1'>
+    <nd ref='10213' />
+    <nd ref='10214' />
+    <nd ref='10225' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20080' visible='true' version='1'>
+    <nd ref='10087' />
+    <nd ref='10213' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20081' visible='true' version='1'>
+    <nd ref='10220' />
+    <nd ref='10074' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20082' visible='true' version='1'>
+    <nd ref='10225' />
+    <nd ref='10215' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20083' visible='true' version='1'>
+    <nd ref='10184' />
+    <nd ref='10226' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20084' visible='true' version='1'>
+    <nd ref='10169' />
+    <nd ref='10230' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20085' visible='true' version='1'>
+    <nd ref='10228' />
+    <nd ref='10169' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20086' visible='true' version='1'>
+    <nd ref='10229' />
+    <nd ref='10085' />
+    <tag k='subtype' v='solid' />
+    <tag k='type' v='line_thin' />
+  </way>
+  <way id='20087' visible='true' version='1'>
+    <nd ref='10229' />
+    <nd ref='10228' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20088' visible='true' version='1'>
+    <nd ref='10236' />
+    <nd ref='10168' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20089' visible='true' version='1'>
+    <nd ref='10232' />
+    <nd ref='10231' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20090' visible='true' version='1'>
+    <nd ref='10237' />
+    <nd ref='10232' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20091' visible='true' version='1'>
+    <nd ref='10238' />
+    <nd ref='10267' />
+    <nd ref='10434' />
+    <nd ref='10266' />
+    <nd ref='10265' />
+    <nd ref='10264' />
+    <nd ref='10263' />
+    <nd ref='10262' />
+    <nd ref='10239' />
+    <nd ref='10240' />
+    <nd ref='10241' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20092' visible='true' version='1'>
+    <nd ref='10242' />
+    <nd ref='10243' />
+    <nd ref='10244' />
+    <nd ref='10185' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20093' visible='true' version='1'>
+    <nd ref='10187' />
+    <nd ref='10238' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20094' visible='true' version='1'>
+    <nd ref='10238' />
+    <nd ref='10185' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20095' visible='true' version='1'>
+    <nd ref='10249' />
+    <nd ref='10250' />
+    <nd ref='10251' />
+    <nd ref='10252' />
+    <nd ref='10253' />
+    <nd ref='10254' />
+    <nd ref='10049' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20096' visible='true' version='1'>
+    <nd ref='10185' />
+    <nd ref='10245' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20097' visible='true' version='1'>
+    <nd ref='10202' />
+    <nd ref='10201' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20098' visible='true' version='1'>
+    <nd ref='10241' />
+    <nd ref='10246' />
+    <nd ref='10247' />
+    <nd ref='10248' />
+    <nd ref='10249' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20099' visible='true' version='1'>
+    <nd ref='10010' />
+    <nd ref='10013' />
+    <nd ref='10011' />
+    <nd ref='10012' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20100' visible='true' version='1'>
+    <nd ref='10163' />
+    <nd ref='10164' />
+    <nd ref='10010' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20101' visible='true' version='1'>
+    <nd ref='10259' />
+    <nd ref='10171' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20102' visible='true' version='1'>
+    <nd ref='10439' />
+    <nd ref='10438' />
+    <nd ref='10260' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20103' visible='true' version='1'>
+    <nd ref='10208' />
+    <nd ref='10256' />
+    <nd ref='10255' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20104' visible='true' version='1'>
+    <nd ref='10069' />
+    <nd ref='10255' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20105' visible='true' version='1'>
+    <nd ref='10087' />
+    <nd ref='10268' />
+    <nd ref='10269' />
+    <nd ref='10270' />
+    <nd ref='10083' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20106' visible='true' version='1'>
+    <nd ref='10081' />
+    <nd ref='10145' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20107' visible='true' version='1'>
+    <nd ref='10083' />
+    <nd ref='10170' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20108' visible='true' version='1'>
+    <nd ref='10185' />
+    <nd ref='10275' />
+    <nd ref='10276' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20109' visible='true' version='1'>
+    <nd ref='10278' />
+    <nd ref='10279' />
+    <nd ref='10280' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20110' visible='true' version='1'>
+    <nd ref='10170' />
+    <nd ref='10282' />
+    <nd ref='10283' />
+    <nd ref='10284' />
+    <nd ref='10299' />
+    <nd ref='10285' />
+    <nd ref='10194' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20111' visible='true' version='1'>
+    <nd ref='10145' />
+    <nd ref='10286' />
+    <nd ref='10287' />
+    <nd ref='10288' />
+    <nd ref='10289' />
+    <nd ref='10195' />
+    <nd ref='10293' />
+    <nd ref='10294' />
+    <nd ref='10277' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20112' visible='true' version='1'>
+    <nd ref='10170' />
+    <nd ref='10290' />
+    <nd ref='10291' />
+    <nd ref='10292' />
+    <nd ref='10197' />
+    <nd ref='10278' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20113' visible='true' version='1'>
+    <nd ref='10145' />
+    <nd ref='10295' />
+    <nd ref='10296' />
+    <nd ref='10297' />
+    <nd ref='10298' />
+    <nd ref='10236' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20114' visible='true' version='1'>
+    <nd ref='10145' />
+    <nd ref='10422' />
+    <nd ref='10300' />
+    <nd ref='10301' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20115' visible='true' version='1'>
+    <nd ref='10238' />
+    <nd ref='10306' />
+    <nd ref='10304' />
+    <nd ref='10305' />
+    <nd ref='10193' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20116' visible='true' version='1'>
+    <nd ref='10245' />
+    <nd ref='10309' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20117' visible='true' version='1'>
+    <nd ref='10309' />
+    <nd ref='10307' />
+    <nd ref='10316' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20118' visible='true' version='1'>
+    <nd ref='10276' />
+    <nd ref='10309' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20119' visible='true' version='1'>
+    <nd ref='10185' />
+    <nd ref='10313' />
+    <nd ref='10193' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20120' visible='true' version='1'>
+    <nd ref='10302' />
+    <nd ref='10303' />
+    <nd ref='10238' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20121' visible='true' version='1'>
+    <nd ref='10193' />
+    <nd ref='10194' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20122' visible='true' version='1'>
+    <nd ref='10301' />
+    <nd ref='10302' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20123' visible='true' version='1'>
+    <nd ref='10308' />
+    <nd ref='10310' />
+    <nd ref='10311' />
+    <nd ref='10312' />
+    <nd ref='10196' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20124' visible='true' version='1'>
+    <nd ref='10201' />
+    <nd ref='10278' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20125' visible='true' version='1'>
+    <nd ref='10277' />
+    <nd ref='10190' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20126' visible='true' version='1'>
+    <nd ref='10245' />
+    <nd ref='10314' />
+    <nd ref='10315' />
+    <nd ref='10280' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20127' visible='true' version='1'>
+    <nd ref='10316' />
+    <nd ref='10308' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20128' visible='true' version='1'>
+    <nd ref='10316' />
+    <nd ref='10277' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20129' visible='true' version='1'>
+    <nd ref='10280' />
+    <nd ref='10281' />
+    <nd ref='10196' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20130' visible='true' version='1'>
+    <nd ref='10324' />
+    <nd ref='10322' />
+    <nd ref='10209' />
+    <nd ref='10210' />
+    <nd ref='10211' />
+    <nd ref='10212' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20131' visible='true' version='1'>
+    <nd ref='10323' />
+    <nd ref='10161' />
+    <nd ref='10420' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20132' visible='true' version='1'>
+    <nd ref='10321' />
+    <nd ref='10327' />
+    <nd ref='10373' />
+    <nd ref='10328' />
+    <nd ref='10335' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20133' visible='true' version='1'>
+    <nd ref='10000' />
+    <nd ref='10331' />
+    <nd ref='10332' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20134' visible='true' version='1'>
+    <nd ref='10160' />
+    <nd ref='10366' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20135' visible='true' version='1'>
+    <nd ref='10334' />
+    <nd ref='10320' />
+    <nd ref='10321' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20136' visible='true' version='1'>
+    <nd ref='10335' />
+    <nd ref='10329' />
+    <nd ref='10374' />
+    <nd ref='10330' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20137' visible='true' version='1'>
+    <nd ref='10332' />
+    <nd ref='10336' />
+    <nd ref='10337' />
+    <nd ref='10160' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20138' visible='true' version='1'>
+    <nd ref='10332' />
+    <nd ref='10333' />
+    <nd ref='10334' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20139' visible='true' version='1'>
+    <nd ref='10323' />
+    <nd ref='10433' />
+    <nd ref='10338' />
+    <nd ref='10339' />
+    <nd ref='10326' />
+    <nd ref='10321' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20140' visible='true' version='1'>
+    <nd ref='10321' />
+    <nd ref='10008' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20141' visible='true' version='1'>
+    <nd ref='10160' />
+    <nd ref='10340' />
+    <nd ref='10341' />
+    <nd ref='10365' />
+    <nd ref='10342' />
+    <nd ref='10343' />
+    <nd ref='10406' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20142' visible='true' version='1'>
+    <nd ref='10424' />
+    <nd ref='10353' />
+    <nd ref='10354' />
+    <nd ref='10364' />
+    <nd ref='10355' />
+    <nd ref='10008' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20143' visible='true' version='1'>
+    <nd ref='10351' />
+    <nd ref='10356' />
+    <nd ref='10357' />
+    <nd ref='10358' />
+    <nd ref='10215' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20144' visible='true' version='1'>
+    <nd ref='10359' />
+    <nd ref='10345' />
+    <nd ref='10346' />
+    <nd ref='10347' />
+    <nd ref='10213' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20145' visible='true' version='1'>
+    <nd ref='10362' />
+    <nd ref='10348' />
+    <nd ref='10349' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20146' visible='true' version='1'>
+    <nd ref='10074' />
+    <nd ref='10417' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20147' visible='true' version='1'>
+    <nd ref='10361' />
+    <nd ref='10416' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20148' visible='true' version='1'>
+    <nd ref='10418' />
+    <nd ref='10064' />
+    <nd ref='10415' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20149' visible='true' version='1'>
+    <nd ref='10351' />
+    <nd ref='10360' />
+    <nd ref='10352' />
+    <nd ref='10424' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20150' visible='true' version='1'>
+    <nd ref='10362' />
+    <nd ref='10363' />
+    <nd ref='10081' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20151' visible='true' version='1'>
+    <nd ref='10228' />
+    <nd ref='10362' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20152' visible='true' version='1'>
+    <nd ref='10349' />
+    <nd ref='10350' />
+    <nd ref='10351' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20153' visible='true' version='1'>
+    <nd ref='10081' />
+    <nd ref='10271' />
+    <nd ref='10272' />
+    <nd ref='10273' />
+    <nd ref='10274' />
+    <nd ref='10169' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20154' visible='true' version='1'>
+    <nd ref='10366' />
+    <nd ref='10323' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20155' visible='true' version='1'>
+    <nd ref='10335' />
+    <nd ref='10367' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20156' visible='true' version='1'>
+    <nd ref='10000' />
+    <nd ref='10368' />
+    <nd ref='10369' />
+    <nd ref='10370' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20157' visible='true' version='1'>
+    <nd ref='10019' />
+    <nd ref='10371' />
+    <nd ref='10018' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20158' visible='true' version='1'>
+    <nd ref='10175' />
+    <nd ref='10395' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20159' visible='true' version='1'>
+    <nd ref='10000' />
+    <nd ref='10372' />
+    <nd ref='10367' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20160' visible='true' version='1'>
+    <nd ref='10226' />
+    <nd ref='10176' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20161' visible='true' version='1'>
+    <nd ref='10367' />
+    <nd ref='10179' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20162' visible='true' version='1'>
+    <nd ref='10370' />
+    <nd ref='10176' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20163' visible='true' version='1'>
+    <nd ref='10335' />
+    <nd ref='10001' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20164' visible='true' version='1'>
+    <nd ref='10373' />
+    <nd ref='10162' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20165' visible='true' version='1'>
+    <nd ref='10016' />
+    <nd ref='10007' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20166' visible='true' version='1'>
+    <nd ref='10330' />
+    <nd ref='10175' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20167' visible='true' version='1'>
+    <nd ref='10003' />
+    <nd ref='10113' />
+    <nd ref='10114' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20168' visible='true' version='1'>
+    <nd ref='10175' />
+    <nd ref='10386' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20169' visible='true' version='1'>
+    <nd ref='10384' />
+    <nd ref='10404' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20170' visible='true' version='1'>
+    <nd ref='10376' />
+    <nd ref='10377' />
+    <nd ref='10378' />
+    <nd ref='10302' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20171' visible='true' version='1'>
+    <nd ref='10375' />
+    <nd ref='10379' />
+    <nd ref='10380' />
+    <nd ref='10381' />
+    <nd ref='10382' />
+    <nd ref='10193' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20172' visible='true' version='1'>
+    <nd ref='10376' />
+    <nd ref='10194' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20173' visible='true' version='1'>
+    <nd ref='10375' />
+    <nd ref='10421' />
+    <nd ref='10145' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20174' visible='true' version='1'>
+    <nd ref='10367' />
+    <nd ref='10384' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20175' visible='true' version='1'>
+    <nd ref='10383' />
+    <nd ref='10387' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20176' visible='true' version='1'>
+    <nd ref='10385' />
+    <nd ref='10386' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20177' visible='true' version='1'>
+    <nd ref='10387' />
+    <nd ref='10375' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20178' visible='true' version='1'>
+    <nd ref='10386' />
+    <nd ref='10376' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20179' visible='true' version='1'>
+    <nd ref='10387' />
+    <nd ref='10388' />
+    <nd ref='10390' />
+    <nd ref='10389' />
+    <nd ref='10175' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20180' visible='true' version='1'>
+    <nd ref='10220' />
+    <nd ref='10391' />
+    <nd ref='10392' />
+    <nd ref='10393' />
+    <nd ref='10394' />
+    <nd ref='10359' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20181' visible='true' version='1'>
+    <nd ref='10385' />
+    <nd ref='10019' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20182' visible='true' version='1'>
+    <nd ref='10395' />
+    <nd ref='10184' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20183' visible='true' version='1'>
+    <nd ref='10053' />
+    <nd ref='10054' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20184' visible='true' version='1'>
+    <nd ref='10043' />
+    <nd ref='10398' />
+    <nd ref='10396' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20185' visible='true' version='1'>
+    <nd ref='10396' />
+    <nd ref='10044' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20186' visible='true' version='1'>
+    <nd ref='10054' />
+    <nd ref='10112' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20187' visible='true' version='1'>
+    <nd ref='10019' />
+    <nd ref='10140' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20188' visible='true' version='1'>
+    <nd ref='10128' />
+    <nd ref='10400' />
+    <nd ref='10401' />
+    <nd ref='10402' />
+    <nd ref='10403' />
+    <nd ref='10396' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20189' visible='true' version='1'>
+    <nd ref='10006' />
+    <nd ref='10129' />
+    <nd ref='10128' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20190' visible='true' version='1'>
+    <nd ref='10404' />
+    <nd ref='10383' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20191' visible='true' version='1'>
+    <nd ref='10196' />
+    <nd ref='10193' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20192' visible='true' version='1'>
+    <nd ref='10321' />
+    <nd ref='10405' />
+    <nd ref='10406' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20193' visible='true' version='1'>
+    <nd ref='10424' />
+    <nd ref='10407' />
+    <nd ref='10332' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20194' visible='true' version='1'>
+    <nd ref='10408' />
+    <nd ref='10055' />
+    <tag k='type' v='wait_line' />
+  </way>
+  <way id='20195' visible='true' version='1'>
+    <nd ref='10409' />
+    <nd ref='10410' />
+    <tag k='type' v='wait_line' />
+  </way>
+  <way id='20196' visible='true' version='1'>
+    <nd ref='10411' />
+    <nd ref='10412' />
+    <tag k='type' v='wait_line' />
+  </way>
+  <way id='20197' visible='true' version='1'>
+    <nd ref='10413' />
+    <nd ref='10414' />
+    <tag k='type' v='wait_line' />
+  </way>
+  <way id='20198' visible='true' version='1'>
+    <nd ref='10189' />
+    <nd ref='10190' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20199' visible='true' version='1'>
+    <nd ref='10415' />
+    <nd ref='10065' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20200' visible='true' version='1'>
+    <nd ref='10416' />
+    <nd ref='10058' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20201' visible='true' version='1'>
+    <nd ref='10417' />
+    <nd ref='10359' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20202' visible='true' version='1'>
+    <nd ref='10317' />
+    <nd ref='10415' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20203' visible='true' version='1'>
+    <nd ref='10204' />
+    <nd ref='10317' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20204' visible='true' version='1'>
+    <nd ref='10420' />
+    <nd ref='10325' />
+    <nd ref='10324' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20205' visible='true' version='1'>
+    <nd ref='10406' />
+    <nd ref='10344' />
+    <nd ref='10359' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20206' visible='true' version='1'>
+    <nd ref='10317' />
+    <nd ref='10425' />
+    <nd ref='10426' />
+    <nd ref='10406' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20207' visible='true' version='1'>
+    <nd ref='10420' />
+    <nd ref='10427' />
+    <nd ref='10428' />
+    <nd ref='10429' />
+    <nd ref='10430' />
+    <nd ref='10431' />
+    <nd ref='10432' />
+    <nd ref='10424' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20208' visible='true' version='1'>
+    <nd ref='10418' />
+    <nd ref='10425' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20209' visible='true' version='1'>
+    <nd ref='10435' />
+    <nd ref='10436' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20210' visible='true' version='1'>
+    <nd ref='10002' />
+    <nd ref='10442' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20211' visible='true' version='1'>
+    <nd ref='10181' />
+    <nd ref='10444' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20212' visible='true' version='1'>
+    <nd ref='10178' />
+    <nd ref='10261' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20213' visible='true' version='1'>
+    <nd ref='10005' />
+    <nd ref='10441' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20214' visible='true' version='1'>
+    <nd ref='10012' />
+    <nd ref='10440' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20215' visible='true' version='1'>
+    <nd ref='10260' />
+    <nd ref='10259' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20216' visible='true' version='1'>
+    <nd ref='10448' />
+    <nd ref='10449' />
+    <tag k='subtype' v='solid' />
+    <tag k='type' v='line_thin' />
+  </way>
+  <way id='20217' visible='true' version='1'>
+    <nd ref='10230' />
+    <nd ref='10227' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20218' visible='true' version='1'>
+    <nd ref='10227' />
+    <nd ref='10450' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20219' visible='true' version='1'>
+    <nd ref='10466' />
+    <nd ref='10465' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20220' visible='true' version='1'>
+    <nd ref='10095' />
+    <nd ref='10448' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20221' visible='true' version='1'>
+    <nd ref='10464' />
+    <nd ref='10463' />
+    <nd ref='10462' />
+    <nd ref='10470' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20222' visible='true' version='1'>
+    <nd ref='10453' />
+    <nd ref='10443' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20223' visible='true' version='1'>
+    <nd ref='10444' />
+    <nd ref='10454' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20224' visible='true' version='1'>
+    <nd ref='10442' />
+    <nd ref='10453' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20225' visible='true' version='1'>
+    <nd ref='10454' />
+    <nd ref='10445' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20226' visible='true' version='1'>
+    <nd ref='10062' />
+    <nd ref='10455' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20227' visible='true' version='1'>
+    <nd ref='10070' />
+    <nd ref='10456' />
+    <nd ref='10457' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20228' visible='true' version='1'>
+    <nd ref='10224' />
+    <nd ref='10457' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20229' visible='true' version='1'>
+    <nd ref='10212' />
+    <nd ref='10467' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20230' visible='true' version='1'>
+    <nd ref='10452' />
+    <nd ref='10469' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20231' visible='true' version='1'>
+    <nd ref='10470' />
+    <nd ref='10468' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20232' visible='true' version='1'>
+    <nd ref='10468' />
+    <nd ref='10477' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20233' visible='true' version='1'>
+    <nd ref='10451' />
+    <nd ref='10099' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20234' visible='true' version='1'>
+    <nd ref='10465' />
+    <nd ref='10451' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20235' visible='true' version='1'>
+    <nd ref='10449' />
+    <nd ref='10094' />
+    <tag k='subtype' v='solid' />
+    <tag k='type' v='line_thin' />
+  </way>
+  <way id='20236' visible='true' version='1'>
+    <nd ref='10471' />
+    <nd ref='10472' />
+    <tag k='subtype' v='solid' />
+    <tag k='type' v='line_thin' />
+  </way>
+  <way id='20237' visible='true' version='1'>
+    <nd ref='10473' />
+    <nd ref='10474' />
+    <tag k='subtype' v='solid' />
+    <tag k='type' v='line_thin' />
+  </way>
+  <way id='20238' visible='true' version='1'>
+    <nd ref='10474' />
+    <nd ref='10471' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20239' visible='true' version='1'>
+    <nd ref='10472' />
+    <nd ref='10473' />
+    <tag k='subtype' v='solid' />
+    <tag k='type' v='line_thin' />
+  </way>
+  <way id='20240' visible='true' version='1'>
+    <nd ref='10449' />
+    <nd ref='10472' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20241' visible='true' version='1'>
+    <nd ref='10450' />
+    <nd ref='10475' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20242' visible='true' version='1'>
+    <nd ref='10448' />
+    <nd ref='10471' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20243' visible='true' version='1'>
+    <nd ref='10475' />
+    <nd ref='10476' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20244' visible='true' version='1'>
+    <nd ref='10231' />
+    <nd ref='10202' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20245' visible='true' version='1'>
+    <nd ref='10477' />
+    <nd ref='10232' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20246' visible='true' version='1'>
+    <nd ref='10477' />
+    <nd ref='10098' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20247' visible='true' version='1'>
+    <nd ref='10469' />
+    <nd ref='10468' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20248' visible='true' version='1'>
+    <nd ref='10469' />
+    <nd ref='10478' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20249' visible='true' version='1'>
+    <nd ref='10470' />
+    <nd ref='10480' />
+    <tag k='subtype' v='low' />
+    <tag k='type' v='curbstone' />
+  </way>
+  <way id='20250' visible='true' version='1'>
+    <nd ref='10478' />
+    <nd ref='10479' />
+    <tag k='type' v='road_border' />
+  </way>
+  <way id='20251' visible='true' version='1'>
+    <nd ref='10443' />
+    <nd ref='10445' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20252' visible='true' version='1'>
+    <nd ref='10482' />
+    <nd ref='10483' />
+    <nd ref='10484' />
+    <nd ref='10485' />
+    <nd ref='10486' />
+    <nd ref='10440' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20253' visible='true' version='1'>
+    <nd ref='10007' />
+    <nd ref='10481' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='20254' visible='true' version='1'>
+    <nd ref='10481' />
+    <nd ref='10482' />
+    <tag k='type' v='virtual' />
+  </way>
+  <relation id='30000' visible='true' version='1'>
+    <member type='way' ref='20022' role='right' />
+    <member type='way' ref='20014' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30001' visible='true' version='1'>
+    <member type='way' ref='20254' role='right' />
+    <member type='way' ref='20014' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30002' visible='true' version='1'>
+    <member type='way' ref='20023' role='right' />
+    <member type='way' ref='20018' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30003' visible='true' version='1'>
+    <member type='way' ref='20017' role='right' />
+    <member type='way' ref='20015' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30004' visible='true' version='1'>
+    <member type='relation' ref='1769650' role='' />
+    <member type='way' ref='20019' role='right' />
+    <member type='way' ref='20015' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30005' visible='true' version='1'>
+    <member type='way' ref='20016' role='right' />
+    <member type='way' ref='20029' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30006' visible='true' version='1'>
+    <member type='relation' ref='1769651' role='' />
+    <member type='way' ref='20031' role='left' />
+    <member type='way' ref='20030' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30007' visible='true' version='1'>
+    <member type='relation' ref='1769651' role='' />
+    <member type='way' ref='20032' role='right' />
+    <member type='way' ref='20031' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30008' visible='true' version='1'>
+    <member type='way' ref='20013' role='right' />
+    <member type='way' ref='20028' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30009' visible='true' version='1'>
+    <member type='relation' ref='1769651' role='' />
+    <member type='way' ref='20010' role='right' />
+    <member type='way' ref='20029' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30010' visible='true' version='1'>
+    <member type='relation' ref='1769651' role='' />
+    <member type='way' ref='20025' role='right' />
+    <member type='way' ref='20033' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30011' visible='true' version='1'>
+    <member type='way' ref='20187' role='right' />
+    <member type='way' ref='20186' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30012' visible='true' version='1'>
+    <member type='way' ref='20037' role='right' />
+    <member type='way' ref='20045' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30013' visible='true' version='1'>
+    <member type='relation' ref='1769650' role='' />
+    <member type='way' ref='20038' role='right' />
+    <member type='way' ref='20045' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30014' visible='true' version='1'>
+    <member type='way' ref='20007' role='right' />
+    <member type='way' ref='20002' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30015' visible='true' version='1'>
+    <member type='way' ref='20085' role='outer' />
+    <member type='way' ref='20043' role='outer' />
+    <member type='way' ref='20038' role='outer' />
+    <member type='way' ref='20041' role='outer' />
+    <member type='way' ref='20040' role='outer' />
+    <member type='way' ref='20039' role='outer' />
+    <tag k='location' v='urban' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='multipolygon' />
+  </relation>
+  <relation id='30016' visible='true' version='1'>
+    <member type='way' ref='20036' role='left' />
+    <member type='way' ref='20046' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30017' visible='true' version='1'>
+    <member type='way' ref='20002' role='left' />
+    <member type='way' ref='20003' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30018' visible='true' version='1'>
+    <member type='way' ref='20004' role='left' />
+    <member type='way' ref='20005' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30019' visible='true' version='1'>
+    <member type='way' ref='20004' role='left' />
+    <member type='way' ref='20048' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30020' visible='true' version='1'>
+    <member type='way' ref='20147' role='left' />
+    <member type='way' ref='20148' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30021' visible='true' version='1'>
+    <member type='way' ref='20201' role='right' />
+    <member type='way' ref='20147' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30022' visible='true' version='1'>
+    <member type='way' ref='20051' role='left' />
+    <member type='way' ref='20050' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30023' visible='true' version='1'>
+    <member type='way' ref='20028' role='left' />
+    <member type='way' ref='20041' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30024' visible='true' version='1'>
+    <member type='relation' ref='1769651' role='' />
+    <member type='way' ref='20051' role='left' />
+    <member type='way' ref='20052' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30025' visible='true' version='1'>
+    <member type='way' ref='20067' role='left' />
+    <member type='way' ref='20066' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30026' visible='true' version='1'>
+    <member type='way' ref='20059' role='right' />
+    <member type='way' ref='20060' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30027' visible='true' version='1'>
+    <member type='way' ref='20212' role='right' />
+    <member type='way' ref='20056' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30028' visible='true' version='1'>
+    <member type='way' ref='20099' role='right' />
+    <member type='way' ref='20215' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30029' visible='true' version='1'>
+    <member type='way' ref='20020' role='right' />
+    <member type='way' ref='20063' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30030' visible='true' version='1'>
+    <member type='way' ref='20062' role='left' />
+    <member type='way' ref='20001' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30031' visible='true' version='1'>
+    <member type='way' ref='20026' role='left' />
+    <member type='way' ref='20001' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30032' visible='true' version='1'>
+    <member type='way' ref='20027' role='right' />
+    <member type='way' ref='20095' role='right' />
+    <member type='way' ref='20026' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30033' visible='true' version='1'>
+    <member type='way' ref='20070' role='inner' />
+    <member type='way' ref='20121' role='inner' />
+    <member type='way' ref='20069' role='inner' />
+    <member type='way' ref='20191' role='inner' />
+    <member type='way' ref='20064' role='outer' />
+    <member type='way' ref='20185' role='outer' />
+    <member type='way' ref='20184' role='outer' />
+    <member type='way' ref='20035' role='outer' />
+    <member type='way' ref='20037' role='outer' />
+    <member type='way' ref='20046' role='outer' />
+    <member type='way' ref='20088' role='outer' />
+    <member type='way' ref='20071' role='outer' />
+    <member type='way' ref='20072' role='outer' />
+    <member type='way' ref='20198' role='outer' />
+    <member type='way' ref='20068' role='outer' />
+    <member type='way' ref='20096' role='outer' />
+    <member type='way' ref='20094' role='outer' />
+    <member type='way' ref='20093' role='outer' />
+    <tag k='location' v='urban' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='multipolygon' />
+  </relation>
+  <relation id='30034' visible='true' version='1'>
+    <member type='way' ref='20074' role='right' />
+    <member type='way' ref='20230' role='right' />
+    <member type='way' ref='20232' role='left' />
+    <member type='way' ref='20245' role='left' />
+    <member type='way' ref='20089' role='left' />
+    <member type='way' ref='20244' role='left' />
+    <member type='way' ref='20097' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30035' visible='true' version='1'>
+    <member type='way' ref='20229' role='left' />
+    <member type='way' ref='20130' role='left' />
+    <member type='way' ref='20103' role='right' />
+    <member type='way' ref='20075' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30036' visible='true' version='1'>
+    <member type='way' ref='20079' role='right' />
+    <member type='way' ref='20006' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30037' visible='true' version='1'>
+    <member type='way' ref='20228' role='left' />
+    <member type='way' ref='20078' role='left' />
+    <member type='way' ref='20077' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30038' visible='true' version='1'>
+    <member type='way' ref='20087' role='right' />
+    <member type='way' ref='20084' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30039' visible='true' version='1'>
+    <member type='way' ref='20042' role='right' />
+    <member type='way' ref='20217' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30040' visible='true' version='1'>
+    <member type='way' ref='20199' role='outer' />
+    <member type='way' ref='20202' role='outer' />
+    <member type='way' ref='20203' role='outer' />
+    <member type='way' ref='20075' role='outer' />
+    <member type='way' ref='20103' role='outer' />
+    <member type='way' ref='20104' role='outer' />
+    <member type='way' ref='20005' role='outer' />
+    <tag k='location' v='urban' />
+    <tag k='subtype' v='parking' />
+    <tag k='type' v='multipolygon' />
+  </relation>
+  <relation id='30041' visible='true' version='1'>
+    <member type='way' ref='20228' role='outer' />
+    <member type='way' ref='20227' role='outer' />
+    <member type='way' ref='20048' role='outer' />
+    <member type='way' ref='20081' role='outer' />
+    <member type='way' ref='20078' role='outer' />
+    <tag k='location' v='urban' />
+    <tag k='subtype' v='parking' />
+    <tag k='type' v='multipolygon' />
+  </relation>
+  <relation id='30042' visible='true' version='1'>
+    <member type='way' ref='20071' role='outer' />
+    <member type='way' ref='20073' role='outer' />
+    <member type='way' ref='20090' role='outer' />
+    <member type='way' ref='20089' role='outer' />
+    <member type='way' ref='20244' role='outer' />
+    <member type='way' ref='20097' role='outer' />
+    <tag k='location' v='urban' />
+    <tag k='subtype' v='vegetation' />
+    <tag k='type' v='multipolygon' />
+  </relation>
+  <relation id='30043' visible='true' version='1'>
+    <member type='way' ref='20073' role='right' />
+    <member type='way' ref='20003' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30044' visible='true' version='1'>
+    <member type='way' ref='20092' role='right' />
+    <member type='way' ref='20091' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30045' visible='true' version='1'>
+    <member type='way' ref='20027' role='outer' />
+    <member type='way' ref='20095' role='outer' />
+    <member type='way' ref='20098' role='outer' />
+    <member type='way' ref='20091' role='outer' />
+    <member type='way' ref='20093' role='outer' />
+    <tag k='location' v='urban' />
+    <tag k='subtype' v='parking' />
+    <tag k='type' v='multipolygon' />
+  </relation>
+  <relation id='30046' visible='true' version='1'>
+    <member type='way' ref='20021' role='right' />
+    <member type='way' ref='20053' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='city' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30047' visible='true' version='1'>
+    <member type='way' ref='20214' role='outer' />
+    <member type='way' ref='20099' role='outer' />
+    <member type='way' ref='20100' role='outer' />
+    <member type='way' ref='20021' role='outer' />
+    <member type='way' ref='20020' role='outer' />
+    <member type='way' ref='20024' role='outer' />
+    <member type='way' ref='20253' role='outer' />
+    <member type='way' ref='20254' role='outer' />
+    <member type='way' ref='20252' role='outer' />
+    <tag k='location' v='urban' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='parking' />
+    <tag k='type' v='multipolygon' />
+  </relation>
+  <relation id='30048' visible='true' version='1'>
+    <member type='way' ref='20253' role='right' />
+    <member type='way' ref='20018' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30049' visible='true' version='1'>
+    <member type='way' ref='20058' role='right' />
+    <member type='way' ref='20057' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30050' visible='true' version='1'>
+    <member type='way' ref='20101' role='left' />
+    <member type='way' ref='20100' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30051' visible='true' version='1'>
+    <member type='relation' ref='1769651' role='' />
+    <member type='way' ref='20012' role='right' />
+    <member type='way' ref='20033' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30052' visible='true' version='1'>
+    <member type='way' ref='20108' role='right' />
+    <member type='way' ref='20115' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30053' visible='true' version='1'>
+    <member type='way' ref='20120' role='left' />
+    <member type='way' ref='20119' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30054' visible='true' version='1'>
+    <member type='way' ref='20122' role='left' />
+    <member type='way' ref='20121' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30055' visible='true' version='1'>
+    <member type='way' ref='20111' role='right' />
+    <member type='way' ref='20112' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30056' visible='true' version='1'>
+    <member type='way' ref='20114' role='left' />
+    <member type='way' ref='20110' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30057' visible='true' version='1'>
+    <member type='way' ref='20113' role='right' />
+    <member type='way' ref='20046' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30058' visible='true' version='1'>
+    <member type='way' ref='20128' role='right' />
+    <member type='way' ref='20109' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30059' visible='true' version='1'>
+    <member type='way' ref='20123' role='left' />
+    <member type='way' ref='20116' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30060' visible='true' version='1'>
+    <member type='way' ref='20127' role='right' />
+    <member type='way' ref='20126' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30061' visible='true' version='1'>
+    <member type='way' ref='20129' role='left' />
+    <member type='way' ref='20117' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30062' visible='true' version='1'>
+    <member type='way' ref='20154' role='left' />
+    <member type='way' ref='20135' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30063' visible='true' version='1'>
+    <member type='way' ref='20139' role='left' />
+    <member type='way' ref='20138' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30064' visible='true' version='1'>
+    <member type='way' ref='20076' role='right' />
+    <member type='way' ref='20131' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='city' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30065' visible='true' version='1'>
+    <member type='relation' ref='1769650' role='' />
+    <member type='way' ref='20049' role='right' />
+    <member type='way' ref='20047' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30066' visible='true' version='1'>
+    <member type='way' ref='20047' role='left' />
+    <member type='way' ref='20006' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30067' visible='true' version='1'>
+    <member type='way' ref='20149' role='right' />
+    <member type='way' ref='20205' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='crosswalk' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30068' visible='true' version='1'>
+    <member type='way' ref='20105' role='right' />
+    <member type='way' ref='20150' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30069' visible='true' version='1'>
+    <member type='way' ref='20145' role='right' />
+    <member type='way' ref='20080' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30070' visible='true' version='1'>
+    <member type='way' ref='20152' role='right' />
+    <member type='way' ref='20144' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='city' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30071' visible='true' version='1'>
+    <member type='way' ref='20153' role='left' />
+    <member type='way' ref='20043' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30072' visible='true' version='1'>
+    <member type='way' ref='20142' role='right' />
+    <member type='way' ref='20141' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30073' visible='true' version='1'>
+    <member type='way' ref='20137' role='left' />
+    <member type='way' ref='20140' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30074' visible='true' version='1'>
+    <member type='way' ref='20133' role='right' />
+    <member type='way' ref='20132' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='crosswalk' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30075' visible='true' version='1'>
+    <member type='way' ref='20140' role='right' />
+    <member type='way' ref='20134' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30076' visible='true' version='1'>
+    <member type='way' ref='20166' role='left' />
+    <member type='way' ref='20157' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30077' visible='true' version='1'>
+    <member type='way' ref='20161' role='left' />
+    <member type='way' ref='20162' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30078' visible='true' version='1'>
+    <member type='way' ref='20083' role='right' />
+    <member type='way' ref='20159' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30079' visible='true' version='1'>
+    <member type='way' ref='20156' role='right' />
+    <member type='way' ref='20155' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30080' visible='true' version='1'>
+    <member type='way' ref='20164' role='left' />
+    <member type='way' ref='20163' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30081' visible='true' version='1'>
+    <member type='way' ref='20165' role='right' />
+    <member type='way' ref='20164' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30082' visible='true' version='1'>
+    <member type='way' ref='20160' role='right' />
+    <member type='way' ref='20161' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30083' visible='true' version='1'>
+    <member type='way' ref='20136' role='left' />
+    <member type='way' ref='20034' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30084' visible='true' version='1'>
+    <member type='way' ref='20034' role='right' />
+    <member type='way' ref='20167' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30085' visible='true' version='1'>
+    <member type='way' ref='20083' role='right' />
+    <member type='way' ref='20174' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30086' visible='true' version='1'>
+    <member type='way' ref='20182' role='right' />
+    <member type='way' ref='20169' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='crosswalk' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30087' visible='true' version='1'>
+    <member type='way' ref='20177' role='left' />
+    <member type='way' ref='20178' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='crosswalk' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30088' visible='true' version='1'>
+    <member type='way' ref='20172' role='right' />
+    <member type='way' ref='20173' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='crosswalk' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30089' visible='true' version='1'>
+    <member type='way' ref='20171' role='left' />
+    <member type='way' ref='20170' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='crosswalk' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30090' visible='true' version='1'>
+    <member type='way' ref='20176' role='right' />
+    <member type='way' ref='20179' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='crosswalk' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30091' visible='true' version='1'>
+    <member type='way' ref='20039' role='left' />
+    <member type='way' ref='20151' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30092' visible='true' version='1'>
+    <member type='way' ref='20180' role='left' />
+    <member type='way' ref='20143' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30093' visible='true' version='1'>
+    <member type='way' ref='20181' role='right' />
+    <member type='way' ref='20061' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30094' visible='true' version='1'>
+    <member type='way' ref='20182' role='right' />
+    <member type='way' ref='20034' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30095' visible='true' version='1'>
+    <member type='way' ref='20065' role='left' />
+    <member type='way' ref='20066' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30096' visible='true' version='1'>
+    <member type='way' ref='20181' role='right' />
+    <member type='way' ref='20183' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30097' visible='true' version='1'>
+    <member type='way' ref='20064' role='right' />
+    <member type='way' ref='20065' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30098' visible='true' version='1'>
+    <member type='relation' ref='1769650' role='' />
+    <member type='way' ref='20185' role='right' />
+    <member type='way' ref='20183' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30099' visible='true' version='1'>
+    <member type='way' ref='20186' role='left' />
+    <member type='way' ref='20184' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30100' visible='true' version='1'>
+    <member type='way' ref='20008' role='left' />
+    <member type='way' ref='20035' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30101' visible='true' version='1'>
+    <member type='relation' ref='1769651' role='' />
+    <member type='way' ref='20008' role='left' />
+    <member type='way' ref='20011' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30102' visible='true' version='1'>
+    <member type='relation' ref='1769651' role='' />
+    <member type='way' ref='20188' role='right' />
+    <member type='way' ref='20009' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30103' visible='true' version='1'>
+    <member type='way' ref='20167' role='left' />
+    <member type='way' ref='20189' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30104' visible='true' version='1'>
+    <member type='way' ref='20158' role='right' />
+    <member type='way' ref='20190' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='crosswalk' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30105' visible='true' version='1'>
+    <member type='way' ref='20182' role='right' />
+    <member type='way' ref='20169' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30106' visible='true' version='1'>
+    <member type='way' ref='20106' role='left' />
+    <member type='way' ref='20107' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='city' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='crosswalk' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30107' visible='true' version='1'>
+    <member type='way' ref='20168' role='right' />
+    <member type='way' ref='20175' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='city' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='crosswalk' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30108' visible='true' version='1'>
+    <member type='way' ref='20124' role='left' />
+    <member type='way' ref='20125' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30109' visible='true' version='1'>
+    <member type='way' ref='20118' role='right' />
+    <member type='way' ref='20191' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30110' visible='true' version='1'>
+    <member type='way' ref='20193' role='left' />
+    <member type='way' ref='20192' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30111' visible='true' version='1'>
+    <member type='way' ref='20200' role='left' />
+    <member type='way' ref='20146' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30112' visible='true' version='1'>
+    <member type='way' ref='20200' role='left' />
+    <member type='way' ref='20199' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30113' visible='true' version='1'>
+    <member type='way' ref='20204' role='left' />
+    <member type='way' ref='20203' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30114' visible='true' version='1'>
+    <member type='way' ref='20082' role='right' />
+    <member type='way' ref='20180' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30115' visible='true' version='1'>
+    <member type='way' ref='20206' role='right' />
+    <member type='way' ref='20207' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='city' />
+    <tag k='one_way' v='no' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30116' visible='true' version='1'>
+    <member type='way' ref='20195' role='ref_line' />
+    <member type='relation' ref='1769632' role='yield' />
+    <member type='relation' ref='1769539' role='right_of_way' />
+    <member type='way' ref='20194' role='ref_line' />
+    <member type='relation' ref='1769597' role='yield' />
+    <member type='relation' ref='1769530' role='right_of_way' />
+    <tag k='subtype' v='right_of_way' />
+    <tag k='type' v='regulatory_element' />
+  </relation>
+  <relation id='30117' visible='true' version='1'>
+    <member type='way' ref='20196' role='ref_line' />
+    <member type='relation' ref='1769535' role='yield' />
+    <member type='way' ref='20194' role='ref_line' />
+    <member type='relation' ref='1769551' role='yield' />
+    <member type='way' ref='20209' role='ref_line' />
+    <member type='relation' ref='1769635' role='yield' />
+    <member type='way' ref='20195' role='ref_line' />
+    <member type='relation' ref='1769636' role='yield' />
+    <member type='relation' ref='1769532' role='right_of_way' />
+    <member type='relation' ref='1769533' role='right_of_way' />
+    <member type='relation' ref='1769536' role='right_of_way' />
+    <member type='relation' ref='1769581' role='right_of_way' />
+    <tag k='subtype' v='right_of_way' />
+    <tag k='type' v='regulatory_element' />
+  </relation>
+  <relation id='30118' visible='true' version='1'>
+    <member type='way' ref='20211' role='left' />
+    <member type='way' ref='20223' role='left' />
+    <member type='way' ref='20225' role='left' />
+    <member type='way' ref='20055' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30119' visible='true' version='1'>
+    <member type='way' ref='20210' role='right' />
+    <member type='way' ref='20224' role='right' />
+    <member type='way' ref='20222' role='right' />
+    <member type='way' ref='20213' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30120' visible='true' version='1'>
+    <member type='way' ref='20252' role='right' />
+    <member type='way' ref='20213' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30121' visible='true' version='1'>
+    <member type='way' ref='20214' role='right' />
+    <member type='way' ref='20102' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30122' visible='true' version='1'>
+    <member type='way' ref='20007' role='outer' />
+    <member type='way' ref='20086' role='outer' />
+    <member type='way' ref='20042' role='outer' />
+    <member type='way' ref='20220' role='outer' />
+    <member type='way' ref='20216' role='outer' />
+    <member type='way' ref='20235' role='outer' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='parking' />
+    <tag k='type' v='multipolygon' />
+  </relation>
+  <relation id='30123' visible='true' version='1'>
+    <member type='way' ref='20220' role='right' />
+    <member type='way' ref='20218' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30124' visible='true' version='1'>
+    <member type='way' ref='20219' role='left' />
+    <member type='way' ref='20221' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30125' visible='true' version='1'>
+    <member type='way' ref='20223' role='outer' />
+    <member type='way' ref='20225' role='outer' />
+    <member type='way' ref='20251' role='outer' />
+    <member type='way' ref='20222' role='outer' />
+    <member type='way' ref='20224' role='outer' />
+    <member type='way' ref='20210' role='outer' />
+    <member type='way' ref='20022' role='outer' />
+    <member type='way' ref='20023' role='outer' />
+    <member type='way' ref='20054' role='outer' />
+    <member type='way' ref='20060' role='outer' />
+    <member type='way' ref='20057' role='outer' />
+    <member type='way' ref='20056' role='outer' />
+    <member type='way' ref='20211' role='outer' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='parking' />
+    <tag k='type' v='multipolygon' />
+  </relation>
+  <relation id='30126' visible='true' version='1'>
+    <member type='way' ref='20226' role='left' />
+    <member type='way' ref='20104' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30127' visible='true' version='1'>
+    <member type='way' ref='20000' role='outer' />
+    <member type='way' ref='20228' role='outer' />
+    <member type='way' ref='20227' role='outer' />
+    <tag k='location' v='urban' />
+    <tag k='subtype' v='parking' />
+    <tag k='type' v='multipolygon' />
+  </relation>
+  <relation id='30128' visible='true' version='1'>
+    <member type='way' ref='20233' role='left' />
+    <member type='way' ref='20232' role='right' />
+    <member type='way' ref='20246' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30129' visible='true' version='1'>
+    <member type='way' ref='20235' role='right' />
+    <member type='way' ref='20233' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30130' visible='true' version='1'>
+    <member type='way' ref='20234' role='left' />
+    <member type='way' ref='20231' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30131' visible='true' version='1'>
+    <member type='way' ref='20236' role='outer' />
+    <member type='way' ref='20239' role='outer' />
+    <member type='way' ref='20237' role='outer' />
+    <member type='way' ref='20238' role='outer' />
+    <tag k='location' v='urban' />
+    <tag k='subtype' v='parking' />
+    <tag k='type' v='multipolygon' />
+  </relation>
+  <relation id='30132' visible='true' version='1'>
+    <member type='way' ref='20239' role='right' />
+    <member type='way' ref='20219' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30133' visible='true' version='1'>
+    <member type='way' ref='20234' role='left' />
+    <member type='way' ref='20240' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30134' visible='true' version='1'>
+    <member type='way' ref='20241' role='left' />
+    <member type='way' ref='20242' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30135' visible='true' version='1'>
+    <member type='way' ref='20238' role='right' />
+    <member type='way' ref='20243' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30136' visible='true' version='1'>
+    <member type='way' ref='20250' role='right' />
+    <member type='way' ref='20249' role='left' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30137' visible='true' version='1'>
+    <member type='way' ref='20231' role='left' />
+    <member type='way' ref='20248' role='right' />
+    <tag k='bicycle' v='yes' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='no' />
+    <tag k='subtype' v='walkway' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30138' visible='true' version='1'>
+    <member type='way' ref='20044' role='right' />
+    <member type='way' ref='20036' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30139' visible='true' version='1'>
+    <member type='way' ref='20226' role='left' />
+    <member type='way' ref='20227' role='right' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+  <relation id='30140' visible='true' version='1'>
+    <member type='way' ref='20054' role='outer' />
+    <member type='way' ref='20163' role='outer' />
+    <member type='way' ref='20155' role='outer' />
+    <member type='way' ref='20161' role='outer' />
+    <tag k='location' v='urban' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='freespace' />
+    <tag k='type' v='multipolygon' />
+  </relation>
+  <relation id='30141' visible='true' version='1'>
+    <member type='way' ref='20180' role='outer' />
+    <member type='way' ref='20081' role='outer' />
+    <member type='way' ref='20146' role='outer' />
+    <member type='way' ref='20201' role='outer' />
+    <tag k='location' v='urban' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='freespace' />
+    <tag k='type' v='multipolygon' />
+  </relation>
+  <relation id='30142' visible='true' version='1'>
+    <member type='way' ref='20087' role='outer' />
+    <member type='way' ref='20043' role='outer' />
+    <member type='way' ref='20044' role='outer' />
+    <member type='way' ref='20086' role='outer' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='keepout' />
+    <tag k='type' v='multipolygon' />
+  </relation>
+  <relation id='30143' visible='true' version='1'>
+    <member type='way' ref='20157' role='right' />
+    <member type='way' ref='20009' role='left' />
+    <tag k='location' v='urban' />
+    <tag k='one_way' v='yes' />
+    <tag k='region' v='de' />
+    <tag k='subtype' v='road' />
+    <tag k='type' v='lanelet' />
+  </relation>
+</osm>
