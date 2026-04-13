@@ -76,7 +76,7 @@ jobs:
               return;
             }
 
-            const hasSafeLabel = (pullRequest.labels || []).some(label => label.name === 'safe-to-test');
+            const hasSafeLabel = (pullRequest.labels || []).some(label => label.name === 'safe to test');
             if (!hasSafeLabel) {
               core.setOutput('allowed', 'false');
               core.setOutput('reason', 'no-safe-label');
@@ -92,7 +92,7 @@ jobs:
 
             const latestSafeLabelEvent = [...events]
               .reverse()
-              .find(event => event.event === 'labeled' && event.label?.name === 'safe-to-test');
+              .find(event => event.event === 'labeled' && event.label?.name === 'safe to test');
 
             if (!latestSafeLabelEvent?.actor?.login) {
               core.setOutput('allowed', 'false');
