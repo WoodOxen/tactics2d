@@ -30,15 +30,13 @@ def _unit_left_normals(points: np.ndarray) -> np.ndarray:
     Uses central finite differences in the interior and one-sided differences
     at the endpoints, giving O(h^2) accuracy in the interior.
 
-    Parameters
-    ----------
-    points : ndarray, shape (N, 2)
+    Args:
+        points (np.ndarray): Input polyline samples. Shape is (N, 2).
 
-    Returns
-    -------
-    normals : ndarray, shape (N, 2)
-        Each row is a unit vector perpendicular to the polyline tangent,
-        rotated 90 degrees counter-clockwise (pointing to the left of travel).
+    Returns:
+        np.ndarray: Unit left-pointing normals. Shape is (N, 2). Each row is a
+            unit vector perpendicular to the polyline tangent, rotated 90 degrees
+            counter-clockwise (pointing to the left of travel).
     """
     pts = np.asarray(points, dtype=np.float64)
     n = len(pts)
@@ -67,16 +65,14 @@ def _signed_curvature(points: np.ndarray, s_vals: np.ndarray) -> np.ndarray:
         kappa = (x' y'' - y' x'') / (x'^2 + y'^2)^(3/2)
     with central finite differences for both derivatives.
 
-    Parameters
-    ----------
-    points : ndarray, shape (N, 2)
-    s_vals : ndarray, shape (N,)
-        Arc-length parameter values corresponding to points.
+    Args:
+        points (np.ndarray): Input polyline samples. Shape is (N, 2).
+        s_vals (np.ndarray): Arc-length parameter values corresponding to
+            each point. Shape is (N,).
 
-    Returns
-    -------
-    kappa : ndarray, shape (N,)
-        Signed curvature. Positive = curving left, negative = curving right.
+    Returns:
+        np.ndarray: Signed curvature at each sample. Shape is (N,). Positive
+            values indicate left curvature, negative values indicate right curvature.
     """
     pts = np.asarray(points, dtype=np.float64)
     s   = np.asarray(s_vals,  dtype=np.float64)
@@ -138,17 +134,16 @@ def _build_offset_polyline(
     Clamping rather than dropping preserves the sample count, keeping the
     s-parameter correspondence intact for subsequent width accumulation.
 
-    Parameters
-    ----------
-    ref_pts, ref_s, ref_normals : ndarray
-        Reference-line samples, arc-length values, and unit left-normals.
-        All three arrays must have the same first dimension N.
-    t_vals : ndarray, shape (N,)
-        Signed lateral offset at each sample. Positive = left of centreline.
+    Args:
+        ref_pts (np.ndarray): Reference-line sample points. Shape is (N, 2).
+        ref_s (np.ndarray): Arc-length values along the reference line. Shape is (N,).
+        ref_normals (np.ndarray): Unit left-pointing normals of the reference line.
+            Shape is (N, 2). Must have the same first dimension as ref_pts.
+        t_vals (np.ndarray): Signed lateral offset at each sample. Shape is (N,).
+            Positive values indicate left of the centreline.
 
-    Returns
-    -------
-    out_pts : ndarray, shape (N, 2)
+    Returns:
+        np.ndarray: Offset polyline points in world coordinates. Shape is (N, 2).
     """
     kappa = _signed_curvature(ref_pts, ref_s)
     correction = 1.0 - kappa * t_vals
@@ -173,15 +168,13 @@ def _sanitise_linestring(pts: np.ndarray,
     """Remove near-duplicate consecutive points and repair residual
     self-intersections via Shapely make_valid.
 
-    Parameters
-    ----------
-    pts : ndarray, shape (N, 2)
-    dedup_tolerance : float
-        Minimum chord length in metres to retain a point.
+    Args:
+        pts (np.ndarray): Input polyline points. Shape is (N, 2).
+        dedup_tolerance (float): Minimum chord length in metres required to
+            retain a consecutive point. Defaults to 0.02.
 
-    Returns
-    -------
-    cleaned : ndarray, shape (M, 2), M <= N
+    Returns:
+        np.ndarray: Cleaned polyline points. Shape is (M, 2) where M <= N.
     """
     if len(pts) < 2:
         return pts
@@ -475,23 +468,25 @@ class XODRParser:
             in the OpenDRIVE spec (arc-length along the reference line), and
           - the normal direction does not accumulate drift from layer to layer.
 
-        Parameters
-        ----------
-        lane_node     : <lane> XML element
-        type_node     : <type> XML element of the road
-        ref_pts       : (N, 2) reference-line sample points
-        ref_s         : (N,)   arc-length values along the reference line
-        ref_normals   : (N, 2) unit left-pointing normals of the reference line
-        inner_t       : (N,)   signed lateral offset of this lane's inner boundary
-                               relative to the reference line (includes laneOffset
-                               and all previously accumulated lane widths)
-        inner_line_id : id_ of the RoadLine representing the inner boundary
+        Args:
+            lane_node (ET.Element): The ``<lane>`` XML element to parse.
+            type_node (ET.Element): The ``<type>`` XML element of the parent road.
+            ref_pts (np.ndarray): Reference-line sample points. Shape is (N, 2).
+            ref_s (np.ndarray): Arc-length values along the reference line. Shape is (N,).
+            ref_normals (np.ndarray): Unit left-pointing normals of the reference line.
+                Shape is (N, 2).
+            inner_t (np.ndarray): Signed lateral offset of this lane's inner boundary
+                relative to the reference line, including laneOffset and all previously
+                accumulated lane widths. Shape is (N,).
+            inner_line_id (int): The ``id_`` of the RoadLine representing the inner
+                boundary of this lane.
 
-        Returns
-        -------
-        lane        : Lane
-        roadline    : RoadLine for the outer boundary
-        outer_t     : (N,) cumulative signed offset for the next lane outward
+        Returns:
+            tuple:
+                lane (Lane): The constructed Lane object.
+                roadline (RoadLine): The RoadLine for the outer boundary.
+                outer_t (np.ndarray): Cumulative signed offset for the next lane outward.
+                    Shape is (N,).
         """
         sign = np.sign(int(lane_node.attrib["id"]))
         if sign == 0:
