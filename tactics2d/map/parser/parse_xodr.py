@@ -682,11 +682,15 @@ class XODRParser:
         pts_arr = np.array(raw_pts, dtype=np.float64)
         s_arr   = np.array(raw_s,   dtype=np.float64)
 
-        # Remove near-duplicate reference-line samples
+        # Remove near-duplicate reference-line samples.
+        # If after deduplication fewer than 2 points remain, the road is
+        # degenerate (sub-centimetre geometry) and should be skipped entirely.
         dists = np.linalg.norm(np.diff(pts_arr, axis=0), axis=1)
         keep  = np.concatenate([[True], dists > 0.02])
         pts_arr = pts_arr[keep]
         s_arr   = s_arr[keep]
+        if len(pts_arr) < 2:
+            return lanes, roadlines, objects
 
         # Compute reference-line normals once; shared by all lane layers
         ref_normals = _unit_left_normals(pts_arr)
@@ -749,13 +753,12 @@ class XODRParser:
             seg_lo_t    = lane_offset_t[mask]
             seg_center  = center_pts[mask]
 
-            # Guard against degenerate single-point segments — keep all arrays in sync
+            # Skip degenerate laneSections with fewer than 2 reference-line samples.
+            # These arise when a laneSection spans less than the sampling interval
+            # (0.1 m). Duplicating the single point would produce stray artefacts
+            # in both rendering and lane-polygon geometry.
             if len(seg_center) < 2:
-                seg_ref_pts = np.vstack([seg_ref_pts, seg_ref_pts])
-                seg_ref_s   = np.append(seg_ref_s,   seg_ref_s[-1])
-                seg_ref_n   = np.vstack([seg_ref_n,   seg_ref_n])
-                seg_lo_t    = np.append(seg_lo_t,    seg_lo_t[-1])
-                seg_center  = np.vstack([seg_center,  seg_center])
+                continue
 
             center_line = RoadLine(
                 id_=self._next_id(),
