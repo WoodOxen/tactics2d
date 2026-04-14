@@ -1,24 +1,125 @@
 name: Test Modules
 
 on:
-  - pull_request
-  - workflow_dispatch
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_target:
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: read
+  issues: read
 
 jobs:
+  authorize-test-modules:
+    runs-on: ubuntu-latest
+    outputs:
+      allowed: ${{ steps.check.outputs.allowed }}
+      reason: ${{ steps.check.outputs.reason }}
+    steps:
+      - name: Check whether test run is allowed
+        id: check
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const allowedPermissions = new Set(['admin', 'maintain', 'write']);
+
+            if (context.eventName === 'workflow_dispatch') {
+              core.setOutput('allowed', 'true');
+              core.setOutput('reason', 'workflow_dispatch');
+              return;
+            }
+
+            const pullRequest = context.payload.pull_request;
+            const prAuthor = pullRequest.user?.login;
+            const isDependabotPr = prAuthor === 'dependabot[bot]';
+            const isSameRepoPr = pullRequest.head?.repo?.full_name === `${owner}/${repo}`;
+
+            async function getPermission(username) {
+              if (!username) return 'none';
+              try {
+                const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner,
+                  repo,
+                  username,
+                });
+                return data.permission || 'none';
+              } catch (error) {
+                core.info(`Cannot get permission for ${username}: ${error.message}`);
+                return 'none';
+              }
+            }
+
+            if (context.eventName === 'pull_request') {
+              const authorPermission = await getPermission(prAuthor);
+              const allowed = isSameRepoPr && !isDependabotPr && allowedPermissions.has(authorPermission);
+
+              core.setOutput('allowed', allowed ? 'true' : 'false');
+              core.setOutput('reason', allowed ? `internal-pr-${prAuthor}-${authorPermission}` : `pull-request-not-allowed-${prAuthor}-${authorPermission}`);
+              return;
+            }
+
+            if (isDependabotPr) {
+              core.setOutput('allowed', 'true');
+              core.setOutput('reason', 'dependabot-pr');
+              return;
+            }
+
+            const authorPermission = await getPermission(prAuthor);
+            if (allowedPermissions.has(authorPermission)) {
+              core.setOutput('allowed', 'true');
+              core.setOutput('reason', `internal-author-${prAuthor}-${authorPermission}`);
+              return;
+            }
+
+            const hasSafeLabel = (pullRequest.labels || []).some(label => label.name === 'safe to test');
+            if (!hasSafeLabel) {
+              core.setOutput('allowed', 'false');
+              core.setOutput('reason', 'no-safe-label');
+              return;
+            }
+
+            const { data: events } = await github.rest.issues.listEvents({
+              owner,
+              repo,
+              issue_number: pullRequest.number,
+              per_page: 100,
+            });
+
+            const latestSafeLabelEvent = [...events]
+              .reverse()
+              .find(event => event.event === 'labeled' && event.label?.name === 'safe to test');
+
+            if (!latestSafeLabelEvent?.actor?.login) {
+              core.setOutput('allowed', 'false');
+              core.setOutput('reason', 'no-safe-label-actor');
+              return;
+            }
+
+            const labeler = latestSafeLabelEvent.actor.login;
+            const labelerPermission = await getPermission(labeler);
+            const allowed = allowedPermissions.has(labelerPermission);
+
+            core.setOutput('allowed', allowed ? 'true' : 'false');
+            core.setOutput('reason', allowed ? `safe-label-by-${labeler}-${labelerPermission}` : `unsafe-label-by-${labeler}-${labelerPermission}`);
+
   test-modules:
+    needs: [authorize-test-modules]
+    if: needs.authorize-test-modules.outputs.allowed == 'true'
     strategy:
       fail-fast: false
       matrix:
         os: ['ubuntu-22.04', 'ubuntu-24.04', 'macos-latest', 'windows-latest']
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
         exclude:
-        - os: windows-latest
-          python-version: '3.8'
-        - os: windows-latest
-          python-version: '3.9'
+          - os: windows-latest
+            python-version: '3.8'
+          - os: windows-latest
+            python-version: '3.9'
     runs-on: ${{ matrix.os }}
     env:
       MPLBACKEND: Agg
@@ -28,6 +129,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          repository: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Check out private repository WoodOxen/trajectory_data_analysis
         uses: actions/checkout@v4
@@ -41,8 +144,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-
-      # MPLBACKEND is already set in job-level env
 
       - name: Install dependencies on all platforms
         run: |
@@ -62,6 +163,8 @@ jobs:
           verbose: true
 
   test-legacy-ubuntu:
+    needs: [authorize-test-modules]
+    if: needs.authorize-test-modules.outputs.allowed == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -76,6 +179,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          repository: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Check out private repository WoodOxen/trajectory_data_analysis
         uses: actions/checkout@v4
@@ -86,7 +191,7 @@ jobs:
 
       - name: Make runtime directory
         run: |
-          mkdir ./tests/runtime/
+          mkdir -p ./tests/runtime/
           echo $GITHUB_WORKSPACE
 
       - name: Run tests in Docker (${{ matrix.image }})

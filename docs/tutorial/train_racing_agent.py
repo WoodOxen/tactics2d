@@ -243,7 +243,7 @@ def trainer():
             total_reward += reward
 
             train_result = agent.train()
-            if not train_result is None:
+            if train_result is not None:
                 loss, loss_clip, loss_vf, loss_entropy = train_result
                 wandb.log(
                     {

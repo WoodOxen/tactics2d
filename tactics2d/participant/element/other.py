@@ -50,7 +50,7 @@ class Other(ParticipantBase):
 
     @property
     def geometry(self) -> Optional[LinearRing]:
-        if not self.length is None and not self.width is None:
+        if self.length is not None and self.width is not None:
             return LinearRing(
                 [
                     [0.5 * self.length, -0.5 * self.width],
@@ -59,7 +59,7 @@ class Other(ParticipantBase):
                     [-0.5 * self.length, -0.5 * self.width],
                 ]
             )
-        elif not self.length is None:
+        elif self.length is not None:
             return LinearRing(
                 [
                     [0.5 * self.length, -0.5 * self.length],
@@ -68,7 +68,7 @@ class Other(ParticipantBase):
                     [-0.5 * self.length, -0.5 * self.length],
                 ]
             )
-        elif not self.width is None:
+        elif self.width is not None:
             return LinearRing(
                 [
                     [0.5 * self.width, -0.5 * self.width],
@@ -100,7 +100,7 @@ class Other(ParticipantBase):
                 f"Expected a trajectory of type 'Trajectory', but got {type(trajectory)}."
             )
 
-        self.trajectory = trajectory if not trajectory is None else Trajectory(id_=self.id_)
+        self.trajectory = trajectory if trajectory is not None else Trajectory(id_=self.id_)
 
     def get_pose(self, frame: int = None) -> Union[Point, LinearRing]:
         """This function gets the outfigure of the traffic participant at the requested frame.
@@ -139,10 +139,10 @@ class Other(ParticipantBase):
                 - If the geometry shape of the traffic participant is unavailable, the trace will be a LineString that describe the center line of the traffic participant during the requested frame range.
         """
         trace = LineString(self.trajectory.get_trace(frame_range))
-        if not self.width is None:
+        if self.width is not None:
             trace = trace.buffer(self.width / 2, cap_style="square")
             trace = LinearRing(trace.exterior.coords)
-        elif not self.length is None:
+        elif self.length is not None:
             trace = trace.buffer(self.length / 2, cap_style="square")
             trace = LinearRing(trace.exterior.coords)
 

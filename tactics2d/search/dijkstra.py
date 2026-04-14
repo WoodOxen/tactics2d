@@ -5,7 +5,7 @@
 
 import heapq
 import math
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, Optional
 
 import numpy as np
 from numpy.typing import ArrayLike

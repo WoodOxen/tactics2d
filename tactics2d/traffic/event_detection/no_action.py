@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-from typing import Any, Union
-
 from shapely.geometry import Polygon
 
 from .event_base import EventBase

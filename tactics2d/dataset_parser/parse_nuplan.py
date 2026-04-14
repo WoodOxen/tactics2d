@@ -7,7 +7,7 @@
 import datetime
 import os
 import sqlite3
-from typing import List, Tuple
+from typing import Tuple
 
 import geopandas as gpd
 import numpy as np

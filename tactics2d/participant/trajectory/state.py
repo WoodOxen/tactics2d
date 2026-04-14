@@ -138,11 +138,11 @@ class State:
         if self._cached_speed is not None:
             return self._cached_speed
 
-        if not self._speed is None:
+        if self._speed is not None:
             self._cached_speed = self._speed
             return self._cached_speed
 
-        if not None in [self.vx, self.vy]:
+        if None not in [self.vx, self.vy]:
             self._speed = np.linalg.norm([self.vx, self.vy])
             self._cached_speed = self._speed
             return self._cached_speed
@@ -155,11 +155,11 @@ class State:
         if self._cached_velocity is not None:
             return self._cached_velocity
 
-        if not None in [self.vx, self.vy]:
+        if None not in [self.vx, self.vy]:
             self._cached_velocity = (self.vx, self.vy)
             return self._cached_velocity
 
-        if not None in [self.speed, self.heading]:
+        if None not in [self.speed, self.heading]:
             self._cached_velocity = (
                 self.speed * np.cos(self.heading),
                 self.speed * np.sin(self.heading),
@@ -174,11 +174,11 @@ class State:
         if self._cached_accel is not None:
             return self._cached_accel
 
-        if not None in [self.ax, self.ay]:
+        if None not in [self.ax, self.ay]:
             self._cached_accel = np.linalg.norm([self.ax, self.ay])
             return self._cached_accel
 
-        if not self.acceleration is None:
+        if self.acceleration is not None:
             self._cached_accel = np.linalg.norm(self.acceleration)
             return self._cached_accel
 
@@ -190,11 +190,11 @@ class State:
         if self._cached_acceleration is not None:
             return self._cached_acceleration
 
-        if not None in [self.ax, self.ay]:
+        if None not in [self.ax, self.ay]:
             self._cached_acceleration = (self.ax, self.ay)
             return self._cached_acceleration
 
-        elif not None in [self._accel, self.heading]:
+        elif None not in [self._accel, self.heading]:
             self._cached_acceleration = (
                 self._accel * np.cos(self.heading),
                 self._accel * np.sin(self.heading),

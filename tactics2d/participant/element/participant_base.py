@@ -6,7 +6,7 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 from tactics2d.participant.trajectory import State, Trajectory
 
@@ -60,7 +60,7 @@ class ParticipantBase(ABC):
         setattr(self, "id_", id_)
         setattr(self, "type_", type_)
 
-        if not "color" in kwargs or kwargs["color"] is None:
+        if "color" not in kwargs or kwargs["color"] is None:
             self.color = self._default_color
         else:
             self.color = kwargs["color"]
@@ -71,7 +71,7 @@ class ParticipantBase(ABC):
         self.verify = False if self.verify is None else self.verify
         self.physics_model = None
 
-        if not trajectory is None:
+        if trajectory is not None:
             self.bind_trajectory(trajectory)
         else:
             self.trajectory = Trajectory(id_=self.id_)

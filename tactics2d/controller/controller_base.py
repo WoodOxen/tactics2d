@@ -4,9 +4,8 @@
 """Base controller implementation."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Tuple
+from typing import Tuple
 
-import numpy as np
 from scipy.interpolate import interp1d
 
 from tactics2d.participant.trajectory.state import State

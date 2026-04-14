@@ -4,11 +4,9 @@
 """Integration tests for BEVCamera and SingleLineLidar sensors with Argoverse dataset."""
 
 import logging
-import os
 import sys
 from pathlib import Path
 
-import numpy as np
 import pytest
 from shapely.geometry import Point
 
@@ -17,11 +15,9 @@ sys.path.append(".")
 sys.path.append("..")
 
 from tactics2d.dataset_parser.parse_argoverse2 import Argoverse2Parser
-from tactics2d.map.element import Map
 from tactics2d.renderer.matplotlib_renderer import MatplotlibRenderer
 from tactics2d.sensor.camera import BEVCamera
 from tactics2d.sensor.lidar import SingleLineLidar
-from tactics2d.sensor.sensor_base import SensorBase
 
 # ------------------------------------------------------------------------------
 # Shared Fixtures
@@ -148,7 +144,7 @@ def argoverse_data(argoverse_sample_path):
         participant_ids = numeric_participant_ids
         logging.info(f"Filtered to {len(participant_ids)} participants with numeric ids")
     else:
-        logging.warning(f"Warning: No participants with numeric ids, using original list")
+        logging.warning("Warning: No participants with numeric ids, using original list")
 
     return {
         "map_obj": map_obj,

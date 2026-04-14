@@ -20,20 +20,44 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'python', 'cpp' ]
+        include:
+          - language: 'python'
+            build-mode: 'none'
+          - language: 'cpp'
+            build-mode: 'manual'
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Initialize CodeQL
+    - name: Initialize CodeQL (Python)
+      if: matrix.language == 'python'
       uses: github/codeql-action/init@v3
       with:
         languages: ${{ matrix.language }}
+        build-mode: none
+        queries: security-and-quality
+
+    - name: Initialize CodeQL (C++)
+      if: matrix.language == 'cpp'
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
         config-file: ./.github/codeql/codeql-config.yml
 
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v3
+    - name: Set up Python for C++ build
+      if: matrix.language == 'cpp'
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Build C++ extension (manual)
+      if: matrix.language == 'cpp'
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install pybind11 setuptools wheel cmake
+        python setup.py build
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
