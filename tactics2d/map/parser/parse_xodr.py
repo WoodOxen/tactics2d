@@ -283,7 +283,7 @@ class XODRParser:
             return [(x0, y0)]
 
         gamma = (k1 - k0) / L
-        pts = Spiral.get_spiral(L, [x0, y0], hdg, k0, gamma)
+        pts = Spiral.get_curve(L, [x0, y0], hdg, k0, gamma)
         return [(x, y) for x, y in pts]
 
     def _sample_arc(self, node: ET.Element) -> list:
@@ -296,21 +296,26 @@ class XODRParser:
         if abs(k) < 1e-9:
             return self._sample_line(node)
 
-        s_step = max(np.pi / 180.0 / abs(k), 0.01)
-        n = max(2, int(L / s_step) + 1)
-
-        r    = abs(1.0 / k)
-        side = "L" if k > 0 else "R"
-        center, radius = Circle.get_circle_by_tangent_vector(
-            [x0, y0], hdg, r, side
+        r = abs(1.0 / k)
+        center, radius = Circle.get_circle(
+            tangent_point=np.array([x0, y0]),
+            tangent_heading=hdg,
+            radius=r,
+            side="L" if k > 0 else "R",
         )
-        arc_angle   = L / radius * np.sign(k)
+        arc_angle   = L / radius
         start_angle = hdg - np.pi / 2.0 * np.sign(k)
-        angles = np.linspace(start_angle, start_angle + arc_angle, n)
-        return [
-            (center[0] + radius * np.cos(a), center[1] + radius * np.sin(a))
-            for a in angles
-        ]
+        clockwise   = k < 0
+
+        pts = Circle.get_arc(
+            center_point=center,
+            radius=radius,
+            delta_angle=arc_angle,
+            start_angle=start_angle,
+            clockwise=clockwise,
+            step_size=0.1,
+        )
+        return [(x, y) for x, y in pts.tolist()]
 
     def _sample_poly3(self, node: ET.Element) -> list:
         x0  = float(node.attrib["x"])
@@ -523,19 +528,14 @@ class XODRParser:
 
         width_records = self._parse_width_records(lane_node)
 
-        # Evaluate this lane's width at each reference-line sample.
-        # sOffset in the width record is relative to the laneSection start,
-        # so we use (s - ref_s[0]) as the local arc-length argument.
         ls_s0 = float(ref_s[0])
         width_at_s = np.array([
             _eval_cubic_poly(width_records, float(s) - ls_s0, s_key="sOffset")
             for s in ref_s
         ])
 
-        # Outer boundary total lateral offset from the reference line
         outer_t = inner_t + sign * width_at_s
 
-        # Evaluate both boundary polylines from the shared reference data
         inner_pts = _build_offset_polyline(ref_pts, ref_s, ref_normals, inner_t)
         outer_pts = _build_offset_polyline(ref_pts, ref_s, ref_normals, outer_t)
 
@@ -669,9 +669,6 @@ class XODRParser:
         lanes, roadlines, objects = [], [], []
         type_node = road_node.find("type")
 
-        # ----------------------------------------------------------------
-        # 1. Sample the reference line
-        # ----------------------------------------------------------------
         raw_pts: list = []
         raw_s:   list = []
 
@@ -700,9 +697,6 @@ class XODRParser:
         pts_arr = np.array(raw_pts, dtype=np.float64)
         s_arr   = np.array(raw_s,   dtype=np.float64)
 
-        # Remove near-duplicate reference-line samples.
-        # If after deduplication fewer than 2 points remain, the road is
-        # degenerate (sub-centimetre geometry) and should be skipped entirely.
         dists = np.linalg.norm(np.diff(pts_arr, axis=0), axis=1)
         keep  = np.concatenate([[True], dists > 0.02])
         pts_arr = pts_arr[keep]
@@ -710,12 +704,8 @@ class XODRParser:
         if len(pts_arr) < 2:
             return lanes, roadlines, objects
 
-        # Compute reference-line normals once; shared by all lane layers
         ref_normals = _unit_left_normals(pts_arr)
 
-        # ----------------------------------------------------------------
-        # 2. laneOffset -> cumulative t for lane-0 centre line
-        # ----------------------------------------------------------------
         lanes_node = road_node.find("lanes")
         if lanes_node is None:
             raise ValueError("<road> element has no <lanes> child.")
@@ -741,9 +731,6 @@ class XODRParser:
 
         center_pts = pts_arr + lane_offset_t[:, np.newaxis] * ref_normals
 
-        # ----------------------------------------------------------------
-        # 3. Process each laneSection
-        # ----------------------------------------------------------------
         ls_nodes    = lanes_node.findall("laneSection")
         ls_s_starts = [float(ls.attrib["s"]) for ls in ls_nodes]
         ls_s_ends   = ls_s_starts[1:] + [float(s_arr[-1])]
@@ -754,9 +741,6 @@ class XODRParser:
             ls_s0 = ls_s_starts[ls_idx]
             ls_s1 = ls_s_ends[ls_idx]
 
-            # First section starts at exactly ls_s0; subsequent sections use a
-            # small epsilon on the left to avoid capturing the boundary sample
-            # of the previous section twice.
             if ls_idx == 0:
                 mask = (s_arr >= ls_s0) & (s_arr <= ls_s1 + eps)
             else:
@@ -771,10 +755,6 @@ class XODRParser:
             seg_lo_t    = lane_offset_t[mask]
             seg_center  = center_pts[mask]
 
-            # Skip degenerate laneSections with fewer than 2 reference-line samples.
-            # These arise when a laneSection spans less than the sampling interval
-            # (0.1 m). Duplicating the single point would produce stray artefacts
-            # in both rendering and lane-polygon geometry.
             if len(seg_center) < 2:
                 continue
 
@@ -783,7 +763,6 @@ class XODRParser:
                 geometry=LineString(seg_center.tolist()),
             )
 
-            # Centre-lane road marks
             center_lane_node = ls_node.find("center").find("lane")
             rm_nodes        = center_lane_node.findall("roadMark")
             rm_s_abs_starts = [ls_s0 + float(rm.attrib["sOffset"]) for rm in rm_nodes]
@@ -800,7 +779,6 @@ class XODRParser:
                     rm_pts = rm_pts + rm_pts
                 roadlines.append(self._make_roadline(rm_pts, rm_node))
 
-            # Left lanes: sorted ascending by id (+1, +2, +3, ...)
             left_node = ls_node.find("left")
             if left_node is not None:
                 left_lane_nodes = sorted(
@@ -822,7 +800,6 @@ class XODRParser:
                     roadlines.append(roadline)
                     prev_id = roadline.id_
 
-            # Right lanes: sorted ascending by |id| (|-1|, |-2|, |-3|, ...)
             right_node = ls_node.find("right")
             if right_node is not None:
                 right_lane_nodes = sorted(
@@ -844,9 +821,6 @@ class XODRParser:
                     roadlines.append(roadline)
                     prev_id = roadline.id_
 
-        # ----------------------------------------------------------------
-        # 4. Objects
-        # ----------------------------------------------------------------
         objects_node = road_node.find("objects")
         if objects_node is not None:
             headings = self._compute_headings(pts_arr.tolist())
