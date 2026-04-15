@@ -12,6 +12,7 @@ from .parse_levelx import LevelXParser
 from .parse_ngsim import NGSIMParser
 from .parse_nuplan import NuPlanParser
 from .parse_womd import WOMDParser
+from .parse_driveinsightd import DriveInsightDParser
 
 __all__ = [
     "Argoverse2Parser",
@@ -22,4 +23,5 @@ __all__ = [
     "NGSIMParser",
     "NuPlanParser",
     "WOMDParser",
+    "DriveInsightDParser",
 ]

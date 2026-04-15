@@ -5,7 +5,6 @@
 **/data/*
 **/wandb/*
 **/logs/*
-homework/
 tests/runtime
 
 # claude code
