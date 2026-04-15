@@ -6,7 +6,7 @@
 [![Read the Docs](https://img.shields.io/readthedocs/tactics2d)](https://tactics2d.readthedocs.io/en/latest/)
 [![Downloads](https://img.shields.io/pypi/dm/tactics2d)](https://pypi.org/project/tactics2d/)
 
-![python-version](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11-blue)
+![python-version](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Github license](https://img.shields.io/github/license/WoodOxen/tactics2d)](https://github.com/WoodOxen/tactics2d/blob/dev/LICENSE)
 
@@ -39,9 +39,9 @@ Welcome to the official documentation of Python Library tactics2d!
 
 ### Features
 
-> Updated on April 1, 2024.
+> Updated on April 15, 2026.
 >
-> Corresponds to version 0.1.6.
+> Corresponds to version 0.1.9rc3.
 
 #### Dataset Parser
 
@@ -53,6 +53,7 @@ Support parsing maps and trajectories from the following datasets:
 - ExiD
 - Argoverse
 - Dragon Lake Parking (DLP)
+- DriveInsightD
 - INTERACTION
 - NuPlan
 - WOMD

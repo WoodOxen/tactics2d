@@ -1,6 +1,6 @@
 ![Tactics2D LOGO](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/Tactics_LOGO_long.jpg)
 
-# Tactics2D: A Reinforcement Learning Environment Library with Generative Scenarios for Driving Decision-making
+# Tactics2D: A Reinforcement Learning Environment Library for Driving Decision-making
 
 [![Codacy](https://app.codacy.com/project/badge/Grade/2bb48186b56d4e3ab963121a5923d6b5)](https://app.codacy.com/gh/WoodOxen/tactics2d/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![Codecov](https://codecov.io/gh/WoodOxen/tactics2d/graph/badge.svg?token=X81Z6AOIMV)](https://codecov.io/gh/WoodOxen/tactics2d)
@@ -10,9 +10,9 @@
 [![Downloads](https://img.shields.io/pypi/dm/tactics2d)](https://pypi.org/project/tactics2d/)
 [![Discord](https://img.shields.io/discord/1209363816912126003)](https://discordapp.com/widget?id=1209363816912126003&theme=system)
 
-![python-version](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11-blue)
+![python-version](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Github license](https://img.shields.io/github/license/WoodOxen/tactics2d)](https://github.com/WoodOxen/tactics2d/blob/dev/LICENSE)
+[![Github license](https://img.shields.io/github/license/WoodOxen/tactics2d)](https://github.com/WoodOxen/tactics2d/blob/master/LICENSE)
 
 [EN](README.md) | CN
 
@@ -26,7 +26,7 @@
 `tactics2d` 是一个开源的 Python 库，专为自动驾驶中的强化学习决策模型开发与评估提供多样且具有挑战性的交通场景。tactics2d 具备以下核心特性：
 
 - **兼容性**
-  - 📦 轨迹数据集：支持无缝导入多种真实世界的轨迹数据集，包括 Argoverse、Dragon Lake Parking (DLP)、INTERACTION、LevelX 系列（HighD、InD、RounD、ExiD）、NuPlan 以及 Waymo Open Motion Dataset (WOMD)，涵盖轨迹解析和地图信息。*欢迎大家通过Issue提出对其他数据集的解析需求*。
+  - 📦 轨迹数据集：支持无缝导入多种真实世界轨迹数据集，包括 Argoverse、Dragon Lake Parking (DLP)、INTERACTION、LevelX 系列（HighD、InD、RounD、ExiD）、NuPlan 以及 Waymo Open Motion Dataset (WOMD)，涵盖轨迹解析和地图信息。
   - 📄 地图格式：支持解析和转换常用的开放地图格式，如 OpenDRIVE、Lanelet2 风格的 OpenStreetMap (OSM)，以及 SUMO roadnet。
 - **可定制性**
   - 🚗 交通参与者：支持创建新的交通参与者类别，可自定义物理属性、动力学/运动学模型及行为模型。
@@ -38,13 +38,11 @@
 - **可视化**：提供用户友好的可视化工具，可实时渲染交通场景及参与者，并支持录制与回放交通过程。
 - **可靠性**：超过 85% 的代码已被单元测试与集成测试覆盖，保障系统稳定性与可用性。
 
-如需了解 `tactics2d` 的更多信息，请参考[文档](https://tactics2d.readthedocs.io/en/latest/)。
+如需进一步了解 `tactics2d`，请参考我们的完整[文档](https://tactics2d.readthedocs.io/en/latest/)，并可在[这里](https://tactics2d.readthedocs.io/en/latest/#why-tactics2d)查看与其他同类库的详细对比。
 
-## 社区与支持
+## 社区
 
-- [Discord 频道](https://discord.gg/bJ5yHT3bcd)
-- [Github Issues](https://github.com/WoodOxen/tactics2d/issues)
-- QQ群：929488317
+我们有一个 [Discord 社区](https://discordapp.com/widget?id=1209363816912126003&theme=system) 用于交流与支持，欢迎随时提问。你也可以通过 [Github Issues](https://github.com/WoodOxen/tactics2d/issues) 和 PR 参与讨论与贡献。
 
 ## 安装
 
@@ -52,17 +50,20 @@
 
 我们在以下系统版本和Python版本上进行了测试：
 
-| System | 3.8 | 3.9 | 3.10 | 3.11 |
-| --- | --- | --- | --- | --- |
-| Ubuntu 18.04 | :white_check_mark: | - | - | - |
-| Ubuntu 20.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| MacOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+> 说明：下表与 `test_modules` CI 工作流的覆盖版本保持一致。
+
+| System | 3.8 | 3.9 | 3.10 | 3.11 | 3.12 | 3.13 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Ubuntu 18.04 | :white_check_mark: | - | - | - | - | - |
+| Ubuntu 20.04 | :white_check_mark: | :white_check_mark: | - | - | - | - |
+| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Windows | - | - | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| macOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 
 ### 1. 安装
 
-强烈推荐大家使用环境管理工具 `conda` 或 `virtualenv` 来创建独立的 Python 环境，以避免依赖冲突。如果你还没有安装 `conda`，请参考[官方文档](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)进行安装。
+我们强烈推荐使用 `conda` 管理 Python 环境。如果你尚未安装 `conda`，可从[这里](https://docs.conda.io/en/latest/miniconda.html)下载安装。
 
 ```bash
 # 创建一个新的conda环境
@@ -80,18 +81,21 @@ pip install tactics2d
 
 #### 1.2 通过源码安装
 
-如果你想要尝试最新的功能，可以通过源码安装。自从 v0.1.7之后，你需要先安装GCC才能编译：
+你也可以从 GitHub 源码安装 `tactics2d`。如果你想运行示例代码或参与开发，推荐使用这种方式。请注意，在安装前需要确保系统已安装 GCC。
 
 ```bash
-# 路径中不包含数据集，请根据需要自行下载并建立软链接
+# 克隆仓库时会递归子模块，但会跳过大文件（主要是 NuPlan 的地图数据）
+# 请从 NuPlan 官网下载地图数据，并放置到 `tactics2d/data/map/NuPlan` 目录
 git clone --recurse-submodules git@github.com:WoodOxen/tactics2d.git
 cd tactics2d
 pip install -v .
 ```
 
+如果没有报错，即表示 `tactics2d` 已安装成功。
+
 ### 2. 准备数据集
 
-根据开源协议，`tactics2d`不会分发任何数据集。你可以通过以下方式获取数据集：
+根据各轨迹数据集的许可协议，我们无法随 `tactics2d` 一起分发原始数据。你需要从各自官网下载相应数据集。目前 `tactics2d` 支持以下数据集：
 
 - [Argoverse 2](https://www.argoverse.org/av2.html)
 - [Dragon Lake Parking (DLP)](https://sites.google.com/berkeley.edu/dlp-dataset)
@@ -107,11 +111,9 @@ pip install -v .
 
 你可以将数据集放在任意位置，然后通过软链接的方式将数据集链接到`tactics2d`的数据目录下，或者修改数据集解析函数的路径。
 
-### 3. 运行示例
+安装完成后，你可以运行 [tutorial jupyter notebooks](docs/tutorial) 来快速上手 `tactics2d`。
 
-安装好`tactics2d`后，你可以运行[样例代码](docs/tutorials)。
-
-其中，[train_parking_demo.ipynb](docs/tutorial/train_parking_demo.ipynb)是[HOPE](https://github.com/jiamiya/HOPE)的简化版本，为了成功运行这一示例，你需要安装`torch`和`torchvision`，并拉取子模块`rllib`。
+如果要运行 [train_parking_demo.ipynb](docs/tutorial/train_parking_demo.ipynb)（这是我们在这篇 [paper](https://github.com/jiamiya/HOPE) 中工作的简化版本），你需要额外拉取 `rllib` 子模块：
 
 ```bash
 git submodule update --init --recursive
@@ -119,14 +121,16 @@ git submodule update --init --recursive
 
 ### 4. 更多示例
 
-我们为`tactics2d`搭建了一套完整的集成测试流程，其中的测试代码可以作为函数接口用法的参考。你可以在[这里](tests)找到这些测试代码。运行测试代码的方法如下：
+我们已为 `tactics2d` 构建完整 CI 流程，[tests](tests) 目录下的样例可用于快速了解接口用法。你可以使用以下命令运行指定样例：
 
 ```bash
 pip install pytest
 pytest tests/[test_file_name]::[test_function_name]
 ```
 
-## 可视化展示
+## Demo
+
+`tactics2d` 支持解析多种真实世界轨迹数据集，包括 Argoverse、Dragon Lake Parking (DLP)、INTERACTION、LevelX 系列（highD、inD、rounD、ExiD）、NuPlan 以及 Waymo Open Motion Dataset (WOMD)。更多演示请参考[文档](https://tactics2d.readthedocs.io/en/latest/dataset-support/)。
 
 ### 高速场景
 
@@ -203,10 +207,10 @@ pytest tests/[test_file_name]::[test_function_name]
   </tr>
   <tr>
     <td valign="top" width="70%">
-    <img src="docs/assets/replay_dataset/DLP_sample.gif" align="left" style="width: 100%" />
+    <img src="docs/assets/replay_dataset/dlp_sample.gif" align="left" style="width: 100%" />
     </td>
     <td valign="top" width="20%">
-    <img src="" align="left" style="width: 100%" />
+    <p><em>Coming soon</em></p>
     </td>
   </tr>
 </table>

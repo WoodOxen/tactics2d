@@ -10,9 +10,9 @@
 [![Downloads](https://img.shields.io/pypi/dm/tactics2d)](https://pypi.org/project/tactics2d/)
 [![Discord](https://img.shields.io/discord/1209363816912126003)](https://discordapp.com/widget?id=1209363816912126003&theme=system)
 
-![python-version](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11-blue)
+![python-version](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Github license](https://img.shields.io/github/license/WoodOxen/tactics2d)](https://github.com/WoodOxen/tactics2d/blob/dev/LICENSE)
+[![Github license](https://img.shields.io/github/license/WoodOxen/tactics2d)](https://github.com/WoodOxen/tactics2d/blob/master/LICENSE)
 
 EN | [CN](README.CN.md)
 
@@ -20,7 +20,6 @@ EN | [CN](README.CN.md)
 
 > [!note]
 > This is the official codebase for Course AU7043 in Shanghai Jiao Tong University under branch `AU7043`.
->
 
 `tactics2d` is an open-source Python library that provides diverse and challenging traffic scenarios for the development and evaluation of reinforcement learning-based decision-making models in autonomous driving. `tactics2d` stands out with the following key features:
 
@@ -33,7 +32,7 @@ EN | [CN](README.CN.md)
 - **Diversity**
   - 🛣️ Traffic scenarios -- Features an extensive range of built-in Gym-style traffic scenarios, including highway, lane-merging, unsignalized/signalized intersection, roundabout, parking, and racing.
   - 🚲 Traffic participants -- Features a variety of built-in traffic participants with realistic physics parameters, detailed further [here](https://tactics2d.readthedocs.io/en/latest/api/participant/#templates-for-traffic-participants).
-  - 📷 Sensors -- Provides bird-eye-view (BEV) semantic segmentation RGB image and single-line LiDAR point cloud for model input.
+  - 📷 Sensors -- Provides bird's-eye-view (BEV) semantic segmentation RGB image and single-line LiDAR point cloud for model input.
 - **Visualization** -- Offers a user-friendly visualization tool for real-time rendering of traffic scenarios and participants, along with the capability to record and replay traffic scenarios.
 - **Reliability** -- Over 85\% code is covered by unit tests and integration tests.
 
@@ -49,14 +48,16 @@ We have a [Discord Community](https://discordapp.com/widget?id=12093638169121260
 
 We have conducted testing for the execution and construction of `tactics2d` on the following platforms:
 
-| System | 3.8 | 3.9 | 3.10 | 3.11 |
-| --- | --- | --- | --- | --- |
-| Ubuntu 18.04 | :white_check_mark: | - | - | - |
-| Ubuntu 20.04 | :white_check_mark: | :white_check_mark: | - | - |
-| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| MacOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+> Note: The matrix below reflects versions covered by the `test_modules` CI workflow.
+
+| System | 3.8 | 3.9 | 3.10 | 3.11 | 3.12 | 3.13 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Ubuntu 18.04 | :white_check_mark: | - | - | - | - | - |
+| Ubuntu 20.04 | :white_check_mark: | :white_check_mark: | - | - | - | - |
+| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Windows | - | - | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| macOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 
 ### 1. Installation
 
@@ -78,7 +79,7 @@ pip install tactics2d
 
 #### 1.2 Install from Github
 
-You can also install `tactics2d` from from its source on GitHub. This way is recommended if you want to run the sample code or contribute to the development of `tactics2d`. Please note that you should have GCC installed on your operating system before installing tactics2d.
+You can also install `tactics2d` from its source on GitHub. This way is recommended if you want to run the sample code or contribute to the development of `tactics2d`. Please note that you should have GCC installed on your operating system before installing tactics2d.
 
 ```bash
 # clone the repository with submodules but ignore the large files (mainly the NuPlan's map data)
@@ -88,7 +89,7 @@ cd tactics2d
 pip install -v .
 ```
 
-If no errors occurs, you should have installed `tactics2d` successfully.
+If no errors occur, you should have installed `tactics2d` successfully.
 
 ### 2. Dataset Preparation
 
@@ -204,10 +205,10 @@ pytest tests/[test_file_name]::[test_function_name]
   </tr>
   <tr>
     <td valign="top" width="70%">
-    <img src="docs/assets/replay_dataset/DLP_sample.gif" align="left" style="width: 100%" />
+    <img src="docs/assets/replay_dataset/dlp_sample.gif" align="left" style="width: 100%" />
     </td>
     <td valign="top" width="20%">
-    <img src="" align="left" style="width: 100%" />
+    <p><em>Coming soon</em></p>
     </td>
   </tr>
 </table>

@@ -1,5 +1,11 @@
 # Change Log
 
+## [Unreleased]
+
+### Added
+
+- Added a parser and corresponding tests, documentations for DriveInsightD dataset.
+
 ## [0.1.9rc3] - 2026-01-29
 
 ### Added
