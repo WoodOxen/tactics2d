@@ -5,7 +5,8 @@
 
 
 from .parse_gis import GISParser
+from .parse_net_xml import NetXMLParser
 from .parse_osm import OSMParser
 from .parse_xodr import XODRParser
 
-__all__ = ["GISParser", "OSMParser", "XODRParser"]
+__all__ = ["GISParser", "NetXMLParser", "OSMParser", "XODRParser"]
