@@ -138,6 +138,7 @@ def test_xodr_parser(map_path, img_path):
     [
         ("./tests/cases/NetXMLSamples/net.net.xml", "./tests/runtime/net.png"),
         ("./tests/cases/NetXMLSamples/lefthand.net.xml", "./tests/runtime/lefthand.png"),
+        ("./tests/cases/NetXMLSamples/roundabout.net.xml", "./tests/runtime/roundabout.png"),
     ],
 )
 def test_net_xml_parser(map_path, img_path):
@@ -158,3 +159,4 @@ def test_net_xml_parser(map_path, img_path):
 
     matplotlib_renderer.update(geometry_data)
     matplotlib_renderer.save_single_frame(save_to=img_path)
+    matplotlib_renderer.destroy()
