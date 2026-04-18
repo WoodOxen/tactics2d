@@ -15,7 +15,7 @@ import pytest
 from shapely.geometry import Point
 
 from tactics2d.map.map_config import *
-from tactics2d.map.parser import OSMParser, XODRParser
+from tactics2d.map.parser import NetXMLParser, OSMParser, XODRParser
 from tactics2d.renderer import MatplotlibRenderer
 from tactics2d.sensor import BEVCamera
 from tactics2d.utils.common import get_absolute_path
@@ -130,3 +130,33 @@ def test_xodr_parser(map_path, img_path):
 
     matplotlib_renderer.update(geometry_data)
     matplotlib_renderer.save_single_frame(save_to=img_path)
+
+
+@pytest.mark.map_parser
+@pytest.mark.parametrize(
+    "map_path, img_path",
+    [
+        ("./tests/cases/NetXMLSamples/net.net.xml", "./tests/runtime/net.png"),
+        ("./tests/cases/NetXMLSamples/lefthand.net.xml", "./tests/runtime/lefthand.png"),
+        ("./tests/cases/NetXMLSamples/roundabout.net.xml", "./tests/runtime/roundabout.png"),
+    ],
+)
+def test_net_xml_parser(map_path, img_path):
+    map_path = get_absolute_path(map_path)
+    map_parser = NetXMLParser()
+    map_ = map_parser.parse(map_path)
+
+    boundary = map_.boundary
+    camera = BEVCamera(1, map_)
+    position = Point(0, 0)
+    geometry_data, _, _ = camera.update(0, None, None, None, None, position)
+
+    matplotlib_renderer = MatplotlibRenderer(
+        resolution=((boundary[1] - boundary[0]) * 10, (boundary[3] - boundary[2]) * 10),
+        xlim=(boundary[0], boundary[1]),
+        ylim=(boundary[2], boundary[3]),
+    )
+
+    matplotlib_renderer.update(geometry_data)
+    matplotlib_renderer.save_single_frame(save_to=img_path)
+    matplotlib_renderer.destroy()
