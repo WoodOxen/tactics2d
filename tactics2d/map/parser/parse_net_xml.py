@@ -122,6 +122,7 @@ class NetXMLParser:
         left_id  = self._next_id()
         right_id = self._next_id()
         lane_id  = self._next_id()
+        lane_sumo_id = lane_node.attrib.get("id", "")
 
         left_line = RoadLine(
             id_=left_id,
@@ -143,6 +144,7 @@ class NetXMLParser:
             line_ids={"left": [left_id], "right": [right_id]},
             speed_limit=round(speed_ms * 3.6, 3),
             speed_limit_unit="km/h",
+            custom_tags={"sumo_id": lane_sumo_id},
         )
 
         return lane, left_line, right_line
