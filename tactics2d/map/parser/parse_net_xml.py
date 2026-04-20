@@ -1,8 +1,9 @@
 #! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# SPDX-License-Identifier: GPL-3.0-or-later
-
-"""SUMO net.xml map parser implementation."""
+# @File: parse_net_xml.py
+# @Description: This file defines a class for parsing the SUMO network map format.
+# @Author: Tactics2D Team
+# @Version: 1.0.0
 
 from __future__ import annotations
 
@@ -12,33 +13,33 @@ import os
 import defusedxml.ElementTree as ET
 from shapely.geometry import LineString
 
-from tactics2d.map.element import Connection, Junction, Lane, Map, RoadLine
+# Connection is a nested class of Junction; it is not exported separately.
+from tactics2d.map.element import Junction, Lane, Map, RoadLine
 
 
 class NetXMLParser:
-    """This class implements a parser for the SUMO network format map (.net.xml).
+    """Parser for the SUMO network format (.net.xml) map.
 
-    The parser reads SUMO road network files and converts them into the tactics2d
-    internal map representation by directly parsing the XML without any external
-    SUMO dependencies. Edges and lanes are mapped to tactics2d Lane and RoadLine
-    objects, junctions are mapped to tactics2d Junction objects, and connections
-    are attached to their corresponding junctions.
+    Reads a SUMO road-network file and converts it into a Tactics2D Map object
+    containing lanes, road-mark lines, junctions, and connections.  The parser
+    operates directly on the XML without any external SUMO dependency.
+
+    Edges and their child lanes are mapped to :class:`~tactics2d.map.element.Lane`
+    and :class:`~tactics2d.map.element.RoadLine` objects.  Junctions are mapped to
+    :class:`~tactics2d.map.element.Junction` objects and SUMO ``<connection>``
+    elements are attached to the junction at the receiving end of each edge.
+    Internal edges (``function="internal"``) are skipped.
 
     !!! quote "Reference"
         [SUMO Road Networks](https://sumo.dlr.de/docs/Networks/SUMO_Road_Networks.html)
 
     Example:
-```python
-        from tactics2d.map.parser import NetXMLParser
-
-        parser = NetXMLParser()
-        map_ = parser.parse("/path/to/map.net.xml")
-        print(f"Loaded {len(map_.lanes)} lanes")
-        print(f"Loaded {len(map_.junctions)} junctions")
-```
+        >>> parser = NetXMLParser()
+        >>> map_ = parser.parse("/path/to/map.net.xml")
+        >>> print(len(map_.lanes))
     """
 
-    _LANE_TYPE_DICT = {
+    _LANE_TYPE_DICT: dict = {
         "highway.motorway":    "highway",
         "highway.trunk":       "highway",
         "highway.primary":     "road",
@@ -53,9 +54,9 @@ class NetXMLParser:
         "railway.tram":        "tram",
     }
 
-    _DEFAULT_LANE_WIDTH = 3.2
+    _DEFAULT_LANE_WIDTH: float = 3.2
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._id_counter = 0
 
     def _next_id(self) -> int:
@@ -67,7 +68,8 @@ class NetXMLParser:
         """Parse a SUMO shape string into a list of (x, y) coordinate tuples.
 
         Args:
-            shape_str (str): Space-separated coordinate pairs, e.g. '0.00,1.00 2.00,3.00'.
+            shape_str (str): Space-separated coordinate pairs,
+                e.g. ``'0.00,1.00 2.00,3.00'``.
 
         Returns:
             list: List of (x, y) tuples parsed from the shape string.
@@ -79,31 +81,49 @@ class NetXMLParser:
         return points
 
     def _get_lane_subtype(self, edge_type: str) -> str:
-        """Map a SUMO edge type string to a tactics2d lane subtype.
+        """Map a SUMO edge type string to a Tactics2D lane subtype.
 
         Args:
-            edge_type (str): The SUMO edge type attribute string.
+            edge_type (str): The SUMO edge ``type`` attribute string.
 
         Returns:
-            str: The corresponding tactics2d lane subtype. Defaults to 'road'.
+            str: The corresponding Tactics2D lane subtype. Defaults to ``'road'``.
         """
         return self._LANE_TYPE_DICT.get(edge_type, "road")
 
-    def _load_lane(self, lane_node: ET.Element, edge_type: str, lane_width: float = None) -> tuple:
-        """Parse one SUMO lane element into a tactics2d Lane and its boundary RoadLines.
+    def _load_lane(
+        self,
+        lane_node:  ET.Element,
+        edge_type:  str,
+        lane_width: float = None,
+    ) -> tuple:
+        """Parse one SUMO ``<lane>`` element into a Tactics2D Lane and its boundary RoadLines.
 
-        The lane centre-line is taken directly from the shape attribute.
-        Left and right boundaries are computed by offsetting the centre-line
-        by half the lane width.
+        The lane centre-line is taken directly from the ``shape`` attribute.
+        Left and right boundaries are derived by offsetting the centre-line by
+        half the lane width using Shapely's ``offset_curve``.
 
         Args:
             lane_node (ET.Element): The ``<lane>`` XML element to parse.
-            edge_type (str): The type string of the parent edge.
-            lane_width (float, optional): The lane width in metres.
+            edge_type (str): The ``type`` string of the parent edge, used to
+                derive the lane subtype.
+            lane_width (float, optional): Override lane width in metres.
+                When ``None``, :attr:`_DEFAULT_LANE_WIDTH` is used.
 
         Returns:
-            tuple: (Lane, left RoadLine, right RoadLine), or (None, None, None)
-                if the lane shape is missing or invalid.
+            tuple:
+                lane (Lane or None): The constructed Lane, or ``None`` if the
+                    shape is missing or degenerate.
+                left_line (RoadLine or None): RoadLine for the left boundary.
+                right_line (RoadLine or None): RoadLine for the right boundary.
+
+        Example:
+            >>> parser = NetXMLParser()
+            >>> import xml.etree.ElementTree as ET
+            >>> lane_el = ET.fromstring(
+            ...     '<lane id="E0_0" speed="13.89" shape="0.00,0.00 10.00,0.00"/>'
+            ... )
+            >>> lane, left, right = parser._load_lane(lane_el, "highway.primary")
         """
         shape_str = lane_node.attrib.get("shape", "")
         if not shape_str:
@@ -154,15 +174,26 @@ class NetXMLParser:
         return lane, left_line, right_line
 
     def _load_junction(self, junction_node: ET.Element) -> Junction:
-        """Parse a SUMO junction element into a tactics2d Junction.
+        """Parse a SUMO ``<junction>`` element into a Tactics2D Junction.
 
-        Junction position, type, and shape polygon are stored in custom_tags.
+        Junction position, type, and shape polygon are stored in
+        ``custom_tags`` for use by visualisers and format converters.
 
         Args:
             junction_node (ET.Element): The ``<junction>`` XML element to parse.
 
         Returns:
-            Junction: A tactics2d Junction object.
+            Junction: A Tactics2D Junction object with SUMO metadata in
+                ``custom_tags``: keys ``sumo_id``, ``x``, ``y``, ``type``,
+                and ``shape`` (list of (x, y) tuples).
+
+        Example:
+            >>> parser = NetXMLParser()
+            >>> import xml.etree.ElementTree as ET
+            >>> junc_el = ET.fromstring(
+            ...     '<junction id="J0" x="10.0" y="0.0" type="priority" shape=""/>'
+            ... )
+            >>> junction = parser._load_junction(junc_el)
         """
         shape_str = junction_node.attrib.get("shape", "")
         shape_pts = self._parse_shape(shape_str) if shape_str else []
@@ -178,19 +209,32 @@ class NetXMLParser:
             },
         )
 
-    def _load_connection(self, conn_node: ET.Element) -> Connection:
-        """Parse a SUMO connection element into a tactics2d Connection.
+    def _load_connection(self, conn_node: ET.Element) -> Junction.Connection:
+        """Parse a SUMO ``<connection>`` element into a Tactics2D Connection.
 
-        SUMO connection attributes are stored in custom_tags:
-            from_edge, to_edge, from_lane, to_lane, via, dir, state.
+        All SUMO-specific routing attributes are stored in ``custom_tags`` so
+        that the Tactics2D core data model remains format-agnostic.
 
         Args:
             conn_node (ET.Element): The ``<connection>`` XML element to parse.
 
         Returns:
-            Connection: A tactics2d Connection object.
+            Junction.Connection: A Connection object whose ``custom_tags``
+                contain keys ``from_edge``, ``to_edge``, ``from_lane``,
+                ``to_lane``, ``via``, ``dir``, and ``state``.
+
+        Example:
+            >>> parser = NetXMLParser()
+            >>> import xml.etree.ElementTree as ET
+            >>> conn_el = ET.fromstring(
+            ...     '<connection from="E0" to="E1" fromLane="0" toLane="0"'
+            ...     ' via="" dir="s" state="M"/>'
+            ... )
+            >>> conn = parser._load_connection(conn_el)
+            >>> conn.custom_tags["dir"]
+            's'
         """
-        return Connection(
+        return Junction.Connection(
             id_=self._next_id(),
             custom_tags={
                 "from_edge": conn_node.attrib.get("from", ""),
@@ -204,32 +248,26 @@ class NetXMLParser:
         )
 
     def parse(self, file_path: str) -> Map:
-        """Parse a SUMO network file (.net.xml) into a tactics2d Map.
+        """Parse a SUMO network file (.net.xml) into a Tactics2D Map.
 
-        This function directly parses the XML without external SUMO dependencies,
-        mapping SUMO edges and lanes to tactics2d Lane and RoadLine objects,
-        SUMO junctions to tactics2d Junction objects, and SUMO connections to
-        tactics2d Connection objects attached to their corresponding junctions.
-        Internal edges (function="internal") are skipped as they represent
-        junction internals not needed for the road network topology.
+        The parser makes two linear passes over the XML: the first pass
+        builds all lanes and junctions; the second pass attaches each
+        ``<connection>`` to the junction at the receiving end of the
+        originating edge.  Internal edges (``function="internal"``) are
+        skipped throughout.
 
         Args:
-            file_path (str): The absolute path to the ``.net.xml`` file.
+            file_path (str): Absolute or relative path to the ``.net.xml`` file.
 
         Returns:
-            Map: The parsed map containing all lanes, roadlines, junctions
-                and connections.
+            Map: A Tactics2D Map populated with all lanes, roadlines, junctions,
+                and connections parsed from the SUMO network file.
 
         Example:
-```python
-            from tactics2d.map.parser import NetXMLParser
-
-            parser = NetXMLParser()
-            map_ = parser.parse("/path/to/net.net.xml")
-
-            print(f"Loaded {len(map_.lanes)} lanes")
-            print(f"Loaded {len(map_.junctions)} junctions")
-```
+            >>> parser = NetXMLParser()
+            >>> map_ = parser.parse("/path/to/map.net.xml")
+            >>> print(len(map_.lanes))
+            >>> print(len(map_.junctions))
         """
         self._id_counter = 0
 
@@ -244,7 +282,9 @@ class NetXMLParser:
                 x_min, y_min, x_max, y_max = map(float, boundary_str.split(","))
                 map_.set_boundary((x_min, x_max, y_min, y_max))
 
-        # edge id -> to-junction sumo id, used when attaching connections
+        # ------------------------------------------------------------------
+        # Pass 0: build edge-id → to-junction mapping for connection routing
+        # ------------------------------------------------------------------
         edge_to_junction: dict[str, str] = {}
         for edge_node in xml_root.findall("edge"):
             if edge_node.attrib.get("function") == "internal":
@@ -254,6 +294,9 @@ class NetXMLParser:
             if edge_id and to_node:
                 edge_to_junction[edge_id] = to_node
 
+        # ------------------------------------------------------------------
+        # Pass 1: edges → lanes + roadlines
+        # ------------------------------------------------------------------
         for edge_node in xml_root.findall("edge"):
             if edge_node.attrib.get("function") == "internal":
                 continue
@@ -261,6 +304,7 @@ class NetXMLParser:
             edge_type  = edge_node.attrib.get("type", "")
             lane_nodes = edge_node.findall("lane")
 
+            # Estimate lane width from the lateral distance between adjacent lanes
             lane_width = self._DEFAULT_LANE_WIDTH
             if len(lane_nodes) >= 2:
                 try:
@@ -291,7 +335,10 @@ class NetXMLParser:
                         lane_node.attrib.get("id", "unknown"), exc,
                     )
 
-        # sumo junction id -> tactics2d junction id, built while loading junctions
+        # ------------------------------------------------------------------
+        # Pass 2: junctions
+        # ------------------------------------------------------------------
+        # sumo junction id → tactics2d junction id, used when routing connections
         sumo_to_tactics_junction: dict[str, int] = {}
 
         for junction_node in xml_root.findall("junction"):
@@ -307,6 +354,9 @@ class NetXMLParser:
                     junction_node.attrib.get("id", "unknown"), exc,
                 )
 
+        # ------------------------------------------------------------------
+        # Pass 3: connections → attach to receiving junction
+        # ------------------------------------------------------------------
         for conn_node in xml_root.findall("connection"):
             try:
                 connection   = self._load_connection(conn_node)

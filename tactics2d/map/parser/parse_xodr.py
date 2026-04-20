@@ -15,7 +15,7 @@ from shapely.affinity import affine_transform, rotate
 from shapely.geometry import LineString, Polygon
 from shapely.validation import make_valid
 
-from tactics2d.map.element import Area, Connection, Junction, Lane, Map, RoadLine
+from tactics2d.map.element import Area, Junction, Lane, Map, RoadLine
 from tactics2d.geometry import Circle
 from tactics2d.interpolator import ParamPoly3, Spiral
 
@@ -159,11 +159,15 @@ def _build_offset_polyline(
     collapsed = correction <= 0.0
     if np.any(collapsed):
         kappa_abs = np.abs(kappa)
-        safe_t = np.where(
-            kappa_abs > 1e-6,
-            0.99 / kappa_abs * np.sign(t_vals),
-            t_vals,
-        )
+        # np.where evaluates both branches before selecting; suppress the
+        # divide-by-zero that occurs on straight segments (kappa_abs == 0)
+        # before the kappa_abs > 1e-6 mask is applied.
+        with np.errstate(divide="ignore", invalid="ignore"):
+            safe_t = np.where(
+                kappa_abs > 1e-6,
+                0.99 / kappa_abs * np.sign(t_vals),
+                t_vals,
+            )
         t_effective = np.where(collapsed, safe_t, t_vals)
     else:
         t_effective = t_vals
@@ -259,6 +263,14 @@ class XODRParser:
     # ------------------------------------------------------------------
 
     def _sample_line(self, node: ET.Element) -> list:
+        """Sample a straight-line geometry at 0.1 m intervals.
+
+        Args:
+            node (ET.Element): A ``<geometry>`` element whose child is ``<line>``.
+
+        Returns:
+            list: List of (x, y) world-coordinate tuples sampled along the line.
+        """
         x0  = float(node.attrib["x"])
         y0  = float(node.attrib["y"])
         hdg = float(node.attrib["hdg"])
@@ -272,6 +284,14 @@ class XODRParser:
         return [(x0 + s * np.cos(hdg), y0 + s * np.sin(hdg)) for s in s_arr]
 
     def _sample_spiral(self, node: ET.Element) -> list:
+        """Sample a Euler spiral (clothoid) geometry using the Spiral integrator.
+
+        Args:
+            node (ET.Element): A ``<geometry>`` element whose child is ``<spiral>``.
+
+        Returns:
+            list: List of (x, y) world-coordinate tuples sampled along the spiral.
+        """
         x0  = float(node.attrib["x"])
         y0  = float(node.attrib["y"])
         hdg = float(node.attrib["hdg"])
@@ -287,6 +307,17 @@ class XODRParser:
         return [(x, y) for x, y in pts]
 
     def _sample_arc(self, node: ET.Element) -> list:
+        """Sample a constant-curvature arc geometry at 0.1 m intervals.
+
+        Falls back to :meth:`_sample_line` when the curvature is negligibly
+        small (``|k| < 1e-9``).
+
+        Args:
+            node (ET.Element): A ``<geometry>`` element whose child is ``<arc>``.
+
+        Returns:
+            list: List of (x, y) world-coordinate tuples sampled along the arc.
+        """
         x0  = float(node.attrib["x"])
         y0  = float(node.attrib["y"])
         hdg = float(node.attrib["hdg"])
@@ -318,6 +349,14 @@ class XODRParser:
         return [(x, y) for x, y in pts.tolist()]
 
     def _sample_poly3(self, node: ET.Element) -> list:
+        """Sample a cubic polynomial geometry (local u/v frame) at 0.1 m intervals.
+
+        Args:
+            node (ET.Element): A ``<geometry>`` element whose child is ``<poly3>``.
+
+        Returns:
+            list: List of (x, y) world-coordinate tuples sampled along the curve.
+        """
         x0  = float(node.attrib["x"])
         y0  = float(node.attrib["y"])
         hdg = float(node.attrib["hdg"])
@@ -335,6 +374,15 @@ class XODRParser:
         return list(zip(xs.tolist(), ys.tolist()))
 
     def _sample_param_poly3(self, node: ET.Element) -> list:
+        """Sample a parametric cubic polynomial geometry using the ParamPoly3 integrator.
+
+        Args:
+            node (ET.Element): A ``<geometry>`` element whose child is
+                ``<paramPoly3>``.
+
+        Returns:
+            list: List of (x, y) world-coordinate tuples sampled along the curve.
+        """
         x0      = float(node.attrib["x"])
         y0      = float(node.attrib["y"])
         hdg     = float(node.attrib["hdg"])
@@ -404,7 +452,23 @@ class XODRParser:
     def _make_roadline(self,
                        geometry: Union[list, LineString],
                        rm_node:  ET.Element) -> RoadLine:
-        """Construct a RoadLine from coordinate geometry and a <roadMark> node."""
+        """Construct a RoadLine from coordinate geometry and a ``<roadMark>`` node.
+
+        Maps OpenDRIVE road-mark type strings to Tactics2D line types and
+        subtypes, resolves colour aliases, and encodes the ``laneChange``
+        attribute as a boolean pair.
+
+        Args:
+            geometry (list or LineString): Coordinate sequence for the line,
+                either a list of (x, y) tuples or a Shapely LineString.
+            rm_node (ET.Element or None): The ``<roadMark>`` XML element.
+                When ``None`` a virtual (invisible) line is produced.
+
+        Returns:
+            RoadLine: A fully initialised RoadLine object with type, subtype,
+                colour, width, height, lane-change permission, and weight stored
+                in ``custom_tags``.
+        """
         rm = rm_node  # may be None
 
         rm_type = rm.attrib.get("type", "none") if rm is not None else "none"
@@ -482,6 +546,7 @@ class XODRParser:
         ref_normals:     np.ndarray,
         inner_t:         np.ndarray,
         inner_line_id:   int,
+        road_id:         str = "",
     ):
         """Build one lane and its outer boundary from the shared reference line.
 
@@ -505,6 +570,11 @@ class XODRParser:
                 accumulated lane widths. Shape is (N,).
             inner_line_id (int): The ``id_`` of the RoadLine representing the inner
                 boundary of this lane.
+            road_id (str): The OpenDRIVE road ``id`` attribute this lane belongs to.
+                Stored in ``custom_tags["xodr_road_id"]`` on the resulting Lane so
+                that format converters (e.g. SUMO, Lanelet2 exporters) can
+                unambiguously recover which road each lane originated from.
+                Defaults to empty string.
 
         Returns:
             tuple:
@@ -570,6 +640,7 @@ class XODRParser:
             speed_limit=speed_limit,
             speed_limit_unit=speed_limit_unit,
             location=location,
+            custom_tags={"xodr_road_id": road_id},
         )
 
         return lane, roadline, outer_t
@@ -668,6 +739,7 @@ class XODRParser:
         """
         lanes, roadlines, objects = [], [], []
         type_node = road_node.find("type")
+        road_id   = road_node.attrib.get("id", "")
 
         raw_pts: list = []
         raw_s:   list = []
@@ -790,11 +862,16 @@ class XODRParser:
 
                 for ln in left_lane_nodes:
                     if type_node is None:
+                        logging.warning(
+                            "Road %s has no <type> element; skipping left lane %s.",
+                            road_id, ln.attrib.get("id", "?"),
+                        )
                         continue
                     lane, roadline, cumulative_t = self._load_lane(
                         ln, type_node,
                         seg_ref_pts, seg_ref_s, seg_ref_n,
                         cumulative_t, prev_id,
+                        road_id=road_id,
                     )
                     lanes.append(lane)
                     roadlines.append(roadline)
@@ -811,11 +888,16 @@ class XODRParser:
 
                 for ln in right_lane_nodes:
                     if type_node is None:
+                        logging.warning(
+                            "Road %s has no <type> element; skipping right lane %s.",
+                            road_id, ln.attrib.get("id", "?"),
+                        )
                         continue
                     lane, roadline, cumulative_t = self._load_lane(
                         ln, type_node,
                         seg_ref_pts, seg_ref_s, seg_ref_n,
                         cumulative_t, prev_id,
+                        road_id=road_id,
                     )
                     lanes.append(lane)
                     roadlines.append(roadline)
@@ -844,10 +926,26 @@ class XODRParser:
     # ------------------------------------------------------------------
 
     def load_junction(self, junction_node: ET.Element) -> Junction:
+        """Parse a ``<junction>`` element and return a Junction object.
+
+        Args:
+            junction_node (ET.Element): The ``<junction>`` XML element to parse.
+
+        Returns:
+            Junction: A Junction populated with all ``<connection>`` child elements,
+                each carrying its lane-link list.
+
+        Example:
+            >>> parser = XODRParser()
+            >>> import xml.etree.ElementTree as ET
+            >>> tree = ET.parse("path/to/map.xodr")
+            >>> junction_node = tree.getroot().find("junction")
+            >>> junction = parser.load_junction(junction_node)
+        """
         junction = Junction(id_=self._next_id())
 
         for conn_node in junction_node.findall("connection"):
-            connection = Connection(
+            connection = Junction.Connection(
                 id_=self._next_id(),
                 incoming_road=conn_node.attrib["incomingRoad"],
                 connecting_road=conn_node.attrib["connectingRoad"],
@@ -874,6 +972,11 @@ class XODRParser:
         Returns:
             Map: A Tactics2D Map populated with lanes, roadlines, junctions,
                 and area objects parsed from the OpenDRIVE file.
+
+        Example:
+            >>> parser = XODRParser()
+            >>> map_ = parser.parse("path/to/map.xodr")
+            >>> print(len(map_.lanes))
         """
         xml_root = ET.parse(file_path).getroot()
 
