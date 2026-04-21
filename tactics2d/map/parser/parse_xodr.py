@@ -20,9 +20,6 @@ from tactics2d.geometry import Circle
 from tactics2d.interpolator import ParamPoly3, Spiral
 
 
-# ---------------------------------------------------------------------------
-# Module-level geometry utilities
-# ---------------------------------------------------------------------------
 
 def _unit_left_normals(points: np.ndarray) -> np.ndarray:
     """Return the unit left-pointing normal at every sample of a polyline.
@@ -213,9 +210,6 @@ def _sanitise_linestring(pts: np.ndarray,
     return pts
 
 
-# ---------------------------------------------------------------------------
-# XODRParser
-# ---------------------------------------------------------------------------
 
 class XODRParser:
     """Parser for the OpenDRIVE (.xodr) map format.
@@ -258,9 +252,6 @@ class XODRParser:
         self._id_counter += 1
         return uid
 
-    # ------------------------------------------------------------------
-    # planView geometry samplers
-    # ------------------------------------------------------------------
 
     def _sample_line(self, node: ET.Element) -> list:
         """Sample a straight-line geometry at 0.1 m intervals.
@@ -414,9 +405,6 @@ class XODRParser:
             pts.pop()
         return pts
 
-    # ------------------------------------------------------------------
-    # Header
-    # ------------------------------------------------------------------
 
     def load_header(self, node: ET.Element) -> tuple:
         """Parse the ``<header>`` element of an OpenDRIVE file.
@@ -445,9 +433,6 @@ class XODRParser:
 
         return info, projector
 
-    # ------------------------------------------------------------------
-    # Road-mark factory
-    # ------------------------------------------------------------------
 
     def _make_roadline(self,
                        geometry: Union[list, LineString],
@@ -518,9 +503,6 @@ class XODRParser:
             custom_tags={"weight": rm.attrib.get("weight") if rm is not None else None},
         )
 
-    # ------------------------------------------------------------------
-    # Lane loading
-    # ------------------------------------------------------------------
 
     def _parse_width_records(self, lane_node: ET.Element) -> list:
         """Return width-polynomial records sorted by sOffset."""
@@ -645,9 +627,6 @@ class XODRParser:
 
         return lane, roadline, outer_t
 
-    # ------------------------------------------------------------------
-    # Object / area loading
-    # ------------------------------------------------------------------
 
     def _load_object(self,
                      ref_pts:  list,
@@ -721,9 +700,6 @@ class XODRParser:
 
         return Area(id_=self._next_id(), geometry=shape, subtype=obj_type)
 
-    # ------------------------------------------------------------------
-    # Road loading
-    # ------------------------------------------------------------------
 
     def load_road(self, road_node: ET.Element) -> tuple:
         """Parse a <road> element.
@@ -921,9 +897,6 @@ class XODRParser:
         hdgs.append(hdgs[-1])
         return hdgs
 
-    # ------------------------------------------------------------------
-    # Junction loading
-    # ------------------------------------------------------------------
 
     def load_junction(self, junction_node: ET.Element) -> Junction:
         """Parse a ``<junction>`` element and return a Junction object.
@@ -959,9 +932,6 @@ class XODRParser:
 
         return junction
 
-    # ------------------------------------------------------------------
-    # Top-level entry point
-    # ------------------------------------------------------------------
 
     def parse(self, file_path: str) -> Map:
         """Parse an OpenDRIVE file and return a Tactics2D Map object.

@@ -11,7 +11,7 @@ import logging
 import os
 
 import defusedxml.ElementTree as ET
-from shapely.geometry import LineString
+from shapely.geometry import LineString, MultiPoint
 
 # Connection is a nested class of Junction; it is not exported separately.
 from tactics2d.map.element import Junction, Lane, Map, RoadLine
@@ -282,9 +282,6 @@ class NetXMLParser:
                 x_min, y_min, x_max, y_max = map(float, boundary_str.split(","))
                 map_.set_boundary((x_min, x_max, y_min, y_max))
 
-        # ------------------------------------------------------------------
-        # Pass 0: build edge-id → to-junction mapping for connection routing
-        # ------------------------------------------------------------------
         edge_to_junction: dict[str, str] = {}
         for edge_node in xml_root.findall("edge"):
             if edge_node.attrib.get("function") == "internal":
@@ -294,9 +291,6 @@ class NetXMLParser:
             if edge_id and to_node:
                 edge_to_junction[edge_id] = to_node
 
-        # ------------------------------------------------------------------
-        # Pass 1: edges → lanes + roadlines
-        # ------------------------------------------------------------------
         for edge_node in xml_root.findall("edge"):
             if edge_node.attrib.get("function") == "internal":
                 continue
@@ -304,7 +298,6 @@ class NetXMLParser:
             edge_type  = edge_node.attrib.get("type", "")
             lane_nodes = edge_node.findall("lane")
 
-            # Estimate lane width from the lateral distance between adjacent lanes
             lane_width = self._DEFAULT_LANE_WIDTH
             if len(lane_nodes) >= 2:
                 try:
@@ -335,10 +328,6 @@ class NetXMLParser:
                         lane_node.attrib.get("id", "unknown"), exc,
                     )
 
-        # ------------------------------------------------------------------
-        # Pass 2: junctions
-        # ------------------------------------------------------------------
-        # sumo junction id → tactics2d junction id, used when routing connections
         sumo_to_tactics_junction: dict[str, int] = {}
 
         for junction_node in xml_root.findall("junction"):
@@ -354,9 +343,6 @@ class NetXMLParser:
                     junction_node.attrib.get("id", "unknown"), exc,
                 )
 
-        # ------------------------------------------------------------------
-        # Pass 3: connections → attach to receiving junction
-        # ------------------------------------------------------------------
         for conn_node in xml_root.findall("connection"):
             try:
                 connection   = self._load_connection(conn_node)
@@ -373,6 +359,40 @@ class NetXMLParser:
                     )
             except Exception as exc:
                 logging.warning("Failed to parse connection: %s", exc)
+
+        junction_endpoints: dict[str, list] = {
+            sumo_id: [] for sumo_id in sumo_to_tactics_junction
+        }
+
+        for lane in map_.lanes.values():
+            edge_id = lane.custom_tags.get("sumo_id", "").rsplit("_", 1)[0]
+            to_sumo = edge_to_junction.get(edge_id)
+            if to_sumo and to_sumo in junction_endpoints:
+                try:
+                    for side in (lane.left_side, lane.right_side):
+                        coords = list(side.coords)
+                        junction_endpoints[to_sumo].append(coords[0])
+                        junction_endpoints[to_sumo].append(coords[-1])
+                except Exception:
+                    pass
+
+        for sumo_id, tactics_id in sumo_to_tactics_junction.items():
+            junction = map_.junctions.get(tactics_id)
+            if junction is None or junction.custom_tags.get("shape"):
+                continue
+
+            pts = junction_endpoints.get(sumo_id, [])
+            if len(pts) < 3:
+                continue
+
+            try:
+                hull = MultiPoint(pts).convex_hull
+                if hull.geom_type == "Polygon" and not hull.is_empty:
+                    junction.custom_tags["shape"] = list(hull.exterior.coords)
+            except Exception as exc:
+                logging.warning(
+                    "Failed to compute convex hull for junction %s: %s", sumo_id, exc
+                )
 
         self._id_counter = 0
         return map_

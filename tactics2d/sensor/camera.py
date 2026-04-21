@@ -8,9 +8,9 @@ import time
 from typing import Any, Dict, List, Set, Tuple, Union
 
 import numpy as np
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 
-from tactics2d.map.element import Area, Lane, Map, RoadLine
+from tactics2d.map.element import Area, Junction, Lane, Map, RoadLine
 from tactics2d.participant.element import Cyclist, Obstacle, Pedestrian, Vehicle
 
 from .sensor_base import SensorBase
@@ -57,7 +57,7 @@ class BEVCamera(SensorBase):
         """Get the type string for a map or participant element.
 
         Args:
-            element: Map element (Area, Lane, RoadLine) or participant element.
+            element: Map element (Area, Junction, Lane, RoadLine) or participant element.
 
         Returns:
             String type identifier for the element.
@@ -66,6 +66,11 @@ class BEVCamera(SensorBase):
             return element.subtype
         elif hasattr(element, "type_") and element.type_:
             return element.type_
+        elif isinstance(element, Junction):
+            # Use the SUMO junction type stored in custom_tags when available,
+            # otherwise fall back to the generic "junction" key so that
+            # matplotlib_config.DEFAULT_COLOR["junction"] is resolved.
+            return element.custom_tags.get("type") or "junction"
         elif isinstance(element, Area):
             return "area"
         elif isinstance(element, Lane):
@@ -84,6 +89,10 @@ class BEVCamera(SensorBase):
     def _get_map_elements(self, prev_road_id_set: Set[int]) -> Tuple[Dict, Set[int]]:
         """Get map elements within perception range for rendering.
 
+        Processes junctions, areas, lanes, and roadlines in z-order (lowest first)
+        so that junction fill polygons are drawn beneath lane polygons and road
+        markings, matching SUMO-GUI's default visual style.
+
         Args:
             prev_road_id_set: Set of road IDs from previous frame.
 
@@ -91,11 +100,38 @@ class BEVCamera(SensorBase):
             Tuple of (map_data, road_id_set) where map_data contains road elements
             to remove and create, and road_id_set is the set of road IDs in current frame.
         """
-        road_id_list = []
+        road_id_list    = []
         road_element_list = []
         white = "white"
 
-        # Process areas (obstacles, etc.)
+        for junction in self._map.junctions.values():
+            shape_pts = junction.custom_tags.get("shape", [])
+            if len(shape_pts) < 3:
+                continue
+
+            try:
+                junction_polygon = Polygon(shape_pts)
+            except Exception:
+                continue
+
+            if not self._in_perception_range(junction_polygon):
+                continue
+
+            junc_type  = self._get_type(junction)
+            element_id = int(2e6 + int(junction.id_))
+
+            road_element_list.append(
+                {
+                    "id":         element_id,
+                    "shape":      "polygon",
+                    "geometry":   list(junction_polygon.exterior.coords),
+                    "color":      junc_type,
+                    "type":       junc_type,
+                    "line_width": 0,
+                }
+            )
+            road_id_list.append(element_id)
+
         for area in self._map.areas.values():
             if not self._in_perception_range(area.geometry):
                 continue
@@ -104,11 +140,11 @@ class BEVCamera(SensorBase):
 
             road_element_list.append(
                 {
-                    "id": int(1e6 + int(area.id_)),
-                    "shape": "polygon",
-                    "geometry": list(area.geometry.exterior.coords),
-                    "color": area.color,
-                    "type": self._get_type(area),
+                    "id":         int(1e6 + int(area.id_)),
+                    "shape":      "polygon",
+                    "geometry":   list(area.geometry.exterior.coords),
+                    "color":      area.color,
+                    "type":       self._get_type(area),
                     "line_width": 0,
                 }
             )
@@ -117,34 +153,32 @@ class BEVCamera(SensorBase):
             for i, interior in enumerate(interiors):
                 road_element_list.append(
                     {
-                        "id": int(1e6 + int(area.id_) + i * 1e5),
-                        "shape": "polygon",
-                        "geometry": list(interior.coords),
-                        "color": white,
-                        "type": "hole",
+                        "id":         int(1e6 + int(area.id_) + i * 1e5),
+                        "shape":      "polygon",
+                        "geometry":   list(interior.coords),
+                        "color":      white,
+                        "type":       "hole",
                         "line_width": 0,
                     }
                 )
                 road_id_list.append(int(1e6 + int(area.id_) + i * 1e5))
 
-        # Process lanes
         for lane in self._map.lanes.values():
             if not self._in_perception_range(lane.geometry):
                 continue
 
             road_element_list.append(
                 {
-                    "id": int(1e6 + int(lane.id_)),
-                    "shape": "polygon",
-                    "geometry": list(lane.geometry.coords),
-                    "color": lane.color,
-                    "type": self._get_type(lane),
+                    "id":         int(1e6 + int(lane.id_)),
+                    "shape":      "polygon",
+                    "geometry":   list(lane.geometry.coords),
+                    "color":      lane.color,
+                    "type":       self._get_type(lane),
                     "line_width": 0,
                 }
             )
             road_id_list.append(int(1e6 + int(lane.id_)))
 
-        # Process roadlines (skip virtual lines)
         for roadline in self._map.roadlines.values():
             if roadline.type_ == "virtual" or not self._in_perception_range(roadline.geometry):
                 continue
@@ -155,38 +189,32 @@ class BEVCamera(SensorBase):
             elif "thick" in roadline.type_:
                 line_width = 2
 
-            line_color = roadline.color
-            if roadline.type_ == "virtual":
-                line_color = None
-            else:
-                line_color = white if roadline.color is None else roadline.color
+            line_color = white if roadline.color is None else roadline.color
 
             road_element_list.append(
                 {
-                    "id": int(1e6 + int(roadline.id_)),
-                    "shape": "line",
-                    "geometry": list(roadline.geometry.coords),
-                    "color": line_color,
-                    "type": self._get_type(roadline),
+                    "id":         int(1e6 + int(roadline.id_)),
+                    "shape":      "line",
+                    "geometry":   list(roadline.geometry.coords),
+                    "color":      line_color,
+                    "type":       self._get_type(roadline),
                     "line_style": roadline.subtype if roadline.subtype is not None else "solid",
                     "line_width": line_width,
                 }
             )
             road_id_list.append(int(1e6 + int(roadline.id_)))
 
-        # Create the map geometry message flow
-        road_id_set = set(road_id_list)
+        road_id_set       = set(road_id_list)
         road_id_to_create = road_id_set - prev_road_id_set
         road_id_to_remove = prev_road_id_set - road_id_set
 
-        road_element_to_create = []
-        for road_element in road_element_list:
-            if road_element["id"] in road_id_to_create:
-                road_element_to_create.append(road_element)
+        road_element_to_create = [
+            el for el in road_element_list if el["id"] in road_id_to_create
+        ]
 
         map_data = {
             "road_id_to_remove": list(road_id_to_remove),
-            "road_elements": road_element_to_create,
+            "road_elements":     road_element_to_create,
         }
 
         return map_data, road_id_set
@@ -212,42 +240,42 @@ class BEVCamera(SensorBase):
             participant IDs in current frame.
         """
         participant_id_list = []
-        participant_list = []
-        black = "black"
+        participant_list    = []
+        black               = "black"
 
-        # Process each participant (vehicle, cyclist, pedestrian, obstacle)
         for participant_id in participant_ids:
-            participant = participants[participant_id]
+            participant          = participants[participant_id]
             participant_geometry = participant.get_pose(frame)
+
             if isinstance(participant, Pedestrian):
-                participant_radius = participant_geometry[1]
-                participant_radius = participant_radius if participant_radius > 0 else 0
+                participant_radius   = participant_geometry[1]
+                participant_radius   = participant_radius if participant_radius > 0 else 0
                 participant_geometry = Point(participant_geometry[0])
 
             if not self._in_perception_range(participant_geometry):
                 continue
 
             if isinstance(participant, Vehicle) or isinstance(participant, Cyclist):
-                points = np.array(participant.geometry.coords)
+                points   = np.array(participant.geometry.coords)
                 triangle = [
                     ((points[0] + points[1]) / 2).tolist(),
                     ((points[1] + points[2]) / 2).tolist(),
                     ((points[3] + points[0]) / 2).tolist(),
                 ]
-                state = participant.trajectory.get_state(frame)
+                state    = participant.trajectory.get_state(frame)
                 position = list(state.location)
-                heading = state.heading
-                id_ = abs(int(participant.id_))
+                heading  = state.heading
+                id_      = abs(int(participant.id_))
 
                 participant_list.append(
                     {
-                        "id": id_,
-                        "shape": "polygon",
+                        "id":       id_,
+                        "shape":    "polygon",
                         "geometry": points.tolist(),
                         "position": position,
                         "rotation": heading,
-                        "color": participant.color,
-                        "type": self._get_type(participant),
+                        "color":    participant.color,
+                        "type":     self._get_type(participant),
                         "line_width": 1,
                     }
                 )
@@ -255,13 +283,13 @@ class BEVCamera(SensorBase):
 
                 participant_list.append(
                     {
-                        "id": id_ + 0.5,
-                        "shape": "polygon",
+                        "id":       id_ + 0.5,
+                        "shape":    "polygon",
                         "geometry": triangle,
                         "position": position,
                         "rotation": heading,
-                        "color": black,
-                        "type": "heading_arrow",
+                        "color":    black,
+                        "type":     "heading_arrow",
                         "line_width": 0,
                     }
                 )
@@ -271,12 +299,12 @@ class BEVCamera(SensorBase):
                 id_ = abs(int(participant.id_))
                 participant_list.append(
                     {
-                        "id": id_,
-                        "shape": "circle",
+                        "id":       id_,
+                        "shape":    "circle",
                         "position": [participant_geometry.x, participant_geometry.y],
-                        "radius": participant_radius,
-                        "color": participant.color,
-                        "type": self._get_type(participant),
+                        "radius":   participant_radius,
+                        "color":    participant.color,
+                        "type":     self._get_type(participant),
                         "line_width": 1,
                     }
                 )
@@ -285,15 +313,14 @@ class BEVCamera(SensorBase):
             elif isinstance(participant, Obstacle):
                 pass
 
-        # Create the participant geometry message flow
-        participant_id_set = set(participant_id_list)
-        participant_id_to_create = participant_id_set - prev_participant_id_set
-        participant_id_to_remove = prev_participant_id_set - participant_id_set
+        participant_id_set        = set(participant_id_list)
+        participant_id_to_create  = participant_id_set - prev_participant_id_set
+        participant_id_to_remove  = prev_participant_id_set - participant_id_set
 
         participant_data = {
             "participant_id_to_create": list(participant_id_to_create),
             "participant_id_to_remove": list(participant_id_to_remove),
-            "participants": participant_list,
+            "participants":             participant_list,
         }
 
         return participant_data, participant_id_set
@@ -308,7 +335,7 @@ class BEVCamera(SensorBase):
         position: Point = None,
         heading: float = None,
     ) -> Tuple[Dict, Set, Set]:
-        """This function is used to update the camera's position and obtain the geometry data under specific rendering paradigm.
+        """Update the camera's position and return geometry data for rendering.
 
         Args:
             frame (int): The frame of the observation.
@@ -328,29 +355,26 @@ class BEVCamera(SensorBase):
         """
         self._set_position_heading(position, heading)
 
-        # Use base class method to setup default parameters
         participant_ids, prev_road_id_set, prev_participant_id_set = self._setup_update_parameters(
             participant_ids, prev_road_id_set, prev_participant_id_set
         )
 
-        map_data, road_id_set = self._get_map_elements(prev_road_id_set)
-        participant_data, participant_id_set = self._get_participants(
+        map_data,         road_id_set         = self._get_map_elements(prev_road_id_set)
+        participant_data, participant_id_set   = self._get_participants(
             frame, participants, participant_ids, prev_participant_id_set
         )
 
-        # Unified geometry data format compatible with renderer
         geometry_data = {
-            "frame": frame,
-            "map_data": map_data,
+            "frame":            frame,
+            "map_data":         map_data,
             "participant_data": participant_data,
-            # Additional sensor metadata for consistency with lidar
             "metadata": {
-                "timestamp": time.time(),
+                "timestamp":        time.time(),
                 "perception_range": self._perception_range,
-                "sensor_type": "camera",
-                "sensor_id": self.id_,
-                "sensor_position": self._position,
-                "sensor_yaw": self._heading,
+                "sensor_type":      "camera",
+                "sensor_id":        self.id_,
+                "sensor_position":  self._position,
+                "sensor_yaw":       self._heading,
             },
         }
 
