@@ -918,7 +918,7 @@ class XODRParser:
         junction = Junction(id_=self._next_id())
 
         for conn_node in junction_node.findall("connection"):
-            connection = Junction.Connection(
+            connection = Junction(
                 id_=self._next_id(),
                 incoming_road=conn_node.attrib["incomingRoad"],
                 connecting_road=conn_node.attrib["connectingRoad"],

@@ -209,19 +209,22 @@ class NetXMLParser:
             },
         )
 
-    def _load_connection(self, conn_node: ET.Element) -> Junction.Connection:
-        """Parse a SUMO ``<connection>`` element into a Tactics2D Connection.
+    def _load_connection(self, conn_node: ET.Element) -> Junction:
+        """Parse a SUMO ``<connection>`` element into a Tactics2D Junction.
 
         All SUMO-specific routing attributes are stored in ``custom_tags`` so
-        that the Tactics2D core data model remains format-agnostic.
+        that the Tactics2D core data model remains format-agnostic.  The
+        returned object is a ``Junction`` instance whose connection-level
+        attributes (``incoming_road``, ``connecting_road``, etc.) are left at
+        their defaults; SUMO routing data is stored in ``custom_tags`` instead.
 
         Args:
             conn_node (ET.Element): The ``<connection>`` XML element to parse.
 
         Returns:
-            Junction.Connection: A Connection object whose ``custom_tags``
-                contain keys ``from_edge``, ``to_edge``, ``from_lane``,
-                ``to_lane``, ``via``, ``dir``, and ``state``.
+            Junction: A Junction instance whose ``custom_tags`` contain keys
+                ``from_edge``, ``to_edge``, ``from_lane``, ``to_lane``,
+                ``via``, ``dir``, and ``state``.
 
         Example:
             >>> parser = NetXMLParser()
@@ -234,7 +237,7 @@ class NetXMLParser:
             >>> conn.custom_tags["dir"]
             's'
         """
-        return Junction.Connection(
+        return Junction(
             id_=self._next_id(),
             custom_tags={
                 "from_edge": conn_node.attrib.get("from", ""),
