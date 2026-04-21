@@ -156,9 +156,6 @@ def _build_offset_polyline(
     collapsed = correction <= 0.0
     if np.any(collapsed):
         kappa_abs = np.abs(kappa)
-        # np.where evaluates both branches before selecting; suppress the
-        # divide-by-zero that occurs on straight segments (kappa_abs == 0)
-        # before the kappa_abs > 1e-6 mask is applied.
         with np.errstate(divide="ignore", invalid="ignore"):
             safe_t = np.where(
                 kappa_abs > 1e-6,
@@ -202,8 +199,6 @@ def _sanitise_linestring(pts: np.ndarray,
             pts = np.array(fixed.coords, dtype=np.float64)
         elif fixed.geom_type == "MultiLineString":
             longest = max(fixed.geoms, key=lambda g: g.length)
-            # Accept the repair only when the longest component retains at
-            # least 80% of the original length; otherwise keep the original.
             if longest.length >= 0.8 * ls.length:
                 pts = np.array(longest.coords, dtype=np.float64)
 
@@ -251,7 +246,6 @@ class XODRParser:
         uid = self._id_counter
         self._id_counter += 1
         return uid
-
 
     def _sample_line(self, node: ET.Element) -> list:
         """Sample a straight-line geometry at 0.1 m intervals.
@@ -405,7 +399,6 @@ class XODRParser:
             pts.pop()
         return pts
 
-
     def load_header(self, node: ET.Element) -> tuple:
         """Parse the ``<header>`` element of an OpenDRIVE file.
 
@@ -432,7 +425,6 @@ class XODRParser:
                 logging.warning("Could not parse geoReference CRS.")
 
         return info, projector
-
 
     def _make_roadline(self,
                        geometry: Union[list, LineString],
@@ -503,7 +495,6 @@ class XODRParser:
             custom_tags={"weight": rm.attrib.get("weight") if rm is not None else None},
         )
 
-
     def _parse_width_records(self, lane_node: ET.Element) -> list:
         """Return width-polynomial records sorted by sOffset."""
         records = [
@@ -542,7 +533,9 @@ class XODRParser:
 
         Args:
             lane_node (ET.Element): The ``<lane>`` XML element to parse.
-            type_node (ET.Element): The ``<type>`` XML element of the parent road.
+            type_node (ET.Element or None): The ``<type>`` XML element of the
+                parent road, or None if the road has no ``<type>`` element.
+                When None, the lane's ``location`` attribute is set to None.
             ref_pts (np.ndarray): Reference-line sample points. Shape is (N, 2).
             ref_s (np.ndarray): Arc-length values along the reference line. Shape is (N,).
             ref_normals (np.ndarray): Unit left-pointing normals of the reference line.
@@ -700,7 +693,6 @@ class XODRParser:
 
         return Area(id_=self._next_id(), geometry=shape, subtype=obj_type)
 
-
     def load_road(self, road_node: ET.Element) -> tuple:
         """Parse a <road> element.
 
@@ -716,6 +708,12 @@ class XODRParser:
         lanes, roadlines, objects = [], [], []
         type_node = road_node.find("type")
         road_id   = road_node.attrib.get("id", "")
+
+        if type_node is None:
+            logging.warning(
+                "Road %s has no <type> element; lane location will be set to None.",
+                road_id,
+            )
 
         raw_pts: list = []
         raw_s:   list = []
@@ -837,12 +835,6 @@ class XODRParser:
                 prev_id      = center_line.id_
 
                 for ln in left_lane_nodes:
-                    if type_node is None:
-                        logging.warning(
-                            "Road %s has no <type> element; skipping left lane %s.",
-                            road_id, ln.attrib.get("id", "?"),
-                        )
-                        continue
                     lane, roadline, cumulative_t = self._load_lane(
                         ln, type_node,
                         seg_ref_pts, seg_ref_s, seg_ref_n,
@@ -863,12 +855,6 @@ class XODRParser:
                 prev_id      = center_line.id_
 
                 for ln in right_lane_nodes:
-                    if type_node is None:
-                        logging.warning(
-                            "Road %s has no <type> element; skipping right lane %s.",
-                            road_id, ln.attrib.get("id", "?"),
-                        )
-                        continue
                     lane, roadline, cumulative_t = self._load_lane(
                         ln, type_node,
                         seg_ref_pts, seg_ref_s, seg_ref_n,
@@ -896,7 +882,6 @@ class XODRParser:
         hdgs = np.arctan2(diff[:, 1], diff[:, 0]).tolist()
         hdgs.append(hdgs[-1])
         return hdgs
-
 
     def load_junction(self, junction_node: ET.Element) -> Junction:
         """Parse a ``<junction>`` element and return a Junction object.
@@ -931,7 +916,6 @@ class XODRParser:
             junction.add_connection(connection)
 
         return junction
-
 
     def parse(self, file_path: str) -> Map:
         """Parse an OpenDRIVE file and return a Tactics2D Map object.
