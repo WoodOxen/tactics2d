@@ -44,8 +44,8 @@ def _unit_left_normals(points: np.ndarray) -> np.ndarray:
 
     tangents = np.empty_like(pts)
     tangents[1:-1] = pts[2:] - pts[:-2]
-    tangents[0]    = pts[1]  - pts[0]
-    tangents[-1]   = pts[-1] - pts[-2]
+    tangents[0] = pts[1] - pts[0]
+    tangents[-1] = pts[-1] - pts[-2]
 
     norms = np.linalg.norm(tangents, axis=1, keepdims=True)
     norms = np.where(norms < 1e-12, 1.0, norms)
@@ -72,8 +72,8 @@ def _signed_curvature(points: np.ndarray, s_vals: np.ndarray) -> np.ndarray:
             values indicate left curvature, negative values indicate right curvature.
     """
     pts = np.asarray(points, dtype=np.float64)
-    s   = np.asarray(s_vals,  dtype=np.float64)
-    n   = len(pts)
+    s = np.asarray(s_vals,  dtype=np.float64)
+    n = len(pts)
     if n < 3:
         return np.zeros(n)
 
@@ -262,10 +262,10 @@ class XODRParser:
         Returns:
             list: List of (x, y) world-coordinate tuples sampled along the line.
         """
-        x0  = float(node.attrib["x"])
-        y0  = float(node.attrib["y"])
+        x0 = float(node.attrib["x"])
+        y0 = float(node.attrib["y"])
         hdg = float(node.attrib["hdg"])
-        L   = float(node.attrib["length"])
+        L = float(node.attrib["length"])
 
         if L <= 0.0:
             return [(x0, y0)]
@@ -283,12 +283,12 @@ class XODRParser:
         Returns:
             list: List of (x, y) world-coordinate tuples sampled along the spiral.
         """
-        x0  = float(node.attrib["x"])
-        y0  = float(node.attrib["y"])
+        x0 = float(node.attrib["x"])
+        y0 = float(node.attrib["y"])
         hdg = float(node.attrib["hdg"])
-        L   = float(node.attrib["length"])
-        k0  = float(node.find("spiral").attrib["curvStart"])
-        k1  = float(node.find("spiral").attrib["curvEnd"])
+        L = float(node.attrib["length"])
+        k0 = float(node.find("spiral").attrib["curvStart"])
+        k1 = float(node.find("spiral").attrib["curvEnd"])
 
         if L < 1e-6:
             return [(x0, y0)]
@@ -309,11 +309,11 @@ class XODRParser:
         Returns:
             list: List of (x, y) world-coordinate tuples sampled along the arc.
         """
-        x0  = float(node.attrib["x"])
-        y0  = float(node.attrib["y"])
+        x0 = float(node.attrib["x"])
+        y0 = float(node.attrib["y"])
         hdg = float(node.attrib["hdg"])
-        L   = float(node.attrib["length"])
-        k   = float(node.find("arc").attrib["curvature"])
+        L = float(node.attrib["length"])
+        k = float(node.find("arc").attrib["curvature"])
 
         if abs(k) < 1e-9:
             return self._sample_line(node)
@@ -325,9 +325,9 @@ class XODRParser:
             radius=r,
             side="L" if k > 0 else "R",
         )
-        arc_angle   = L / radius
+        arc_angle = L / radius
         start_angle = hdg - np.pi / 2.0 * np.sign(k)
-        clockwise   = k < 0
+        clockwise = k < 0
 
         pts = Circle.get_arc(
             center_point=center,
@@ -348,11 +348,11 @@ class XODRParser:
         Returns:
             list: List of (x, y) world-coordinate tuples sampled along the curve.
         """
-        x0  = float(node.attrib["x"])
-        y0  = float(node.attrib["y"])
+        x0 = float(node.attrib["x"])
+        y0 = float(node.attrib["y"])
         hdg = float(node.attrib["hdg"])
-        L   = float(node.attrib["length"])
-        p   = node.find("poly3")
+        L = float(node.attrib["length"])
+        p = node.find("poly3")
         a, b, c, d = (float(p.attrib[k]) for k in ("a", "b", "c", "d"))
 
         n = max(2, int(L / 0.1) + 1)
@@ -374,11 +374,11 @@ class XODRParser:
         Returns:
             list: List of (x, y) world-coordinate tuples sampled along the curve.
         """
-        x0      = float(node.attrib["x"])
-        y0      = float(node.attrib["y"])
-        hdg     = float(node.attrib["hdg"])
-        L       = float(node.attrib["length"])
-        p       = node.find("paramPoly3")
+        x0 = float(node.attrib["x"])
+        y0 = float(node.attrib["y"])
+        hdg = float(node.attrib["hdg"])
+        L = float(node.attrib["length"])
+        p = node.find("paramPoly3")
         p_range = p.attrib.get("pRange", "normalized")
         c = {k: float(p.attrib[k]) for k in ("aU","bU","cU","dU","aV","bV","cV","dV")}
 
@@ -460,20 +460,20 @@ class XODRParser:
 
         if rm_type == "none":
             line_type = "virtual"
-            subtype   = None
+            subtype = None
         elif rm_type == "curb":
             line_type = "curbstone"
-            subtype   = None
+            subtype = None
         elif rm_type == "edge":
             line_type = "road_border"
-            subtype   = None
+            subtype = None
         elif rm_type == "grass":
             line_type = "grass"
-            subtype   = None
+            subtype = None
         else:
             width_val = float(rm.attrib.get("width", "0.15")) if rm is not None else 0.15
             line_type = "line_thin" if width_val <= 0.15 else "line_thick"
-            subtype   = self._ROADMARK_SUBTYPE.get(rm_type)
+            subtype = self._ROADMARK_SUBTYPE.get(rm_type)
 
         color_raw = rm.attrib.get("color") if rm is not None else None
         color_map = {"standard": "white", "violet": "purple"}
@@ -574,9 +574,9 @@ class XODRParser:
 
         location = type_node.attrib.get("type") if type_node is not None else None
 
-        speed_node       = lane_node.find("speed")
-        speed_limit      = float(speed_node.attrib["max"])  if speed_node is not None and "max"  in speed_node.attrib else None
-        speed_limit_unit =       speed_node.attrib["unit"]  if speed_node is not None and "unit" in speed_node.attrib else None
+        speed_node = lane_node.find("speed")
+        speed_limit = float(speed_node.attrib["max"])  if speed_node is not None and "max"  in speed_node.attrib else None
+        speed_limit_unit = speed_node.attrib["unit"]  if speed_node is not None and "unit" in speed_node.attrib else None
 
         width_records = self._parse_width_records(lane_node)
 
@@ -599,10 +599,10 @@ class XODRParser:
         outer_coords = outer_pts.tolist()
 
         if sign > 0:
-            left_geom  = LineString(outer_coords)
+            left_geom = LineString(outer_coords)
             right_geom = LineString(inner_coords)
         else:
-            left_geom  = LineString(inner_coords)
+            left_geom = LineString(inner_coords)
             right_geom = LineString(outer_coords)
 
         roadline = self._make_roadline(outer_coords, lane_node.find("roadMark"))
@@ -643,18 +643,18 @@ class XODRParser:
         t = float(obj_node.attrib["t"])
 
         idx = int(np.argmin(np.abs(s_vals - s)))
-        heading  = headings[idx]
-        x, y     = ref_pts[idx]
+        heading = headings[idx]
+        x, y = ref_pts[idx]
         x_origin = x - t * np.sin(heading)
         y_origin = y + t * np.cos(heading)
-        rel_hdg  = float(obj_node.attrib.get("hdg", 0.0))
+        rel_hdg = float(obj_node.attrib.get("hdg", 0.0))
 
         shape = None
 
         outline = obj_node.find("outline")
         if outline is not None:
             global_corners = outline.findall("cornerGlobal")
-            local_corners  = outline.findall("cornerLocal")
+            local_corners = outline.findall("cornerLocal")
 
             if global_corners:
                 poly_pts = [
@@ -715,7 +715,7 @@ class XODRParser:
         """
         lanes, roadlines, objects = [], [], []
         type_node = road_node.find("type")
-        road_id   = road_node.attrib.get("id", "")
+        road_id = road_node.attrib.get("id", "")
 
         raw_pts: list = []
         raw_s:   list = []
@@ -743,12 +743,12 @@ class XODRParser:
             return lanes, roadlines, objects
 
         pts_arr = np.array(raw_pts, dtype=np.float64)
-        s_arr   = np.array(raw_s,   dtype=np.float64)
+        s_arr = np.array(raw_s,   dtype=np.float64)
 
         dists = np.linalg.norm(np.diff(pts_arr, axis=0), axis=1)
-        keep  = np.concatenate([[True], dists > 0.02])
+        keep = np.concatenate([[True], dists > 0.02])
         pts_arr = pts_arr[keep]
-        s_arr   = s_arr[keep]
+        s_arr = s_arr[keep]
         if len(pts_arr) < 2:
             return lanes, roadlines, objects
 
@@ -779,9 +779,9 @@ class XODRParser:
 
         center_pts = pts_arr + lane_offset_t[:, np.newaxis] * ref_normals
 
-        ls_nodes    = lanes_node.findall("laneSection")
+        ls_nodes = lanes_node.findall("laneSection")
         ls_s_starts = [float(ls.attrib["s"]) for ls in ls_nodes]
-        ls_s_ends   = ls_s_starts[1:] + [float(s_arr[-1])]
+        ls_s_ends = ls_s_starts[1:] + [float(s_arr[-1])]
 
         eps = 1e-6
 
@@ -798,10 +798,10 @@ class XODRParser:
                 continue
 
             seg_ref_pts = pts_arr[mask]
-            seg_ref_s   = s_arr[mask]
-            seg_ref_n   = ref_normals[mask]
-            seg_lo_t    = lane_offset_t[mask]
-            seg_center  = center_pts[mask]
+            seg_ref_s = s_arr[mask]
+            seg_ref_n = ref_normals[mask]
+            seg_lo_t = lane_offset_t[mask]
+            seg_center = center_pts[mask]
 
             if len(seg_center) < 2:
                 continue
@@ -818,9 +818,9 @@ class XODRParser:
             )
 
             center_lane_node = ls_node.find("center").find("lane")
-            rm_nodes        = center_lane_node.findall("roadMark")
+            rm_nodes = center_lane_node.findall("roadMark")
             rm_s_abs_starts = [ls_s0 + float(rm.attrib["sOffset"]) for rm in rm_nodes]
-            rm_s_abs_ends   = rm_s_abs_starts[1:] + [float(seg_ref_s[-1])]
+            rm_s_abs_ends = rm_s_abs_starts[1:] + [float(seg_ref_s[-1])]
 
             for rm_i, rm_node in enumerate(rm_nodes):
                 rm_abs_s0 = rm_s_abs_starts[rm_i]
@@ -840,7 +840,7 @@ class XODRParser:
                     key=lambda n: int(n.attrib["id"])
                 )
                 cumulative_t = seg_lo_t.copy()
-                prev_id      = center_line.id_
+                prev_id = center_line.id_
 
                 for ln in left_lane_nodes:
                     if type_node is None:
@@ -866,7 +866,7 @@ class XODRParser:
                     key=lambda n: abs(int(n.attrib["id"]))
                 )
                 cumulative_t = seg_lo_t.copy()
-                prev_id      = center_line.id_
+                prev_id = center_line.id_
 
                 for ln in right_lane_nodes:
                     if type_node is None:

@@ -133,19 +133,19 @@ class NetXMLParser:
         if len(shape) < 2:
             return None, None, None
 
-        speed_ms   = float(lane_node.attrib.get("speed", "13.89"))
+        speed_ms = float(lane_node.attrib.get("speed", "13.89"))
         half_width = (lane_width if lane_width is not None else self._DEFAULT_LANE_WIDTH) / 2.0
 
-        center     = LineString(shape)
-        left_geom  = center.offset_curve( half_width)
+        center = LineString(shape)
+        left_geom = center.offset_curve( half_width)
         right_geom = center.offset_curve(-half_width)
 
         if left_geom is None or right_geom is None:
             return None, None, None
 
-        left_id      = self._next_id()
-        right_id     = self._next_id()
-        lane_id      = self._next_id()
+        left_id = self._next_id()
+        right_id = self._next_id()
+        lane_id = self._next_id()
         lane_sumo_id = lane_node.attrib.get("id", "")
 
         left_line = RoadLine(
@@ -276,7 +276,7 @@ class NetXMLParser:
 
         xml_root = ET.parse(file_path).getroot()
         map_name = os.path.splitext(os.path.basename(file_path))[0]
-        map_     = Map(name=map_name)
+        map_ = Map(name=map_name)
 
         location_node = xml_root.find("location")
         if location_node is not None:
@@ -298,7 +298,7 @@ class NetXMLParser:
             if edge_node.attrib.get("function") == "internal":
                 continue
 
-            edge_type  = edge_node.attrib.get("type", "")
+            edge_type = edge_node.attrib.get("type", "")
             lane_nodes = edge_node.findall("lane")
 
             lane_width = self._DEFAULT_LANE_WIDTH
@@ -307,8 +307,8 @@ class NetXMLParser:
                     shape0 = self._parse_shape(lane_nodes[0].attrib.get("shape", ""))
                     shape1 = self._parse_shape(lane_nodes[1].attrib.get("shape", ""))
                     if shape0 and shape1:
-                        dx       = shape1[0][0] - shape0[0][0]
-                        dy       = shape1[0][1] - shape0[0][1]
+                        dx = shape1[0][0] - shape0[0][0]
+                        dy = shape1[0][1] - shape0[0][1]
                         computed = (dx**2 + dy**2) ** 0.5
                         if 1.5 < computed < 6.0:
                             lane_width = computed
@@ -348,10 +348,10 @@ class NetXMLParser:
 
         for conn_node in xml_root.findall("connection"):
             try:
-                connection   = self._load_connection(conn_node)
-                from_edge    = connection.custom_tags.get("from_edge", "")
+                connection = self._load_connection(conn_node)
+                from_edge = connection.custom_tags.get("from_edge", "")
                 sumo_junc_id = edge_to_junction.get(from_edge, "")
-                tactics_id   = sumo_to_tactics_junction.get(sumo_junc_id)
+                tactics_id = sumo_to_tactics_junction.get(sumo_junc_id)
 
                 if tactics_id is not None and tactics_id in map_.junctions:
                     map_.junctions[tactics_id].add_connection(connection)

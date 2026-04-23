@@ -80,13 +80,13 @@ class Junction:
             custom_tags (dict, optional): Format-specific metadata.
                 Defaults to an empty dict.
         """
-        self.id_             = id_
-        self.incoming_road   = incoming_road
+        self.id_ = id_
+        self.incoming_road = incoming_road
         self.connecting_road = connecting_road
-        self.contact_point   = contact_point
-        self.lane_links      = lane_links if lane_links is not None else []
-        self.connections     = connections if connections is not None else {}
-        self.custom_tags     = custom_tags if custom_tags is not None else {}
+        self.contact_point = contact_point
+        self.lane_links = lane_links if lane_links is not None else []
+        self.connections = connections if connections is not None else {}
+        self.custom_tags = custom_tags if custom_tags is not None else {}
 
     def add_lane_link(self, lane_link: tuple):
         """Add a lane link to the junction.
