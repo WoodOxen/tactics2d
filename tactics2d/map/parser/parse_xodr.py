@@ -514,16 +514,18 @@ class XODRParser:
 
     def _parse_width_records(self, lane_node: ET.Element) -> list:
         """Return width-polynomial records sorted by sOffset."""
-        records = [
-            {
-                "sOffset": float(w.attrib["sOffset"]),
-                "a": float(w.attrib["a"]),
-                "b": float(w.attrib["b"]),
-                "c": float(w.attrib["c"]),
-                "d": float(w.attrib["d"]),
-            }
-            for w in lane_node.findall("width")
-        ]
+        records = []
+        for w in lane_node.findall("width"):
+            try:
+                records.append({
+                    "sOffset": float(w.attrib.get("sOffset", 0.0)),
+                    "a": float(w.attrib["a"]),
+                    "b": float(w.attrib["b"]),
+                    "c": float(w.attrib["c"]),
+                    "d": float(w.attrib["d"]),
+                })
+            except KeyError:
+                pass
         records.sort(key=lambda r: r["sOffset"])
         return records
 
@@ -851,12 +853,6 @@ class XODRParser:
                 prev_id = center_line.id_
 
                 for ln in left_lane_nodes:
-                    if type_node is None:
-                        logging.warning(
-                            "Road %s has no <type> element; skipping left lane %s.",
-                            road_id, ln.attrib.get("id", "?"),
-                        )
-                        continue
                     lane, roadline, cumulative_t = self._load_lane(
                         ln, type_node,
                         seg_ref_pts, seg_ref_s, seg_ref_n,
@@ -877,12 +873,6 @@ class XODRParser:
                 prev_id = center_line.id_
 
                 for ln in right_lane_nodes:
-                    if type_node is None:
-                        logging.warning(
-                            "Road %s has no <type> element; skipping right lane %s.",
-                            road_id, ln.attrib.get("id", "?"),
-                        )
-                        continue
                     lane, roadline, cumulative_t = self._load_lane(
                         ln, type_node,
                         seg_ref_pts, seg_ref_s, seg_ref_n,
