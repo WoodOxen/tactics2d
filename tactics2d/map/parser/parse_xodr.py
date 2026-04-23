@@ -78,11 +78,14 @@ def _signed_curvature(points: np.ndarray, s_vals: np.ndarray) -> np.ndarray:
         return np.zeros(n)
 
     ds2 = np.maximum(s[2:] - s[:-2], 1e-12)
-    dx = np.empty(n); dy = np.empty(n)
+    dx = np.empty(n)
+    dy = np.empty(n)
     dx[1:-1] = (pts[2:, 0] - pts[:-2, 0]) / ds2
     dy[1:-1] = (pts[2:, 1] - pts[:-2, 1]) / ds2
-    dx[0] = dx[1]; dy[0] = dy[1]
-    dx[-1] = dx[-2]; dy[-1] = dy[-2]
+    dx[0] = dx[1]
+    dy[0] = dy[1]
+    dx[-1] = dx[-2]
+    dy[-1] = dy[-2]
 
     ds_vec = np.maximum(np.gradient(s), 1e-12)
     d2x = np.gradient(dx) / ds_vec
@@ -392,11 +395,16 @@ class XODRParser:
 
     def _sample_geometry(self, node: ET.Element) -> list:
         """Dispatch to the appropriate sampler and remove trailing duplicate."""
-        if   node.find("line")       is not None: pts = self._sample_line(node)
-        elif node.find("spiral")     is not None: pts = self._sample_spiral(node)
-        elif node.find("arc")        is not None: pts = self._sample_arc(node)
-        elif node.find("poly3")      is not None: pts = self._sample_poly3(node)
-        elif node.find("paramPoly3") is not None: pts = self._sample_param_poly3(node)
+        if node.find("line") is not None:
+            pts = self._sample_line(node)
+        elif node.find("spiral") is not None:
+            pts = self._sample_spiral(node)
+        elif node.find("arc") is not None:
+            pts = self._sample_arc(node)
+        elif node.find("poly3") is not None:
+            pts = self._sample_poly3(node)
+        elif node.find("paramPoly3") is not None:
+            pts = self._sample_param_poly3(node)
         else:
             logging.warning("Unknown geometry type in planView; skipping.")
             return []
@@ -496,7 +504,7 @@ class XODRParser:
             type_=line_type,
             subtype=subtype,
             color=color,
-            width=rm.attrib.get("width")  if rm is not None else None,
+            width=rm.attrib.get("width") if rm is not None else None,
             height=rm.attrib.get("height") if rm is not None else None,
             lane_change=lane_change,
             temporary=False,
@@ -575,8 +583,8 @@ class XODRParser:
         location = type_node.attrib.get("type") if type_node is not None else None
 
         speed_node = lane_node.find("speed")
-        speed_limit = float(speed_node.attrib["max"])  if speed_node is not None and "max"  in speed_node.attrib else None
-        speed_limit_unit = speed_node.attrib["unit"]  if speed_node is not None and "unit" in speed_node.attrib else None
+        speed_limit = float(speed_node.attrib["max"]) if speed_node is not None and "max" in speed_node.attrib else None
+        speed_limit_unit = speed_node.attrib["unit"] if speed_node is not None and "unit" in speed_node.attrib else None
 
         width_records = self._parse_width_records(lane_node)
 
@@ -695,7 +703,7 @@ class XODRParser:
             return None
 
         shape = rotate(shape, rel_hdg, use_radians=True, origin=(0, 0))
-        shape = rotate(shape, heading,  use_radians=True, origin=(0, 0))
+        shape = rotate(shape, heading, use_radians=True, origin=(0, 0))
         shape = affine_transform(shape, [1, 0, 0, 1, x_origin, y_origin])
 
         return Area(id_=self._next_id(), geometry=shape, subtype=obj_type)
@@ -718,7 +726,7 @@ class XODRParser:
         road_id = road_node.attrib.get("id", "")
 
         raw_pts: list = []
-        raw_s:   list = []
+        raw_s: list = []
 
         for geom_node in road_node.find("planView").findall("geometry"):
             new_pts = self._sample_geometry(geom_node)
@@ -743,7 +751,7 @@ class XODRParser:
             return lanes, roadlines, objects
 
         pts_arr = np.array(raw_pts, dtype=np.float64)
-        s_arr = np.array(raw_s,   dtype=np.float64)
+        s_arr = np.array(raw_s, dtype=np.float64)
 
         dists = np.linalg.norm(np.diff(pts_arr, axis=0), axis=1)
         keep = np.concatenate([[True], dists > 0.02])
@@ -965,9 +973,12 @@ class XODRParser:
 
         for road_node in xml_root.findall("road"):
             lanes, roadlines, objects = self.load_road(road_node)
-            for lane     in lanes:     map_.add_lane(lane)
-            for roadline in roadlines: map_.add_roadline(roadline)
-            for obj      in objects:   map_.add_area(obj)
+            for lane in lanes:
+                map_.add_lane(lane)
+            for roadline in roadlines:
+                map_.add_roadline(roadline)
+            for obj in objects:
+                map_.add_area(obj)
 
         for junction_node in xml_root.findall("junction"):
             map_.add_junction(self.load_junction(junction_node))

@@ -93,8 +93,8 @@ class NetXMLParser:
 
     def _load_lane(
         self,
-        lane_node:  ET.Element,
-        edge_type:  str,
+        lane_node: ET.Element,
+        edge_type: str,
         lane_width: float = None,
     ) -> tuple:
         """Parse one SUMO ``<lane>`` element into a Tactics2D Lane and its boundary RoadLines.
@@ -137,7 +137,7 @@ class NetXMLParser:
         half_width = (lane_width if lane_width is not None else self._DEFAULT_LANE_WIDTH) / 2.0
 
         center = LineString(shape)
-        left_geom = center.offset_curve( half_width)
+        left_geom = center.offset_curve(half_width)
         right_geom = center.offset_curve(-half_width)
 
         if left_geom is None or right_geom is None:
