@@ -15,14 +15,11 @@ from shapely.affinity import affine_transform, rotate
 from shapely.geometry import LineString, Polygon
 from shapely.validation import make_valid
 
-from tactics2d.map.element import Area, Connection, Junction, Lane, Map, RoadLine
+from tactics2d.map.element import Area, Junction, Lane, Map, RoadLine
 from tactics2d.geometry import Circle
 from tactics2d.interpolator import ParamPoly3, Spiral
 
 
-# ---------------------------------------------------------------------------
-# Module-level geometry utilities
-# ---------------------------------------------------------------------------
 
 def _unit_left_normals(points: np.ndarray) -> np.ndarray:
     """Return the unit left-pointing normal at every sample of a polyline.
@@ -47,8 +44,8 @@ def _unit_left_normals(points: np.ndarray) -> np.ndarray:
 
     tangents = np.empty_like(pts)
     tangents[1:-1] = pts[2:] - pts[:-2]
-    tangents[0]    = pts[1]  - pts[0]
-    tangents[-1]   = pts[-1] - pts[-2]
+    tangents[0] = pts[1] - pts[0]
+    tangents[-1] = pts[-1] - pts[-2]
 
     norms = np.linalg.norm(tangents, axis=1, keepdims=True)
     norms = np.where(norms < 1e-12, 1.0, norms)
@@ -75,17 +72,20 @@ def _signed_curvature(points: np.ndarray, s_vals: np.ndarray) -> np.ndarray:
             values indicate left curvature, negative values indicate right curvature.
     """
     pts = np.asarray(points, dtype=np.float64)
-    s   = np.asarray(s_vals,  dtype=np.float64)
-    n   = len(pts)
+    s = np.asarray(s_vals,  dtype=np.float64)
+    n = len(pts)
     if n < 3:
         return np.zeros(n)
 
     ds2 = np.maximum(s[2:] - s[:-2], 1e-12)
-    dx = np.empty(n); dy = np.empty(n)
+    dx = np.empty(n)
+    dy = np.empty(n)
     dx[1:-1] = (pts[2:, 0] - pts[:-2, 0]) / ds2
     dy[1:-1] = (pts[2:, 1] - pts[:-2, 1]) / ds2
-    dx[0] = dx[1]; dy[0] = dy[1]
-    dx[-1] = dx[-2]; dy[-1] = dy[-2]
+    dx[0] = dx[1]
+    dy[0] = dy[1]
+    dx[-1] = dx[-2]
+    dy[-1] = dy[-2]
 
     ds_vec = np.maximum(np.gradient(s), 1e-12)
     d2x = np.gradient(dx) / ds_vec
@@ -159,11 +159,15 @@ def _build_offset_polyline(
     collapsed = correction <= 0.0
     if np.any(collapsed):
         kappa_abs = np.abs(kappa)
-        safe_t = np.where(
-            kappa_abs > 1e-6,
-            0.99 / kappa_abs * np.sign(t_vals),
-            t_vals,
-        )
+        # np.where evaluates both branches before selecting; suppress the
+        # divide-by-zero that occurs on straight segments (kappa_abs == 0)
+        # before the kappa_abs > 1e-6 mask is applied.
+        with np.errstate(divide="ignore", invalid="ignore"):
+            safe_t = np.where(
+                kappa_abs > 1e-6,
+                0.99 / kappa_abs * np.sign(t_vals),
+                t_vals,
+            )
         t_effective = np.where(collapsed, safe_t, t_vals)
     else:
         t_effective = t_vals
@@ -209,9 +213,6 @@ def _sanitise_linestring(pts: np.ndarray,
     return pts
 
 
-# ---------------------------------------------------------------------------
-# XODRParser
-# ---------------------------------------------------------------------------
 
 class XODRParser:
     """Parser for the OpenDRIVE (.xodr) map format.
@@ -254,15 +255,20 @@ class XODRParser:
         self._id_counter += 1
         return uid
 
-    # ------------------------------------------------------------------
-    # planView geometry samplers
-    # ------------------------------------------------------------------
 
     def _sample_line(self, node: ET.Element) -> list:
-        x0  = float(node.attrib["x"])
-        y0  = float(node.attrib["y"])
+        """Sample a straight-line geometry at 0.1 m intervals.
+
+        Args:
+            node (ET.Element): A ``<geometry>`` element whose child is ``<line>``.
+
+        Returns:
+            list: List of (x, y) world-coordinate tuples sampled along the line.
+        """
+        x0 = float(node.attrib["x"])
+        y0 = float(node.attrib["y"])
         hdg = float(node.attrib["hdg"])
-        L   = float(node.attrib["length"])
+        L = float(node.attrib["length"])
 
         if L <= 0.0:
             return [(x0, y0)]
@@ -272,12 +278,20 @@ class XODRParser:
         return [(x0 + s * np.cos(hdg), y0 + s * np.sin(hdg)) for s in s_arr]
 
     def _sample_spiral(self, node: ET.Element) -> list:
-        x0  = float(node.attrib["x"])
-        y0  = float(node.attrib["y"])
+        """Sample a Euler spiral (clothoid) geometry using the Spiral integrator.
+
+        Args:
+            node (ET.Element): A ``<geometry>`` element whose child is ``<spiral>``.
+
+        Returns:
+            list: List of (x, y) world-coordinate tuples sampled along the spiral.
+        """
+        x0 = float(node.attrib["x"])
+        y0 = float(node.attrib["y"])
         hdg = float(node.attrib["hdg"])
-        L   = float(node.attrib["length"])
-        k0  = float(node.find("spiral").attrib["curvStart"])
-        k1  = float(node.find("spiral").attrib["curvEnd"])
+        L = float(node.attrib["length"])
+        k0 = float(node.find("spiral").attrib["curvStart"])
+        k1 = float(node.find("spiral").attrib["curvEnd"])
 
         if L < 1e-6:
             return [(x0, y0)]
@@ -287,11 +301,22 @@ class XODRParser:
         return [(x, y) for x, y in pts]
 
     def _sample_arc(self, node: ET.Element) -> list:
-        x0  = float(node.attrib["x"])
-        y0  = float(node.attrib["y"])
+        """Sample a constant-curvature arc geometry at 0.1 m intervals.
+
+        Falls back to :meth:`_sample_line` when the curvature is negligibly
+        small (``|k| < 1e-9``).
+
+        Args:
+            node (ET.Element): A ``<geometry>`` element whose child is ``<arc>``.
+
+        Returns:
+            list: List of (x, y) world-coordinate tuples sampled along the arc.
+        """
+        x0 = float(node.attrib["x"])
+        y0 = float(node.attrib["y"])
         hdg = float(node.attrib["hdg"])
-        L   = float(node.attrib["length"])
-        k   = float(node.find("arc").attrib["curvature"])
+        L = float(node.attrib["length"])
+        k = float(node.find("arc").attrib["curvature"])
 
         if abs(k) < 1e-9:
             return self._sample_line(node)
@@ -303,9 +328,9 @@ class XODRParser:
             radius=r,
             side="L" if k > 0 else "R",
         )
-        arc_angle   = L / radius
+        arc_angle = L / radius
         start_angle = hdg - np.pi / 2.0 * np.sign(k)
-        clockwise   = k < 0
+        clockwise = k < 0
 
         pts = Circle.get_arc(
             center_point=center,
@@ -318,11 +343,19 @@ class XODRParser:
         return [(x, y) for x, y in pts.tolist()]
 
     def _sample_poly3(self, node: ET.Element) -> list:
-        x0  = float(node.attrib["x"])
-        y0  = float(node.attrib["y"])
+        """Sample a cubic polynomial geometry (local u/v frame) at 0.1 m intervals.
+
+        Args:
+            node (ET.Element): A ``<geometry>`` element whose child is ``<poly3>``.
+
+        Returns:
+            list: List of (x, y) world-coordinate tuples sampled along the curve.
+        """
+        x0 = float(node.attrib["x"])
+        y0 = float(node.attrib["y"])
         hdg = float(node.attrib["hdg"])
-        L   = float(node.attrib["length"])
-        p   = node.find("poly3")
+        L = float(node.attrib["length"])
+        p = node.find("poly3")
         a, b, c, d = (float(p.attrib[k]) for k in ("a", "b", "c", "d"))
 
         n = max(2, int(L / 0.1) + 1)
@@ -335,11 +368,20 @@ class XODRParser:
         return list(zip(xs.tolist(), ys.tolist()))
 
     def _sample_param_poly3(self, node: ET.Element) -> list:
-        x0      = float(node.attrib["x"])
-        y0      = float(node.attrib["y"])
-        hdg     = float(node.attrib["hdg"])
-        L       = float(node.attrib["length"])
-        p       = node.find("paramPoly3")
+        """Sample a parametric cubic polynomial geometry using the ParamPoly3 integrator.
+
+        Args:
+            node (ET.Element): A ``<geometry>`` element whose child is
+                ``<paramPoly3>``.
+
+        Returns:
+            list: List of (x, y) world-coordinate tuples sampled along the curve.
+        """
+        x0 = float(node.attrib["x"])
+        y0 = float(node.attrib["y"])
+        hdg = float(node.attrib["hdg"])
+        L = float(node.attrib["length"])
+        p = node.find("paramPoly3")
         p_range = p.attrib.get("pRange", "normalized")
         c = {k: float(p.attrib[k]) for k in ("aU","bU","cU","dU","aV","bV","cV","dV")}
 
@@ -353,11 +395,16 @@ class XODRParser:
 
     def _sample_geometry(self, node: ET.Element) -> list:
         """Dispatch to the appropriate sampler and remove trailing duplicate."""
-        if   node.find("line")       is not None: pts = self._sample_line(node)
-        elif node.find("spiral")     is not None: pts = self._sample_spiral(node)
-        elif node.find("arc")        is not None: pts = self._sample_arc(node)
-        elif node.find("poly3")      is not None: pts = self._sample_poly3(node)
-        elif node.find("paramPoly3") is not None: pts = self._sample_param_poly3(node)
+        if node.find("line") is not None:
+            pts = self._sample_line(node)
+        elif node.find("spiral") is not None:
+            pts = self._sample_spiral(node)
+        elif node.find("arc") is not None:
+            pts = self._sample_arc(node)
+        elif node.find("poly3") is not None:
+            pts = self._sample_poly3(node)
+        elif node.find("paramPoly3") is not None:
+            pts = self._sample_param_poly3(node)
         else:
             logging.warning("Unknown geometry type in planView; skipping.")
             return []
@@ -366,9 +413,6 @@ class XODRParser:
             pts.pop()
         return pts
 
-    # ------------------------------------------------------------------
-    # Header
-    # ------------------------------------------------------------------
 
     def load_header(self, node: ET.Element) -> tuple:
         """Parse the ``<header>`` element of an OpenDRIVE file.
@@ -397,34 +441,47 @@ class XODRParser:
 
         return info, projector
 
-    # ------------------------------------------------------------------
-    # Road-mark factory
-    # ------------------------------------------------------------------
 
     def _make_roadline(self,
                        geometry: Union[list, LineString],
                        rm_node:  ET.Element) -> RoadLine:
-        """Construct a RoadLine from coordinate geometry and a <roadMark> node."""
+        """Construct a RoadLine from coordinate geometry and a ``<roadMark>`` node.
+
+        Maps OpenDRIVE road-mark type strings to Tactics2D line types and
+        subtypes, resolves colour aliases, and encodes the ``laneChange``
+        attribute as a boolean pair.
+
+        Args:
+            geometry (list or LineString): Coordinate sequence for the line,
+                either a list of (x, y) tuples or a Shapely LineString.
+            rm_node (ET.Element or None): The ``<roadMark>`` XML element.
+                When ``None`` a virtual (invisible) line is produced.
+
+        Returns:
+            RoadLine: A fully initialised RoadLine object with type, subtype,
+                colour, width, height, lane-change permission, and weight stored
+                in ``custom_tags``.
+        """
         rm = rm_node  # may be None
 
         rm_type = rm.attrib.get("type", "none") if rm is not None else "none"
 
         if rm_type == "none":
             line_type = "virtual"
-            subtype   = None
+            subtype = None
         elif rm_type == "curb":
             line_type = "curbstone"
-            subtype   = None
+            subtype = None
         elif rm_type == "edge":
             line_type = "road_border"
-            subtype   = None
+            subtype = None
         elif rm_type == "grass":
             line_type = "grass"
-            subtype   = None
+            subtype = None
         else:
             width_val = float(rm.attrib.get("width", "0.15")) if rm is not None else 0.15
             line_type = "line_thin" if width_val <= 0.15 else "line_thick"
-            subtype   = self._ROADMARK_SUBTYPE.get(rm_type)
+            subtype = self._ROADMARK_SUBTYPE.get(rm_type)
 
         color_raw = rm.attrib.get("color") if rm is not None else None
         color_map = {"standard": "white", "violet": "purple"}
@@ -447,29 +504,28 @@ class XODRParser:
             type_=line_type,
             subtype=subtype,
             color=color,
-            width=rm.attrib.get("width")  if rm is not None else None,
+            width=rm.attrib.get("width") if rm is not None else None,
             height=rm.attrib.get("height") if rm is not None else None,
             lane_change=lane_change,
             temporary=False,
             custom_tags={"weight": rm.attrib.get("weight") if rm is not None else None},
         )
 
-    # ------------------------------------------------------------------
-    # Lane loading
-    # ------------------------------------------------------------------
 
     def _parse_width_records(self, lane_node: ET.Element) -> list:
         """Return width-polynomial records sorted by sOffset."""
-        records = [
-            {
-                "sOffset": float(w.attrib["sOffset"]),
-                "a": float(w.attrib["a"]),
-                "b": float(w.attrib["b"]),
-                "c": float(w.attrib["c"]),
-                "d": float(w.attrib["d"]),
-            }
-            for w in lane_node.findall("width")
-        ]
+        records = []
+        for w in lane_node.findall("width"):
+            try:
+                records.append({
+                    "sOffset": float(w.attrib.get("sOffset", 0.0)),
+                    "a": float(w.attrib["a"]),
+                    "b": float(w.attrib["b"]),
+                    "c": float(w.attrib["c"]),
+                    "d": float(w.attrib["d"]),
+                })
+            except KeyError:
+                pass
         records.sort(key=lambda r: r["sOffset"])
         return records
 
@@ -482,6 +538,7 @@ class XODRParser:
         ref_normals:     np.ndarray,
         inner_t:         np.ndarray,
         inner_line_id:   int,
+        road_id:         str = "",
     ):
         """Build one lane and its outer boundary from the shared reference line.
 
@@ -505,6 +562,11 @@ class XODRParser:
                 accumulated lane widths. Shape is (N,).
             inner_line_id (int): The ``id_`` of the RoadLine representing the inner
                 boundary of this lane.
+            road_id (str): The OpenDRIVE road ``id`` attribute this lane belongs to.
+                Stored in ``custom_tags["xodr_road_id"]`` on the resulting Lane so
+                that format converters (e.g. SUMO, Lanelet2 exporters) can
+                unambiguously recover which road each lane originated from.
+                Defaults to empty string.
 
         Returns:
             tuple:
@@ -522,9 +584,9 @@ class XODRParser:
 
         location = type_node.attrib.get("type") if type_node is not None else None
 
-        speed_node       = lane_node.find("speed")
-        speed_limit      = float(speed_node.attrib["max"])  if speed_node is not None and "max"  in speed_node.attrib else None
-        speed_limit_unit =       speed_node.attrib["unit"]  if speed_node is not None and "unit" in speed_node.attrib else None
+        speed_node = lane_node.find("speed")
+        speed_limit = float(speed_node.attrib["max"]) if speed_node is not None and "max" in speed_node.attrib else None
+        speed_limit_unit = speed_node.attrib["unit"] if speed_node is not None and "unit" in speed_node.attrib else None
 
         width_records = self._parse_width_records(lane_node)
 
@@ -547,10 +609,10 @@ class XODRParser:
         outer_coords = outer_pts.tolist()
 
         if sign > 0:
-            left_geom  = LineString(outer_coords)
+            left_geom = LineString(outer_coords)
             right_geom = LineString(inner_coords)
         else:
-            left_geom  = LineString(inner_coords)
+            left_geom = LineString(inner_coords)
             right_geom = LineString(outer_coords)
 
         roadline = self._make_roadline(outer_coords, lane_node.find("roadMark"))
@@ -570,13 +632,11 @@ class XODRParser:
             speed_limit=speed_limit,
             speed_limit_unit=speed_limit_unit,
             location=location,
+            custom_tags={"xodr_road_id": road_id},
         )
 
         return lane, roadline, outer_t
 
-    # ------------------------------------------------------------------
-    # Object / area loading
-    # ------------------------------------------------------------------
 
     def _load_object(self,
                      ref_pts:  list,
@@ -593,18 +653,18 @@ class XODRParser:
         t = float(obj_node.attrib["t"])
 
         idx = int(np.argmin(np.abs(s_vals - s)))
-        heading  = headings[idx]
-        x, y     = ref_pts[idx]
+        heading = headings[idx]
+        x, y = ref_pts[idx]
         x_origin = x - t * np.sin(heading)
         y_origin = y + t * np.cos(heading)
-        rel_hdg  = float(obj_node.attrib.get("hdg", 0.0))
+        rel_hdg = float(obj_node.attrib.get("hdg", 0.0))
 
         shape = None
 
         outline = obj_node.find("outline")
         if outline is not None:
             global_corners = outline.findall("cornerGlobal")
-            local_corners  = outline.findall("cornerLocal")
+            local_corners = outline.findall("cornerLocal")
 
             if global_corners:
                 poly_pts = [
@@ -645,14 +705,11 @@ class XODRParser:
             return None
 
         shape = rotate(shape, rel_hdg, use_radians=True, origin=(0, 0))
-        shape = rotate(shape, heading,  use_radians=True, origin=(0, 0))
+        shape = rotate(shape, heading, use_radians=True, origin=(0, 0))
         shape = affine_transform(shape, [1, 0, 0, 1, x_origin, y_origin])
 
         return Area(id_=self._next_id(), geometry=shape, subtype=obj_type)
 
-    # ------------------------------------------------------------------
-    # Road loading
-    # ------------------------------------------------------------------
 
     def load_road(self, road_node: ET.Element) -> tuple:
         """Parse a <road> element.
@@ -668,9 +725,10 @@ class XODRParser:
         """
         lanes, roadlines, objects = [], [], []
         type_node = road_node.find("type")
+        road_id = road_node.attrib.get("id", "")
 
         raw_pts: list = []
-        raw_s:   list = []
+        raw_s: list = []
 
         for geom_node in road_node.find("planView").findall("geometry"):
             new_pts = self._sample_geometry(geom_node)
@@ -695,12 +753,12 @@ class XODRParser:
             return lanes, roadlines, objects
 
         pts_arr = np.array(raw_pts, dtype=np.float64)
-        s_arr   = np.array(raw_s,   dtype=np.float64)
+        s_arr = np.array(raw_s, dtype=np.float64)
 
         dists = np.linalg.norm(np.diff(pts_arr, axis=0), axis=1)
-        keep  = np.concatenate([[True], dists > 0.02])
+        keep = np.concatenate([[True], dists > 0.02])
         pts_arr = pts_arr[keep]
-        s_arr   = s_arr[keep]
+        s_arr = s_arr[keep]
         if len(pts_arr) < 2:
             return lanes, roadlines, objects
 
@@ -731,9 +789,9 @@ class XODRParser:
 
         center_pts = pts_arr + lane_offset_t[:, np.newaxis] * ref_normals
 
-        ls_nodes    = lanes_node.findall("laneSection")
+        ls_nodes = lanes_node.findall("laneSection")
         ls_s_starts = [float(ls.attrib["s"]) for ls in ls_nodes]
-        ls_s_ends   = ls_s_starts[1:] + [float(s_arr[-1])]
+        ls_s_ends = ls_s_starts[1:] + [float(s_arr[-1])]
 
         eps = 1e-6
 
@@ -750,23 +808,29 @@ class XODRParser:
                 continue
 
             seg_ref_pts = pts_arr[mask]
-            seg_ref_s   = s_arr[mask]
-            seg_ref_n   = ref_normals[mask]
-            seg_lo_t    = lane_offset_t[mask]
-            seg_center  = center_pts[mask]
+            seg_ref_s = s_arr[mask]
+            seg_ref_n = ref_normals[mask]
+            seg_lo_t = lane_offset_t[mask]
+            seg_center = center_pts[mask]
 
             if len(seg_center) < 2:
                 continue
 
+            # center_line is intentionally not added to roadlines. Its id_
+            # serves solely as the inner-boundary anchor (prev_id) for the
+            # first left/right lane of this section. The centre-lane geometry
+            # is emitted as per-roadMark sub-segments in the loop below.
+            # Known limitation: lane_ids referencing center_line.id_ cannot be
+            # resolved via map_.roadlines; consumers must be aware of this.
             center_line = RoadLine(
                 id_=self._next_id(),
                 geometry=LineString(seg_center.tolist()),
             )
 
             center_lane_node = ls_node.find("center").find("lane")
-            rm_nodes        = center_lane_node.findall("roadMark")
+            rm_nodes = center_lane_node.findall("roadMark")
             rm_s_abs_starts = [ls_s0 + float(rm.attrib["sOffset"]) for rm in rm_nodes]
-            rm_s_abs_ends   = rm_s_abs_starts[1:] + [float(seg_ref_s[-1])]
+            rm_s_abs_ends = rm_s_abs_starts[1:] + [float(seg_ref_s[-1])]
 
             for rm_i, rm_node in enumerate(rm_nodes):
                 rm_abs_s0 = rm_s_abs_starts[rm_i]
@@ -786,15 +850,14 @@ class XODRParser:
                     key=lambda n: int(n.attrib["id"])
                 )
                 cumulative_t = seg_lo_t.copy()
-                prev_id      = center_line.id_
+                prev_id = center_line.id_
 
                 for ln in left_lane_nodes:
-                    if type_node is None:
-                        continue
                     lane, roadline, cumulative_t = self._load_lane(
                         ln, type_node,
                         seg_ref_pts, seg_ref_s, seg_ref_n,
                         cumulative_t, prev_id,
+                        road_id=road_id,
                     )
                     lanes.append(lane)
                     roadlines.append(roadline)
@@ -807,15 +870,14 @@ class XODRParser:
                     key=lambda n: abs(int(n.attrib["id"]))
                 )
                 cumulative_t = seg_lo_t.copy()
-                prev_id      = center_line.id_
+                prev_id = center_line.id_
 
                 for ln in right_lane_nodes:
-                    if type_node is None:
-                        continue
                     lane, roadline, cumulative_t = self._load_lane(
                         ln, type_node,
                         seg_ref_pts, seg_ref_s, seg_ref_n,
                         cumulative_t, prev_id,
+                        road_id=road_id,
                     )
                     lanes.append(lane)
                     roadlines.append(roadline)
@@ -839,15 +901,28 @@ class XODRParser:
         hdgs.append(hdgs[-1])
         return hdgs
 
-    # ------------------------------------------------------------------
-    # Junction loading
-    # ------------------------------------------------------------------
 
     def load_junction(self, junction_node: ET.Element) -> Junction:
+        """Parse a ``<junction>`` element and return a Junction object.
+
+        Args:
+            junction_node (ET.Element): The ``<junction>`` XML element to parse.
+
+        Returns:
+            Junction: A Junction populated with all ``<connection>`` child elements,
+                each carrying its lane-link list.
+
+        Example:
+            >>> parser = XODRParser()
+            >>> import xml.etree.ElementTree as ET
+            >>> tree = ET.parse("path/to/map.xodr")
+            >>> junction_node = tree.getroot().find("junction")
+            >>> junction = parser.load_junction(junction_node)
+        """
         junction = Junction(id_=self._next_id())
 
         for conn_node in junction_node.findall("connection"):
-            connection = Connection(
+            connection = Junction(
                 id_=self._next_id(),
                 incoming_road=conn_node.attrib["incomingRoad"],
                 connecting_road=conn_node.attrib["connectingRoad"],
@@ -861,9 +936,6 @@ class XODRParser:
 
         return junction
 
-    # ------------------------------------------------------------------
-    # Top-level entry point
-    # ------------------------------------------------------------------
 
     def parse(self, file_path: str) -> Map:
         """Parse an OpenDRIVE file and return a Tactics2D Map object.
@@ -874,6 +946,11 @@ class XODRParser:
         Returns:
             Map: A Tactics2D Map populated with lanes, roadlines, junctions,
                 and area objects parsed from the OpenDRIVE file.
+
+        Example:
+            >>> parser = XODRParser()
+            >>> map_ = parser.parse("path/to/map.xodr")
+            >>> print(len(map_.lanes))
         """
         xml_root = ET.parse(file_path).getroot()
 
@@ -886,9 +963,12 @@ class XODRParser:
 
         for road_node in xml_root.findall("road"):
             lanes, roadlines, objects = self.load_road(road_node)
-            for lane     in lanes:     map_.add_lane(lane)
-            for roadline in roadlines: map_.add_roadline(roadline)
-            for obj      in objects:   map_.add_area(obj)
+            for lane in lanes:
+                map_.add_lane(lane)
+            for roadline in roadlines:
+                map_.add_roadline(roadline)
+            for obj in objects:
+                map_.add_area(obj)
 
         for junction_node in xml_root.findall("junction"):
             map_.add_junction(self.load_junction(junction_node))

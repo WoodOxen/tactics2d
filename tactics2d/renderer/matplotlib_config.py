@@ -52,6 +52,18 @@ DEFAULT_COLOR = {
     "shared_walkway": "gray",
     "crosswalk": "dark-gray",
     "stairs": "gray",
+    # default color for junction class subtypes
+    # matches SUMO-GUI's default grey intersection fill
+    "junction": "dark-gray",
+    "priority": "dark-gray",
+    "traffic_light": "dark-gray",
+    "right_before_left": "dark-gray",
+    "unregulated": "dark-gray",
+    "dead_end": "dark-gray",
+    "rail_signal": "dark-gray",
+    "zipper": "dark-gray",
+    "rail_crossing": "dark-gray",
+    "allway_stop": "dark-gray",
     # default color for area class subtypes
     "area": "black",
     "hole": "white",
@@ -74,7 +86,6 @@ DEFAULT_COLOR = {
     "vehicle": "light-turquoise",
     "car": "light-turquoise",
     "truck": "light-turquoise",
-    "bus": "light-turquoise",
     # default color for cyclist class subtypes
     "motorcycle": "light-orange",
     "cyclist": "light-orange",
@@ -107,6 +118,19 @@ DEFAULT_ORDER = {
     "shared_walkway": 3,
     "crosswalk": 2,
     "stairs": 3,
+    # default zorder for junction class subtypes
+    # rendered below lanes (zorder 3) so lane polygons sit on top of the
+    # junction fill, keeping road markings visible at intersections
+    "junction": 2,
+    "priority": 2,
+    "traffic_light": 2,
+    "right_before_left": 2,
+    "unregulated": 2,
+    "dead_end": 2,
+    "rail_signal": 2,
+    "zipper": 2,
+    "rail_crossing": 2,
+    "allway_stop": 2,
     # default zorder for area class subtypes
     "area": 2,
     "hole": 3,
@@ -127,7 +151,6 @@ DEFAULT_ORDER = {
     "vehicle": 6,
     "car": 6,
     "truck": 6,
-    "bus": 6,
     "heading_arrow": 7,
     # default zorder for lidar point cloud
     "lidar_point_cloud": 8,
