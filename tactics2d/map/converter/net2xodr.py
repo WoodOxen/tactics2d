@@ -1,5 +1,4 @@
-#! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """SUMO net.xml to OpenDRIVE xodr converter implementation."""
@@ -90,7 +89,7 @@ class Net2XodrConverter:
             )
         )
 
-    def _fit_param_poly3(self, pts: np.ndarray) -> dict:
+    def _fit_param_poly3(self, pts: np.ndarray) -> tuple:
         """Fit a paramPoly3 geometry to a polyline segment in local coordinates.
 
         Transforms the segment to a local frame (origin at start, x-axis along
@@ -101,7 +100,7 @@ class Net2XodrConverter:
             pts (np.ndarray): Polyline points in world coordinates. Shape (N, 2).
 
         Returns:
-            dict: Keys x, y, hdg, length, aU, bU, cU, dU, aV, bV, cV, dV.
+            tuple: (x, y, hdg, length, aU, bU, cU, dU, aV, bV, cV, dV) or None if degenerate.
         """
         x0, y0 = pts[0]
         dx = pts[-1][0] - pts[0][0]
@@ -129,20 +128,20 @@ class Net2XodrConverter:
         coeffs_u = np.polyfit(p, u, 3)[::-1]
         coeffs_v = np.polyfit(p, v, 3)[::-1]
 
-        return {
-            "x": x0,
-            "y": y0,
-            "hdg": hdg,
-            "length": total,
-            "aU": coeffs_u[0],
-            "bU": coeffs_u[1],
-            "cU": coeffs_u[2],
-            "dU": coeffs_u[3],
-            "aV": coeffs_v[0],
-            "bV": coeffs_v[1],
-            "cV": coeffs_v[2],
-            "dV": coeffs_v[3],
-        }
+        return (
+            x0,
+            y0,
+            hdg,
+            total,
+            coeffs_u[0],
+            coeffs_u[1],
+            coeffs_u[2],
+            coeffs_u[3],
+            coeffs_v[0],
+            coeffs_v[1],
+            coeffs_v[2],
+            coeffs_v[3],
+        )
 
     def _split_segments(self, pts: list) -> list[np.ndarray]:
         """Split a polyline into segments no longer than _MAX_SEG_LENGTH.
@@ -253,21 +252,25 @@ class Net2XodrConverter:
                 fit = self._fit_param_poly3(seg)
                 if fit is None:
                     continue
+                x, y, hdg, length, aU, bU, cU, dU, aV, bV, cV, dV = fit
                 geom = ET.SubElement(
                     plan_view,
                     "geometry",
                     {
                         "s": f"{s_offset:.4f}",
-                        "x": f"{fit['x']:.4f}",
-                        "y": f"{fit['y']:.4f}",
-                        "hdg": f"{fit['hdg']:.6f}",
-                        "length": f"{fit['length']:.4f}",
+                        "x": f"{x:.4f}",
+                        "y": f"{y:.4f}",
+                        "hdg": f"{hdg:.6f}",
+                        "length": f"{length:.4f}",
                     },
                 )
                 pp3 = ET.SubElement(geom, "paramPoly3", {"pRange": "normalized"})
-                for k in ("aU", "bU", "cU", "dU", "aV", "bV", "cV", "dV"):
-                    pp3.set(k, f"{fit[k]:.6f}")
-                s_offset += fit["length"]
+                for k, v in zip(
+                    ("aU", "bU", "cU", "dU", "aV", "bV", "cV", "dV"),
+                    (aU, bU, cU, dU, aV, bV, cV, dV),
+                ):
+                    pp3.set(k, f"{v:.6f}")
+                s_offset += length
 
             ET.SubElement(road, "elevationProfile")
             ET.SubElement(road, "lateralProfile")
