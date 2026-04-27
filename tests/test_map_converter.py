@@ -3,12 +3,12 @@
 
 """Tests for map format converters."""
 
+import logging
+import os
 import sys
 
 sys.path.append(".")
 sys.path.append("..")
-
-import os
 
 import pytest
 from shapely.geometry import Point
@@ -18,6 +18,8 @@ from tactics2d.map.parser import NetXMLParser, XODRParser
 from tactics2d.renderer import MatplotlibRenderer
 from tactics2d.sensor import BEVCamera
 from tactics2d.utils.common import get_absolute_path
+
+logging.disable(logging.WARNING)
 
 
 @pytest.mark.map_converter
