@@ -17,19 +17,16 @@ from tactics2d.map.parser import NetXMLParser
 class Net2XodrConverter:
     """This class implements a converter from SUMO (.net.xml) to OpenDRIVE (.xodr).
 
-        The converter reads a SUMO net.xml file using NetXMLParser, then writes the
-        parsed map into OpenDRIVE xodr format. Each Tactics2D Lane becomes an
-        OpenDRIVE road. The lane centre-line is derived from left and right boundaries
-        and fitted to a paramPoly3 geometry per segment for compact, accurate output.
-        Lane width is estimated as the mean point-to-point distance between boundaries.
+    The converter reads a SUMO net.xml file using NetXMLParser, then writes the
+    parsed map into OpenDRIVE xodr format. Each Tactics2D Lane becomes an
+    OpenDRIVE road. The lane centre-line is derived from left and right boundaries
+    and fitted to a paramPoly3 geometry per segment for compact, accurate output.
+    Lane width is estimated as the mean point-to-point distance between boundaries.
 
-        Example:
-    ```python
-            from tactics2d.map.converter import Net2XodrConverter
-
-            converter = Net2XodrConverter()
-            converter.convert("path/to/map.net.xml", "path/to/output.xodr")
-    ```
+    Example:
+        >>> from tactics2d.map.converter import Net2XodrConverter
+        >>> converter = Net2XodrConverter()
+        >>> converter.convert("path/to/map.net.xml", "path/to/output.xodr")
     """
 
     _MAX_SEG_LENGTH = 20.0
@@ -100,7 +97,7 @@ class Net2XodrConverter:
             pts (np.ndarray): Polyline points in world coordinates. Shape (N, 2).
 
         Returns:
-            tuple: (x, y, hdg, length, aU, bU, cU, dU, aV, bV, cV, dV) or None if degenerate.
+            tuple: (x, y, hdg, length, coeffs_u, coeffs_v) or None if degenerate.
         """
         x0, y0 = pts[0]
         dx = pts[-1][0] - pts[0][0]
@@ -128,20 +125,7 @@ class Net2XodrConverter:
         coeffs_u = np.polyfit(p, u, 3)[::-1]
         coeffs_v = np.polyfit(p, v, 3)[::-1]
 
-        return (
-            x0,
-            y0,
-            hdg,
-            total,
-            coeffs_u[0],
-            coeffs_u[1],
-            coeffs_u[2],
-            coeffs_u[3],
-            coeffs_v[0],
-            coeffs_v[1],
-            coeffs_v[2],
-            coeffs_v[3],
-        )
+        return x0, y0, hdg, total, coeffs_u, coeffs_v
 
     def _split_segments(self, pts: list) -> list[np.ndarray]:
         """Split a polyline into segments no longer than _MAX_SEG_LENGTH.
@@ -181,26 +165,23 @@ class Net2XodrConverter:
     def convert(self, input_path: str, output_path: str) -> str:
         """Convert a SUMO net.xml file to an OpenDRIVE xodr file.
 
-                Reads the SUMO network file with NetXMLParser, maps the resulting
-                Tactics2D Map to OpenDRIVE elements, and writes the output file.
-                Each Tactics2D Lane becomes an OpenDRIVE road with a single driving
-                lane. Centre-lines are fitted to paramPoly3 geometries for accuracy.
-                Junctions and connections are preserved.
+        Reads the SUMO network file with NetXMLParser, maps the resulting
+        Tactics2D Map to OpenDRIVE elements, and writes the output file.
+        Each Tactics2D Lane becomes an OpenDRIVE road with a single driving
+        lane. Centre-lines are fitted to paramPoly3 geometries for accuracy.
+        Junctions and connections are preserved.
 
-                Args:
-                    input_path (str): Path to the input .net.xml file.
-                    output_path (str): Path to the output .xodr file.
+        Args:
+            input_path (str): Path to the input .net.xml file.
+            output_path (str): Path to the output .xodr file.
 
-                Returns:
-                    str: The output file path.
+        Returns:
+            str: The output file path.
 
-                Example:
-        ```python
-                    from tactics2d.map.converter import Net2XodrConverter
-
-                    converter = Net2XodrConverter()
-                    converter.convert("map.net.xml", "map.xodr")
-        ```
+        Example:
+            >>> from tactics2d.map.converter import Net2XodrConverter
+            >>> converter = Net2XodrConverter()
+            >>> converter.convert("map.net.xml", "map.xodr")
         """
         map_ = NetXMLParser().parse(input_path)
         root = ET.Element("OpenDRIVE")
@@ -252,7 +233,7 @@ class Net2XodrConverter:
                 fit = self._fit_param_poly3(seg)
                 if fit is None:
                     continue
-                x, y, hdg, length, aU, bU, cU, dU, aV, bV, cV, dV = fit
+                x, y, hdg, length, coeffs_u, coeffs_v = fit
                 geom = ET.SubElement(
                     plan_view,
                     "geometry",
@@ -266,8 +247,7 @@ class Net2XodrConverter:
                 )
                 pp3 = ET.SubElement(geom, "paramPoly3", {"pRange": "normalized"})
                 for k, v in zip(
-                    ("aU", "bU", "cU", "dU", "aV", "bV", "cV", "dV"),
-                    (aU, bU, cU, dU, aV, bV, cV, dV),
+                    ("aU", "bU", "cU", "dU", "aV", "bV", "cV", "dV"), (*coeffs_u, *coeffs_v)
                 ):
                     pp3.set(k, f"{v:.6f}")
                 s_offset += length

@@ -14,28 +14,25 @@ from shapely.geometry import LineString
 from tactics2d.map.parser import XODRParser
 
 _SKIP_SUBTYPES = {"roadmark", "virtual", "none"}
-_MIN_LANE_WIDTH = 0.5
+_MIN_LANE_WIDTH = 0.5  # excludes degenerate lanes and narrow boundary elements (e.g. border ~0.34 m); explicit subtype filtering may be added in future
 
 
 class Xodr2NetConverter:
     """This class implements a converter from OpenDRIVE (.xodr) to SUMO (.net.xml).
 
-        The converter reads an OpenDRIVE file using XODRParser, then writes the
-        parsed map into SUMO net.xml format. Lane centre-lines are derived from
-        the mean of left and right boundary polylines. Lane widths are estimated
-        as the mean point-to-point distance between boundary samples. Non-drivable
-        elements such as virtual boundaries and road markings are filtered out by
-        subtype and minimum width threshold. Connections are resolved using the
-        xodr_road_id stored in each lane's custom_tags, matched against the
-        incoming_road and connecting_road fields of each junction connection.
+    The converter reads an OpenDRIVE file using XODRParser, then writes the
+    parsed map into SUMO net.xml format. Lane centre-lines are derived from
+    the mean of left and right boundary polylines. Lane widths are estimated
+    as the mean point-to-point distance between boundary samples. Non-drivable
+    elements such as virtual boundaries and road markings are filtered out by
+    subtype and minimum width threshold. Connections are resolved using the
+    xodr_road_id stored in each lane's custom_tags, matched against the
+    incoming_road and connecting_road fields of each junction connection.
 
-        Example:
-    ```python
-            from tactics2d.map.converter import Xodr2NetConverter
-
-            converter = Xodr2NetConverter()
-            converter.convert("path/to/map.xodr", "path/to/output.net.xml")
-    ```
+    Example:
+        >>> from tactics2d.map.converter import Xodr2NetConverter
+        >>> converter = Xodr2NetConverter()
+        >>> converter.convert("path/to/map.xodr", "path/to/output.net.xml")
     """
 
     def _boundary_to_centerline(self, left: LineString, right: LineString, n: int = 50) -> list:
@@ -100,27 +97,24 @@ class Xodr2NetConverter:
     def convert(self, input_path: str, output_path: str) -> str:
         """Convert an OpenDRIVE file to a SUMO net.xml file.
 
-                Reads the OpenDRIVE file with XODRParser, maps the resulting
-                Tactics2D Map to SUMO net.xml elements, and writes the output file.
-                Each drivable Tactics2D Lane becomes a SUMO edge with a single lane
-                child. Connections are resolved by matching xodr road ids stored in
-                lane custom_tags against junction connection incoming_road and
-                connecting_road fields, using lane_links for precise lane-level mapping.
+        Reads the OpenDRIVE file with XODRParser, maps the resulting
+        Tactics2D Map to SUMO net.xml elements, and writes the output file.
+        Each drivable Tactics2D Lane becomes a SUMO edge with a single lane
+        child. Connections are resolved by matching xodr road ids stored in
+        lane custom_tags against junction connection incoming_road and
+        connecting_road fields, using lane_links for precise lane-level mapping.
 
-                Args:
-                    input_path (str): Path to the input .xodr file.
-                    output_path (str): Path to the output .net.xml file.
+        Args:
+            input_path (str): Path to the input .xodr file.
+            output_path (str): Path to the output .net.xml file.
 
-                Returns:
-                    str: The output file path.
+        Returns:
+            str: The output file path.
 
-                Example:
-        ```python
-                    from tactics2d.map.converter import Xodr2NetConverter
-
-                    converter = Xodr2NetConverter()
-                    converter.convert("map.xodr", "map.net.xml")
-        ```
+        Example:
+            >>> from tactics2d.map.converter import Xodr2NetConverter
+            >>> converter = Xodr2NetConverter()
+            >>> converter.convert("map.xodr", "map.net.xml")
         """
         map_ = XODRParser().parse(input_path)
         boundary = map_.boundary
