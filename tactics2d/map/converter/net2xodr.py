@@ -100,7 +100,7 @@ class Net2XodrConverter:
             pts (np.ndarray): Polyline points in world coordinates. Shape (N, 2).
 
         Returns:
-            tuple: (x, y, hdg, length, aU, bU, cU, dU, aV, bV, cV, dV) or None if degenerate.
+            tuple: (x, y, hdg, length, coeffs_u, coeffs_v) or None if degenerate.
         """
         x0, y0 = pts[0]
         dx = pts[-1][0] - pts[0][0]
@@ -128,20 +128,7 @@ class Net2XodrConverter:
         coeffs_u = np.polyfit(p, u, 3)[::-1]
         coeffs_v = np.polyfit(p, v, 3)[::-1]
 
-        return (
-            x0,
-            y0,
-            hdg,
-            total,
-            coeffs_u[0],
-            coeffs_u[1],
-            coeffs_u[2],
-            coeffs_u[3],
-            coeffs_v[0],
-            coeffs_v[1],
-            coeffs_v[2],
-            coeffs_v[3],
-        )
+        return x0, y0, hdg, total, coeffs_u, coeffs_v
 
     def _split_segments(self, pts: list) -> list[np.ndarray]:
         """Split a polyline into segments no longer than _MAX_SEG_LENGTH.
@@ -252,7 +239,7 @@ class Net2XodrConverter:
                 fit = self._fit_param_poly3(seg)
                 if fit is None:
                     continue
-                x, y, hdg, length, aU, bU, cU, dU, aV, bV, cV, dV = fit
+                x, y, hdg, length, coeffs_u, coeffs_v = fit
                 geom = ET.SubElement(
                     plan_view,
                     "geometry",
@@ -266,8 +253,7 @@ class Net2XodrConverter:
                 )
                 pp3 = ET.SubElement(geom, "paramPoly3", {"pRange": "normalized"})
                 for k, v in zip(
-                    ("aU", "bU", "cU", "dU", "aV", "bV", "cV", "dV"),
-                    (aU, bU, cU, dU, aV, bV, cV, dV),
+                    ("aU", "bU", "cU", "dU", "aV", "bV", "cV", "dV"), (*coeffs_u, *coeffs_v)
                 ):
                     pp3.set(k, f"{v:.6f}")
                 s_offset += length

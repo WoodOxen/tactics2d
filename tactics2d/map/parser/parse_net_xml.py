@@ -1,9 +1,5 @@
-#! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: parse_net_xml.py
-# @Description: This file defines a class for parsing the SUMO network map format.
-# @Author: Tactics2D Team
-# @Version: 1.0.0
+# Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 from __future__ import annotations
 
@@ -40,18 +36,18 @@ class NetXMLParser:
     """
 
     _LANE_TYPE_DICT: dict = {
-        "highway.motorway":    "highway",
-        "highway.trunk":       "highway",
-        "highway.primary":     "road",
-        "highway.secondary":   "road",
-        "highway.tertiary":    "road",
+        "highway.motorway": "highway",
+        "highway.trunk": "highway",
+        "highway.primary": "road",
+        "highway.secondary": "road",
+        "highway.tertiary": "road",
         "highway.residential": "road",
-        "highway.service":     "road",
-        "highway.pedestrian":  "walkway",
-        "highway.footway":     "walkway",
-        "highway.cycleway":    "bicycle_lane",
-        "railway.rail":        "rail",
-        "railway.tram":        "tram",
+        "highway.service": "road",
+        "highway.pedestrian": "walkway",
+        "highway.footway": "walkway",
+        "highway.cycleway": "bicycle_lane",
+        "railway.rail": "rail",
+        "railway.tram": "tram",
     }
 
     _DEFAULT_LANE_WIDTH: float = 3.2
@@ -91,12 +87,7 @@ class NetXMLParser:
         """
         return self._LANE_TYPE_DICT.get(edge_type, "road")
 
-    def _load_lane(
-        self,
-        lane_node: ET.Element,
-        edge_type: str,
-        lane_width: float = None,
-    ) -> tuple:
+    def _load_lane(self, lane_node: ET.Element, edge_type: str, lane_width: float = None) -> tuple:
         """Parse one SUMO ``<lane>`` element into a Tactics2D Lane and its boundary RoadLines.
 
         The lane centre-line is taken directly from the ``shape`` attribute.
@@ -148,17 +139,9 @@ class NetXMLParser:
         lane_id = self._next_id()
         lane_sumo_id = lane_node.attrib.get("id", "")
 
-        left_line = RoadLine(
-            id_=left_id,
-            geometry=left_geom,
-            type_="line_thin",
-            subtype="dashed",
-        )
+        left_line = RoadLine(id_=left_id, geometry=left_geom, type_="line_thin", subtype="dashed")
         right_line = RoadLine(
-            id_=right_id,
-            geometry=right_geom,
-            type_="line_thin",
-            subtype="dashed",
+            id_=right_id, geometry=right_geom, type_="line_thin", subtype="dashed"
         )
         lane = Lane(
             id_=lane_id,
@@ -202,10 +185,10 @@ class NetXMLParser:
             id_=self._next_id(),
             custom_tags={
                 "sumo_id": junction_node.attrib.get("id", ""),
-                "x":       junction_node.attrib.get("x", ""),
-                "y":       junction_node.attrib.get("y", ""),
-                "type":    junction_node.attrib.get("type", ""),
-                "shape":   shape_pts,
+                "x": junction_node.attrib.get("x", ""),
+                "y": junction_node.attrib.get("y", ""),
+                "type": junction_node.attrib.get("type", ""),
+                "shape": shape_pts,
             },
         )
 
@@ -241,12 +224,12 @@ class NetXMLParser:
             id_=self._next_id(),
             custom_tags={
                 "from_edge": conn_node.attrib.get("from", ""),
-                "to_edge":   conn_node.attrib.get("to", ""),
+                "to_edge": conn_node.attrib.get("to", ""),
                 "from_lane": conn_node.attrib.get("fromLane", ""),
-                "to_lane":   conn_node.attrib.get("toLane", ""),
-                "via":       conn_node.attrib.get("via", ""),
-                "dir":       conn_node.attrib.get("dir", ""),
-                "state":     conn_node.attrib.get("state", ""),
+                "to_lane": conn_node.attrib.get("toLane", ""),
+                "via": conn_node.attrib.get("via", ""),
+                "dir": conn_node.attrib.get("dir", ""),
+                "state": conn_node.attrib.get("state", ""),
             },
         )
 
@@ -317,9 +300,7 @@ class NetXMLParser:
 
             for lane_node in lane_nodes:
                 try:
-                    lane, left_line, right_line = self._load_lane(
-                        lane_node, edge_type, lane_width
-                    )
+                    lane, left_line, right_line = self._load_lane(lane_node, edge_type, lane_width)
                     if lane is None:
                         continue
                     map_.add_lane(lane)
@@ -327,8 +308,7 @@ class NetXMLParser:
                     map_.add_roadline(right_line)
                 except Exception as exc:
                     logging.warning(
-                        "Failed to parse lane %s: %s",
-                        lane_node.attrib.get("id", "unknown"), exc,
+                        "Failed to parse lane %s: %s", lane_node.attrib.get("id", "unknown"), exc
                     )
 
         sumo_to_tactics_junction: dict[str, int] = {}
@@ -343,7 +323,8 @@ class NetXMLParser:
             except Exception as exc:
                 logging.warning(
                     "Failed to parse junction %s: %s",
-                    junction_node.attrib.get("id", "unknown"), exc,
+                    junction_node.attrib.get("id", "unknown"),
+                    exc,
                 )
 
         for conn_node in xml_root.findall("connection"):
@@ -357,15 +338,12 @@ class NetXMLParser:
                     map_.junctions[tactics_id].add_connection(connection)
                 else:
                     logging.debug(
-                        "Cannot find junction for connection from_edge=%s; skipping.",
-                        from_edge,
+                        "Cannot find junction for connection from_edge=%s; skipping.", from_edge
                     )
             except Exception as exc:
                 logging.warning("Failed to parse connection: %s", exc)
 
-        junction_endpoints: dict[str, list] = {
-            sumo_id: [] for sumo_id in sumo_to_tactics_junction
-        }
+        junction_endpoints: dict[str, list] = {sumo_id: [] for sumo_id in sumo_to_tactics_junction}
 
         for lane in map_.lanes.values():
             edge_id = lane.custom_tags.get("sumo_id", "").rsplit("_", 1)[0]
@@ -393,9 +371,7 @@ class NetXMLParser:
                 if hull.geom_type == "Polygon" and not hull.is_empty:
                     junction.custom_tags["shape"] = list(hull.exterior.coords)
             except Exception as exc:
-                logging.warning(
-                    "Failed to compute convex hull for junction %s: %s", sumo_id, exc
-                )
+                logging.warning("Failed to compute convex hull for junction %s: %s", sumo_id, exc)
 
         self._id_counter = 0
         return map_
