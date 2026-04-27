@@ -7,6 +7,7 @@
 - Added a parser and corresponding tests, documentations for DriveInsightD dataset.
 - Added native SUMO `.net.xml` map parser (`NetXMLParser`) with junction geometry parsing, connection attachment, and junction shape auto-completion via convex hull.
 - Merged `Connection` class into `Junction` by flattening its properties directly into `Junction` with default values.
+- Added `Net2XodrConverter` for converting SUMO `.net.xml` maps to OpenDRIVE `.xodr` format.
 
 ## [0.1.9rc3] - 2026-01-29
 
