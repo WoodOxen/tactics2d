@@ -1,13 +1,15 @@
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """Tests for Net2XodrConverter."""
 
 import sys
+
 sys.path.append(".")
 sys.path.append("..")
 
 import os
+
 import pytest
 from shapely.geometry import Point
 
@@ -51,10 +53,12 @@ def test_net2xodr(input_path, output_path, img_path):
     original = NetXMLParser().parse(input_path)
     converted = XODRParser().parse(result)
 
-    assert len(converted.lanes) == len(original.lanes), \
-        f"Lane count mismatch: original={len(original.lanes)}, converted={len(converted.lanes)}"
-    assert len(converted.junctions) == len(original.junctions), \
-        f"Junction count mismatch: original={len(original.junctions)}, converted={len(converted.junctions)}"
+    assert len(converted.lanes) == len(
+        original.lanes
+    ), f"Lane count mismatch: original={len(original.lanes)}, converted={len(converted.lanes)}"
+    assert len(converted.junctions) == len(
+        original.junctions
+    ), f"Junction count mismatch: original={len(original.junctions)}, converted={len(converted.junctions)}"
 
     boundary = converted.boundary
     camera = BEVCamera(1, converted)

@@ -1,5 +1,4 @@
-#! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
+# Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """SUMO net.xml to OpenDRIVE xodr converter implementation."""
@@ -18,19 +17,19 @@ from tactics2d.map.parser import NetXMLParser
 class Net2XodrConverter:
     """This class implements a converter from SUMO (.net.xml) to OpenDRIVE (.xodr).
 
-    The converter reads a SUMO net.xml file using NetXMLParser, then writes the
-    parsed map into OpenDRIVE xodr format. Each Tactics2D Lane becomes an
-    OpenDRIVE road. The lane centre-line is derived from left and right boundaries
-    and fitted to a paramPoly3 geometry per segment for compact, accurate output.
-    Lane width is estimated as the mean point-to-point distance between boundaries.
+        The converter reads a SUMO net.xml file using NetXMLParser, then writes the
+        parsed map into OpenDRIVE xodr format. Each Tactics2D Lane becomes an
+        OpenDRIVE road. The lane centre-line is derived from left and right boundaries
+        and fitted to a paramPoly3 geometry per segment for compact, accurate output.
+        Lane width is estimated as the mean point-to-point distance between boundaries.
 
-    Example:
-```python
-        from tactics2d.map.converter import Net2XodrConverter
+        Example:
+    ```python
+            from tactics2d.map.converter import Net2XodrConverter
 
-        converter = Net2XodrConverter()
-        converter.convert("path/to/map.net.xml", "path/to/output.xodr")
-```
+            converter = Net2XodrConverter()
+            converter.convert("path/to/map.net.xml", "path/to/output.xodr")
+    ```
     """
 
     _MAX_SEG_LENGTH = 20.0
@@ -56,8 +55,10 @@ class Net2XodrConverter:
         s_vals = np.linspace(0, 1, n)
         return [
             (
-                (left.interpolate(s, normalized=True).x + right.interpolate(s, normalized=True).x) / 2,
-                (left.interpolate(s, normalized=True).y + right.interpolate(s, normalized=True).y) / 2,
+                (left.interpolate(s, normalized=True).x + right.interpolate(s, normalized=True).x)
+                / 2,
+                (left.interpolate(s, normalized=True).y + right.interpolate(s, normalized=True).y)
+                / 2,
             )
             for s in s_vals
         ]
@@ -77,14 +78,18 @@ class Net2XodrConverter:
         if left is None or right is None:
             return 3.2
         s_vals = np.linspace(0, 1, n)
-        return float(np.mean([
-            left.interpolate(s, normalized=True).distance(
-                right.interpolate(s, normalized=True)
+        return float(
+            np.mean(
+                [
+                    left.interpolate(s, normalized=True).distance(
+                        right.interpolate(s, normalized=True)
+                    )
+                    for s in s_vals
+                ]
             )
-            for s in s_vals
-        ]))
+        )
 
-    def _fit_param_poly3(self, pts: np.ndarray) -> dict:
+    def _fit_param_poly3(self, pts: np.ndarray) -> tuple:
         """Fit a paramPoly3 geometry to a polyline segment in local coordinates.
 
         Transforms the segment to a local frame (origin at start, x-axis along
@@ -95,7 +100,7 @@ class Net2XodrConverter:
             pts (np.ndarray): Polyline points in world coordinates. Shape (N, 2).
 
         Returns:
-            dict: Keys x, y, hdg, length, aU, bU, cU, dU, aV, bV, cV, dV.
+            tuple: (x, y, hdg, length, aU, bU, cU, dU, aV, bV, cV, dV) or None if degenerate.
         """
         x0, y0 = pts[0]
         dx = pts[-1][0] - pts[0][0]
@@ -123,13 +128,20 @@ class Net2XodrConverter:
         coeffs_u = np.polyfit(p, u, 3)[::-1]
         coeffs_v = np.polyfit(p, v, 3)[::-1]
 
-        return {
-            "x":   x0, "y":   y0, "hdg": hdg, "length": total,
-            "aU":  coeffs_u[0], "bU": coeffs_u[1],
-            "cU":  coeffs_u[2], "dU": coeffs_u[3],
-            "aV":  coeffs_v[0], "bV": coeffs_v[1],
-            "cV":  coeffs_v[2], "dV": coeffs_v[3],
-        }
+        return (
+            x0,
+            y0,
+            hdg,
+            total,
+            coeffs_u[0],
+            coeffs_u[1],
+            coeffs_u[2],
+            coeffs_u[3],
+            coeffs_v[0],
+            coeffs_v[1],
+            coeffs_v[2],
+            coeffs_v[3],
+        )
 
     def _split_segments(self, pts: list) -> list[np.ndarray]:
         """Split a polyline into segments no longer than _MAX_SEG_LENGTH.
@@ -160,7 +172,7 @@ class Net2XodrConverter:
             if len(seg) < 2:
                 idx0 = np.searchsorted(cum, s0)
                 idx1 = np.searchsorted(cum, s1)
-                seg = arr[max(0, idx0): min(len(arr), idx1 + 1)]
+                seg = arr[max(0, idx0) : min(len(arr), idx1 + 1)]
             if len(seg) >= 2:
                 segments.append(seg)
 
@@ -169,35 +181,45 @@ class Net2XodrConverter:
     def convert(self, input_path: str, output_path: str) -> str:
         """Convert a SUMO net.xml file to an OpenDRIVE xodr file.
 
-        Reads the SUMO network file with NetXMLParser, maps the resulting
-        Tactics2D Map to OpenDRIVE elements, and writes the output file.
-        Each Tactics2D Lane becomes an OpenDRIVE road with a single driving
-        lane. Centre-lines are fitted to paramPoly3 geometries for accuracy.
-        Junctions and connections are preserved.
+                Reads the SUMO network file with NetXMLParser, maps the resulting
+                Tactics2D Map to OpenDRIVE elements, and writes the output file.
+                Each Tactics2D Lane becomes an OpenDRIVE road with a single driving
+                lane. Centre-lines are fitted to paramPoly3 geometries for accuracy.
+                Junctions and connections are preserved.
 
-        Args:
-            input_path (str): Path to the input .net.xml file.
-            output_path (str): Path to the output .xodr file.
+                Args:
+                    input_path (str): Path to the input .net.xml file.
+                    output_path (str): Path to the output .xodr file.
 
-        Returns:
-            str: The output file path.
+                Returns:
+                    str: The output file path.
 
-        Example:
-```python
-            from tactics2d.map.converter import Net2XodrConverter
+                Example:
+        ```python
+                    from tactics2d.map.converter import Net2XodrConverter
 
-            converter = Net2XodrConverter()
-            converter.convert("map.net.xml", "map.xodr")
-```
+                    converter = Net2XodrConverter()
+                    converter.convert("map.net.xml", "map.xodr")
+        ```
         """
         map_ = NetXMLParser().parse(input_path)
         root = ET.Element("OpenDRIVE")
 
-        ET.SubElement(root, "header", {
-            "revMajor": "1", "revMinor": "6",
-            "name": "", "version": "1.00", "date": "",
-            "north": "0", "south": "0", "east": "0", "west": "0",
-        })
+        ET.SubElement(
+            root,
+            "header",
+            {
+                "revMajor": "1",
+                "revMinor": "6",
+                "name": "",
+                "version": "1.00",
+                "date": "",
+                "north": "0",
+                "south": "0",
+                "east": "0",
+                "west": "0",
+            },
+        )
 
         for lane_id, lane in map_.lanes.items():
             pts = self._get_centerline(lane)
@@ -209,18 +231,19 @@ class Net2XodrConverter:
             sumo_id = (lane.custom_tags or {}).get("sumo_id", str(lane_id))
             total_length = float(LineString(pts).length)
 
-            road = ET.SubElement(root, "road", {
-                "name":     sumo_id,
-                "length":   f"{total_length:.4f}",
-                "id":       str(lane_id),
-                "junction": "-1",
-            })
+            road = ET.SubElement(
+                root,
+                "road",
+                {
+                    "name": sumo_id,
+                    "length": f"{total_length:.4f}",
+                    "id": str(lane_id),
+                    "junction": "-1",
+                },
+            )
 
-            ET.SubElement(road, "type", {
-                "s":    "0.0",
-                "type": "town",
-            })
-            
+            ET.SubElement(road, "type", {"s": "0.0", "type": "town"})
+
             plan_view = ET.SubElement(road, "planView")
             segments = self._split_segments(pts)
             s_offset = 0.0
@@ -229,17 +252,25 @@ class Net2XodrConverter:
                 fit = self._fit_param_poly3(seg)
                 if fit is None:
                     continue
-                geom = ET.SubElement(plan_view, "geometry", {
-                    "s":      f"{s_offset:.4f}",
-                    "x":      f"{fit['x']:.4f}",
-                    "y":      f"{fit['y']:.4f}",
-                    "hdg":    f"{fit['hdg']:.6f}",
-                    "length": f"{fit['length']:.4f}",
-                })
+                x, y, hdg, length, aU, bU, cU, dU, aV, bV, cV, dV = fit
+                geom = ET.SubElement(
+                    plan_view,
+                    "geometry",
+                    {
+                        "s": f"{s_offset:.4f}",
+                        "x": f"{x:.4f}",
+                        "y": f"{y:.4f}",
+                        "hdg": f"{hdg:.6f}",
+                        "length": f"{length:.4f}",
+                    },
+                )
                 pp3 = ET.SubElement(geom, "paramPoly3", {"pRange": "normalized"})
-                for k in ("aU", "bU", "cU", "dU", "aV", "bV", "cV", "dV"):
-                    pp3.set(k, f"{fit[k]:.6f}")
-                s_offset += fit["length"]
+                for k, v in zip(
+                    ("aU", "bU", "cU", "dU", "aV", "bV", "cV", "dV"),
+                    (aU, bU, cU, dU, aV, bV, cV, dV),
+                ):
+                    pp3.set(k, f"{v:.6f}")
+                s_offset += length
 
             ET.SubElement(road, "elevationProfile")
             ET.SubElement(road, "lateralProfile")
@@ -249,38 +280,49 @@ class Net2XodrConverter:
             ET.SubElement(lane_section, "left")
 
             center = ET.SubElement(lane_section, "center")
-            center_lane = ET.SubElement(center, "lane", {
-                "id": "0", "type": "none", "level": "false",
-            })
-            ET.SubElement(center_lane, "roadMark", {
-                "sOffset": "0", "type": "solid", "weight": "standard",
-                "color": "standard", "width": "0.13",
-            })
+            center_lane = ET.SubElement(
+                center, "lane", {"id": "0", "type": "none", "level": "false"}
+            )
+            ET.SubElement(
+                center_lane,
+                "roadMark",
+                {
+                    "sOffset": "0",
+                    "type": "solid",
+                    "weight": "standard",
+                    "color": "standard",
+                    "width": "0.13",
+                },
+            )
 
             right_elem = ET.SubElement(lane_section, "right")
-            right_lane = ET.SubElement(right_elem, "lane", {
-                "id":    "-1",
-                "type":  lane.subtype if lane.subtype else "driving",
-                "level": "false",
-            })
-            ET.SubElement(right_lane, "width", {
-                "sOffset": "0",
-                "a": f"{width:.4f}", "b": "0", "c": "0", "d": "0",
-            })
-            ET.SubElement(right_lane, "roadMark", {
-                "sOffset": "0", "type": "solid", "weight": "standard",
-                "color": "standard", "width": "0.13",
-            })
-            ET.SubElement(right_lane, "speed", {
-                "sOffset": "0",
-                "max":     f"{speed:.3f}",
-                "unit":    "m/s",
-            })
+            right_lane = ET.SubElement(
+                right_elem,
+                "lane",
+                {"id": "-1", "type": lane.subtype if lane.subtype else "driving", "level": "false"},
+            )
+            ET.SubElement(
+                right_lane,
+                "width",
+                {"sOffset": "0", "a": f"{width:.4f}", "b": "0", "c": "0", "d": "0"},
+            )
+            ET.SubElement(
+                right_lane,
+                "roadMark",
+                {
+                    "sOffset": "0",
+                    "type": "solid",
+                    "weight": "standard",
+                    "color": "standard",
+                    "width": "0.13",
+                },
+            )
+            ET.SubElement(
+                right_lane, "speed", {"sOffset": "0", "max": f"{speed:.3f}", "unit": "m/s"}
+            )
 
         for junc_id, junction in map_.junctions.items():
-            junc_elem = ET.SubElement(root, "junction", {
-                "name": "", "id": str(junc_id),
-            })
+            junc_elem = ET.SubElement(root, "junction", {"name": "", "id": str(junc_id)})
             for conn_id, conn in junction.connections.items():
                 tags = conn.custom_tags or {}
                 from_edge = tags.get("from_edge", "")
@@ -289,20 +331,28 @@ class Net2XodrConverter:
                 to_lane = tags.get("to_lane", "0")
                 if not from_edge or not to_edge:
                     continue
-                conn_elem = ET.SubElement(junc_elem, "connection", {
-                    "id":             str(conn_id),
-                    "incomingRoad":   from_edge,
-                    "connectingRoad": to_edge,
-                    "contactPoint":   "start",
-                })
-                ET.SubElement(conn_elem, "laneLink", {
-                    "from": f"-{from_lane}" if from_lane != "0" else "-1",
-                    "to":   f"-{to_lane}"   if to_lane   != "0" else "-1",
-                })
+                conn_elem = ET.SubElement(
+                    junc_elem,
+                    "connection",
+                    {
+                        "id": str(conn_id),
+                        "incomingRoad": from_edge,
+                        "connectingRoad": to_edge,
+                        "contactPoint": "start",
+                    },
+                )
+                ET.SubElement(
+                    conn_elem,
+                    "laneLink",
+                    {
+                        "from": f"-{from_lane}" if from_lane != "0" else "-1",
+                        "to": f"-{to_lane}" if to_lane != "0" else "-1",
+                    },
+                )
 
-        xml_str = minidom.parseString(
-            ET.tostring(root, encoding="unicode")
-        ).toprettyxml(indent="    ")
+        xml_str = minidom.parseString(ET.tostring(root, encoding="unicode")).toprettyxml(
+            indent="    "
+        )
 
         lines = [line for line in xml_str.splitlines() if line.strip()]
         with open(output_path, "w", encoding="utf-8") as f:
