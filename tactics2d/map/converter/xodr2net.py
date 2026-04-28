@@ -18,16 +18,7 @@ _MIN_LANE_WIDTH = 0.5  # excludes degenerate lanes and narrow boundary elements 
 
 
 class Xodr2NetConverter:
-    """This class implements a converter from OpenDRIVE (.xodr) to SUMO (.net.xml).
-
-    The converter reads an OpenDRIVE file using XODRParser, then writes the
-    parsed map into SUMO net.xml format. Lane centre-lines are derived from
-    the mean of left and right boundary polylines. Lane widths are estimated
-    as the mean point-to-point distance between boundary samples. Non-drivable
-    elements such as virtual boundaries and road markings are filtered out by
-    subtype and minimum width threshold. Connections are resolved using the
-    xodr_road_id stored in each lane's custom_tags, matched against the
-    incoming_road and connecting_road fields of each junction connection.
+    """This class implements a converter from OpenDRIVE (.xodr) to SUMO (.net.xml). The converter reads an OpenDRIVE file using XODRParser, then writes the parsed map into SUMO net.xml format. Lane centre-lines are derived from the mean of left and right boundary polylines. Lane widths are estimated as the mean point-to-point distance between boundary samples. Non-drivable elements such as virtual boundaries and road markings are filtered out by subtype and minimum width threshold. Connections are resolved using the xodr_road_id stored in each lane's custom_tags, matched against the incoming_road and connecting_road fields of each junction connection.
 
     Example:
         >>> from tactics2d.map.converter import Xodr2NetConverter
