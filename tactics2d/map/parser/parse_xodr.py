@@ -185,6 +185,18 @@ def _sanitise_linestring(pts: np.ndarray, dedup_tolerance: float = 0.02) -> np.n
     if len(pts) < 2:
         return pts
 
+    if len(pts) >= 3:
+        vecs = np.diff(pts, axis=0)
+        norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+        norms = np.where(norms < 1e-12, 1.0, norms)
+        vecs = vecs / norms
+        dots = np.sum(vecs[:-1] * vecs[1:], axis=1)
+        keep = np.concatenate([[True], dots > -0.5, [True]])
+        pts = pts[keep]
+
+    if len(pts) < 2:
+        return pts
+
     ls = LineString(pts)
     if not ls.is_valid:
         fixed = make_valid(ls)
@@ -192,8 +204,6 @@ def _sanitise_linestring(pts: np.ndarray, dedup_tolerance: float = 0.02) -> np.n
             pts = np.array(fixed.coords, dtype=np.float64)
         elif fixed.geom_type == "MultiLineString":
             longest = max(fixed.geoms, key=lambda g: g.length)
-            # Accept the repair only when the longest component retains at
-            # least 80% of the original length; otherwise keep the original.
             if longest.length >= 0.8 * ls.length:
                 pts = np.array(longest.coords, dtype=np.float64)
 
@@ -608,6 +618,7 @@ class XODRParser:
         inner_pts = _build_offset_polyline(ref_pts, ref_s, ref_normals, inner_t)
         outer_pts = _build_offset_polyline(ref_pts, ref_s, ref_normals, outer_t)
 
+        inner_pts = _sanitise_linestring(inner_pts)
         outer_pts = _sanitise_linestring(outer_pts)
         if len(outer_pts) < 2:
             outer_pts = _build_offset_polyline(ref_pts, ref_s, ref_normals, outer_t)

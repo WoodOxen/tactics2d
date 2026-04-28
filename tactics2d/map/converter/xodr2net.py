@@ -35,13 +35,12 @@ class Xodr2NetConverter:
         >>> converter.convert("path/to/map.xodr", "path/to/output.net.xml")
     """
 
-    def _boundary_to_centerline(self, left: LineString, right: LineString, n: int = 50) -> list:
+    def _boundary_to_centerline(self, left: LineString, right: LineString) -> list:
         """Derive a centre-line from left and right lane boundaries.
 
         Args:
             left (LineString): Left boundary of the lane.
             right (LineString): Right boundary of the lane.
-            n (int): Number of sample points. Defaults to 50.
 
         Returns:
             list: List of (x, y) tuples representing the centre-line.
@@ -49,6 +48,13 @@ class Xodr2NetConverter:
         """
         if min(left.length, right.length) < 1e-6:
             return []
+
+        if left.hausdorff_distance(right) > left.reverse().hausdorff_distance(right):
+            left = left.reverse()
+        if right.hausdorff_distance(left) > right.reverse().hausdorff_distance(left):
+            right = right.reverse()
+
+        n = max(2, int(min(left.length, right.length) / 0.5))
         s_vals = np.linspace(0, 1, n)
         return [
             (
