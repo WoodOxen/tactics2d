@@ -218,23 +218,76 @@ def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
 
 
 @pytest.mark.dataset_parser
-@pytest.mark.parametrize("scenario_id", [(None), (0), (10), ("637f20cafde22ff8"), ("not_exist")])
-def test_womd_parser(scenario_id):
+@pytest.mark.parametrize(
+    "file_name, scenario_id, expected_classes, expected_areas, expected_regs",
+    [
+        (
+            "uncompressed_scenario_training_training.tfrecord-00001-of-01000",
+            "610c7fcfe8e7eb4d",
+            {"Vehicle": 44, "Pedestrian": 42, "Cyclist": 21},
+            {"crosswalk": 6, "drivable_area": 10},
+            {"traffic_light": 11},
+        ),
+        (
+            "uncompressed_scenario_validation_interactive_validation_interactive.tfrecord-00000-of-00150",
+            "234dfbe99b740c80",
+            {"Vehicle": 52, "Pedestrian": 2, "Cyclist": 1},
+            {"crosswalk": 32, "speed_bump": 18, "drivable_area": 36},
+            {"stop_sign": 10, "traffic_light": 6},
+        ),
+    ],
+)
+def test_womd_parser_official_shards(
+    file_name: str, scenario_id: str, expected_classes: dict, expected_areas: dict, expected_regs: dict
+):
     folder_path = "./tactics2d/data/trajectory_sample/WOMD"
-    file_name = "motion_data_one_scenario.tfrecord"
+    full_path = os.path.join(folder_path, file_name)
+    if not os.path.isfile(full_path):
+        pytest.skip(f"Official WOMD shard not found: {full_path}")
 
     dataset_parser = WOMDParser()
 
     t1 = time.time()
-    participants, _ = dataset_parser.parse_trajectory(
+    participants, actual_time_range = dataset_parser.parse_trajectory(
         scenario_id, file=file_name, folder=folder_path
     )
     t2 = time.time()
-    _ = dataset_parser.parse_map(scenario_id, file=file_name, folder=folder_path)
+    map_ = dataset_parser.parse_map(scenario_id, file=file_name, folder=folder_path)
     t3 = time.time()
-    assert len(participants) == 83
-    logging.info(f"The time needed to parse trajectories in a WOMD scenario: {t2 - t1}s")
-    logging.info(f"The time needed to parse the map for a WOMD scenario: {t3 - t2}s")
+
+    class_counts = {}
+    for participant in participants.values():
+        class_name = type(participant).__name__
+        class_counts[class_name] = class_counts.get(class_name, 0) + 1
+
+    area_counts = {}
+    for area in map_.areas.values():
+        area_counts[area.subtype] = area_counts.get(area.subtype, 0) + 1
+
+    reg_counts = {}
+    for regulation in map_.regulations.values():
+        reg_counts[regulation.subtype] = reg_counts.get(regulation.subtype, 0) + 1
+
+    assert participants
+    assert actual_time_range[0] == 0
+    assert actual_time_range[1] >= 8990
+    assert class_counts == expected_classes
+    assert area_counts == expected_areas
+    assert reg_counts == expected_regs
+    assert len(map_.lanes) > 0
+    assert len(map_.roadlines) > 0
+    dynamic_lights = [reg for reg in map_.regulations.values() if reg.subtype == "traffic_light"]
+    assert all(reg.dynamic for reg in dynamic_lights)
+    assert all(reg.custom_tags and "states" in reg.custom_tags for reg in dynamic_lights)
+    assert all(len(reg.custom_tags["states"]) > 0 for reg in dynamic_lights)
+    assert all("centerline" in lane.custom_tags for lane in map_.lanes.values())
+    assert all(lane.left_side is not None and len(lane.left_side.coords) >= 2 for lane in map_.lanes.values())
+    assert all(
+        lane.right_side is not None and len(lane.right_side.coords) >= 2 for lane in map_.lanes.values()
+    )
+
+    logging.info(f"The time needed to parse official WOMD shard trajectories: {t2 - t1}s")
+    logging.info(f"The time needed to parse official WOMD shard map: {t3 - t2}s")
 
 
 @pytest.mark.dataset_parser
