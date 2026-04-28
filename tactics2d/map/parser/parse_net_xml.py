@@ -8,6 +8,7 @@ import os
 
 import defusedxml.ElementTree as ET
 from shapely.geometry import LineString, MultiPoint
+from shapely.validation import make_valid
 
 # Connection is a nested class of Junction; it is not exported separately.
 from tactics2d.map.element import Junction, Lane, Map, RoadLine
@@ -133,6 +134,26 @@ class NetXMLParser:
 
         if left_geom is None or right_geom is None:
             return None, None, None
+
+        if not left_geom.is_valid:
+            left_geom = make_valid(left_geom)
+            if left_geom.geom_type == "MultiLineString":
+                left_geom = max(left_geom.geoms, key=lambda g: g.length)
+
+        if not right_geom.is_valid:
+            right_geom = make_valid(right_geom)
+            if right_geom.geom_type == "MultiLineString":
+                right_geom = max(right_geom.geoms, key=lambda g: g.length)
+
+        if left_geom.hausdorff_distance(right_geom) > left_geom.reverse().hausdorff_distance(
+            right_geom
+        ):
+            left_geom = left_geom.reverse()
+
+        if right_geom.hausdorff_distance(left_geom) > right_geom.reverse().hausdorff_distance(
+            left_geom
+        ):
+            right_geom = right_geom.reverse()
 
         left_id = self._next_id()
         right_id = self._next_id()

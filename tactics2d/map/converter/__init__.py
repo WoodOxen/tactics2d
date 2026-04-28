@@ -3,7 +3,7 @@
 
 """Map format converter module."""
 
-
 from .net2xodr import Net2XodrConverter
+from .xodr2net import Xodr2NetConverter
 
-__all__ = ["Net2XodrConverter"]
+__all__ = ["Net2XodrConverter", "Xodr2NetConverter"]

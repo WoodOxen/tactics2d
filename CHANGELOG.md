@@ -8,6 +8,13 @@
 - Added native SUMO `.net.xml` map parser (`NetXMLParser`) with junction geometry parsing, connection attachment, and junction shape auto-completion via convex hull.
 - Merged `Connection` class into `Junction` by flattening its properties directly into `Junction` with default values.
 - Added `Net2XodrConverter` for converting SUMO `.net.xml` maps to OpenDRIVE `.xodr` format.
+- Added `Xodr2NetConverter` for converting OpenDRIVE `.xodr` maps to SUMO `.net.xml` format.
+
+### Fixed
+
+- Fixed lane boundary direction misalignment in `Xodr2NetConverter` and `NetXMLParser` on curved roads.
+- Fixed backtrack points in lane boundary geometry produced by `XODRParser` on tight curves via direction-change filtering in `_sanitise_linestring`.
+- Fixed self-intersecting offset curves in `NetXMLParser` caused by narrow lane offsets on sharp bends.
 
 ## [0.1.9rc3] - 2026-01-29
 
