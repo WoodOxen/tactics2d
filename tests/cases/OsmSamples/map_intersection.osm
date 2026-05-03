@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="lanelet2">
+
+  <node id="1" lat="35.0002" lon="134.9970" version="1"/>
+  <node id="2" lat="35.0002" lon="134.9985" version="1"/>
+  <node id="3" lat="35.0002" lon="135.0000" version="1"/>
+  <node id="4" lat="35.0002" lon="135.0015" version="1"/>
+  <node id="5" lat="35.0002" lon="135.0030" version="1"/>
+
+  <node id="11" lat="35.0000" lon="134.9970" version="1"/>
+  <node id="12" lat="35.0000" lon="134.9985" version="1"/>
+  <node id="13" lat="35.0000" lon="135.0000" version="1"/>
+  <node id="14" lat="35.0000" lon="135.0015" version="1"/>
+  <node id="15" lat="35.0000" lon="135.0030" version="1"/>
+
+  <node id="21" lat="34.9985" lon="135.0002" version="1"/>
+  <node id="22" lat="34.9990" lon="135.0002" version="1"/>
+  <node id="23" lat="34.9995" lon="135.0002" version="1"/>
+  <node id="24" lat="35.0000" lon="135.0002" version="1"/>
+
+  <node id="31" lat="34.9985" lon="135.0000" version="1"/>
+  <node id="32" lat="34.9990" lon="135.0000" version="1"/>
+  <node id="33" lat="34.9995" lon="135.0000" version="1"/>
+  <node id="34" lat="35.0000" lon="135.0000" version="1"/>
+
+  <node id="101" lat="35.0000" lon="134.9999" version="1"/>
+  <node id="102" lat="35.0000" lon="135.0003" version="1"/>
+
+  <node id="201" lat="34.9998" lon="135.0001" version="1">
+    <tag k="type" v="traffic_sign"/>
+    <tag k="subtype" v="de205"/>
+  </node>
+
+  <node id="202" lat="35.0001" lon="134.9972" version="1">
+    <tag k="type" v="traffic_sign"/>
+    <tag k="subtype" v="de274-50"/>
+  </node>
+
+  <way id="1001" version="1">
+    <nd ref="1"/>
+    <nd ref="2"/>
+    <nd ref="3"/>
+    <nd ref="4"/>
+    <nd ref="5"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="solid"/>
+    <tag k="color" v="white"/>
+  </way>
+
+  <way id="1002" version="1">
+    <nd ref="11"/>
+    <nd ref="12"/>
+    <nd ref="13"/>
+    <nd ref="14"/>
+    <nd ref="15"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="solid"/>
+    <tag k="color" v="white"/>
+  </way>
+
+  <way id="1003" version="1">
+    <nd ref="1"/>
+    <nd ref="2"/>
+    <nd ref="3"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="dashed"/>
+    <tag k="color" v="yellow"/>
+  </way>
+
+  <way id="1004" version="1">
+    <nd ref="3"/>
+    <nd ref="4"/>
+    <nd ref="5"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="dashed"/>
+    <tag k="color" v="yellow"/>
+  </way>
+
+  <way id="2001" version="1">
+    <nd ref="21"/>
+    <nd ref="22"/>
+    <nd ref="23"/>
+    <nd ref="24"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="solid"/>
+    <tag k="color" v="white"/>
+  </way>
+
+  <way id="2002" version="1">
+    <nd ref="31"/>
+    <nd ref="32"/>
+    <nd ref="33"/>
+    <nd ref="34"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="solid"/>
+    <tag k="color" v="white"/>
+  </way>
+
+  <way id="3001" version="1">
+    <nd ref="101"/>
+    <nd ref="102"/>
+    <tag k="type" v="stop_line"/>
+  </way>
+
+  <way id="1011" version="1">
+    <nd ref="1"/>
+    <nd ref="2"/>
+    <nd ref="3"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="solid"/>
+    <tag k="color" v="white"/>
+  </way>
+
+  <way id="1012" version="1">
+    <nd ref="3"/>
+    <nd ref="4"/>
+    <nd ref="5"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="solid"/>
+    <tag k="color" v="white"/>
+  </way>
+
+  <way id="1013" version="1">
+    <nd ref="11"/>
+    <nd ref="12"/>
+    <nd ref="13"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="solid"/>
+    <tag k="color" v="white"/>
+  </way>
+
+  <way id="1014" version="1">
+    <nd ref="13"/>
+    <nd ref="14"/>
+    <nd ref="15"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="solid"/>
+    <tag k="color" v="white"/>
+  </way>
+
+  <way id="1021" version="1">
+    <nd ref="3"/>
+    <nd ref="2"/>
+    <nd ref="1"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="solid"/>
+    <tag k="color" v="white"/>
+  </way>
+
+  <way id="1022" version="1">
+    <nd ref="5"/>
+    <nd ref="4"/>
+    <nd ref="3"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="solid"/>
+    <tag k="color" v="white"/>
+  </way>
+
+  <way id="1023" version="1">
+    <nd ref="13"/>
+    <nd ref="12"/>
+    <nd ref="11"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="solid"/>
+    <tag k="color" v="white"/>
+  </way>
+
+  <way id="1024" version="1">
+    <nd ref="15"/>
+    <nd ref="14"/>
+    <nd ref="13"/>
+    <tag k="type" v="line_thin"/>
+    <tag k="subtype" v="solid"/>
+    <tag k="color" v="white"/>
+  </way>
+
+  <relation id="10001" version="1">
+    <member type="way" ref="1001" role="left"/>
+    <member type="way" ref="1002" role="right"/>
+    <tag k="type" v="lanelet"/>
+    <tag k="subtype" v="road"/>
+    <tag k="speed_limit" v="50"/>
+    <tag k="one_way" v="yes"/>
+    <tag k="location" v="urban"/>
+    <tag k="participant:vehicle" v="yes"/>
+  </relation>
+
+  <relation id="20001" version="1">
+    <member type="way" ref="1011" role="left"/>
+    <member type="way" ref="1013" role="right"/>
+    <tag k="type" v="lanelet"/>
+    <tag k="subtype" v="road"/>
+    <tag k="speed_limit" v="50"/>
+    <tag k="one_way" v="yes"/>
+    <tag k="location" v="urban"/>
+    <tag k="participant:vehicle" v="yes"/>
+  </relation>
+
+  <relation id="20002" version="1">
+    <member type="way" ref="1012" role="left"/>
+    <member type="way" ref="1014" role="right"/>
+    <tag k="type" v="lanelet"/>
+    <tag k="subtype" v="road"/>
+    <tag k="speed_limit" v="50"/>
+    <tag k="one_way" v="yes"/>
+    <tag k="location" v="urban"/>
+    <tag k="participant:vehicle" v="yes"/>
+  </relation>
+
+  <relation id="20003" version="1">
+    <member type="way" ref="1023" role="left"/>
+    <member type="way" ref="1021" role="right"/>
+    <tag k="type" v="lanelet"/>
+    <tag k="subtype" v="road"/>
+    <tag k="speed_limit" v="50"/>
+    <tag k="one_way" v="yes"/>
+    <tag k="location" v="urban"/>
+    <tag k="participant:vehicle" v="yes"/>
+  </relation>
+
+  <relation id="20004" version="1">
+    <member type="way" ref="1024" role="left"/>
+    <member type="way" ref="1022" role="right"/>
+    <tag k="type" v="lanelet"/>
+    <tag k="subtype" v="road"/>
+    <tag k="speed_limit" v="50"/>
+    <tag k="one_way" v="yes"/>
+    <tag k="location" v="urban"/>
+    <tag k="participant:vehicle" v="yes"/>
+  </relation>
+
+  <relation id="20005" version="1">
+    <member type="way" ref="2001" role="left"/>
+    <member type="way" ref="2002" role="right"/>
+    <member type="relation" ref="30002" role="regulatory_element"/>
+    <tag k="type" v="lanelet"/>
+    <tag k="subtype" v="road"/>
+    <tag k="speed_limit" v="30"/>
+    <tag k="one_way" v="yes"/>
+    <tag k="location" v="urban"/>
+    <tag k="participant:vehicle" v="yes"/>
+  </relation>
+
+  <relation id="30001" version="1">
+    <member type="relation" ref="20005" role="yield"/>
+    <member type="relation" ref="20001" role="right_of_way"/>
+    <member type="relation" ref="20002" role="right_of_way"/>
+    <member type="node"     ref="201"   role="refers"/>
+    <member type="way"      ref="3001"  role="ref_line"/>
+    <tag k="type" v="regulatory_element"/>
+    <tag k="subtype" v="right_of_way"/>
+  </relation>
+
+  <relation id="30002" version="1">
+    <member type="relation" ref="20005" role="refers"/>
+    <member type="node"     ref="201"   role="refers"/>
+    <tag k="type" v="regulatory_element"/>
+    <tag k="subtype" v="speed_limit"/>
+    <tag k="speed_limit" v="30"/>
+  </relation>
+
+  <relation id="30003" version="1">
+    <member type="relation" ref="20001" role="refers"/>
+    <member type="relation" ref="20002" role="refers"/>
+    <member type="relation" ref="20003" role="refers"/>
+    <member type="relation" ref="20004" role="refers"/>
+    <member type="node"     ref="202"   role="refers"/>
+    <tag k="type" v="regulatory_element"/>
+    <tag k="subtype" v="speed_limit"/>
+    <tag k="speed_limit" v="50"/>
+  </relation>
+
+</osm>

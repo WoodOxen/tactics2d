@@ -100,7 +100,6 @@ class Net2XodrConverter:
 
         cos_h, sin_h = np.cos(hdg), np.sin(hdg)
 
-        # arc-length parameter
         diffs = np.diff(pts, axis=0)
         seg_lengths = np.linalg.norm(diffs, axis=1)
         total = float(seg_lengths.sum())
@@ -108,14 +107,12 @@ class Net2XodrConverter:
             return None
 
         s_cum = np.concatenate([[0], np.cumsum(seg_lengths)])
-        p = s_cum / total  # normalised [0,1]
+        p = s_cum / total
 
-        # local coordinates
         local = pts - pts[0]
         u = local[:, 0] * cos_h + local[:, 1] * sin_h
         v = -local[:, 0] * sin_h + local[:, 1] * cos_h
 
-        # fit cubic polynomials with constraint at p=0: coeff[0]=0
         coeffs_u = np.polyfit(p, u, 3)[::-1]
         coeffs_v = np.polyfit(p, v, 3)[::-1]
 
@@ -292,7 +289,7 @@ class Net2XodrConverter:
                 },
             )
             ET.SubElement(
-                right_lane, "speed", {"sOffset": "0", "max": f"{speed:.3f}", "unit": "m/s"}
+                right_lane, "speed", {"sOffset": "0", "max": f"{speed * 3.6:.3f}", "unit": "km/h"}
             )
 
         for junc_id, junction in map_.junctions.items():
@@ -327,7 +324,6 @@ class Net2XodrConverter:
         xml_str = minidom.parseString(ET.tostring(root, encoding="unicode")).toprettyxml(
             indent="    "
         )
-
         lines = [line for line in xml_str.splitlines() if line.strip()]
         with open(output_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
