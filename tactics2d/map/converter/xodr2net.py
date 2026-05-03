@@ -14,7 +14,7 @@ from shapely.geometry import LineString
 from tactics2d.map.parser import XODRParser
 
 _SKIP_SUBTYPES = {"roadmark", "virtual", "none"}
-_MIN_LANE_WIDTH = 0.5  # excludes degenerate lanes and narrow boundary elements (e.g. border ~0.34 m); explicit subtype filtering may be added in future
+_MIN_LANE_WIDTH = 0.5
 
 
 class Xodr2NetConverter:
@@ -142,7 +142,6 @@ class Xodr2NetConverter:
             },
         )
 
-        # write edges
         written_lane_ids = set()
         for lane_id, lane in map_.lanes.items():
             if lane.subtype in _SKIP_SUBTYPES:
@@ -158,7 +157,7 @@ class Xodr2NetConverter:
             if len(center) < 2:
                 continue
 
-            speed = (lane.speed_limit / 3.6) if lane.speed_limit else 13.89
+            speed = lane.speed_limit if lane.speed_limit else 50.0 / 3.6
 
             edge = ET.SubElement(root, "edge", {"id": str(lane_id), "priority": "1"})
             ET.SubElement(
@@ -175,7 +174,6 @@ class Xodr2NetConverter:
             )
             written_lane_ids.add(lane_id)
 
-        # build xodr road id -> tactics2d lane id list mapping
         road_to_lanes: dict[str, list] = {}
         for lane_id, lane in map_.lanes.items():
             if lane_id not in written_lane_ids:
@@ -186,7 +184,6 @@ class Xodr2NetConverter:
                 continue
             road_to_lanes.setdefault(rid, []).append(lane_id)
 
-        # write junctions and connections
         for junc_id, junction in map_.junctions.items():
             tags = junction.custom_tags or {}
             ET.SubElement(
@@ -254,7 +251,6 @@ class Xodr2NetConverter:
         xml_str = minidom.parseString(ET.tostring(root, encoding="unicode")).toprettyxml(
             indent="    "
         )
-
         lines = [line for line in xml_str.splitlines() if line.strip()]
         with open(output_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
