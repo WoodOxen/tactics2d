@@ -219,27 +219,47 @@ def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
 
 @pytest.mark.dataset_parser
 @pytest.mark.parametrize(
-    "file_name, scenario_id, expected_classes, expected_areas, expected_regs",
+    "file_name, scenario_id, expected",
     [
         (
             "uncompressed_scenario_training_training.tfrecord-00001-of-01000",
             "610c7fcfe8e7eb4d",
-            {"Vehicle": 44, "Pedestrian": 42, "Cyclist": 21},
-            {"crosswalk": 6, "drivable_area": 10},
-            {"traffic_light": 11},
+            {
+                "time_range": (0, 9000),
+                "classes": {"Vehicle": 44, "Pedestrian": 42, "Cyclist": 21},
+                "areas": {"crosswalk": 6, "drivable_area": 10},
+                "regs": {"traffic_light": 11},
+                "lane_count": 79,
+                "roadline_count": 63,
+            },
         ),
         (
             "uncompressed_scenario_validation_interactive_validation_interactive.tfrecord-00000-of-00150",
             "234dfbe99b740c80",
-            {"Vehicle": 52, "Pedestrian": 2, "Cyclist": 1},
-            {"crosswalk": 32, "speed_bump": 18, "drivable_area": 36},
-            {"stop_sign": 10, "traffic_light": 6},
+            {
+                "time_range": (0, 8997),
+                "classes": {"Vehicle": 52, "Pedestrian": 2, "Cyclist": 1},
+                "areas": {"crosswalk": 32, "speed_bump": 18, "drivable_area": 36},
+                "regs": {"stop_sign": 10, "traffic_light": 6},
+                "lane_count": 664,
+                "roadline_count": 143,
+            },
+        ),
+        (
+            "uncompressed_scenario_validation_validation.tfrecord-00001-of-00150",
+            None,
+            {
+                "time_range": (0, 9002),
+                "classes": {"Vehicle": 202, "Pedestrian": 6},
+                "areas": {"crosswalk": 14, "speed_bump": 7, "drivable_area": 20},
+                "regs": {"stop_sign": 2, "traffic_light": 13},
+                "lane_count": 327,
+                "roadline_count": 111,
+            },
         ),
     ],
 )
-def test_womd_parser_official_shards(
-    file_name: str, scenario_id: str, expected_classes: dict, expected_areas: dict, expected_regs: dict
-):
+def test_womd_parser_official_shards(file_name: str, scenario_id: str, expected: dict):
     folder_path = "./tactics2d/data/trajectory_sample/WOMD"
     full_path = os.path.join(folder_path, file_name)
     if not os.path.isfile(full_path):
@@ -268,26 +288,72 @@ def test_womd_parser_official_shards(
     for regulation in map_.regulations.values():
         reg_counts[regulation.subtype] = reg_counts.get(regulation.subtype, 0) + 1
 
-    assert participants
-    assert actual_time_range[0] == 0
-    assert actual_time_range[1] >= 8990
-    assert class_counts == expected_classes
-    assert area_counts == expected_areas
-    assert reg_counts == expected_regs
-    assert len(map_.lanes) > 0
-    assert len(map_.roadlines) > 0
-    dynamic_lights = [reg for reg in map_.regulations.values() if reg.subtype == "traffic_light"]
-    assert all(reg.dynamic for reg in dynamic_lights)
-    assert all(reg.custom_tags and "states" in reg.custom_tags for reg in dynamic_lights)
-    assert all(len(reg.custom_tags["states"]) > 0 for reg in dynamic_lights)
-    assert all("centerline" in lane.custom_tags for lane in map_.lanes.values())
-    assert all(lane.left_side is not None and len(lane.left_side.coords) >= 2 for lane in map_.lanes.values())
-    assert all(
-        lane.right_side is not None and len(lane.right_side.coords) >= 2 for lane in map_.lanes.values()
-    )
+    actual = {
+        "time_range": actual_time_range,
+        "classes": class_counts,
+        "areas": area_counts,
+        "regs": reg_counts,
+        "lane_count": len(map_.lanes),
+        "roadline_count": len(map_.roadlines),
+    }
+
+    assert actual == expected
 
     logging.info(f"The time needed to parse official WOMD shard trajectories: {t2 - t1}s")
     logging.info(f"The time needed to parse official WOMD shard map: {t3 - t2}s")
+
+
+@pytest.mark.dataset_parser
+@pytest.mark.parametrize(
+    "file_name, scenario_id, expected_light_count",
+    [
+        (
+            "uncompressed_scenario_training_training.tfrecord-00001-of-01000",
+            "610c7fcfe8e7eb4d",
+            11,
+        ),
+        (
+            "uncompressed_scenario_validation_interactive_validation_interactive.tfrecord-00000-of-00150",
+            "234dfbe99b740c80",
+            6,
+        ),
+        (
+            "uncompressed_scenario_validation_validation.tfrecord-00001-of-00150",
+            None,
+            13,
+        ),
+    ],
+)
+def test_womd_dynamic_traffic_lights(file_name: str, scenario_id: str, expected_light_count: int):
+    folder_path = "./tactics2d/data/trajectory_sample/WOMD"
+    full_path = os.path.join(folder_path, file_name)
+    if not os.path.isfile(full_path):
+        pytest.skip(f"Official WOMD shard not found: {full_path}")
+
+    dataset_parser = WOMDParser()
+    map_ = dataset_parser.parse_map(scenario_id, file=file_name, folder=folder_path)
+
+    dynamic_lights = [reg for reg in map_.regulations.values() if reg.subtype == "traffic_light"]
+    lane_centerlines_complete = all("centerline" in lane.custom_tags for lane in map_.lanes.values())
+    lane_boundaries_complete = all(
+        lane.left_side is not None
+        and len(lane.left_side.coords) >= 2
+        and lane.right_side is not None
+        and len(lane.right_side.coords) >= 2
+        for lane in map_.lanes.values()
+    )
+    signal_metadata_complete = all(
+        reg.dynamic
+        and reg.custom_tags
+        and "states" in reg.custom_tags
+        and len(reg.custom_tags["states"]) > 0
+        for reg in dynamic_lights
+    )
+
+    assert len(dynamic_lights) == expected_light_count
+    assert lane_centerlines_complete
+    assert lane_boundaries_complete
+    assert signal_metadata_complete
 
 
 @pytest.mark.dataset_parser

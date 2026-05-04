@@ -8,6 +8,15 @@
 - Added native SUMO `.net.xml` map parser (`NetXMLParser`) with junction geometry parsing, connection attachment, and junction shape auto-completion via convex hull.
 - Merged `Connection` class into `Junction` by flattening its properties directly into `Junction` with default values.
 
+### Changed
+
+- Improved WOMD parser support for official Motion Dataset shards:
+  - reconstruct lane sides from WOMD boundary metadata,
+  - expose driveway polygons as `drivable_area`,
+  - parse dynamic lane signal states as time-indexed `traffic_light` regulations,
+  - harden map parsing against single-point road-edge features,
+  - add official-shard parser tests and dataset support documentation.
+
 ## [0.1.9rc3] - 2026-01-29
 
 ### Added

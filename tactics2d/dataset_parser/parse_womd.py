@@ -259,8 +259,24 @@ class WOMDParser:
 
         return participants, actual_time_range
 
-    def _unit_left_normals(self, points: np.ndarray) -> np.ndarray:
-        """Return unit left normals for a lane centerline polyline."""
+    def _compute_centerline_left_unit_normals(self, points: np.ndarray) -> np.ndarray:
+        """Compute left-pointing unit normal vectors along a lane centerline.
+
+        The input is treated as an ordered lane centerline polyline. Tangent vectors
+        are estimated from neighbouring samples, normalized, and then rotated by
+        +90 degrees to obtain left-facing unit normals. These normals are later used
+        to reconstruct lane sides from centerline samples and per-side lateral
+        offsets derived from WOMD boundary metadata.
+
+        Args:
+            points (np.ndarray): A polyline of shape ``(N, 2)`` containing centerline
+                points in world coordinates.
+
+        Returns:
+            np.ndarray: An array of shape ``(N, 2)`` containing one left-pointing unit
+            normal vector for each centerline sample. Empty and single-point inputs
+            are handled gracefully.
+        """
         pts = np.asarray(points, dtype=np.float64)
         if len(pts) == 0:
             return np.empty((0, 2))
@@ -370,7 +386,7 @@ class WOMDParser:
         left_offsets = self._interpolate_nan_values(left_offsets, left_fill)
         right_offsets = self._interpolate_nan_values(right_offsets, right_fill)
 
-        normals = self._unit_left_normals(centerline)
+        normals = self._compute_centerline_left_unit_normals(centerline)
         left_side = centerline + normals * left_offsets[:, np.newaxis]
         right_side = centerline - normals * right_offsets[:, np.newaxis]
 
@@ -423,7 +439,7 @@ class WOMDParser:
         elif map_feature.HasField("road_line"):
             type_, subtype, color = self._ROADLINE_TYPE_MAPPING[map_feature.road_line.type]
             points = [[point.x, point.y] for point in map_feature.road_line.polyline]
-            if len(points) > 2:
+            if len(points) >= 2:
                 roadline = RoadLine(
                     id_="%05d" % map_feature.id,
                     geometry=LineString(points),
@@ -434,11 +450,12 @@ class WOMDParser:
                 map_.add_roadline(roadline)
 
         elif map_feature.HasField("road_edge"):
+            points = [[point.x, point.y] for point in map_feature.road_edge.polyline]
+            if len(points) < 2:
+                return
             roadline = RoadLine(
                 id_="%05d" % map_feature.id,
-                geometry=LineString(
-                    [[point.x, point.y] for point in map_feature.road_edge.polyline]
-                ),
+                geometry=LineString(points),
                 type_="road_border",
             )
             map_.add_roadline(roadline)

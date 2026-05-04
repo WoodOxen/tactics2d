@@ -188,22 +188,6 @@ The current parser expects the Motion Dataset in scenario-proto format. You can 
 
 The parser extracts tracked participants, lane boundaries, lane relations, road edges, stop signs, crosswalks, speed bumps, driveway polygons, and dynamic lane signal states. In `Tactics2D`, driveway polygons are stored as `drivable_area`, while dynamic lane signal states are exposed as `traffic_light` regulations with time-indexed state sequences in `custom_tags["states"]`.
 
-```python
-from tactics2d.dataset_parser import WOMDParser
-
-parser = WOMDParser()
-file_name = "uncompressed_scenario_validation_interactive_validation_interactive.tfrecord-00000-of-00150"
-folder = "./tactics2d/data/trajectory_sample/WOMD"
-scenario_id = "234dfbe99b740c80"
-
-participants, actual_time_range = parser.parse_trajectory(
-    scenario_id, file=file_name, folder=folder
-)
-map_ = parser.parse_map(scenario_id, file=file_name, folder=folder)
-
-print(len(participants), actual_time_range)
-print(len(map_.lanes), len(map_.areas), len(map_.roadlines), len(map_.regulations))
-print(sorted({type(p).__name__ for p in participants.values()}))
-```
+For a complete walkthrough, please refer to [docs/dataset_support/womd.ipynb](./womd.ipynb), which includes a dataset overview, a sample-based pattern analysis, a `Tactics2D` integration example, and a GIF demo.
 
 ![WOMD_sample](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/womd_sample.gif)
