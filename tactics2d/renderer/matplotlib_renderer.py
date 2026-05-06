@@ -747,6 +747,9 @@ class MatplotlibRenderer:
 
         self.fig.canvas.draw()
         if save_to is not None:
+            dir_name = os.path.dirname(save_to)
+            if dir_name:
+                os.makedirs(dir_name, exist_ok=True)
             self.fig.savefig(save_to, dpi=dpi)
 
         if return_array:

@@ -31,9 +31,13 @@ class NetXMLParser:
         [SUMO Road Networks](https://sumo.dlr.de/docs/Networks/SUMO_Road_Networks.html)
 
     Example:
-        >>> parser = NetXMLParser()
-        >>> map_ = parser.parse("/path/to/map.net.xml")
-        >>> print(len(map_.lanes))
+    ```python
+    from tactics2d.map.parser import NetXMLParser
+
+    parser = NetXMLParser()
+    map_ = parser.parse("/path/to/map.net.xml")
+    print(len(map_.lanes))
+    ```
     """
 
     _LANE_TYPE_DICT: dict = {
@@ -110,12 +114,17 @@ class NetXMLParser:
                 right_line (RoadLine or None): RoadLine for the right boundary.
 
         Example:
-            >>> parser = NetXMLParser()
-            >>> import xml.etree.ElementTree as ET
-            >>> lane_el = ET.fromstring(
+        ```python
+        import xml.etree.ElementTree as ET
+
+        from tactics2d.map.parser import NetXMLParser
+
+        parser = NetXMLParser()
+        lane_el = ET.fromstring(
             ...     '<lane id="E0_0" speed="13.89" shape="0.00,0.00 10.00,0.00"/>'
             ... )
-            >>> lane, left, right = parser._load_lane(lane_el, "highway.primary")
+        lane, left, right = parser._load_lane(lane_el, "highway.primary")
+        ```
         """
         shape_str = lane_node.attrib.get("shape", "")
         if not shape_str:
@@ -192,12 +201,17 @@ class NetXMLParser:
                 and ``shape`` (list of (x, y) tuples).
 
         Example:
-            >>> parser = NetXMLParser()
-            >>> import xml.etree.ElementTree as ET
-            >>> junc_el = ET.fromstring(
+        ```python
+        import xml.etree.ElementTree as ET
+
+        from tactics2d.map.parser import NetXMLParser
+
+        parser = NetXMLParser()
+        junc_el = ET.fromstring(
             ...     '<junction id="J0" x="10.0" y="0.0" type="priority" shape=""/>'
             ... )
-            >>> junction = parser._load_junction(junc_el)
+        junction = parser._load_junction(junc_el)
+        ```
         """
         shape_str = junction_node.attrib.get("shape", "")
         shape_pts = self._parse_shape(shape_str) if shape_str else []
@@ -231,15 +245,16 @@ class NetXMLParser:
                 ``via``, ``dir``, and ``state``.
 
         Example:
-            >>> parser = NetXMLParser()
-            >>> import xml.etree.ElementTree as ET
-            >>> conn_el = ET.fromstring(
+        ```python
+        parser = NetXMLParser()
+        import xml.etree.ElementTree as ET
+        conn_el = ET.fromstring(
             ...     '<connection from="E0" to="E1" fromLane="0" toLane="0"'
             ...     ' via="" dir="s" state="M"/>'
             ... )
-            >>> conn = parser._load_connection(conn_el)
-            >>> conn.custom_tags["dir"]
-            's'
+        conn = parser._load_connection(conn_el)
+        conn.custom_tags["dir"]
+        ```
         """
         return Junction(
             id_=self._next_id(),
@@ -271,10 +286,14 @@ class NetXMLParser:
                 and connections parsed from the SUMO network file.
 
         Example:
-            >>> parser = NetXMLParser()
-            >>> map_ = parser.parse("/path/to/map.net.xml")
-            >>> print(len(map_.lanes))
-            >>> print(len(map_.junctions))
+        ```python
+        from tactics2d.map.parser import NetXMLParser
+
+        parser = NetXMLParser()
+        map_ = parser.parse("/path/to/map.net.xml")
+        print(len(map_.lanes))
+        print(len(map_.junctions))
+        ```
         """
         self._id_counter = 0
 

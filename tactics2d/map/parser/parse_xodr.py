@@ -229,8 +229,12 @@ class XODRParser:
     self-intersections on tight curves.
 
     Example:
-        >>> parser = XODRParser()
-        >>> map_ = parser.parse("path/to/map.xodr")
+    ```python
+    from tactics2d.map.parser import XODRParser
+
+    parser = XODRParser()
+    map_ = parser.parse("path/to/map.xodr")
+    ```
     """
 
     _ROADMARK_SUBTYPE: dict = {
@@ -920,11 +924,16 @@ class XODRParser:
                 each carrying its lane-link list.
 
         Example:
-            >>> parser = XODRParser()
-            >>> import xml.etree.ElementTree as ET
-            >>> tree = ET.parse("path/to/map.xodr")
-            >>> junction_node = tree.getroot().find("junction")
-            >>> junction = parser.load_junction(junction_node)
+        ```python
+        import xml.etree.ElementTree as ET
+
+        from tactics2d.map.parser import XODRParser
+
+        parser = XODRParser()
+        tree = ET.parse("path/to/map.xodr")
+        junction_node = tree.getroot().find("junction")
+        junction = parser.load_junction(junction_node)
+        ```
         """
         junction = Junction(id_=self._next_id())
 
@@ -952,9 +961,13 @@ class XODRParser:
                 and area objects parsed from the OpenDRIVE file.
 
         Example:
-            >>> parser = XODRParser()
-            >>> map_ = parser.parse("path/to/map.xodr")
-            >>> print(len(map_.lanes))
+        ```python
+        from tactics2d.map.parser import XODRParser
+
+        parser = XODRParser()
+        map_ = parser.parse("path/to/map.xodr")
+        print(len(map_.lanes))
+        ```
         """
         xml_root = ET.parse(file_path).getroot()
 

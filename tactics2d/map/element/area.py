@@ -14,7 +14,7 @@ class Area:
     """This class implements the *Area*
 
     !!! quote "Reference"
-        [Lanelet2's description of an area](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md
+        [Lanelet2's description of an area](https://github.com/fzi-forschungszentrum-informatik/Lanelet2/blob/master/lanelet2_core/doc/LaneletPrimitives.md)
 
     Attributes:
         id_ (str): The unique identifier of the area.

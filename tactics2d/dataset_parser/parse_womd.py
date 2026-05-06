@@ -44,11 +44,7 @@ class WOMDParser:
 
     _LANE_TYPE_MAPPING = {0: "road", 1: "highway", 2: "road", 3: "bicycle_lane"}
 
-    _DEFAULT_LANE_WIDTH = {
-        "bicycle_lane": 1.8,
-        "road": 3.6,
-        "highway": 3.8,
-    }
+    _DEFAULT_LANE_WIDTH = {"bicycle_lane": 1.8, "road": 3.6, "highway": 3.8}
 
     _TRAFFIC_SIGNAL_STATE_MAPPING = {
         0: "unknown",
@@ -125,10 +121,7 @@ class WOMDParser:
         return float(heading_0 + ratio * delta)
 
     def _fill_short_invalid_gaps(
-        self,
-        track,
-        timestamps: List[float],
-        max_gap_frames: int,
+        self, track, timestamps: List[float], max_gap_frames: int
     ) -> List[State]:
         """Fill short internal invalid gaps for visualization-friendly continuity.
 
@@ -156,13 +149,15 @@ class WOMDParser:
                 frame = int(round(timestamps[gap_idx] * 1000))
                 filled_states.append(
                     State(
-                    frame=frame,
-                    x=(1 - ratio) * start_state.center_x + ratio * end_state.center_x,
-                    y=(1 - ratio) * start_state.center_y + ratio * end_state.center_y,
-                    heading=self._interpolate_heading(start_state.heading, end_state.heading, ratio),
-                    vx=(1 - ratio) * start_state.velocity_x + ratio * end_state.velocity_x,
-                    vy=(1 - ratio) * start_state.velocity_y + ratio * end_state.velocity_y,
-                )
+                        frame=frame,
+                        x=(1 - ratio) * start_state.center_x + ratio * end_state.center_x,
+                        y=(1 - ratio) * start_state.center_y + ratio * end_state.center_y,
+                        heading=self._interpolate_heading(
+                            start_state.heading, end_state.heading, ratio
+                        ),
+                        vx=(1 - ratio) * start_state.velocity_x + ratio * end_state.velocity_x,
+                        vy=(1 - ratio) * start_state.velocity_y + ratio * end_state.velocity_y,
+                    )
                 )
 
         return filled_states
@@ -214,13 +209,13 @@ class WOMDParser:
                     continue
                 parsed_states.append(
                     State(
-                    frame=int(round(timestamps[i] * 1000)),
-                    x=state_.center_x,
-                    y=state_.center_y,
-                    heading=state_.heading,
-                    vx=state_.velocity_x,
-                    vy=state_.velocity_y,
-                )
+                        frame=int(round(timestamps[i] * 1000)),
+                        x=state_.center_x,
+                        y=state_.center_y,
+                        heading=state_.heading,
+                        vx=state_.velocity_x,
+                        vy=state_.velocity_y,
+                    )
                 )
 
                 width += state_.width
@@ -309,7 +304,9 @@ class WOMDParser:
         values = np.interp(np.arange(len(values)), valid_idx, values[valid_idx])
         return values
 
-    def _estimate_side_offsets(self, boundaries, lane_points: np.ndarray, map_: Map) -> Tuple[np.ndarray, List[str]]:
+    def _estimate_side_offsets(
+        self, boundaries, lane_points: np.ndarray, map_: Map
+    ) -> Tuple[np.ndarray, List[str]]:
         """Estimate lateral offsets from centerline to one lane side.
 
         WOMD stores lane boundaries as segments referenced by lane polyline index ranges.
@@ -354,7 +351,9 @@ class WOMDParser:
         self, lane_feature, lane_subtype: str, map_: Map
     ) -> Tuple[LineString, LineString, dict]:
         """Construct lane sides from the centerline and segmented boundary metadata."""
-        centerline = np.array([[point.x, point.y] for point in lane_feature.polyline], dtype=np.float64)
+        centerline = np.array(
+            [[point.x, point.y] for point in lane_feature.polyline], dtype=np.float64
+        )
         if len(centerline) < 2:
             return None, None, {"left": [], "right": []}
 
@@ -378,9 +377,13 @@ class WOMDParser:
         if not np.any(np.isfinite(right_offsets)) and np.any(np.isfinite(left_offsets)):
             right_offsets = left_offsets.copy()
 
-        left_fill = np.nanmedian(left_offsets) if np.any(np.isfinite(left_offsets)) else default_half_width
+        left_fill = (
+            np.nanmedian(left_offsets) if np.any(np.isfinite(left_offsets)) else default_half_width
+        )
         right_fill = (
-            np.nanmedian(right_offsets) if np.any(np.isfinite(right_offsets)) else default_half_width
+            np.nanmedian(right_offsets)
+            if np.any(np.isfinite(right_offsets))
+            else default_half_width
         )
 
         left_offsets = self._interpolate_nan_values(left_offsets, left_fill)
@@ -454,9 +457,7 @@ class WOMDParser:
             if len(points) < 2:
                 return
             roadline = RoadLine(
-                id_="%05d" % map_feature.id,
-                geometry=LineString(points),
-                type_="road_border",
+                id_="%05d" % map_feature.id, geometry=LineString(points), type_="road_border"
             )
             map_.add_roadline(roadline)
 
@@ -509,10 +510,7 @@ class WOMDParser:
                     subtype="traffic_light",
                     position=stop_point,
                     dynamic=True,
-                    custom_tags={
-                        "states": [],
-                        "lane_id": lane_id,
-                    },
+                    custom_tags={"states": [], "lane_id": lane_id},
                 )
                 map_.add_regulatory(regulation)
             else:
@@ -520,10 +518,7 @@ class WOMDParser:
                 if regulation.position is None and stop_point is not None:
                     regulation.position = stop_point
 
-            state_record = {
-                "time_ms": timestamp_ms,
-                "state": state_name,
-            }
+            state_record = {"time_ms": timestamp_ms, "state": state_name}
             if stop_point is not None:
                 state_record["stop_point"] = [stop_point.x, stop_point.y]
             regulation.custom_tags["states"].append(state_record)

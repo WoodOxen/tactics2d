@@ -21,9 +21,12 @@ class Xodr2NetConverter:
     """This class implements a converter from OpenDRIVE (.xodr) to SUMO (.net.xml). The converter reads an OpenDRIVE file using XODRParser, then writes the parsed map into SUMO net.xml format. Lane centre-lines are derived from the mean of left and right boundary polylines. Lane widths are estimated as the mean point-to-point distance between boundary samples. Non-drivable elements such as virtual boundaries and road markings are filtered out by subtype and minimum width threshold. Connections are resolved using the xodr_road_id stored in each lane's custom_tags, matched against the incoming_road and connecting_road fields of each junction connection.
 
     Example:
-        >>> from tactics2d.map.converter import Xodr2NetConverter
-        >>> converter = Xodr2NetConverter()
-        >>> converter.convert("path/to/map.xodr", "path/to/output.net.xml")
+    ```python
+    from tactics2d.map.converter import Xodr2NetConverter
+
+    converter = Xodr2NetConverter()
+    converter.convert("path/to/map.xodr", "path/to/output.net.xml")
+    ```
     """
 
     def _boundary_to_centerline(self, left: LineString, right: LineString) -> list:
@@ -109,9 +112,12 @@ class Xodr2NetConverter:
             str: The output file path.
 
         Example:
-            >>> from tactics2d.map.converter import Xodr2NetConverter
-            >>> converter = Xodr2NetConverter()
-            >>> converter.convert("map.xodr", "map.net.xml")
+        ```python
+        from tactics2d.map.converter import Xodr2NetConverter
+
+        converter = Xodr2NetConverter()
+        converter.convert("map.xodr", "map.net.xml")
+        ```
         """
         map_ = XODRParser().parse(input_path)
         boundary = map_.boundary

@@ -261,9 +261,6 @@ def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
 )
 def test_womd_parser_official_shards(file_name: str, scenario_id: str, expected: dict):
     folder_path = "./tactics2d/data/trajectory_sample/WOMD"
-    full_path = os.path.join(folder_path, file_name)
-    if not os.path.isfile(full_path):
-        pytest.skip(f"Official WOMD shard not found: {full_path}")
 
     dataset_parser = WOMDParser()
 
@@ -307,34 +304,25 @@ def test_womd_parser_official_shards(file_name: str, scenario_id: str, expected:
 @pytest.mark.parametrize(
     "file_name, scenario_id, expected_light_count",
     [
-        (
-            "uncompressed_scenario_training_training.tfrecord-00001-of-01000",
-            "610c7fcfe8e7eb4d",
-            11,
-        ),
+        ("uncompressed_scenario_training_training.tfrecord-00001-of-01000", "610c7fcfe8e7eb4d", 11),
         (
             "uncompressed_scenario_validation_interactive_validation_interactive.tfrecord-00000-of-00150",
             "234dfbe99b740c80",
             6,
         ),
-        (
-            "uncompressed_scenario_validation_validation.tfrecord-00001-of-00150",
-            None,
-            13,
-        ),
+        ("uncompressed_scenario_validation_validation.tfrecord-00001-of-00150", None, 13),
     ],
 )
 def test_womd_dynamic_traffic_lights(file_name: str, scenario_id: str, expected_light_count: int):
     folder_path = "./tactics2d/data/trajectory_sample/WOMD"
-    full_path = os.path.join(folder_path, file_name)
-    if not os.path.isfile(full_path):
-        pytest.skip(f"Official WOMD shard not found: {full_path}")
 
     dataset_parser = WOMDParser()
     map_ = dataset_parser.parse_map(scenario_id, file=file_name, folder=folder_path)
 
     dynamic_lights = [reg for reg in map_.regulations.values() if reg.subtype == "traffic_light"]
-    lane_centerlines_complete = all("centerline" in lane.custom_tags for lane in map_.lanes.values())
+    lane_centerlines_complete = all(
+        "centerline" in lane.custom_tags for lane in map_.lanes.values()
+    )
     lane_boundaries_complete = all(
         lane.left_side is not None
         and len(lane.left_side.coords) >= 2
@@ -360,9 +348,14 @@ def test_womd_dynamic_traffic_lights(file_name: str, scenario_id: str, expected_
 @pytest.mark.parametrize(
     "scenario_id, folder, map_name, expected",
     [
-        ("6",    "./tactics2d/data/trajectory_sample/DriveInsightD/jp_taito",     "jp_taito.xodr",      13),
-        ("11",   "./tactics2d/data/trajectory_sample/DriveInsightD/cz_zlin",      "cz_zlin.xodr",       None),
-        ("4464", "./tactics2d/data/trajectory_sample/DriveInsightD/us_coldwater", "usa_coldwater.xodr",  None),
+        ("6", "./tactics2d/data/trajectory_sample/DriveInsightD/jp_taito", "jp_taito.xodr", 13),
+        ("11", "./tactics2d/data/trajectory_sample/DriveInsightD/cz_zlin", "cz_zlin.xodr", None),
+        (
+            "4464",
+            "./tactics2d/data/trajectory_sample/DriveInsightD/us_coldwater",
+            "usa_coldwater.xodr",
+            None,
+        ),
     ],
 )
 def test_driveinsightd_parser(scenario_id: str, folder: str, map_name: str, expected):

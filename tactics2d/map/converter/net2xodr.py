@@ -18,9 +18,12 @@ class Net2XodrConverter:
     """This class implements a converter from SUMO (.net.xml) to OpenDRIVE (.xodr). The converter reads a SUMO net.xml file using NetXMLParser, then writes the parsed map into OpenDRIVE xodr format. Each Tactics2D Lane becomes an OpenDRIVE road. The lane centre-line is derived from left and right boundaries and fitted to a paramPoly3 geometry per segment for compact, accurate output. Lane width is estimated as the mean point-to-point distance between boundaries.
 
     Example:
-        >>> from tactics2d.map.converter import Net2XodrConverter
-        >>> converter = Net2XodrConverter()
-        >>> converter.convert("path/to/map.net.xml", "path/to/output.xodr")
+    ```python
+    from tactics2d.map.converter import Net2XodrConverter
+
+    converter = Net2XodrConverter()
+    converter.convert("path/to/map.net.xml", "path/to/output.xodr")
+    ```
     """
 
     _MAX_SEG_LENGTH = 20.0
@@ -173,9 +176,12 @@ class Net2XodrConverter:
             str: The output file path.
 
         Example:
-            >>> from tactics2d.map.converter import Net2XodrConverter
-            >>> converter = Net2XodrConverter()
-            >>> converter.convert("map.net.xml", "map.xodr")
+        ```python
+        from tactics2d.map.converter import Net2XodrConverter
+
+        converter = Net2XodrConverter()
+        converter.convert("map.net.xml", "map.xodr")
+        ```
         """
         map_ = NetXMLParser().parse(input_path)
         root = ET.Element("OpenDRIVE")

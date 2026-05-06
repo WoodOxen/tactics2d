@@ -23,6 +23,7 @@ nav:
     - exiD: "dataset_support/exid.ipynb"
     - uniD: "dataset_support/unid.ipynb"
     - nuPlan: "dataset_support/nuplan.ipynb"
+    - WOMD: "dataset_support/womd.ipynb"
   - Python API:
     - tactics2d.controller: "api/controller.md"
     - tactics2d.dataset_parser: "api/dataset_parser.md"
