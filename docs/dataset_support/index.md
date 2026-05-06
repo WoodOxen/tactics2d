@@ -178,14 +178,16 @@ An insight of NuPlan can be found in [SCP-CN-001/trajectory_dataset_support](htt
 
 NuPlan also has its own visualizing toolkit package at [nuplan-devkit](https://github.com/motional/nuplan-devkit/tree/master). The documentation of the devkit is [here](https://nuplan-devkit.readthedocs.io/_/downloads/en/latest/pdf/).
 
-[TODO]: Fix the error in parser.
-
 ## Waymo Open Dataset v1.2 (WOMD)
 
 Waymo Open Motion Dataset is collected by Waymo from six locations: San Francisco, Phoenix, Mountain View, Los Angeles, Detroit, and Seattle. This dataset has "103,354, 20s 10Hz segments (over 20 million frames)" in v1.2 version, equivalent to approximately 574 hours of rich driving scenarios. Each segment has its own 3D map data.
 
 An insight of WOMD can be found in [SCP-CN-001/trajectory_dataset_support](https://github.com/SCP-CN-001/trajectory_dataset_support/blob/main/trajectory_data_analysis/WOMD.ipynb). For those interested in the complete dataset, please follow this [link](https://waymo.com/open/download/).
 
-[TODO]: In the current map description of WOMD, the lane components are removed. We plan to add a function to detect and construct lanes from the map automatically.
+The current parser expects the Motion Dataset in scenario-proto format. You can either keep the official shard names from `Motion Dataset v1.3.1 -> uncompressed/scenario/{training,validation,validation_interactive}/` or rename one shard to `motion_data_one_scenario.tfrecord` for a compact local sample.
+
+The parser extracts tracked participants, lane boundaries, lane relations, road edges, stop signs, crosswalks, speed bumps, driveway polygons, and dynamic lane signal states. In `Tactics2D`, driveway polygons are stored as `drivable_area`, while dynamic lane signal states are exposed as `traffic_light` regulations with time-indexed state sequences in `custom_tags["states"]`.
+
+For a complete walkthrough, please refer to [docs/dataset_support/womd.ipynb](./womd.ipynb), which includes a dataset overview, a sample-based pattern analysis, a `Tactics2D` integration example, and a GIF demo.
 
 ![WOMD_sample](https://cdn.jsdelivr.net/gh/MotacillaAlba/image-storage@main/img/womd_sample.gif)

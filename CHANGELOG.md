@@ -16,6 +16,15 @@
 - Fixed backtrack points in lane boundary geometry produced by `XODRParser` on tight curves via direction-change filtering in `_sanitise_linestring`.
 - Fixed self-intersecting offset curves in `NetXMLParser` caused by narrow lane offsets on sharp bends.
 
+### Changed
+
+- Improved WOMD parser support for official Motion Dataset shards:
+  - reconstruct lane sides from WOMD boundary metadata,
+  - expose driveway polygons as `drivable_area`,
+  - parse dynamic lane signal states as time-indexed `traffic_light` regulations,
+  - harden map parsing against single-point road-edge features,
+  - add official-shard parser tests and dataset support documentation.
+
 ## [0.1.9rc3] - 2026-01-29
 
 ### Added
