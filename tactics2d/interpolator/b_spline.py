@@ -5,6 +5,7 @@
 
 
 import numpy as np
+
 from cpp_interpolator import BSpline as cpp_BSpline
 
 

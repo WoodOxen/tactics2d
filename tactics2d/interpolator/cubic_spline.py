@@ -8,6 +8,7 @@ from enum import Enum
 from typing import Union
 
 import numpy as np
+
 from cpp_interpolator import CubicSpline as cpp_CubicSpline
 
 

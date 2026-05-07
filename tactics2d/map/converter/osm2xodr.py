@@ -11,6 +11,7 @@ from xml.dom import minidom
 import numpy as np
 from shapely.geometry import LineString
 
+from tactics2d.interpolator.param_poly3 import ParamPoly3, split_polyline
 from tactics2d.map.parser import OSMParser
 
 
@@ -148,73 +149,6 @@ class Osm2XodrConverter:
         d, c, b, a = coeffs
         return (float(a), float(b), float(c), float(d))
 
-    def _fit_param_poly3(self, pts: np.ndarray) -> dict | None:
-        """Fit a paramPoly3 geometry to a polyline segment in local coordinates.
-
-        Args:
-            pts (np.ndarray): Polyline points in world coordinates, shape (N, 2).
-
-        Returns:
-            dict: Geometry parameters, or None if the segment is degenerate.
-        """
-        x0, y0 = pts[0]
-        dx, dy = pts[-1][0] - pts[0][0], pts[-1][1] - pts[0][1]
-        hdg = float(np.arctan2(dy, dx)) if (abs(dx) + abs(dy)) > 1e-9 else 0.0
-        cos_h, sin_h = np.cos(hdg), np.sin(hdg)
-
-        diffs = np.diff(pts, axis=0)
-        seg_lengths = np.linalg.norm(diffs, axis=1)
-        total = float(seg_lengths.sum())
-        if total < 1e-6:
-            return None
-
-        s_cum = np.concatenate([[0], np.cumsum(seg_lengths)])
-        p = s_cum / total
-        local = pts - pts[0]
-        u = local[:, 0] * cos_h + local[:, 1] * sin_h
-        v = -local[:, 0] * sin_h + local[:, 1] * cos_h
-
-        coeffs_u = np.polyfit(p, u, 3)[::-1]
-        coeffs_v = np.polyfit(p, v, 3)[::-1]
-
-        return {
-            "x": x0,
-            "y": y0,
-            "hdg": hdg,
-            "length": total,
-            "aU": coeffs_u[0],
-            "bU": coeffs_u[1],
-            "cU": coeffs_u[2],
-            "dU": coeffs_u[3],
-            "aV": coeffs_v[0],
-            "bV": coeffs_v[1],
-            "cV": coeffs_v[2],
-            "dV": coeffs_v[3],
-        }
-
-    def _split_segments(self, pts: list) -> list[np.ndarray]:
-        arr = np.array(pts)
-        diffs = np.diff(arr, axis=0)
-        lens = np.linalg.norm(diffs, axis=1)
-        cum = np.concatenate([[0], np.cumsum(lens)])
-        total = cum[-1]
-        if total <= self._MAX_SEG_LENGTH:
-            return [arr]
-        n_segs = max(1, int(np.ceil(total / self._MAX_SEG_LENGTH)))
-        breaks = np.linspace(0, total, n_segs + 1)
-        segments = []
-        for i in range(n_segs):
-            s0, s1 = breaks[i], breaks[i + 1]
-            mask = (cum >= s0 - 1e-9) & (cum <= s1 + 1e-9)
-            seg = arr[mask]
-            if len(seg) < 2:
-                idx0 = np.searchsorted(cum, s0)
-                idx1 = np.searchsorted(cum, s1)
-                seg = arr[max(0, idx0) : min(len(arr), idx1 + 1)]
-            if len(seg) >= 2:
-                segments.append(seg)
-        return segments if segments else [arr]
-
     def _roadmark_type(self, lane, map_, side: str) -> str:
         """Derive xodr roadMark type from the RoadLine subtype on the given side.
 
@@ -243,25 +177,28 @@ class Osm2XodrConverter:
     def _write_plan_view(self, road_elem: ET.Element, pts: list) -> None:
         plan_view = ET.SubElement(road_elem, "planView")
         s_offset = 0.0
-        for seg in self._split_segments(pts):
-            fit = self._fit_param_poly3(seg)
+        for seg in split_polyline(pts, self._MAX_SEG_LENGTH):
+            fit = ParamPoly3.fit(seg)
             if fit is None:
                 continue
+            x, y, hdg, length, aU, bU, cU, dU, aV, bV, cV, dV = fit
             geom = ET.SubElement(
                 plan_view,
                 "geometry",
                 {
                     "s": f"{s_offset:.4f}",
-                    "x": f"{fit['x']:.4f}",
-                    "y": f"{fit['y']:.4f}",
-                    "hdg": f"{fit['hdg']:.6f}",
-                    "length": f"{fit['length']:.4f}",
+                    "x": f"{x:.4f}",
+                    "y": f"{y:.4f}",
+                    "hdg": f"{hdg:.6f}",
+                    "length": f"{length:.4f}",
                 },
             )
             pp3 = ET.SubElement(geom, "paramPoly3", {"pRange": "normalized"})
-            for k in ("aU", "bU", "cU", "dU", "aV", "bV", "cV", "dV"):
-                pp3.set(k, f"{fit[k]:.6f}")
-            s_offset += fit["length"]
+            for k, v in zip(
+                ("aU", "bU", "cU", "dU", "aV", "bV", "cV", "dV"), (aU, bU, cU, dU, aV, bV, cV, dV)
+            ):
+                pp3.set(k, f"{v:.6f}")
+            s_offset += length
 
     def _write_lanes(self, road_elem: ET.Element, lane, map_) -> None:
         a, b, c, d = self._width_poly(lane)

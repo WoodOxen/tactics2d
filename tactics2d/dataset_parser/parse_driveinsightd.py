@@ -40,57 +40,57 @@ class DriveInsightDParser:
     """
 
     _TYPE_MAPPING: Dict[str, str] = {
-        "car":        "car",
-        "truck":      "truck",
-        "bus":        "bus",
+        "car": "car",
+        "truck": "truck",
+        "bus": "bus",
         "motorcycle": "motorcycle",
-        "bicycle":    "bicycle",
+        "bicycle": "bicycle",
         "pedestrian": "pedestrian",
-        "other":      "other",
+        "other": "other",
     }
 
     _CLASS_MAPPING = {
-        "car":        Vehicle,
-        "truck":      Vehicle,
-        "bus":        Vehicle,
+        "car": Vehicle,
+        "truck": Vehicle,
+        "bus": Vehicle,
         "motorcycle": Cyclist,
-        "bicycle":    Cyclist,
+        "bicycle": Cyclist,
         "pedestrian": Pedestrian,
-        "other":      Other,
+        "other": Other,
     }
 
     _DEFAULT_DIMENSIONS: Dict[str, Tuple[float, float]] = {
-        "car":        (4.5, 2.0),
-        "truck":      (8.0, 2.5),
-        "bus":        (12.0, 2.5),
+        "car": (4.5, 2.0),
+        "truck": (8.0, 2.5),
+        "bus": (12.0, 2.5),
         "motorcycle": (2.2, 0.8),
-        "bicycle":    (1.8, 0.6),
+        "bicycle": (1.8, 0.6),
         "pedestrian": (0.5, 0.5),
-        "other":      (2.0, 1.0),
+        "other": (2.0, 1.0),
     }
 
     def _extract_entity_info(self, entity: ET.Element) -> dict:
-        vehicle_node    = _find_first(entity, "Vehicle")
+        vehicle_node = _find_first(entity, "Vehicle")
         pedestrian_node = _find_first(entity, "Pedestrian")
 
         if vehicle_node is not None:
             category = vehicle_node.get("vehicleCategory", "car").lower()
-            type_    = category if category in self._TYPE_MAPPING else "car"
+            type_ = category if category in self._TYPE_MAPPING else "car"
             default_l, default_w = self._DEFAULT_DIMENSIONS.get(type_, (4.5, 2.0))
             dim_node = _find_first(vehicle_node, "Dimensions")
-            length   = float(dim_node.get("length", default_l)) if dim_node is not None else default_l
-            width    = float(dim_node.get("width",  default_w)) if dim_node is not None else default_w
+            length = float(dim_node.get("length", default_l)) if dim_node is not None else default_l
+            width = float(dim_node.get("width", default_w)) if dim_node is not None else default_w
         elif pedestrian_node is not None:
-            type_           = "pedestrian"
-            length, width   = self._DEFAULT_DIMENSIONS["pedestrian"]
+            type_ = "pedestrian"
+            length, width = self._DEFAULT_DIMENSIONS["pedestrian"]
         else:
-            type_           = "other"
-            length, width   = self._DEFAULT_DIMENSIONS["other"]
+            type_ = "other"
+            length, width = self._DEFAULT_DIMENSIONS["other"]
 
         return {"type": type_, "length": length, "width": width}
 
     def _make_participant(self, info: dict, id_: str):
-        type_  = self._TYPE_MAPPING.get(info["type"], "other")
+        type_ = self._TYPE_MAPPING.get(info["type"], "other")
         class_ = self._CLASS_MAPPING.get(info["type"], Other)
 
         return class_(
@@ -103,10 +103,10 @@ class DriveInsightDParser:
 
     def _extract_metadata(self, root: ET.Element) -> dict:
         metadata = {
-            "time":          "unknown",
-            "weather":       "unknown",
+            "time": "unknown",
+            "weather": "unknown",
             "precipitation": "none",
-            "friction":      1.0,
+            "friction": 1.0,
         }
 
         env_node = _find_first(root, "Environment")
@@ -131,10 +131,7 @@ class DriveInsightDParser:
         return metadata
 
     def parse_trajectory(
-        self,
-        file:        Union[int, str],
-        folder:      str,
-        stamp_range: Optional[Tuple[float, float]] = None,
+        self, file: Union[int, str], folder: str, stamp_range: Optional[Tuple[float, float]] = None
     ) -> Tuple[dict, Tuple[int, int]]:
         """This function parses trajectories from a DriveInsightD OpenSCENARIO file.
 
@@ -155,10 +152,10 @@ class DriveInsightDParser:
                 is the end time. The unit of time stamp is millisecond (ms).
         """
         t_min = stamp_range[0] if stamp_range is not None else -np.inf
-        t_max = stamp_range[1] if stamp_range is not None else  np.inf
+        t_max = stamp_range[1] if stamp_range is not None else np.inf
 
         scenario_id = str(file)
-        xosc_path   = Path(folder) / f"{scenario_id}_scenario.xosc"
+        xosc_path = Path(folder) / f"{scenario_id}_scenario.xosc"
 
         if not xosc_path.exists():
             raise FileNotFoundError(f"Cannot find scenario file: {xosc_path}")
@@ -173,7 +170,7 @@ class DriveInsightDParser:
             info = self._extract_entity_info(entity)
             participants[name] = self._make_participant(info, name)
 
-        actual_t_min =  np.inf
+        actual_t_min = np.inf
         actual_t_max = -np.inf
 
         for mg in _find_all(root, "ManeuverGroup"):
@@ -203,14 +200,14 @@ class DriveInsightDParser:
                     x=float(pos.get("x", 0.0)),
                     y=float(pos.get("y", 0.0)),
                     heading=float(pos.get("h", 0.0)),
-                    vx=0.0, vy=0.0, ax=0.0, ay=0.0,
+                    vx=0.0,
+                    vy=0.0,
+                    ax=0.0,
+                    ay=0.0,
                 )
                 participants[name].trajectory.add_state(state)
 
-        participants = {
-            k: v for k, v in participants.items()
-            if len(v.trajectory.frames) > 0
-        }
+        participants = {k: v for k, v in participants.items() if len(v.trajectory.frames) > 0}
 
         if actual_t_min == np.inf:
             logging.warning("No trajectory data found in scenario %s.", scenario_id)
@@ -218,12 +215,7 @@ class DriveInsightDParser:
 
         return participants, (int(actual_t_min), int(actual_t_max))
 
-    def parse(
-        self,
-        scenario_id: str,
-        folder:      str,
-        map_name:    str = "cz_zlin.xodr",
-    ) -> dict:
+    def parse(self, scenario_id: str, folder: str, map_name: str = "cz_zlin.xodr") -> dict:
         """This function parses a complete DriveInsightD scenario including
         trajectory data, road network, and environment metadata.
 
@@ -251,9 +243,7 @@ class DriveInsightDParser:
             raise FileNotFoundError(f"Cannot find scenario file: {xosc_path}")
 
         root = ET.parse(xosc_path).getroot()
-        participants, time_range = self.parse_trajectory(
-            file=scenario_id, folder=folder
-        )
+        participants, time_range = self.parse_trajectory(file=scenario_id, folder=folder)
         metadata = self._extract_metadata(root)
 
         map_path = base_path / map_name
@@ -263,9 +253,9 @@ class DriveInsightDParser:
         parsed_map = XODRParser().parse(str(map_path))
 
         return {
-            "scenario_id":  scenario_id,
-            "metadata":     metadata,
-            "time_range":   time_range,
-            "map":          parsed_map,
+            "scenario_id": scenario_id,
+            "metadata": metadata,
+            "time_range": time_range,
+            "map": parsed_map,
             "participants": participants,
         }

@@ -20,6 +20,25 @@ from tactics2d.renderer import MatplotlibRenderer
 from tactics2d.sensor import BEVCamera
 from tactics2d.utils.common import get_absolute_path
 
+_MAX_IMG_PX = 8000
+
+
+def _make_resolution(boundary, default_scale=100.0):
+    """Compute an adaptive resolution that stays within safe pixel limits.
+
+    Args:
+        boundary (tuple): (x_min, x_max, y_min, y_max).
+        default_scale (float): Pixels per metre when the map is small enough.
+            Defaults to 100.0.
+
+    Returns:
+        tuple: (width_px, height_px).
+    """
+    w_m = boundary[1] - boundary[0]
+    h_m = boundary[3] - boundary[2]
+    scale = min(default_scale, _MAX_IMG_PX / max(w_m, h_m, 0.01))
+    return (int(w_m * scale), int(h_m * scale))
+
 
 @pytest.mark.map_parser
 def test_osm_parser():
@@ -34,7 +53,7 @@ def test_osm_parser():
     geometry_data, _, _ = camera.update(0, None, None, None, None, position)
 
     matplotlib_renderer = MatplotlibRenderer(
-        resolution=((boundary[1] - boundary[0]) * 100, (boundary[3] - boundary[2]) * 100),
+        resolution=_make_resolution(boundary),
         xlim=(boundary[0], boundary[1]),
         ylim=(boundary[2], boundary[3]),
     )
@@ -79,7 +98,7 @@ def test_lanelet2_parser(map_folder, map_configs):
             geometry_data, _, _ = camera.update(0, None, None, None, None, position)
 
             matplotlib_renderer = MatplotlibRenderer(
-                resolution=((boundary[1] - boundary[0]) * 10, (boundary[3] - boundary[2]) * 10),
+                resolution=_make_resolution(boundary, default_scale=10.0),
                 xlim=(boundary[0], boundary[1]),
                 ylim=(boundary[2], boundary[3]),
             )
@@ -123,7 +142,7 @@ def test_xodr_parser(map_path, img_path):
     geometry_data, _, _ = camera.update(0, None, None, None, None, position)
 
     matplotlib_renderer = MatplotlibRenderer(
-        resolution=((boundary[1] - boundary[0]) * 10, (boundary[3] - boundary[2]) * 10),
+        resolution=_make_resolution(boundary, default_scale=10.0),
         xlim=(boundary[0], boundary[1]),
         ylim=(boundary[2], boundary[3]),
     )
@@ -152,7 +171,7 @@ def test_net_xml_parser(map_path, img_path):
     geometry_data, _, _ = camera.update(0, None, None, None, None, position)
 
     matplotlib_renderer = MatplotlibRenderer(
-        resolution=((boundary[1] - boundary[0]) * 10, (boundary[3] - boundary[2]) * 10),
+        resolution=_make_resolution(boundary, default_scale=10.0),
         xlim=(boundary[0], boundary[1]),
         ylim=(boundary[2], boundary[3]),
     )
