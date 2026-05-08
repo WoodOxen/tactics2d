@@ -37,8 +37,8 @@ nav:
     - tactics2d.traffic: "api/traffic.md"
   - Tutorial:
     - graph_search_demo: "tutorial/graph_search_demo.ipynb"
-    - routing: "tutorial/routing.ipynb"
     - sampling_search_demo: "tutorial/sampling_search_demo.ipynb"
+    - routing: "tutorial/routing.ipynb"
   - Community: "community.md"
   - Publications: "publication.md"
 
