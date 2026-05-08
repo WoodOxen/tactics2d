@@ -5,7 +5,7 @@
 
 import heapq
 import math
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -274,3 +274,140 @@ class AStar:
             callback(state)
 
         return None
+
+    @staticmethod
+    def plan_graph(
+        start_idx: int,
+        target_idx: int,
+        graph: csr_matrix,
+        heuristic_fn: Callable[[int, int], float],
+        max_iter: int = 100000,
+        callback: Optional[Callable[[Dict], None]] = None,
+    ) -> Tuple[List[int], float]:
+        """Find the shortest path on a generic directed weighted graph with A*."""
+        n_nodes = graph.shape[0]
+        if graph.shape[0] != graph.shape[1]:
+            raise ValueError(f"graph must be square, got shape={graph.shape}")
+        if not (0 <= start_idx < n_nodes):
+            raise ValueError(f"start_idx {start_idx} out of bounds [0, {n_nodes})")
+        if not (0 <= target_idx < n_nodes):
+            raise ValueError(f"target_idx {target_idx} out of bounds [0, {n_nodes})")
+
+        if start_idx == target_idx:
+            if callback is not None:
+                callback(
+                    {
+                        "iteration": 0,
+                        "current_idx": start_idx,
+                        "open_set_size": 0,
+                        "g_score_current": 0.0,
+                        "f_score_current": 0.0,
+                        "g_score": np.zeros(n_nodes),
+                        "f_score": np.zeros(n_nodes),
+                        "closed_indices": [],
+                        "came_from": {},
+                        "target_idx": target_idx,
+                        "target_reached": True,
+                        "path_found": True,
+                        "path_indices": [start_idx],
+                    }
+                )
+            return [start_idx], 0.0
+
+        g_score = np.inf * np.ones(n_nodes)
+        f_score = np.inf * np.ones(n_nodes)
+        closed = np.zeros(n_nodes, dtype=bool)
+        came_from: Dict[int, int] = {}
+        g_score[start_idx] = 0.0
+        f_score[start_idx] = heuristic_fn(start_idx, target_idx)
+        open_set = [(f_score[start_idx], start_idx)]
+        iteration = 0
+
+        while open_set and iteration < max_iter:
+            _, current_idx = heapq.heappop(open_set)
+            if closed[current_idx]:
+                iteration += 1
+                continue
+
+            closed[current_idx] = True
+
+            if callback is not None:
+                callback(
+                    {
+                        "iteration": iteration,
+                        "current_idx": current_idx,
+                        "open_set_size": len(open_set),
+                        "g_score_current": g_score[current_idx],
+                        "f_score_current": f_score[current_idx],
+                        "g_score": g_score.copy(),
+                        "f_score": f_score.copy(),
+                        "closed_indices": np.where(closed)[0].tolist(),
+                        "came_from": came_from.copy(),
+                        "target_idx": target_idx,
+                        "target_reached": False,
+                    }
+                )
+
+            if current_idx == target_idx:
+                path = AStar._reconstruct_index_path(came_from, current_idx)
+                if callback is not None:
+                    callback(
+                        {
+                            "iteration": iteration,
+                            "current_idx": current_idx,
+                            "open_set_size": len(open_set),
+                            "g_score_current": g_score[current_idx],
+                            "f_score_current": f_score[current_idx],
+                            "g_score": g_score.copy(),
+                            "f_score": f_score.copy(),
+                            "closed_indices": np.where(closed)[0].tolist(),
+                            "came_from": came_from.copy(),
+                            "target_idx": target_idx,
+                            "target_reached": True,
+                            "path_found": True,
+                            "path_indices": path,
+                        }
+                    )
+                return path, float(g_score[target_idx])
+
+            neighbors = graph[current_idx].nonzero()[1]
+            for neighbor in neighbors:
+                if closed[neighbor]:
+                    continue
+                tentative_g_score = g_score[current_idx] + graph[current_idx, neighbor]
+                if tentative_g_score < g_score[neighbor]:
+                    came_from[neighbor] = current_idx
+                    g_score[neighbor] = tentative_g_score
+                    f_score[neighbor] = tentative_g_score + heuristic_fn(neighbor, target_idx)
+                    heapq.heappush(open_set, (f_score[neighbor], neighbor))
+
+            iteration += 1
+
+        if callback is not None:
+            callback(
+                {
+                    "iteration": iteration,
+                    "current_idx": None,
+                    "open_set_size": len(open_set),
+                    "g_score_current": None,
+                    "f_score_current": None,
+                    "g_score": g_score.copy(),
+                    "f_score": f_score.copy(),
+                    "closed_indices": np.where(closed)[0].tolist(),
+                    "came_from": came_from.copy(),
+                    "target_idx": target_idx,
+                    "target_reached": False,
+                    "path_found": False,
+                }
+            )
+
+        return [], float("inf")
+
+    @staticmethod
+    def _reconstruct_index_path(came_from: Dict[int, int], current_idx: int) -> List[int]:
+        path = [current_idx]
+        while current_idx in came_from:
+            current_idx = came_from[current_idx]
+            path.append(current_idx)
+        path.reverse()
+        return path

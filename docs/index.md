@@ -112,6 +112,12 @@ The following road elements are implemented:
 - Dynamic collision detection
 - Arrival event detection
 
+#### Routing
+
+- Lane-level route planning on parsed map topology
+- Unified `routing` module with reusable graph building, search adaptation, and route containers
+- Notebook demo for end-to-end routing workflow and visualized route output
+
 #### Sensor
 
 - Bird-eye-view (BEV) semantic segmentation RGB image
