@@ -9,12 +9,14 @@
 - Merged `Connection` class into `Junction` by flattening its properties directly into `Junction` with default values.
 - Added `Net2XodrConverter` for converting SUMO `.net.xml` maps to OpenDRIVE `.xodr` format.
 - Added `Xodr2NetConverter` for converting OpenDRIVE `.xodr` maps to SUMO `.net.xml` format.
+- Added lane-level routing module with topology-graph construction, search adapter integration, route containers, and WOMD tutorial notebook.
 
 ### Fixed
 
 - Fixed lane boundary direction misalignment in `Xodr2NetConverter` and `NetXMLParser` on curved roads.
 - Fixed backtrack points in lane boundary geometry produced by `XODRParser` on tight curves via direction-change filtering in `_sanitise_linestring`.
 - Fixed self-intersecting offset curves in `NetXMLParser` caused by narrow lane offsets on sharp bends.
+- Fixed routing tutorial notebook execution flow and route visualization output for WOMD examples.
 
 ### Changed
 
