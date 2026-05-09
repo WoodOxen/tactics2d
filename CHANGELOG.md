@@ -10,6 +10,7 @@
 - Added `Net2XodrConverter` for converting SUMO `.net.xml` maps to OpenDRIVE `.xodr` format.
 - Added `Xodr2NetConverter` for converting OpenDRIVE `.xodr` maps to SUMO `.net.xml` format.
 - Added lane-level routing module with topology-graph construction, search adapter integration, route containers, and WOMD tutorial notebook.
+- Added `Osm2XodrConverter` for converting Lanelet2 `.osm` maps to OpenDRIVE `.xodr` format, with topology-aware predecessor/successor link generation and junction detection.
 
 ### Fixed
 
@@ -26,6 +27,7 @@
   - parse dynamic lane signal states as time-indexed `traffic_light` regulations,
   - harden map parsing against single-point road-edge features,
   - add official-shard parser tests and dataset support documentation.
+- Fixed speed unit handling in `Net2XodrConverter` and `Xodr2NetConverter` to correctly convert between m/s internal storage and km/h xodr output.
 
 ## [0.1.9rc3] - 2026-01-29
 

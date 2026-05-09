@@ -111,6 +111,7 @@ class Junction:
             logging.warning(
                 "Connection %s already exists in junction %s. "
                 "Overwriting the existing connection.",
-                connection.id_, self.id_,
+                connection.id_,
+                self.id_,
             )
         self.connections[connection.id_] = connection

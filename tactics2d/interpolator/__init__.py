@@ -8,8 +8,8 @@ from .b_spline import BSpline
 from .bezier import Bezier
 from .cubic_spline import CubicSpline
 from .dubins import Dubins
+from .param_poly3 import ParamPoly3
 from .reeds_shepp import ReedsShepp
 from .spiral import Spiral
-from .param_poly3 import ParamPoly3
 
 __all__ = ["BSpline", "Bezier", "CubicSpline", "Dubins", "ReedsShepp", "Spiral", "ParamPoly3"]
