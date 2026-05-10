@@ -99,8 +99,12 @@ class Osm2XodrConverter:
     are converted from km/h to m/s.
 
     Example:
-        >>> converter = Osm2XodrConverter()
-        >>> converter.convert("map.osm", "map.xodr")
+    ```python
+    from tactics2d.map.converter import Osm2XodrConverter
+
+    converter = Osm2XodrConverter()
+    converter.convert("map.osm", "map.xodr")
+    ```
     """
 
     _MAX_SEG_LENGTH = 20.0

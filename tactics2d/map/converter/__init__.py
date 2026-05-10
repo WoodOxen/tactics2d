@@ -6,5 +6,6 @@
 from .net2xodr import Net2XodrConverter
 from .osm2xodr import Osm2XodrConverter
 from .xodr2net import Xodr2NetConverter
+from .xodr2osm import Xodr2OsmConverter
 
-__all__ = ["Net2XodrConverter", "Osm2XodrConverter", "Xodr2NetConverter"]
+__all__ = ["Net2XodrConverter", "Osm2XodrConverter", "Xodr2NetConverter", "Xodr2OsmConverter"]

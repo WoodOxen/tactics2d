@@ -12,6 +12,14 @@
 - Added lane-level routing module with topology-graph construction, search adapter integration, route containers, and WOMD tutorial notebook.
 - Added `Osm2XodrConverter` for converting Lanelet2 `.osm` maps to OpenDRIVE `.xodr` format, with topology-aware predecessor/successor link generation and junction detection.
 - Added configurable routing cost presets and custom cost-function injection for lane-level routing, including classic distance/time baselines and source-inspired Lanelet2/Apollo variants.
+- Added `Xodr2OsmConverter` for converting OpenDRIVE `.xodr` maps to Lanelet2-annotated `.osm` format via the `XODRParser` → `Map` → `OsmWriter` pipeline, with roadMark-to-subtype mapping and speed limit regulatory element export.
+- Added `OsmWriter` as a standalone public class in `tactics2d/map/writer/` for writing a Tactics2D `Map` to Lanelet2 OSM XML, with public `write_nodes`, `write_way`, `write_boundary_ways`, `write_lanelet_relation`, and `write_speed_regulatory` methods.
+
+### Changed
+
+- Extracted `OsmWriter` from `Xodr2OsmConverter` into `tactics2d/map/writer/osm_writer.py` as a standalone public class with full Google-style docstrings and type annotations.
+- Refactored `Xodr2OsmConverter` to reuse `XODRParser` and `OsmWriter` via the `Map` intermediate representation, removing the duplicate `_XodrReader` XML parser, the `_LaneGeom` intermediary struct, and the redundant geometry helper functions (`_unit_left_normals`, `_eval_cubic_poly`, `_offset_polyline`).
+- Updated docstring `Example` sections in `Osm2XodrConverter` and `Xodr2OsmConverter` to Google-style Markdown code blocks.
 
 ### Fixed
 
