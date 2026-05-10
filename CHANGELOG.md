@@ -11,6 +11,7 @@
 - Added `Xodr2NetConverter` for converting OpenDRIVE `.xodr` maps to SUMO `.net.xml` format.
 - Added lane-level routing module with topology-graph construction, search adapter integration, route containers, and WOMD tutorial notebook.
 - Added `Osm2XodrConverter` for converting Lanelet2 `.osm` maps to OpenDRIVE `.xodr` format, with topology-aware predecessor/successor link generation and junction detection.
+- Added `Xodr2OsmConverter` for converting OpenDRIVE `.xodr` maps to Lanelet2-annotated `.osm` format, with per-lane geometry reconstruction via cumulative lateral offset, roadMark-to-subtype mapping, and speed limit regulatory element export.
 
 ### Fixed
 
