@@ -13,7 +13,12 @@ sys.path.append("..")
 import pytest
 from shapely.geometry import Point
 
-from tactics2d.map.converter import Net2XodrConverter, Osm2XodrConverter, Xodr2NetConverter
+from tactics2d.map.converter import (
+    Net2XodrConverter,
+    Osm2XodrConverter,
+    Xodr2NetConverter,
+    Xodr2OsmConverter,
+)
 from tactics2d.map.parser import NetXMLParser, OSMParser, XODRParser
 from tactics2d.renderer import MatplotlibRenderer
 from tactics2d.sensor import BEVCamera
@@ -152,6 +157,50 @@ def test_osm2xodr(input_path, output_path, img_path):
     converted = XODRParser().parse(result)
 
     assert len(converted.lanes) > 0, "Converted XODR has no lanes"
+
+    boundary = converted.boundary
+    camera = BEVCamera(1, converted)
+    geometry_data, _, _ = camera.update(0, None, None, None, None, Point(0, 0))
+    renderer = MatplotlibRenderer(
+        resolution=((boundary[1] - boundary[0]) * 10, (boundary[3] - boundary[2]) * 10),
+        xlim=(boundary[0], boundary[1]),
+        ylim=(boundary[2], boundary[3]),
+    )
+    renderer.update(geometry_data)
+    renderer.save_single_frame(save_to=img_path)
+    renderer.destroy()
+
+
+@pytest.mark.map_converter
+@pytest.mark.parametrize(
+    "input_path, output_path, img_path",
+    [
+        (
+            "./tests/cases/XodrSamples/cross.xodr",
+            "./tests/runtime/cross_converted.osm",
+            "./tests/runtime/cross_converted_osm.png",
+        ),
+        (
+            "./tests/cases/XodrSamples/FourWayStop.xodr",
+            "./tests/runtime/FourWayStop_converted.osm",
+            "./tests/runtime/FourWayStop_converted_osm.png",
+        ),
+    ],
+)
+def test_xodr2osm(input_path, output_path, img_path):
+    input_path = get_absolute_path(input_path)
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    converter = Xodr2OsmConverter()
+    result = converter.convert(input_path, output_path)
+
+    assert os.path.isfile(result)
+    assert os.path.getsize(result) > 0
+
+    converted = OSMParser(lanelet2=True).parse(result)
+
+    assert len(converted.lanes) > 0, "Converted OSM has no lanes"
 
     boundary = converted.boundary
     camera = BEVCamera(1, converted)
