@@ -116,6 +116,8 @@ The following road elements are implemented:
 
 - Lane-level route planning on parsed map topology
 - Unified `routing` module with reusable graph building, search adaptation, and route containers
+- Built-in routing cost presets for distance, time, Lanelet2-style relation-aware cost, and Apollo-inspired node/edge cost, all configurable through the unified `Router` interface
+- Custom routing cost function injection for user-defined experiments and downstream navigation logic
 - Notebook demo for end-to-end routing workflow and visualized route output
 
 #### Sensor

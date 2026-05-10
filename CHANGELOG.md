@@ -11,6 +11,7 @@
 - Added `Xodr2NetConverter` for converting OpenDRIVE `.xodr` maps to SUMO `.net.xml` format.
 - Added lane-level routing module with topology-graph construction, search adapter integration, route containers, and WOMD tutorial notebook.
 - Added `Osm2XodrConverter` for converting Lanelet2 `.osm` maps to OpenDRIVE `.xodr` format, with topology-aware predecessor/successor link generation and junction detection.
+- Added configurable routing cost presets and custom cost-function injection for lane-level routing, including classic distance/time baselines and source-inspired Lanelet2/Apollo variants.
 
 ### Fixed
 
@@ -18,6 +19,7 @@
 - Fixed backtrack points in lane boundary geometry produced by `XODRParser` on tight curves via direction-change filtering in `_sanitise_linestring`.
 - Fixed self-intersecting offset curves in `NetXMLParser` caused by narrow lane offsets on sharp bends.
 - Fixed routing tutorial notebook execution flow and route visualization output for WOMD examples.
+- Fixed unified routing cost parameter forwarding so `lane_change_penalty` consistently reaches Lanelet2-style and Apollo-inspired presets through `Router`.
 
 ### Changed
 

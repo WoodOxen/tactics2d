@@ -87,3 +87,57 @@ def test_router_lane_change_penalty_changes_route_choice():
     )
     high_penalty_route = high_penalty_router.plan(map_, start=(0.5, 1.0), goal=(1.0, 49.0))
     assert high_penalty_route.lane_ids == ["A", "B", "E"]
+
+
+def test_router_supports_all_builtin_cost_modes_and_custom_callbacks():
+    map_ = _build_test_map()
+    start = (0.5, 1.0)
+    goal = (1.0, 49.0)
+
+    builtin_modes = [
+        ("distance", {"lane_change_penalty": 4.0}),
+        ("time", {"lane_change_penalty": 4.0}),
+        ("lanelet2_distance", {"lane_change_penalty": 4.0}),
+        ("lanelet2_time", {"lane_change_penalty": 4.0}),
+        ("apollo_inspired", {"lane_change_penalty": 4.0}),
+    ]
+
+    for cost_mode, kwargs in builtin_modes:
+        router = Router(
+            algorithm="dijkstra",
+            include_neighbors=True,
+            cost_mode=cost_mode,
+            **kwargs,
+        )
+        route = router.plan(map_, start=start, goal=goal)
+        assert not route.is_empty
+        assert route.start_lane_id == "A"
+        assert route.goal_lane_id == "E"
+        assert route.total_cost > 0.0
+
+    custom_router = Router(
+        algorithm="dijkstra",
+        include_neighbors=True,
+        cost_mode="distance",
+        cost_fn=lambda _map, _from_lane, _to_lane, relation: 1.0
+        if relation == "successor"
+        else 10.0,
+    )
+    custom_route = custom_router.plan(map_, start=start, goal=goal)
+    assert custom_route.lane_ids == ["A", "B", "E"]
+
+
+def test_router_rejects_unknown_cost_mode():
+    map_ = _build_test_map()
+    router = Router(
+        algorithm="dijkstra",
+        include_neighbors=True,
+        cost_mode="not_a_real_cost_mode",
+    )
+
+    try:
+        router.plan(map_, start=(0.5, 1.0), goal=(1.0, 49.0))
+    except ValueError as exc:
+        assert "Unsupported cost mode" in str(exc)
+    else:
+        raise AssertionError("Router should reject unsupported cost modes.")
