@@ -1,7 +1,7 @@
 ---
 name: Bug report
 about: Report a reproducible problem to help us improve Tactics2D
-title: "Bug: "
+title: "🐛 bug: "
 labels: bug
 assignees: ''
 
@@ -9,6 +9,15 @@ assignees: ''
 
 Please provide enough detail so maintainers can reproduce and debug quickly.
 欢迎使用中文或英文描述问题，并尽量提供可复现信息。
+
+## Title Recommendation / 标题建议
+
+Use a concise title with a gitmoji + prefix style.
+建议使用 gitmoji + 前缀 + 简短摘要的标题风格。
+
+Example:
+
+- `🐛 bug: fix lane boundary parsing in OSM loader`
 
 ## Summary
 

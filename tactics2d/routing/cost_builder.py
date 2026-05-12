@@ -8,7 +8,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from math import sqrt
-from typing import Callable, Dict, Literal, Optional, Type
+from typing import Callable, Literal
 
 from tactics2d.map.element import Lane, Map
 
@@ -16,11 +16,7 @@ from .utils import get_lane_length
 
 RoutingCostFunction = Callable[[Map, Lane, Lane, str], float]
 RoutingCostMode = Literal[
-    "distance",
-    "time",
-    "lanelet2_distance",
-    "lanelet2_time",
-    "apollo_inspired",
+    "distance", "time", "lanelet2_distance", "lanelet2_time", "apollo_inspired"
 ]
 
 _DEFAULT_SPEED_MPS = 13.89
@@ -34,9 +30,7 @@ def _lane_speed_mps(lane: Lane, default_speed_mps: float) -> float:
     return float(speed_limit)
 
 
-def _turn_penalty_from_lane_metadata(
-    lane: Lane, left: float, right: float, uturn: float
-) -> float:
+def _turn_penalty_from_lane_metadata(lane: Lane, left: float, right: float, uturn: float) -> float:
     text = []
     if lane.subtype:
         text.append(str(lane.subtype).lower())
@@ -118,10 +112,7 @@ class AveragedLengthCostBuilder(CostBuilder):
             from_length = get_lane_length(from_lane)
             to_length = get_lane_length(to_lane)
             if relation == "neighbor":
-                if (
-                    self.min_lane_change_length > 0.0
-                    and from_length < self.min_lane_change_length
-                ):
+                if self.min_lane_change_length > 0.0 and from_length < self.min_lane_change_length:
                     return float("inf")
                 return self.lane_change_cost
             return 0.5 * (from_length + to_length)
@@ -147,10 +138,7 @@ class AveragedTravelTimeCostBuilder(CostBuilder):
             del map_
             from_length = get_lane_length(from_lane)
             if relation == "neighbor":
-                if (
-                    self.min_lane_change_length > 0.0
-                    and from_length < self.min_lane_change_length
-                ):
+                if self.min_lane_change_length > 0.0 and from_length < self.min_lane_change_length:
                     return float("inf")
                 return self.lane_change_cost
 
@@ -189,10 +177,7 @@ class NodeEdgeCostBuilder(CostBuilder):
             else:
                 speed_ratio = 1.0
             return lane_length * speed_ratio + _turn_penalty_from_lane_metadata(
-                lane,
-                self.left_turn_penalty,
-                self.right_turn_penalty,
-                self.uturn_penalty,
+                lane, self.left_turn_penalty, self.right_turn_penalty, self.uturn_penalty
             )
 
         def lane_change_multiplier(from_lane: Lane) -> float:
@@ -209,15 +194,13 @@ class NodeEdgeCostBuilder(CostBuilder):
             del map_
             traversal_cost = node_cost(to_lane)
             if relation == "neighbor":
-                return traversal_cost + self.change_penalty * lane_change_multiplier(
-                    from_lane
-                )
+                return traversal_cost + self.change_penalty * lane_change_multiplier(from_lane)
             return traversal_cost
 
         return cost
 
 
-_BUILDER_CLASSES: Dict[str, Type[CostBuilder]] = {
+_BUILDER_CLASSES: dict[str, type[CostBuilder]] = {
     "distance": DistanceCostBuilder,
     "time": TravelTimeCostBuilder,
     "lanelet2_distance": AveragedLengthCostBuilder,
@@ -238,69 +221,10 @@ def build_cost_builder(cost_mode: str = "distance", **kwargs) -> CostBuilder:
 
 
 def build_cost_function(
-    cost_mode: RoutingCostMode = "distance",
-    *,
-    cost_fn: Optional[RoutingCostFunction] = None,
-    **kwargs,
+    cost_mode: RoutingCostMode = "distance", *, cost_fn: RoutingCostFunction | None = None, **kwargs
 ) -> RoutingCostFunction:
     """Resolve a routing cost callback from a built-in mode or custom callable."""
 
     if cost_fn is not None:
         return cost_fn
     return build_cost_builder(cost_mode=cost_mode, **kwargs).build()
-
-
-def build_distance_cost(**kwargs) -> RoutingCostFunction:
-    """Build the classic distance-based routing preset."""
-
-    return DistanceCostBuilder(**kwargs).build()
-
-
-def build_time_cost(**kwargs) -> RoutingCostFunction:
-    """Build the classic travel-time routing preset."""
-
-    return TravelTimeCostBuilder(**kwargs).build()
-
-
-def build_lanelet2_distance_cost(**kwargs) -> RoutingCostFunction:
-    """Build the averaged-length routing preset."""
-
-    return AveragedLengthCostBuilder(**kwargs).build()
-
-
-def build_lanelet2_time_cost(**kwargs) -> RoutingCostFunction:
-    """Build the averaged-travel-time routing preset."""
-
-    return AveragedTravelTimeCostBuilder(**kwargs).build()
-
-
-def build_apollo_inspired_cost(**kwargs) -> RoutingCostFunction:
-    """Build the node/edge routing preset."""
-
-    return NodeEdgeCostBuilder(**kwargs).build()
-
-
-def build_apollo_like_cost(**kwargs) -> RoutingCostFunction:
-    """Backward-compatible alias for :func:`build_apollo_inspired_cost`."""
-
-    return build_apollo_inspired_cost(**kwargs)
-
-
-__all__ = [
-    "RoutingCostFunction",
-    "RoutingCostMode",
-    "CostBuilder",
-    "DistanceCostBuilder",
-    "TravelTimeCostBuilder",
-    "AveragedLengthCostBuilder",
-    "AveragedTravelTimeCostBuilder",
-    "NodeEdgeCostBuilder",
-    "build_cost_builder",
-    "build_cost_function",
-    "build_distance_cost",
-    "build_time_cost",
-    "build_lanelet2_distance_cost",
-    "build_lanelet2_time_cost",
-    "build_apollo_inspired_cost",
-    "build_apollo_like_cost",
-]

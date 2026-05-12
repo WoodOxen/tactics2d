@@ -3,6 +3,11 @@
 
 """Tests for routing cost builders and lane-change filtering."""
 
+import sys
+
+sys.path.append(".")
+sys.path.append("..")
+
 import numpy as np
 from shapely.geometry import LineString
 
@@ -13,11 +18,8 @@ from tactics2d.routing import (
     DistanceCostBuilder,
     NodeEdgeCostBuilder,
     TravelTimeCostBuilder,
-    build_apollo_inspired_cost,
     build_cost_builder,
-    build_distance_cost,
-    build_lanelet2_distance_cost,
-    build_time_cost,
+    build_cost_function,
 )
 from tactics2d.routing.graph_builder import GraphBuilder
 
@@ -41,24 +43,20 @@ def _build_lane(
         right_side=right_side,
         speed_limit=speed_limit,
         speed_limit_unit=speed_limit_unit,
-        custom_tags=custom_tags
-        if custom_tags is not None
-        else {
-            "centerline": np.array(
-                [
-                    [(x_left + x_right) / 2.0, y_start],
-                    [(x_left + x_right) / 2.0, y_end],
-                ]
-            )
-        },
+        custom_tags=(
+            custom_tags
+            if custom_tags is not None
+            else {
+                "centerline": np.array(
+                    [[(x_left + x_right) / 2.0, y_start], [(x_left + x_right) / 2.0, y_end]]
+                )
+            }
+        ),
     )
 
 
 def _build_cost_test_map(
-    *,
-    a_speed_limit: float = 36.0,
-    b_speed_limit: float = 54.0,
-    c_speed_limit: float = 36.0,
+    *, a_speed_limit: float = 36.0, b_speed_limit: float = 54.0, c_speed_limit: float = 36.0
 ) -> Map:
     map_ = Map(name="routing_cost_test_map")
 
@@ -71,10 +69,7 @@ def _build_cost_test_map(
         0.0,
         5.0,
         speed_limit=c_speed_limit,
-        custom_tags={
-            "centerline": np.array([[1.5, 0.0], [1.5, 5.0]]),
-            "turn": "left",
-        },
+        custom_tags={"centerline": np.array([[1.5, 0.0], [1.5, 5.0]]), "turn": "left"},
     )
 
     lane_a.add_related_lane("B", LaneRelationship.SUCCESSOR)
@@ -151,9 +146,7 @@ def _build_lane_change_filtered_map(*, multi_segment: bool = False) -> Map:
 def test_distance_cost_mode_uses_lane_length_and_lane_change_penalty():
     map_ = _build_cost_test_map()
     graph = GraphBuilder(
-        include_neighbors=True,
-        cost_mode="distance",
-        cost_kwargs={"lane_change_penalty": 4.0},
+        include_neighbors=True, cost_mode="distance", cost_kwargs={"lane_change_penalty": 4.0}
     ).build(map_)
 
     a_idx = graph.lane_id_to_index["A"]
@@ -165,15 +158,9 @@ def test_distance_cost_mode_uses_lane_length_and_lane_change_penalty():
 
 
 def test_time_cost_mode_uses_lane_travel_time():
-    map_ = _build_cost_test_map(
-        a_speed_limit=36.0,
-        b_speed_limit=54.0,
-        c_speed_limit=36.0,
-    )
+    map_ = _build_cost_test_map(a_speed_limit=36.0, b_speed_limit=54.0, c_speed_limit=36.0)
     graph = GraphBuilder(
-        include_neighbors=True,
-        cost_mode="time",
-        cost_kwargs={"lane_change_penalty": 4.0},
+        include_neighbors=True, cost_mode="time", cost_kwargs={"lane_change_penalty": 4.0}
     ).build(map_)
 
     a_idx = graph.lane_id_to_index["A"]
@@ -185,20 +172,12 @@ def test_time_cost_mode_uses_lane_travel_time():
 
 
 def test_lanelet2_cost_modes_follow_relation_aware_rules():
-    map_ = _build_cost_test_map(
-        a_speed_limit=36.0,
-        b_speed_limit=54.0,
-        c_speed_limit=36.0,
-    )
+    map_ = _build_cost_test_map(a_speed_limit=36.0, b_speed_limit=54.0, c_speed_limit=36.0)
     distance_graph = GraphBuilder(
-        include_neighbors=True,
-        cost_mode="lanelet2_distance",
-        cost_kwargs={"lane_change_cost": 7.0},
+        include_neighbors=True, cost_mode="lanelet2_distance", cost_kwargs={"lane_change_cost": 7.0}
     ).build(map_)
     time_graph = GraphBuilder(
-        include_neighbors=True,
-        cost_mode="lanelet2_time",
-        cost_kwargs={"lane_change_cost": 7.0},
+        include_neighbors=True, cost_mode="lanelet2_time", cost_kwargs={"lane_change_cost": 7.0}
     ).build(map_)
 
     a_idx = distance_graph.lane_id_to_index["A"]
@@ -212,25 +191,15 @@ def test_lanelet2_cost_modes_follow_relation_aware_rules():
 
 
 def test_router_level_lane_change_penalty_alias_maps_to_builtin_costs():
-    map_ = _build_cost_test_map(
-        a_speed_limit=36.0,
-        b_speed_limit=54.0,
-        c_speed_limit=36.0,
-    )
+    map_ = _build_cost_test_map(a_speed_limit=36.0, b_speed_limit=54.0, c_speed_limit=36.0)
     lanelet2_graph = GraphBuilder(
-        include_neighbors=True,
-        lane_change_penalty=9.0,
-        cost_mode="lanelet2_time",
+        include_neighbors=True, lane_change_penalty=9.0, cost_mode="lanelet2_time"
     ).build(map_)
     apollo_graph = GraphBuilder(
         include_neighbors=True,
         lane_change_penalty=11.0,
         cost_mode="apollo_inspired",
-        cost_kwargs={
-            "base_speed_mps": 10.0,
-            "base_changing_length": 5.0,
-            "left_turn_penalty": 3.0,
-        },
+        cost_kwargs={"base_speed_mps": 10.0, "base_changing_length": 5.0, "left_turn_penalty": 3.0},
     ).build(map_)
 
     a_idx = lanelet2_graph.lane_id_to_index["A"]
@@ -241,11 +210,7 @@ def test_router_level_lane_change_penalty_alias_maps_to_builtin_costs():
 
 
 def test_apollo_inspired_and_custom_costs_can_be_switched():
-    map_ = _build_cost_test_map(
-        a_speed_limit=36.0,
-        b_speed_limit=36.0,
-        c_speed_limit=36.0,
-    )
+    map_ = _build_cost_test_map(a_speed_limit=36.0, b_speed_limit=36.0, c_speed_limit=36.0)
     apollo_graph = GraphBuilder(
         include_neighbors=True,
         cost_mode="apollo_inspired",
@@ -266,9 +231,9 @@ def test_apollo_inspired_and_custom_costs_can_be_switched():
 
     custom_graph = GraphBuilder(
         include_neighbors=True,
-        cost_fn=lambda _map, _from_lane, _to_lane, relation: 42.0
-        if relation == "successor"
-        else 99.0,
+        cost_fn=lambda _map, _from_lane, _to_lane, relation: (
+            42.0 if relation == "successor" else 99.0
+        ),
     ).build(map_)
     assert custom_graph.csr_graph[a_idx, b_idx] == 42.0
     assert custom_graph.csr_graph[a_idx, c_idx] == 99.0
@@ -313,20 +278,37 @@ def test_cost_builder_factory_exposes_mechanism_oriented_builders():
         raise AssertionError("build_cost_builder should reject unsupported modes.")
 
 
-def test_backward_compatible_cost_helpers_still_build_callable_costs():
+def test_build_cost_function_with_different_modes():
     map_ = _build_cost_test_map()
     lane_a = map_.lanes["A"]
     lane_b = map_.lanes["B"]
     lane_c = map_.lanes["C"]
 
-    assert build_distance_cost(lane_change_penalty=4.0)(map_, lane_a, lane_b, "successor") == 30.0
-    assert build_time_cost(lane_change_penalty=4.0)(map_, lane_a, lane_c, "neighbor") == 4.5
-    assert build_lanelet2_distance_cost(lane_change_cost=7.0)(
-        map_, lane_a, lane_c, "neighbor"
-    ) == 7.0
-    assert build_apollo_inspired_cost(
-        base_speed_mps=10.0,
-        change_penalty=11.0,
-        base_changing_length=5.0,
-        left_turn_penalty=3.0,
-    )(map_, lane_a, lane_c, "neighbor") == 19.0
+    assert (
+        build_cost_function(cost_mode="distance", lane_change_penalty=4.0)(
+            map_, lane_a, lane_b, "successor"
+        )
+        == 30.0
+    )
+    assert (
+        build_cost_function(cost_mode="time", lane_change_penalty=4.0)(
+            map_, lane_a, lane_c, "neighbor"
+        )
+        == 4.5
+    )
+    assert (
+        build_cost_function(cost_mode="lanelet2_distance", lane_change_cost=7.0)(
+            map_, lane_a, lane_c, "neighbor"
+        )
+        == 7.0
+    )
+    assert (
+        build_cost_function(
+            cost_mode="apollo_inspired",
+            base_speed_mps=10.0,
+            change_penalty=11.0,
+            base_changing_length=5.0,
+            left_turn_penalty=3.0,
+        )(map_, lane_a, lane_c, "neighbor")
+        == 19.0
+    )

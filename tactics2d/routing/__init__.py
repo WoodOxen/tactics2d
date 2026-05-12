@@ -12,14 +12,8 @@ from .cost_builder import (
     RoutingCostFunction,
     RoutingCostMode,
     TravelTimeCostBuilder,
-    build_apollo_inspired_cost,
-    build_apollo_like_cost,
     build_cost_builder,
     build_cost_function,
-    build_distance_cost,
-    build_lanelet2_distance_cost,
-    build_lanelet2_time_cost,
-    build_time_cost,
 )
 from .route import Route, RouteSegment
 from .router import Router
@@ -37,11 +31,5 @@ __all__ = [
     "AveragedTravelTimeCostBuilder",
     "NodeEdgeCostBuilder",
     "build_cost_builder",
-    "build_apollo_inspired_cost",
-    "build_apollo_like_cost",
     "build_cost_function",
-    "build_distance_cost",
-    "build_lanelet2_distance_cost",
-    "build_lanelet2_time_cost",
-    "build_time_cost",
 ]

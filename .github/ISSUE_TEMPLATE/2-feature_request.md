@@ -1,7 +1,7 @@
 ---
 name: Feature request
 about: Propose a feature or improvement for Tactics2D
-title: "Feat: "
+title: "✨ feat: "
 labels: enhancement
 assignees: ''
 
@@ -9,6 +9,16 @@ assignees: ''
 
 Describe the request clearly so it can be evaluated and implemented efficiently.
 欢迎使用中文或英文描述需求，信息越完整越容易推进。
+
+## Title Recommendation / 标题建议
+
+Use a concise title with a gitmoji + prefix style.
+建议使用 gitmoji + 前缀 + 简短摘要的标题风格。
+
+Examples:
+
+- `✨ feat: add trajectory smoothing option`
+- `📝 docs: clarify installation steps for Linux`
 
 ## Summary
 
