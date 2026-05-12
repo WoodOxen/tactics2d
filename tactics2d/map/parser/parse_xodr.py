@@ -1,9 +1,10 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from __future__ import annotations
+
 import logging
 import xml.etree.ElementTree as ET
-from typing import Union
 
 import numpy as np
 from pyproj import CRS
@@ -509,7 +510,7 @@ class XODRParser:
 
         return info, projector
 
-    def _make_roadline(self, geometry: Union[list, LineString], rm_node: ET.Element) -> RoadLine:
+    def _make_roadline(self, geometry: list | LineString, rm_node: ET.Element) -> RoadLine:
         """Construct a RoadLine from coordinate geometry and a ``<roadMark>`` node.
 
         Args:
