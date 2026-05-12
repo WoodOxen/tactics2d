@@ -43,6 +43,7 @@
   - parse dynamic lane signal states as time-indexed `traffic_light` regulations,
   - harden map parsing against single-point road-edge features,
   - add official-shard parser tests and dataset support documentation.
+- Refactored routing cost presets behind a `CostBuilder` abstraction while preserving the public preset names and custom callback support.
 - Fixed speed unit handling in `Net2XodrConverter` and `Xodr2NetConverter` to correctly convert between m/s internal storage and km/h xodr output.
 
 ## [0.1.9rc3] - 2026-01-29

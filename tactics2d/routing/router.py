@@ -10,7 +10,7 @@ import numpy as np
 from tactics2d.map.element import Map
 
 from .algorithm_adapter import AlgorithmAdapter
-from .cost import RoutingCostFunction
+from .cost_builder import RoutingCostFunction
 from .graph_builder import GraphBuilder
 from .route import Route, RouteSegment
 from .utils import concatenate_centerlines, find_nearest_lane, get_lane_centerline
@@ -32,7 +32,8 @@ class Router:
             ``cost_kwargs``.
         cost_mode: Built-in routing cost preset. Supported modes include
             ``distance``, ``time``, ``lanelet2_distance``,
-            ``lanelet2_time``, and ``apollo_inspired``.
+            ``lanelet2_time``, and ``apollo_inspired``. Their implementation
+            mechanism is provided by concrete ``CostBuilder`` subclasses.
         cost_fn: Optional custom routing cost callback. When provided, it
             overrides ``cost_mode`` and receives
             ``(map_, from_lane, to_lane, relation)``.

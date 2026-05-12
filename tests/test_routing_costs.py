@@ -7,6 +7,18 @@ import numpy as np
 from shapely.geometry import LineString
 
 from tactics2d.map.element import Lane, LaneRelationship, Map, RoadLine
+from tactics2d.routing import (
+    AveragedLengthCostBuilder,
+    CostBuilder,
+    DistanceCostBuilder,
+    NodeEdgeCostBuilder,
+    TravelTimeCostBuilder,
+    build_apollo_inspired_cost,
+    build_cost_builder,
+    build_distance_cost,
+    build_lanelet2_distance_cost,
+    build_time_cost,
+)
 from tactics2d.routing.graph_builder import GraphBuilder
 
 
@@ -284,3 +296,37 @@ def test_multi_segment_boundary_uses_conservative_all_allowed_policy():
 
     assert graph.csr_graph[a_idx, c_idx] > 0.0
     assert graph.csr_graph[a_idx, d_idx] == 0.0
+
+
+def test_cost_builder_factory_exposes_mechanism_oriented_builders():
+    assert isinstance(build_cost_builder("distance"), DistanceCostBuilder)
+    assert isinstance(build_cost_builder("time"), TravelTimeCostBuilder)
+    assert isinstance(build_cost_builder("lanelet2_distance"), AveragedLengthCostBuilder)
+    assert isinstance(build_cost_builder("apollo_inspired"), NodeEdgeCostBuilder)
+    assert issubclass(DistanceCostBuilder, CostBuilder)
+
+    try:
+        build_cost_builder("unsupported_mode")
+    except ValueError as exc:
+        assert "Unsupported cost mode" in str(exc)
+    else:
+        raise AssertionError("build_cost_builder should reject unsupported modes.")
+
+
+def test_backward_compatible_cost_helpers_still_build_callable_costs():
+    map_ = _build_cost_test_map()
+    lane_a = map_.lanes["A"]
+    lane_b = map_.lanes["B"]
+    lane_c = map_.lanes["C"]
+
+    assert build_distance_cost(lane_change_penalty=4.0)(map_, lane_a, lane_b, "successor") == 30.0
+    assert build_time_cost(lane_change_penalty=4.0)(map_, lane_a, lane_c, "neighbor") == 4.5
+    assert build_lanelet2_distance_cost(lane_change_cost=7.0)(
+        map_, lane_a, lane_c, "neighbor"
+    ) == 7.0
+    assert build_apollo_inspired_cost(
+        base_speed_mps=10.0,
+        change_penalty=11.0,
+        base_changing_length=5.0,
+        left_turn_penalty=3.0,
+    )(map_, lane_a, lane_c, "neighbor") == 19.0

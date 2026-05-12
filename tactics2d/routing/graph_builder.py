@@ -11,7 +11,7 @@ from scipy.sparse import csr_matrix, lil_matrix
 
 from tactics2d.map.element import Map
 
-from .cost import RoutingCostFunction, build_cost_function
+from .cost_builder import RoutingCostFunction, build_cost_function
 
 
 @dataclass
