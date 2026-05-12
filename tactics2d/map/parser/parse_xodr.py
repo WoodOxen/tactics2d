@@ -1,9 +1,10 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from __future__ import annotations
+
 import logging
 import xml.etree.ElementTree as ET
-from typing import Union
 
 import numpy as np
 from pyproj import CRS
@@ -53,18 +54,15 @@ def _unit_left_normals(points: np.ndarray) -> np.ndarray:
 def _signed_curvature(points: np.ndarray, s_vals: np.ndarray) -> np.ndarray:
     """Estimate the signed curvature kappa(s) of a polyline at every sample.
 
-    Uses the cross-product formula:
-        kappa = (x' y'' - y' x'') / (x'^2 + y'^2)^(3/2)
-    with central finite differences for both derivatives.
+    Uses the cross-product formula with central finite differences. This is
+    used as a fallback when analytic curvature is not available.
 
     Args:
         points (np.ndarray): Input polyline samples. Shape is (N, 2).
-        s_vals (np.ndarray): Arc-length parameter values corresponding to
-            each point. Shape is (N,).
+        s_vals (np.ndarray): Arc-length parameter values. Shape is (N,).
 
     Returns:
-        np.ndarray: Signed curvature at each sample. Shape is (N,). Positive
-            values indicate left curvature, negative values indicate right curvature.
+        np.ndarray: Signed curvature at each sample. Shape is (N,).
     """
     pts = np.asarray(points, dtype=np.float64)
     s = np.asarray(s_vals, dtype=np.float64)
@@ -93,17 +91,13 @@ def _signed_curvature(points: np.ndarray, s_vals: np.ndarray) -> np.ndarray:
 def _eval_cubic_poly(records: list, s: float, s_key: str = "s") -> float:
     """Evaluate a piecewise cubic polynomial at arc-length s.
 
-    The active record is the one with the largest start value not exceeding s.
-
     Args:
-        records (list): List of dicts each containing keys ``s_key``, ``a``,
-            ``b``, ``c``, and ``d`` defining the polynomial segments.
-        s (float): The arc-length value at which to evaluate the polynomial.
-        s_key (str): The key used for the segment start value in each record.
-            Defaults to ``"s"``.
+        records (list): List of dicts with keys s_key, a, b, c, d.
+        s (float): Arc-length value at which to evaluate.
+        s_key (str): Key for the segment start value. Defaults to "s".
 
     Returns:
-        float: The evaluated polynomial value. Returns 0.0 when records is empty.
+        float: Evaluated polynomial value. Returns 0.0 when records is empty.
     """
     if not records:
         return 0.0
@@ -118,45 +112,50 @@ def _eval_cubic_poly(records: list, s: float, s_key: str = "s") -> float:
 
 
 def _build_offset_polyline(
-    ref_pts: np.ndarray, ref_s: np.ndarray, ref_normals: np.ndarray, t_vals: np.ndarray
+    ref_pts: np.ndarray,
+    ref_s: np.ndarray,
+    ref_normals: np.ndarray,
+    t_vals: np.ndarray,
+    ref_kappa: np.ndarray = None,
 ) -> np.ndarray:
-    """Build an offset polyline at signed lateral distances t_vals from the
-    reference line, with curvature-aware clamping to prevent swallowtail
-    self-intersection.
+    """Build an offset polyline with curvature-aware clamping.
 
-    Every output point satisfies:
-        P_out[i] = P_ref[i] + t_effective[i] * n_ref[i]
+    The offset satisfies P_out = P_ref + t_effective * n_ref, where
+    t_effective is clamped so that the arc-length scaling factor
+    (1 - kappa * t) stays strictly positive, preventing swallowtail
+    self-intersection on tight curves.
 
-    where t_effective[i] = t_vals[i] unless doing so would cross the centre of
-    curvature (i.e. 1 - kappa[i] * t_vals[i] <= 0), in which case the lateral
-    displacement is clamped to 99% of the collapse boundary on the same side.
+    The clamping boundary is derived analytically: setting
+    1 - kappa * t = epsilon gives t_limit = (1 - epsilon) / kappa.
+    A safety margin of epsilon = 0.01 is used (1% of the collapse
+    boundary), which is tight enough to preserve geometry fidelity
+    while guaranteeing no self-intersection.
 
-    Clamping rather than dropping preserves the sample count, keeping the
-    s-parameter correspondence intact for subsequent width accumulation.
+    When ref_kappa is provided (analytic curvature computed directly
+    from geometry coefficients), it is used in preference to the
+    finite-difference estimate from _signed_curvature, eliminating
+    numerical noise at segment boundaries.
 
     Args:
         ref_pts (np.ndarray): Reference-line sample points. Shape is (N, 2).
         ref_s (np.ndarray): Arc-length values along the reference line. Shape is (N,).
-        ref_normals (np.ndarray): Unit left-pointing normals of the reference line.
-            Shape is (N, 2). Must have the same first dimension as ref_pts.
+        ref_normals (np.ndarray): Unit left-pointing normals. Shape is (N, 2).
         t_vals (np.ndarray): Signed lateral offset at each sample. Shape is (N,).
-            Positive values indicate left of the centreline.
+            Positive values are left of the reference line.
+        ref_kappa (np.ndarray, optional): Analytic signed curvature at each
+            sample. Shape is (N,). When provided, skips numerical estimation.
 
     Returns:
         np.ndarray: Offset polyline points in world coordinates. Shape is (N, 2).
     """
-    kappa = _signed_curvature(ref_pts, ref_s)
+    kappa = ref_kappa if ref_kappa is not None else _signed_curvature(ref_pts, ref_s)
     correction = 1.0 - kappa * t_vals
-
     collapsed = correction <= 0.0
+
     if np.any(collapsed):
-        kappa_abs = np.abs(kappa)
-        # np.where evaluates both branches before selecting; suppress the
-        # divide-by-zero that occurs on straight segments (kappa_abs == 0)
-        # before the kappa_abs > 1e-6 mask is applied.
         with np.errstate(divide="ignore", invalid="ignore"):
-            safe_t = np.where(kappa_abs > 1e-6, 0.99 / kappa_abs * np.sign(t_vals), t_vals)
-        t_effective = np.where(collapsed, safe_t, t_vals)
+            t_limit = np.where(np.abs(kappa) > 1e-6, 0.99 / kappa, t_vals)
+        t_effective = np.where(collapsed, t_limit, t_vals)
     else:
         t_effective = t_vals
 
@@ -164,13 +163,11 @@ def _build_offset_polyline(
 
 
 def _sanitise_linestring(pts: np.ndarray, dedup_tolerance: float = 0.02) -> np.ndarray:
-    """Remove near-duplicate consecutive points and repair residual
-    self-intersections via Shapely make_valid.
+    """Remove near-duplicate consecutive points and repair self-intersections.
 
     Args:
         pts (np.ndarray): Input polyline points. Shape is (N, 2).
-        dedup_tolerance (float): Minimum chord length in metres required to
-            retain a consecutive point. Defaults to 0.02.
+        dedup_tolerance (float): Minimum chord length to retain a point.
 
     Returns:
         np.ndarray: Cleaned polyline points. Shape is (M, 2) where M <= N.
@@ -191,7 +188,7 @@ def _sanitise_linestring(pts: np.ndarray, dedup_tolerance: float = 0.02) -> np.n
         norms = np.where(norms < 1e-12, 1.0, norms)
         vecs = vecs / norms
         dots = np.sum(vecs[:-1] * vecs[1:], axis=1)
-        keep = np.concatenate([[True], dots > -0.5, [True]])
+        keep = np.concatenate([[True], dots > 0.0, [True]])
         pts = pts[keep]
 
     if len(pts) < 2:
@@ -222,11 +219,12 @@ class XODRParser:
         P_border(s, t) = P_ref(s) + t * n_ref(s)
 
     where s is the arc-length along the reference line, t is the signed lateral
-    distance, and n_ref(s) is the unit left-pointing normal.  Lane widths are
+    distance, and n_ref(s) is the unit left-pointing normal. Lane widths are
     accumulated outward from the centre lane so that all boundaries share the
-    same s-sample array, preserving the 1-to-1 correspondence required by the
-    width polynomials.  Curvature-aware clamping prevents swallowtail
-    self-intersections on tight curves.
+    same s-sample array. Analytic curvature is computed directly from geometry
+    coefficients (paramPoly3, arc, spiral, poly3) and passed to the offset
+    builder, eliminating the numerical noise introduced by finite-difference
+    curvature estimation on sampled polylines.
 
     Example:
     ```python
@@ -255,14 +253,15 @@ class XODRParser:
         self._id_counter += 1
         return uid
 
-    def _sample_line(self, node: ET.Element) -> list:
+    def _sample_line(self, node: ET.Element) -> tuple[list, list]:
         """Sample a straight-line geometry at 0.1 m intervals.
 
         Args:
             node (ET.Element): A ``<geometry>`` element whose child is ``<line>``.
 
         Returns:
-            list: List of (x, y) world-coordinate tuples sampled along the line.
+            tuple[list, list]: World-coordinate point list and curvature list
+                (all zeros for a straight line).
         """
         x0 = float(node.attrib["x"])
         y0 = float(node.attrib["y"])
@@ -270,20 +269,24 @@ class XODRParser:
         L = float(node.attrib["length"])
 
         if L <= 0.0:
-            return [(x0, y0)]
+            return [(x0, y0)], [0.0]
 
         n = max(2, int(L / 0.1) + 1)
         s_arr = np.linspace(0.0, L, n)
-        return [(x0 + s * np.cos(hdg), y0 + s * np.sin(hdg)) for s in s_arr]
+        pts = [(x0 + s * np.cos(hdg), y0 + s * np.sin(hdg)) for s in s_arr]
+        kappas = [0.0] * len(pts)
+        return pts, kappas
 
-    def _sample_spiral(self, node: ET.Element) -> list:
-        """Sample a Euler spiral (clothoid) geometry using the Spiral integrator.
+    def _sample_spiral(self, node: ET.Element) -> tuple[list, list]:
+        """Sample a Euler spiral geometry using the Spiral integrator.
+
+        Curvature varies linearly from curvStart to curvEnd along the arc.
 
         Args:
             node (ET.Element): A ``<geometry>`` element whose child is ``<spiral>``.
 
         Returns:
-            list: List of (x, y) world-coordinate tuples sampled along the spiral.
+            tuple[list, list]: World-coordinate point list and analytic curvature list.
         """
         x0 = float(node.attrib["x"])
         y0 = float(node.attrib["y"])
@@ -293,23 +296,25 @@ class XODRParser:
         k1 = float(node.find("spiral").attrib["curvEnd"])
 
         if L < 1e-6:
-            return [(x0, y0)]
+            return [(x0, y0)], [k0]
 
         gamma = (k1 - k0) / L
-        pts = Spiral.get_curve(L, [x0, y0], hdg, k0, gamma)
-        return [(x, y) for x, y in pts]
+        pts_arr = Spiral.get_curve(L, [x0, y0], hdg, k0, gamma)
+        pts = [(x, y) for x, y in pts_arr]
+        kappas = np.linspace(k0, k1, len(pts)).tolist()
+        return pts, kappas
 
-    def _sample_arc(self, node: ET.Element) -> list:
+    def _sample_arc(self, node: ET.Element) -> tuple[list, list]:
         """Sample a constant-curvature arc geometry at 0.1 m intervals.
 
-        Falls back to :meth:`_sample_line` when the curvature is negligibly
-        small (``|k| < 1e-9``).
+        Falls back to straight-line sampling when curvature is negligible.
 
         Args:
             node (ET.Element): A ``<geometry>`` element whose child is ``<arc>``.
 
         Returns:
-            list: List of (x, y) world-coordinate tuples sampled along the arc.
+            tuple[list, list]: World-coordinate point list and analytic curvature list
+                (constant value equal to the arc curvature).
         """
         x0 = float(node.attrib["x"])
         y0 = float(node.attrib["y"])
@@ -331,7 +336,7 @@ class XODRParser:
         start_angle = hdg - np.pi / 2.0 * np.sign(k)
         clockwise = k < 0
 
-        pts = Circle.get_arc(
+        pts_arr = Circle.get_arc(
             center_point=center,
             radius=radius,
             delta_angle=arc_angle,
@@ -339,16 +344,22 @@ class XODRParser:
             clockwise=clockwise,
             step_size=0.1,
         )
-        return [(x, y) for x, y in pts.tolist()]
+        pts = [(x, y) for x, y in pts_arr.tolist()]
+        kappas = [k] * len(pts)
+        return pts, kappas
 
-    def _sample_poly3(self, node: ET.Element) -> list:
+    def _sample_poly3(self, node: ET.Element) -> tuple[list, list]:
         """Sample a cubic polynomial geometry (local u/v frame) at 0.1 m intervals.
+
+        Analytic curvature is computed from the polynomial coefficients using
+        the Frenet-Serret formula in the local frame where U is the arc-length
+        parameter (U'=1, U''=0).
 
         Args:
             node (ET.Element): A ``<geometry>`` element whose child is ``<poly3>``.
 
         Returns:
-            list: List of (x, y) world-coordinate tuples sampled along the curve.
+            tuple[list, list]: World-coordinate point list and analytic curvature list.
         """
         x0 = float(node.attrib["x"])
         y0 = float(node.attrib["y"])
@@ -364,17 +375,34 @@ class XODRParser:
         cos_h, sin_h = np.cos(hdg), np.sin(hdg)
         xs = x0 + u * cos_h - v * sin_h
         ys = y0 + u * sin_h + v * cos_h
-        return list(zip(xs.tolist(), ys.tolist()))
+        pts = list(zip(xs.tolist(), ys.tolist()))
 
-    def _sample_param_poly3(self, node: ET.Element) -> list:
-        """Sample a parametric cubic polynomial geometry using the ParamPoly3 integrator.
+        # In local frame: U'=1, U''=0, V'=dv/du, V''=d²v/du²
+        dv = b + 2 * c * u + 3 * d * u**2
+        d2v = 2 * c + 6 * d * u
+        speed_sq = np.maximum(1.0 + dv**2, 1e-12)
+        kappas = (d2v / speed_sq**1.5).tolist()
+        return pts, kappas
+
+    def _sample_param_poly3(self, node: ET.Element) -> tuple[list, list]:
+        """Sample a parametric cubic polynomial geometry.
+
+        Analytic curvature is computed directly from the polynomial
+        coefficients using the Frenet-Serret formula:
+
+            kappa(p) = (U'V'' - V'U'') / (U'² + V'²)^(3/2)
+
+        where U', V' are first derivatives and U'', V'' are second derivatives
+        of the U and V polynomials with respect to the parameter p. This
+        avoids the numerical noise introduced by finite-difference estimation
+        on sampled polylines, especially at segment boundaries.
 
         Args:
             node (ET.Element): A ``<geometry>`` element whose child is
                 ``<paramPoly3>``.
 
         Returns:
-            list: List of (x, y) world-coordinate tuples sampled along the curve.
+            tuple[list, list]: World-coordinate point list and analytic curvature list.
         """
         x0 = float(node.attrib["x"])
         y0 = float(node.attrib["y"])
@@ -384,7 +412,7 @@ class XODRParser:
         p_range = p.attrib.get("pRange", "normalized")
         c = {k: float(p.attrib[k]) for k in ("aU", "bU", "cU", "dU", "aV", "bV", "cV", "dV")}
 
-        pts = ParamPoly3.get_curve(
+        pts_arr = ParamPoly3.get_curve(
             L,
             (x0, y0),
             hdg,
@@ -398,27 +426,52 @@ class XODRParser:
             c["dV"],
             p_range,
         )
-        return [(x, y) for x, y in pts]
+        pts = [(x, y) for x, y in pts_arr]
 
-    def _sample_geometry(self, node: ET.Element) -> list:
-        """Dispatch to the appropriate sampler and remove trailing duplicate."""
+        p_max = L if p_range == "arcLength" else 1.0
+        n = len(pts)
+        p_vals = np.linspace(0.0, p_max, n)
+
+        # Analytic first and second derivatives of U(p) and V(p)
+        dU = c["bU"] + 2 * c["cU"] * p_vals + 3 * c["dU"] * p_vals**2
+        dV = c["bV"] + 2 * c["cV"] * p_vals + 3 * c["dV"] * p_vals**2
+        d2U = 2 * c["cU"] + 6 * c["dU"] * p_vals
+        d2V = 2 * c["cV"] + 6 * c["dV"] * p_vals
+
+        speed_sq = np.maximum(dU**2 + dV**2, 1e-12)
+        # Curvature in local (U, V) frame; rotation to world frame preserves
+        # curvature magnitude and sign.
+        kappas = ((dU * d2V - dV * d2U) / speed_sq**1.5).tolist()
+        return pts, kappas
+
+    def _sample_geometry(self, node: ET.Element) -> tuple[list, list]:
+        """Dispatch to the appropriate sampler and remove trailing duplicate.
+
+        Args:
+            node (ET.Element): A ``<geometry>`` element from ``<planView>``.
+
+        Returns:
+            tuple[list, list]: World-coordinate point list and curvature list.
+                Both lists are empty for unknown geometry types.
+        """
         if node.find("line") is not None:
-            pts = self._sample_line(node)
+            pts, kappas = self._sample_line(node)
         elif node.find("spiral") is not None:
-            pts = self._sample_spiral(node)
+            pts, kappas = self._sample_spiral(node)
         elif node.find("arc") is not None:
-            pts = self._sample_arc(node)
+            pts, kappas = self._sample_arc(node)
         elif node.find("poly3") is not None:
-            pts = self._sample_poly3(node)
+            pts, kappas = self._sample_poly3(node)
         elif node.find("paramPoly3") is not None:
-            pts = self._sample_param_poly3(node)
+            pts, kappas = self._sample_param_poly3(node)
         else:
             logging.warning("Unknown geometry type in planView; skipping.")
-            return []
+            return [], []
 
         if len(pts) >= 2 and pts[-1] == pts[-2]:
             pts.pop()
-        return pts
+            kappas.pop()
+        return pts, kappas
 
     def load_header(self, node: ET.Element) -> tuple:
         """Parse the ``<header>`` element of an OpenDRIVE file.
@@ -457,25 +510,17 @@ class XODRParser:
 
         return info, projector
 
-    def _make_roadline(self, geometry: Union[list, LineString], rm_node: ET.Element) -> RoadLine:
+    def _make_roadline(self, geometry: list | LineString, rm_node: ET.Element) -> RoadLine:
         """Construct a RoadLine from coordinate geometry and a ``<roadMark>`` node.
 
-        Maps OpenDRIVE road-mark type strings to Tactics2D line types and
-        subtypes, resolves colour aliases, and encodes the ``laneChange``
-        attribute as a boolean pair.
-
         Args:
-            geometry (list or LineString): Coordinate sequence for the line,
-                either a list of (x, y) tuples or a Shapely LineString.
+            geometry (list or LineString): Coordinate sequence for the line.
             rm_node (ET.Element or None): The ``<roadMark>`` XML element.
-                When ``None`` a virtual (invisible) line is produced.
 
         Returns:
-            RoadLine: A fully initialised RoadLine object with type, subtype,
-                colour, width, height, lane-change permission, and weight stored
-                in ``custom_tags``.
+            RoadLine: A fully initialised RoadLine object.
         """
-        rm = rm_node  # may be None
+        rm = rm_node
 
         rm_type = rm.attrib.get("type", "none") if rm is not None else "none"
 
@@ -553,41 +598,27 @@ class XODRParser:
         inner_t: np.ndarray,
         inner_line_id: int,
         road_id: str = "",
+        ref_kappa: np.ndarray = None,
     ):
         """Build one lane and its outer boundary from the shared reference line.
-
-        All offset geometry is computed from ref_pts / ref_s / ref_normals,
-        which represent the *road reference line* (not any intermediate lane
-        boundary).  This ensures that:
-          - the s-parameter correspondence is exact across all lane layers,
-          - the width polynomials w(s) are evaluated with the same s as defined
-            in the OpenDRIVE spec (arc-length along the reference line), and
-          - the normal direction does not accumulate drift from layer to layer.
 
         Args:
             lane_node (ET.Element): The ``<lane>`` XML element to parse.
             type_node (ET.Element): The ``<type>`` XML element of the parent road.
             ref_pts (np.ndarray): Reference-line sample points. Shape is (N, 2).
             ref_s (np.ndarray): Arc-length values along the reference line. Shape is (N,).
-            ref_normals (np.ndarray): Unit left-pointing normals of the reference line.
-                Shape is (N, 2).
-            inner_t (np.ndarray): Signed lateral offset of this lane's inner boundary
-                relative to the reference line, including laneOffset and all previously
-                accumulated lane widths. Shape is (N,).
-            inner_line_id (int): The ``id_`` of the RoadLine representing the inner
-                boundary of this lane.
-            road_id (str): The OpenDRIVE road ``id`` attribute this lane belongs to.
-                Stored in ``custom_tags["xodr_road_id"]`` on the resulting Lane so
-                that format converters (e.g. SUMO, Lanelet2 exporters) can
-                unambiguously recover which road each lane originated from.
-                Defaults to empty string.
+            ref_normals (np.ndarray): Unit left-pointing normals. Shape is (N, 2).
+            inner_t (np.ndarray): Signed lateral offset of this lane's inner boundary. Shape is (N,).
+            inner_line_id (int): ID of the RoadLine for the inner boundary.
+            road_id (str): OpenDRIVE road id stored in custom_tags. Defaults to "".
+            ref_kappa (np.ndarray, optional): Analytic curvature at each sample.
+                Shape is (N,). When provided, used directly in offset computation.
 
         Returns:
             tuple:
                 lane (Lane): The constructed Lane object.
                 roadline (RoadLine): The RoadLine for the outer boundary.
                 outer_t (np.ndarray): Cumulative signed offset for the next lane outward.
-                    Shape is (N,).
         """
         sign = np.sign(int(lane_node.attrib["id"]))
         if sign == 0:
@@ -619,13 +650,13 @@ class XODRParser:
 
         outer_t = inner_t + sign * width_at_s
 
-        inner_pts = _build_offset_polyline(ref_pts, ref_s, ref_normals, inner_t)
-        outer_pts = _build_offset_polyline(ref_pts, ref_s, ref_normals, outer_t)
+        inner_pts = _build_offset_polyline(ref_pts, ref_s, ref_normals, inner_t, ref_kappa)
+        outer_pts = _build_offset_polyline(ref_pts, ref_s, ref_normals, outer_t, ref_kappa)
 
         inner_pts = _sanitise_linestring(inner_pts)
         outer_pts = _sanitise_linestring(outer_pts)
         if len(outer_pts) < 2:
-            outer_pts = _build_offset_polyline(ref_pts, ref_s, ref_normals, outer_t)
+            outer_pts = _build_offset_polyline(ref_pts, ref_s, ref_normals, outer_t, ref_kappa)
 
         inner_coords = inner_pts.tolist()
         outer_coords = outer_pts.tolist()
@@ -741,9 +772,10 @@ class XODRParser:
 
         raw_pts: list = []
         raw_s: list = []
+        raw_kappas: list = []
 
         for geom_node in road_node.find("planView").findall("geometry"):
-            new_pts = self._sample_geometry(geom_node)
+            new_pts, new_kappas = self._sample_geometry(geom_node)
             if not new_pts:
                 continue
 
@@ -758,17 +790,21 @@ class XODRParser:
 
             raw_pts.extend(new_pts)
             raw_s.extend(new_s)
+            raw_kappas.extend(new_kappas)
 
         if not raw_pts:
             return lanes, roadlines, objects
 
         pts_arr = np.array(raw_pts, dtype=np.float64)
         s_arr = np.array(raw_s, dtype=np.float64)
+        kappa_arr = np.array(raw_kappas, dtype=np.float64)
 
         dists = np.linalg.norm(np.diff(pts_arr, axis=0), axis=1)
         keep = np.concatenate([[True], dists > 0.02])
         pts_arr = pts_arr[keep]
         s_arr = s_arr[keep]
+        kappa_arr = kappa_arr[keep]
+
         if len(pts_arr) < 2:
             return lanes, roadlines, objects
 
@@ -821,16 +857,11 @@ class XODRParser:
             seg_ref_n = ref_normals[mask]
             seg_lo_t = lane_offset_t[mask]
             seg_center = center_pts[mask]
+            seg_kappa = kappa_arr[mask]
 
             if len(seg_center) < 2:
                 continue
 
-            # center_line is intentionally not added to roadlines. Its id_
-            # serves solely as the inner-boundary anchor (prev_id) for the
-            # first left/right lane of this section. The centre-lane geometry
-            # is emitted as per-roadMark sub-segments in the loop below.
-            # Known limitation: lane_ids referencing center_line.id_ cannot be
-            # resolved via map_.roadlines; consumers must be aware of this.
             center_line = RoadLine(id_=self._next_id(), geometry=LineString(seg_center.tolist()))
 
             center_lane_node = ls_node.find("center").find("lane")
@@ -867,6 +898,7 @@ class XODRParser:
                         cumulative_t,
                         prev_id,
                         road_id=road_id,
+                        ref_kappa=seg_kappa,
                     )
                     lanes.append(lane)
                     roadlines.append(roadline)
@@ -890,6 +922,7 @@ class XODRParser:
                         cumulative_t,
                         prev_id,
                         road_id=road_id,
+                        ref_kappa=seg_kappa,
                     )
                     lanes.append(lane)
                     roadlines.append(roadline)
@@ -920,8 +953,7 @@ class XODRParser:
             junction_node (ET.Element): The ``<junction>`` XML element to parse.
 
         Returns:
-            Junction: A Junction populated with all ``<connection>`` child elements,
-                each carrying its lane-link list.
+            Junction: A Junction populated with all ``<connection>`` child elements.
 
         Example:
         ```python
