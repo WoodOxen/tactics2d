@@ -181,7 +181,7 @@ class NetXMLParser:
             line_ids={"left": [left_id], "right": [right_id]},
             speed_limit=round(speed_ms * 3.6, 3),
             speed_limit_unit="km/h",
-            custom_tags={"sumo_id": lane_sumo_id},
+            custom_tags={"sumo_id": lane_sumo_id, "centerline": shape},
         )
 
         return lane, left_line, right_line

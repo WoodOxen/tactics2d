@@ -13,12 +13,8 @@
 - Added `Osm2XodrConverter` for converting Lanelet2 `.osm` maps to OpenDRIVE `.xodr` format, with topology-aware predecessor/successor link generation and junction detection.
 - Added `Xodr2OsmConverter` for converting OpenDRIVE `.xodr` maps to Lanelet2-annotated `.osm` format via the `XODRParser` → `Map` → `OsmWriter` pipeline, with roadMark-to-subtype mapping and speed limit regulatory element export.
 - Added `OsmWriter` as a standalone public class in `tactics2d/map/writer/` for writing a Tactics2D `Map` to Lanelet2 OSM XML, with public `write_nodes`, `write_way`, `write_boundary_ways`, `write_lanelet_relation`, and `write_speed_regulatory` methods.
-
-### Changed
-
-- Extracted `OsmWriter` from `Xodr2OsmConverter` into `tactics2d/map/writer/osm_writer.py` as a standalone public class with full Google-style docstrings and type annotations.
-- Refactored `Xodr2OsmConverter` to reuse `XODRParser` and `OsmWriter` via the `Map` intermediate representation, removing the duplicate `_XodrReader` XML parser, the `_LaneGeom` intermediary struct, and the redundant geometry helper functions (`_unit_left_normals`, `_eval_cubic_poly`, `_offset_polyline`).
-- Updated docstring `Example` sections in `Osm2XodrConverter` and `Xodr2OsmConverter` to Google-style Markdown code blocks.
+- Added `XodrWriter` as a standalone public class in `tactics2d/map/writer/` for writing a Tactics2D `Map` to OpenDRIVE `.xodr` XML, with topology inference via lane endpoint proximity and lane width fitted as a cubic polynomial over real arc-length.
+- Added `SumoWriter` as a standalone public class in `tactics2d/map/writer/` for writing a Tactics2D `Map` to SUMO `.net.xml` XML, grouping lanes by `sumo_id` edge prefix and supporting lossless centre-line export via `custom_tags["centerline"]`.
 
 ### Fixed
 
@@ -26,9 +22,19 @@
 - Fixed backtrack points in lane boundary geometry produced by `XODRParser` on tight curves via direction-change filtering in `_sanitise_linestring`.
 - Fixed self-intersecting offset curves in `NetXMLParser` caused by narrow lane offsets on sharp bends.
 - Fixed routing tutorial notebook execution flow and route visualization output for WOMD examples.
+- Fixed `XODRParser` offset geometry on curved roads: all `_sample_*` methods now return analytic curvature alongside sampled points (`line` → 0, `arc` → constant, `spiral` → linear, `poly3`/`paramPoly3` → Frenet-Serret formula), eliminating finite-difference estimation noise at segment boundaries that caused offset points to deviate by hundreds of metres on roundabout geometries.
+- Fixed `_build_offset_polyline` curvature-aware clamping: corrected `0.99 / kappa_abs * sign(t)` to `0.99 / kappa`, ensuring the collapse boundary is computed with the correct sign for both left and right offsets.
+- Fixed `XodrWriter._fit_width` width polynomial fitted over normalised `[0, 1]` instead of real arc-length, causing `XODRParser` to evaluate the polynomial far outside its valid domain and produce lane widths of ±700 m on roads longer than ~10 m.
+- Fixed `_sanitise_linestring` direction-change filter threshold from `dots > -0.5` to `dots > 0.0`, retaining all geometrically valid curved segments while still removing U-turn backtrack artefacts.
 
 ### Changed
 
+- Extracted `OsmWriter` from `Xodr2OsmConverter` into `tactics2d/map/writer/osm_writer.py` as a standalone public class with full Google-style docstrings and type annotations.
+- Refactored `Xodr2OsmConverter` to reuse `XODRParser` and `OsmWriter` via the `Map` intermediate representation, removing the duplicate `_XodrReader` XML parser, the `_LaneGeom` intermediary struct, and the redundant geometry helper functions.
+- Refactored `Net2XodrConverter` and `Osm2XodrConverter` to delegate XML construction to `XodrWriter`, removing duplicated `_write_plan_view`, `_write_lanes`, and related private methods.
+- Refactored `Xodr2NetConverter` to delegate XML construction to `SumoWriter`, removing inline XML construction logic.
+- Stored original SUMO lane `shape` in `NetXMLParser` `custom_tags["centerline"]` for lossless centre-line export to xodr and net.xml without re-deriving from offset boundaries.
+- Updated docstring `Example` sections across converter and writer classes to Google-style Markdown code blocks.
 - Improved WOMD parser support for official Motion Dataset shards:
   - reconstruct lane sides from WOMD boundary metadata,
   - expose driveway polygons as `drivable_area`,
