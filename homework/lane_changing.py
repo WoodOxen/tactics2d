@@ -292,15 +292,20 @@ class LaneChangingEnv(gym.Env):
             )
 
             other_states = dict()
+            other_sizes = dict()
             for participant_id in participant_ids:
                 if participant_id == self.ego_id:
                     continue
-                other_states[participant_id] = self.participants[participant_id].get_state(step)
+                participant = self.participants[participant_id]
+                other_states[participant_id] = participant.get_state(step)
+                other_sizes[participant_id] = {"length": participant.length, "width": participant.width}
 
             infos = {
                 "status": self.status,
                 "ego_state": self.agent.current_state,
+                "ego_size": {"length": self.agent.length, "width": self.agent.width},
                 "other_states": other_states,
+                "other_sizes": other_sizes,
                 "centerlines": self.centerlines,
             }
 
@@ -396,16 +401,20 @@ class LaneChangingEnv(gym.Env):
             self.render_manager.bind(0, self.ego_id)
 
             other_states = dict()
+            other_sizes = dict()
             for participant_id, participant in self.participants.items():
                 if participant_id == self.ego_id:
                     continue
                 if participant.trajectory.has_state(self.compensation_step):
                     other_states[participant_id] = participant.get_state(self.compensation_step)
+                    other_sizes[participant_id] = {"length": participant.length, "width": participant.width}
 
             infos = {
                 "status": self.status,
                 "ego_state": ego_state,
+                "ego_size": {"length": self.agent.length, "width": self.agent.width},
                 "other_states": other_states,
+                "other_sizes": other_sizes,
                 "centerlines": self.centerlines,
             }
 
