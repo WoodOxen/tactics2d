@@ -46,19 +46,13 @@ class GraphBuilder:
         else:
             resolved_cost_kwargs = dict(self.cost_kwargs)
             if cost_mode in {"distance", "time"}:
-                resolved_cost_kwargs.setdefault(
-                    "lane_change_penalty", lane_change_penalty
-                )
+                resolved_cost_kwargs.setdefault("lane_change_penalty", lane_change_penalty)
             elif cost_mode in {"lanelet2_distance", "lanelet2_time"}:
-                resolved_cost_kwargs.setdefault(
-                    "lane_change_cost", lane_change_penalty
-                )
+                resolved_cost_kwargs.setdefault("lane_change_cost", lane_change_penalty)
             elif cost_mode in {"apollo_inspired", "apollo_like"}:
                 resolved_cost_kwargs.setdefault("change_penalty", lane_change_penalty)
             self.cost_fn = build_cost_function(
-                cost_mode=cost_mode,
-                cost_fn=None,
-                **resolved_cost_kwargs,
+                cost_mode=cost_mode, cost_fn=None, **resolved_cost_kwargs
             )
 
     def build(self, map_: Map) -> RoutingGraph:
