@@ -3,7 +3,7 @@
 
 """Utility helpers for routing."""
 
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import Iterable, List, Optional, Sequence
 
 import numpy as np
 from shapely.geometry import LineString, Point
