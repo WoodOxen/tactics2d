@@ -24,6 +24,10 @@ class OsmWriter:
     relations are each written by dedicated public methods that can also be
     called individually.
 
+    Boundary nodes are deduplicated within a 1 cm tolerance so that adjacent
+    lanelets sharing an endpoint reference the same OSM node and appear
+    topologically connected in any Lanelet2 viewer.
+
     Example:
     ```python
     from tactics2d.map.parser import XODRParser
@@ -34,7 +38,6 @@ class OsmWriter:
     ```
     """
 
-    # Inverse of OSMParser._load_nodes_no_proj with origin (lat0=0, lon0=0).
     _M_PER_DEG_LON: float = 111320.0
     _M_PER_DEG_LAT: float = 110540.0
 
@@ -59,12 +62,15 @@ class OsmWriter:
     }
 
     def __init__(self) -> None:
-        """Initialise the writer with a fresh decrementing ID counter."""
+        """Initialise the writer with a fresh ID counter and an empty node cache."""
         self._next_id: int = -1
+        self._node_cache: dict[tuple[int, int], int] = {}
 
-    def build(self, map_: Map) -> ET.Element:
+    def build(self, map_) -> ET.Element:
         """Build a complete OSM XML tree from a Tactics2D ``Map``.
 
+        Resets the ID counter and node cache before processing so that
+        calling ``build`` multiple times on the same instance is safe.
         Iterates every lane in *map_*, extracts boundary geometry and
         metadata, and assembles ``<node>``, ``<way>``, and ``<relation>``
         elements with Lanelet2 tags.
@@ -76,6 +82,9 @@ class OsmWriter:
         Returns:
             An ``<osm>`` ``ET.Element`` ready for serialisation.
         """
+        self._next_id = -1
+        self._node_cache = {}
+
         root = ET.Element("osm", {"version": "0.6", "generator": "Tactics2D xodr2osm"})
         speed_relations: list[tuple[int, float, list[int]]] = []
 
@@ -107,10 +116,11 @@ class OsmWriter:
     def write_nodes(self, root: ET.Element, coords: np.ndarray) -> list[int]:
         """Append ``<node>`` elements for a sequence of Cartesian coordinates.
 
-        Coordinates are converted from metres to decimal degrees using the
-        WGS-84 spherical-earth approximation (origin at lat=0, lon=0),
-        matching the convention used by ``OSMParser`` so round-trip is
-        lossless.
+        Coordinates are deduplicated within a 1 cm tolerance using an internal
+        cache keyed by ``(round(x * 100), round(y * 100))``. If a coordinate
+        has already been written, the existing node ID is returned without
+        creating a duplicate element, ensuring adjacent lanelets that share an
+        endpoint reference the same OSM node and remain topologically connected.
 
         Args:
             root: Parent element to append ``<node>`` children to.
@@ -121,6 +131,10 @@ class OsmWriter:
         """
         node_ids: list[int] = []
         for x, y in coords:
+            key = (round(float(x) * 100), round(float(y) * 100))
+            if key in self._node_cache:
+                node_ids.append(self._node_cache[key])
+                continue
             nid = self._alloc()
             ET.SubElement(
                 root,
@@ -129,10 +143,11 @@ class OsmWriter:
                     "id": str(nid),
                     "action": "modify",
                     "visible": "true",
-                    "lat": f"{y / self._M_PER_DEG_LAT:.7f}",
-                    "lon": f"{x / self._M_PER_DEG_LON:.7f}",
+                    "lat": f"{float(y) / self._M_PER_DEG_LAT:.7f}",
+                    "lon": f"{float(x) / self._M_PER_DEG_LON:.7f}",
                 },
             )
+            self._node_cache[key] = nid
             node_ids.append(nid)
         return node_ids
 
@@ -148,7 +163,9 @@ class OsmWriter:
             type_: Lanelet2 ``type`` tag value (e.g. ``"line_thin"``).
             subtype: Lanelet2 ``subtype`` tag value (e.g. ``"solid"``).
         """
-        way = ET.SubElement(root, "way", {"id": str(way_id), "action": "modify", "visible": "true"})
+        way = ET.SubElement(
+            root, "way", {"id": str(way_id), "action": "modify", "visible": "true"}
+        )
         for nid in node_ids:
             ET.SubElement(way, "nd", {"ref": str(nid)})
         ET.SubElement(way, "tag", {"k": "type", "v": type_})
@@ -210,7 +227,9 @@ class OsmWriter:
             rel, "tag", {"k": "subtype", "v": self._LANE_TYPE_TO_SUBTYPE.get(subtype, "road")}
         )
         ET.SubElement(
-            rel, "tag", {"k": "location", "v": self._ROAD_TYPE_TO_LOCATION.get(location, "urban")}
+            rel,
+            "tag",
+            {"k": "location", "v": self._ROAD_TYPE_TO_LOCATION.get(location, "urban")},
         )
         return rel_id
 
@@ -262,13 +281,9 @@ class OsmWriter:
     def _get_roadmark(lane, map_, side: str) -> str:
         """Derive the Lanelet2 boundary subtype for a given side of a lane.
 
-        Looks up ``lane.line_ids[side]`` in ``map_.roadlines`` and returns
-        the ``RoadLine.subtype`` if recognised. Falls back to ``"solid"``.
-
         Args:
             lane: Tactics2D ``Lane`` object.
-            map_: Tactics2D ``Map`` object whose ``.roadlines`` dict is
-                queried.
+            map_: Tactics2D ``Map`` object whose ``.roadlines`` dict is queried.
             side: ``"left"`` or ``"right"``.
 
         Returns:

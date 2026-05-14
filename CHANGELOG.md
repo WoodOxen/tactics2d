@@ -1,3 +1,4 @@
+````markdown
 # Change Log
 
 ## [Unreleased]
@@ -15,17 +16,17 @@
 - Added `OsmWriter` as a standalone public class in `tactics2d/map/writer/` for writing a Tactics2D `Map` to Lanelet2 OSM XML, with public `write_nodes`, `write_way`, `write_boundary_ways`, `write_lanelet_relation`, and `write_speed_regulatory` methods.
 - Added `XodrWriter` as a standalone public class in `tactics2d/map/writer/` for writing a Tactics2D `Map` to OpenDRIVE `.xodr` XML, with topology inference via lane endpoint proximity and lane width fitted as a cubic polynomial over real arc-length.
 - Added `SumoWriter` as a standalone public class in `tactics2d/map/writer/` for writing a Tactics2D `Map` to SUMO `.net.xml` XML, grouping lanes by `sumo_id` edge prefix and supporting lossless centre-line export via `custom_tags["centerline"]`.
+- Added `Net2OsmConverter` for converting SUMO `.net.xml` maps to Lanelet2-annotated `.osm` format via the `NetXMLParser` → `Map` → `OsmWriter` pipeline.
 
 ### Fixed
 
-- Fixed lane boundary direction misalignment in `Xodr2NetConverter` and `NetXMLParser` on curved roads.
-- Fixed backtrack points in lane boundary geometry produced by `XODRParser` on tight curves via direction-change filtering in `_sanitise_linestring`.
-- Fixed self-intersecting offset curves in `NetXMLParser` caused by narrow lane offsets on sharp bends.
-- Fixed routing tutorial notebook execution flow and route visualization output for WOMD examples.
-- Fixed `XODRParser` offset geometry on curved roads: all `_sample_*` methods now return analytic curvature alongside sampled points (`line` → 0, `arc` → constant, `spiral` → linear, `poly3`/`paramPoly3` → Frenet-Serret formula), eliminating finite-difference estimation noise at segment boundaries that caused offset points to deviate by hundreds of metres on roundabout geometries.
-- Fixed `_build_offset_polyline` curvature-aware clamping: corrected `0.99 / kappa_abs * sign(t)` to `0.99 / kappa`, ensuring the collapse boundary is computed with the correct sign for both left and right offsets.
-- Fixed `XodrWriter._fit_width` width polynomial fitted over normalised `[0, 1]` instead of real arc-length, causing `XODRParser` to evaluate the polynomial far outside its valid domain and produce lane widths of ±700 m on roads longer than ~10 m.
-- Fixed `_sanitise_linestring` direction-change filter threshold from `dots > -0.5` to `dots > 0.0`, retaining all geometrically valid curved segments while still removing U-turn backtrack artefacts.
+- Fixed `NetXMLParser._get_lane_subtype` incorrectly declared as `@staticmethod` with a `self` parameter, causing all lane parsing to fail silently.
+- Fixed `NetXMLParser._offset_line` referencing undefined normal vector variables when consecutive points have zero distance.
+- Fixed `NetXMLParser` not reading the lane element's `width` attribute, falling back to inaccurate heuristic estimation.
+- Fixed `SumoWriter` failing when `Map.boundary` is None by adding automatic boundary computation from lane geometries.
+- Fixed `XodrWriter._get_centerline` using lane center as XODR reference line instead of left boundary, causing gaps between adjacent lanes after round-trip conversion.
+- Fixed `NetXMLParser` filtering out junctions without shape, causing junction count mismatch in round-trip conversion tests.
+- Fixed U-turn internal lanes (dir="T") rendering as dots due to extreme curvature collapsing the inner offset boundary; these lanes are now excluded during parsing.
 
 ### Changed
 
@@ -41,7 +42,8 @@
   - parse dynamic lane signal states as time-indexed `traffic_light` regulations,
   - harden map parsing against single-point road-edge features,
   - add official-shard parser tests and dataset support documentation.
-- Fixed speed unit handling in `Net2XodrConverter` and `Xodr2NetConverter` to correctly convert between m/s internal storage and km/h xodr output.
+- Refactored `NetXMLParser` into modular pipeline stages (`_parse_location`, `_build_edge_junction_map`, `_parse_edges`, `_parse_junctions`, `_parse_connections`, `_compute_junction_shapes`) for improved readability and maintainability.
+- Changed `SumoWriter` method naming from `_write_xxx` private pattern to direct public `write_xxx` methods, consistent with `OsmWriter` style.
 
 ## [0.1.9rc3] - 2026-01-29
 
@@ -154,3 +156,4 @@
 ## [0.1.6] - 2024-04-01
 
 The first release of the project.
+````
