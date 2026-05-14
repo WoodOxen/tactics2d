@@ -5,9 +5,10 @@
 
 from typing import Callable, Dict, List, Tuple
 
-from .graph_builder import RoutingGraph
 from tactics2d.search.a_star import AStar
 from tactics2d.search.dijkstra import Dijkstra
+
+from .graph_builder import RoutingGraph
 
 
 class AlgorithmAdapter:
@@ -38,9 +39,7 @@ class AlgorithmAdapter:
         return path, total_cost, edge_relations
 
     @staticmethod
-    def _collect_edge_relations(
-        graph: RoutingGraph, path: List[int]
-    ) -> Dict[Tuple[int, int], str]:
+    def _collect_edge_relations(graph: RoutingGraph, path: List[int]) -> Dict[Tuple[int, int], str]:
         edge_relations: Dict[Tuple[int, int], str] = {}
         for prev_idx, curr_idx in zip(path[:-1], path[1:]):
             relation = "successor"
