@@ -177,6 +177,7 @@ class NetXMLParser:
                 if val > 0:
                     return val / 2.0
             except ValueError:
+                # Ignore invalid float conversions and proceed with fallback_width
                 pass
         base = fallback_width if fallback_width is not None else self._DEFAULT_LANE_WIDTH
         return base / 2.0
@@ -195,6 +196,7 @@ class NetXMLParser:
                 if 1.5 < computed < 6.0:
                     return computed
         except Exception:
+            # Exception explicitly ignored to fallback to default lane width
             pass
         return self._DEFAULT_LANE_WIDTH
 
@@ -420,6 +422,7 @@ class NetXMLParser:
                         coords = list(side.coords)
                         junction_endpoints[to_sumo].append(coords[-1])
                 except Exception:
+                    # Ignore malformed lane geometries during endpoint extraction
                     pass
 
             if tags.get("is_internal"):
@@ -431,6 +434,7 @@ class NetXMLParser:
                             junction_endpoints[parent_junc].append(coords[0])
                             junction_endpoints[parent_junc].append(coords[-1])
                     except Exception:
+                        # Ignore malformed internal lane geometries during endpoint extraction
                         pass
 
         for sumo_id, tactics_id in sumo_to_tactics.items():
