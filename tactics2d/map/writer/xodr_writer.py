@@ -427,28 +427,32 @@ class XodrWriter:
 
     @staticmethod
     def _get_centerline(lane) -> list:
-        tags = getattr(lane, "custom_tags", {}) or {}
-        centerline = tags.get("centerline")
-        if centerline and len(centerline) >= 2:
-            line = LineString(centerline)
-            n = max(2, int(line.length / 0.1))
-            return [
-                (
-                    line.interpolate(line.length * i / (n - 1)).x,
-                    line.interpolate(line.length * i / (n - 1)).y,
-                )
-                for i in range(n)
-            ]
-        left, right = lane.left_side, lane.right_side
-        if left is None or right is None:
+        """Get the reference line for an OpenDRIVE road.
+
+        In OpenDRIVE, the reference line is the left boundary of the
+        rightmost lane section. Since we write a single lane with id=-1
+        (right side), the reference line should be the lane's left_side
+        boundary. This ensures adjacent lanes share boundaries without gaps.
+
+        Args:
+            lane: Tactics2D Lane object.
+
+        Returns:
+            List of (x, y) tuples for the reference line.
+        """
+        left = lane.left_side
+        if left is None:
             return []
-        length = min(left.length, right.length)
-        if length < 1e-6:
+        if left.length < 1e-6:
             return []
-        n = max(2, int(length / 0.1))
-        left_pts = [left.interpolate(left.length * i / (n - 1)) for i in range(n)]
-        right_pts = [right.interpolate(right.length * i / (n - 1)) for i in range(n)]
-        return [((lp.x + rp.x) / 2.0, (lp.y + rp.y) / 2.0) for lp, rp in zip(left_pts, right_pts)]
+        n = max(2, int(left.length / 0.1))
+        return [
+            (
+                left.interpolate(left.length * i / (n - 1)).x,
+                left.interpolate(left.length * i / (n - 1)).y,
+            )
+            for i in range(n)
+        ]
 
     @staticmethod
     def _sample_widths(lane, n: int = 20) -> np.ndarray:

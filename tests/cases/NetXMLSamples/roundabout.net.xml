@@ -1,150 +1,80 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<net version="1.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/net_file.xsd">
-    <location netOffset="0.00,0.00" convBoundary="-80.00,-80.00,80.00,80.00" origBoundary="-80.00,-80.00,80.00,80.00" projParameter="!"/>
-
-    <!-- internal edges (junction connectors) -->
-    <edge id=":r0_0" function="internal">
-        <lane id=":r0_0_0" index="0" speed="8.00" length="15.71" width="3.50"
-              shape="20.00,4.00 17.32,12.00 12.00,17.32 4.00,20.00"/>
+<?xml version="1.0" ?>
+<net xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.9" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/net_file.xsd">
+    <location netOffset="0.00,0.00" convBoundary="-73.00,-73.00,73.00,73.00" origBoundary="-73.00,-73.00,73.00,73.00" projParameter="!"/>
+    <edge id="north_in" from="n_end" to="jn" priority="1">
+        <lane id="north_in_0" index="0" speed="13.89" length="50.00" width="3.50" shape="-1.75,68.00 -1.75,18.00"/>
     </edge>
-    <edge id=":r1_0" function="internal">
-        <lane id=":r1_0_0" index="0" speed="8.00" length="15.71" width="3.50"
-              shape="-4.00,20.00 -12.00,17.32 -17.32,12.00 -20.00,4.00"/>
+    <edge id="north_out" from="jn" to="n_end" priority="1">
+        <lane id="north_out_0" index="0" speed="13.89" length="50.00" width="3.50" shape="1.75,18.00 1.75,68.00"/>
     </edge>
-    <edge id=":r2_0" function="internal">
-        <lane id=":r2_0_0" index="0" speed="8.00" length="15.71" width="3.50"
-              shape="-20.00,-4.00 -17.32,-12.00 -12.00,-17.32 -4.00,-20.00"/>
+    <edge id="east_in" from="e_end" to="je" priority="1">
+        <lane id="east_in_0" index="0" speed="13.89" length="50.00" width="3.50" shape="68.00,1.75 18.00,1.75"/>
     </edge>
-    <edge id=":r3_0" function="internal">
-        <lane id=":r3_0_0" index="0" speed="8.00" length="15.71" width="3.50"
-              shape="4.00,-20.00 12.00,-17.32 17.32,-12.00 20.00,-4.00"/>
+    <edge id="east_out" from="je" to="e_end" priority="1">
+        <lane id="east_out_0" index="0" speed="13.89" length="50.00" width="3.50" shape="18.00,-1.75 68.00,-1.75"/>
     </edge>
-
-    <!-- approach roads: two lanes each (in + out) so width estimation works -->
-    <edge id="north_in" from="north" to="r0" priority="1">
-        <lane id="north_in_0" index="0" speed="13.89" length="50.00" width="3.50"
-              shape="-1.75,70.00 -1.75,24.00"/>
-        <lane id="north_in_1" index="1" speed="13.89" length="50.00" width="3.50"
-              shape="1.75,70.00 1.75,24.00"/>
+    <edge id="south_in" from="s_end" to="js" priority="1">
+        <lane id="south_in_0" index="0" speed="13.89" length="50.00" width="3.50" shape="1.75,-68.00 1.75,-18.00"/>
     </edge>
-    <edge id="north_out" from="r1" to="north" priority="1">
-        <lane id="north_out_0" index="0" speed="13.89" length="50.00" width="3.50"
-              shape="-1.75,24.00 -1.75,70.00"/>
-        <lane id="north_out_1" index="1" speed="13.89" length="50.00" width="3.50"
-              shape="1.75,24.00 1.75,70.00"/>
+    <edge id="south_out" from="js" to="s_end" priority="1">
+        <lane id="south_out_0" index="0" speed="13.89" length="50.00" width="3.50" shape="-1.75,-18.00 -1.75,-68.00"/>
     </edge>
-    <edge id="south_in" from="south" to="r2" priority="1">
-        <lane id="south_in_0" index="0" speed="13.89" length="50.00" width="3.50"
-              shape="1.75,-70.00 1.75,-24.00"/>
-        <lane id="south_in_1" index="1" speed="13.89" length="50.00" width="3.50"
-              shape="-1.75,-70.00 -1.75,-24.00"/>
+    <edge id="west_in" from="w_end" to="jw" priority="1">
+        <lane id="west_in_0" index="0" speed="13.89" length="50.00" width="3.50" shape="-68.00,-1.75 -18.00,-1.75"/>
     </edge>
-    <edge id="south_out" from="r3" to="south" priority="1">
-        <lane id="south_out_0" index="0" speed="13.89" length="50.00" width="3.50"
-              shape="1.75,-24.00 1.75,-70.00"/>
-        <lane id="south_out_1" index="1" speed="13.89" length="50.00" width="3.50"
-              shape="-1.75,-24.00 -1.75,-70.00"/>
+    <edge id="west_out" from="jw" to="w_end" priority="1">
+        <lane id="west_out_0" index="0" speed="13.89" length="50.00" width="3.50" shape="-18.00,1.75 -68.00,1.75"/>
     </edge>
-    <edge id="east_in" from="east" to="r1" priority="1">
-        <lane id="east_in_0" index="0" speed="13.89" length="50.00" width="3.50"
-              shape="70.00,-1.75 24.00,-1.75"/>
-        <lane id="east_in_1" index="1" speed="13.89" length="50.00" width="3.50"
-              shape="70.00,1.75 24.00,1.75"/>
+    <edge id="ring_ne" from="jn" to="je" priority="2">
+        <lane id="ring_ne_0" index="0" speed="8.00" length="28.25" width="3.50" shape="0.00,18.00 2.56,17.82 5.07,17.27 7.48,16.37 9.73,15.14 11.79,13.60 13.60,11.79 15.14,9.73 16.37,7.48 17.27,5.07 17.82,2.56 18.00,0.00"/>
     </edge>
-    <edge id="east_out" from="r0" to="east" priority="1">
-        <lane id="east_out_0" index="0" speed="13.89" length="50.00" width="3.50"
-              shape="24.00,-1.75 70.00,-1.75"/>
-        <lane id="east_out_1" index="1" speed="13.89" length="50.00" width="3.50"
-              shape="24.00,1.75 70.00,1.75"/>
+    <edge id="ring_es" from="je" to="js" priority="2">
+        <lane id="ring_es_0" index="0" speed="8.00" length="28.25" width="3.50" shape="18.00,0.00 17.82,-2.56 17.27,-5.07 16.37,-7.48 15.14,-9.73 13.60,-11.79 11.79,-13.60 9.73,-15.14 7.48,-16.37 5.07,-17.27 2.56,-17.82 0.00,-18.00"/>
     </edge>
-    <edge id="west_in" from="west" to="r3" priority="1">
-        <lane id="west_in_0" index="0" speed="13.89" length="50.00" width="3.50"
-              shape="-70.00,1.75 -24.00,1.75"/>
-        <lane id="west_in_1" index="1" speed="13.89" length="50.00" width="3.50"
-              shape="-70.00,-1.75 -24.00,-1.75"/>
+    <edge id="ring_sw" from="js" to="jw" priority="2">
+        <lane id="ring_sw_0" index="0" speed="8.00" length="28.25" width="3.50" shape="0.00,-18.00 -2.56,-17.82 -5.07,-17.27 -7.48,-16.37 -9.73,-15.14 -11.79,-13.60 -13.60,-11.79 -15.14,-9.73 -16.37,-7.48 -17.27,-5.07 -17.82,-2.56 -18.00,-0.00"/>
     </edge>
-    <edge id="west_out" from="r2" to="west" priority="1">
-        <lane id="west_out_0" index="0" speed="13.89" length="50.00" width="3.50"
-              shape="-24.00,1.75 -70.00,1.75"/>
-        <lane id="west_out_1" index="1" speed="13.89" length="50.00" width="3.50"
-              shape="-24.00,-1.75 -70.00,-1.75"/>
+    <edge id="ring_wn" from="jw" to="jn" priority="2">
+        <lane id="ring_wn_0" index="0" speed="8.00" length="28.25" width="3.50" shape="-18.00,0.00 -17.82,2.56 -17.27,5.07 -16.37,7.48 -15.14,9.73 -13.60,11.79 -11.79,13.60 -9.73,15.14 -7.48,16.37 -5.07,17.27 -2.56,17.82 0.00,18.00"/>
     </edge>
-
-    <!-- roundabout ring: two lanes so width estimation works -->
-    <edge id="ring_ne" from="r0" to="r1" priority="2">
-        <lane id="ring_ne_0" index="0" speed="8.00" length="34.56" width="3.50"
-              shape="20.00,4.00 17.32,12.00 12.00,17.32 4.00,20.00 -4.00,20.00"/>
-        <lane id="ring_ne_1" index="1" speed="8.00" length="31.42" width="3.50"
-              shape="16.00,3.20 13.86,9.60 9.60,13.86 3.20,16.00 -3.20,16.00"/>
+    <edge id=":jn_0" from="jn" to="jn" priority="1" function="internal">
+        <lane id=":jn_0_0" index="0" speed="8.00" length="1.75" width="3.50" shape="-1.75,18.00 0.00,18.00"/>
     </edge>
-    <edge id="ring_nw" from="r1" to="r2" priority="2">
-        <lane id="ring_nw_0" index="0" speed="8.00" length="34.56" width="3.50"
-              shape="-4.00,20.00 -12.00,17.32 -17.32,12.00 -20.00,4.00 -20.00,-4.00"/>
-        <lane id="ring_nw_1" index="1" speed="8.00" length="31.42" width="3.50"
-              shape="-3.20,16.00 -9.60,13.86 -13.86,9.60 -16.00,3.20 -16.00,-3.20"/>
+    <edge id=":jn_1" from="jn" to="jn" priority="1" function="internal">
+        <lane id=":jn_1_0" index="0" speed="8.00" length="1.75" width="3.50" shape="0.00,18.00 1.75,18.00"/>
     </edge>
-    <edge id="ring_sw" from="r2" to="r3" priority="2">
-        <lane id="ring_sw_0" index="0" speed="8.00" length="34.56" width="3.50"
-              shape="-20.00,-4.00 -17.32,-12.00 -12.00,-17.32 -4.00,-20.00 4.00,-20.00"/>
-        <lane id="ring_sw_1" index="1" speed="8.00" length="31.42" width="3.50"
-              shape="-16.00,-3.20 -13.86,-9.60 -9.60,-13.86 -3.20,-16.00 3.20,-16.00"/>
+    <edge id=":je_0" from="je" to="je" priority="1" function="internal">
+        <lane id=":je_0_0" index="0" speed="8.00" length="1.75" width="3.50" shape="18.00,1.75 18.00,0.00"/>
     </edge>
-    <edge id="ring_se" from="r3" to="r0" priority="2">
-        <lane id="ring_se_0" index="0" speed="8.00" length="34.56" width="3.50"
-              shape="4.00,-20.00 12.00,-17.32 17.32,-12.00 20.00,-4.00 20.00,4.00"/>
-        <lane id="ring_se_1" index="1" speed="8.00" length="31.42" width="3.50"
-              shape="3.20,-16.00 9.60,-13.86 13.86,-9.60 16.00,-3.20 16.00,3.20"/>
+    <edge id=":je_1" from="je" to="je" priority="1" function="internal">
+        <lane id=":je_1_0" index="0" speed="8.00" length="1.75" width="3.50" shape="18.00,0.00 18.00,-1.75"/>
     </edge>
-
-    <!-- junctions -->
-    <junction id="north" type="dead_end" x="0.00" y="70.00"
-              incLanes="north_out_0 north_out_1" intLanes=""
-              shape="5.25,70.00 -5.25,70.00"/>
-    <junction id="south" type="dead_end" x="0.00" y="-70.00"
-              incLanes="south_out_0 south_out_1" intLanes=""
-              shape="-5.25,-70.00 5.25,-70.00"/>
-    <junction id="east" type="dead_end" x="70.00" y="0.00"
-              incLanes="east_out_0 east_out_1" intLanes=""
-              shape="70.00,5.25 70.00,-5.25"/>
-    <junction id="west" type="dead_end" x="-70.00" y="0.00"
-              incLanes="west_out_0 west_out_1" intLanes=""
-              shape="-70.00,-5.25 -70.00,5.25"/>
-    <junction id="r0" type="priority" x="20.00" y="0.00"
-              incLanes="north_in_0 north_in_1 ring_se_0 ring_se_1" intLanes=":r0_0_0"
-              shape="25.00,7.00 12.00,7.00 12.00,-7.00 25.00,-7.00"/>
-    <junction id="r1" type="priority" x="0.00" y="20.00"
-              incLanes="east_in_0 east_in_1 ring_ne_0 ring_ne_1" intLanes=":r1_0_0"
-              shape="7.00,25.00 7.00,12.00 -7.00,12.00 -7.00,25.00"/>
-    <junction id="r2" type="priority" x="-20.00" y="0.00"
-              incLanes="ring_nw_0 ring_nw_1" intLanes=":r2_0_0"
-              shape="-12.00,7.00 -25.00,7.00 -25.00,-7.00 -12.00,-7.00"/>
-    <junction id="r3" type="priority" x="0.00" y="-20.00"
-              incLanes="west_in_0 west_in_1 ring_sw_0 ring_sw_1" intLanes=":r3_0_0"
-              shape="-7.00,-12.00 -7.00,-25.00 7.00,-25.00 7.00,-12.00"/>
-
-    <!-- connections -->
-    <connection from="north_in" to="ring_ne" fromLane="0" toLane="0" via=":r0_0_0" dir="s" state="M"/>
-    <connection from="north_in" to="ring_ne" fromLane="1" toLane="1" via=":r0_0_0" dir="s" state="M"/>
-    <connection from="ring_se"  to="east_out" fromLane="0" toLane="0" via=":r0_0_0" dir="r" state="M"/>
-    <connection from="ring_se"  to="east_out" fromLane="1" toLane="1" via=":r0_0_0" dir="r" state="M"/>
-    <connection from="east_in"  to="ring_nw" fromLane="0" toLane="0" via=":r1_0_0" dir="s" state="M"/>
-    <connection from="east_in"  to="ring_nw" fromLane="1" toLane="1" via=":r1_0_0" dir="s" state="M"/>
-    <connection from="ring_ne"  to="north_out" fromLane="0" toLane="0" via=":r1_0_0" dir="r" state="M"/>
-    <connection from="ring_ne"  to="north_out" fromLane="1" toLane="1" via=":r1_0_0" dir="r" state="M"/>
-    <connection from="ring_nw"  to="west_out" fromLane="0" toLane="0" via=":r2_0_0" dir="r" state="M"/>
-    <connection from="ring_nw"  to="west_out" fromLane="1" toLane="1" via=":r2_0_0" dir="r" state="M"/>
-    <connection from="west_in"  to="ring_sw" fromLane="0" toLane="0" via=":r3_0_0" dir="s" state="M"/>
-    <connection from="west_in"  to="ring_sw" fromLane="1" toLane="1" via=":r3_0_0" dir="s" state="M"/>
-    <connection from="ring_sw"  to="south_out" fromLane="0" toLane="0" via=":r3_0_0" dir="r" state="M"/>
-    <connection from="ring_sw"  to="south_out" fromLane="1" toLane="1" via=":r3_0_0" dir="r" state="M"/>
-    <connection from="ring_ne"  to="ring_nw" fromLane="0" toLane="0" dir="s" state="M"/>
-    <connection from="ring_ne"  to="ring_nw" fromLane="1" toLane="1" dir="s" state="M"/>
-    <connection from="ring_nw"  to="ring_sw" fromLane="0" toLane="0" dir="s" state="M"/>
-    <connection from="ring_nw"  to="ring_sw" fromLane="1" toLane="1" dir="s" state="M"/>
-    <connection from="ring_sw"  to="ring_se" fromLane="0" toLane="0" dir="s" state="M"/>
-    <connection from="ring_sw"  to="ring_se" fromLane="1" toLane="1" dir="s" state="M"/>
-    <connection from="ring_se"  to="ring_ne" fromLane="0" toLane="0" dir="s" state="M"/>
-    <connection from="ring_se"  to="ring_ne" fromLane="1" toLane="1" dir="s" state="M"/>
-
-    <roundabout nodes="r0 r1 r2 r3" edges="ring_ne ring_nw ring_sw ring_se"/>
+    <edge id=":js_0" from="js" to="js" priority="1" function="internal">
+        <lane id=":js_0_0" index="0" speed="8.00" length="1.75" width="3.50" shape="1.75,-18.00 0.00,-18.00"/>
+    </edge>
+    <edge id=":js_1" from="js" to="js" priority="1" function="internal">
+        <lane id=":js_1_0" index="0" speed="8.00" length="1.75" width="3.50" shape="0.00,-18.00 -1.75,-18.00"/>
+    </edge>
+    <edge id=":jw_0" from="jw" to="jw" priority="1" function="internal">
+        <lane id=":jw_0_0" index="0" speed="8.00" length="1.75" width="3.50" shape="-18.00,-1.75 -18.00,0.00"/>
+    </edge>
+    <edge id=":jw_1" from="jw" to="jw" priority="1" function="internal">
+        <lane id=":jw_1_0" index="0" speed="8.00" length="1.75" width="3.50" shape="-18.00,0.00 -18.00,1.75"/>
+    </edge>
+    <junction id="jn" type="priority" x="0.00" y="18.00" incLanes="" intLanes="" shape="-5.50,12.50 5.50,12.50 5.50,23.50 -5.50,23.50"/>
+    <junction id="je" type="priority" x="18.00" y="0.00" incLanes="" intLanes="" shape="12.50,-5.50 23.50,-5.50 23.50,5.50 12.50,5.50"/>
+    <junction id="js" type="priority" x="0.00" y="-18.00" incLanes="" intLanes="" shape="-5.50,-23.50 5.50,-23.50 5.50,-12.50 -5.50,-12.50"/>
+    <junction id="jw" type="priority" x="-18.00" y="0.00" incLanes="" intLanes="" shape="-23.50,-5.50 -12.50,-5.50 -12.50,5.50 -23.50,5.50"/>
+    <junction id="n_end" type="dead_end" x="0.00" y="68.00" incLanes="" intLanes="" shape=""/>
+    <junction id="e_end" type="dead_end" x="68.00" y="0.00" incLanes="" intLanes="" shape=""/>
+    <junction id="s_end" type="dead_end" x="0.00" y="-68.00" incLanes="" intLanes="" shape=""/>
+    <junction id="w_end" type="dead_end" x="-68.00" y="0.00" incLanes="" intLanes="" shape=""/>
+    <connection from="north_in" to="ring_ne" fromLane="0" toLane="0" via=":jn_0_0" dir="r" state="M"/>
+    <connection from="ring_wn" to="north_out" fromLane="0" toLane="0" via=":jn_1_0" dir="r" state="M"/>
+    <connection from="east_in" to="ring_es" fromLane="0" toLane="0" via=":je_0_0" dir="r" state="M"/>
+    <connection from="ring_ne" to="east_out" fromLane="0" toLane="0" via=":je_1_0" dir="r" state="M"/>
+    <connection from="south_in" to="ring_sw" fromLane="0" toLane="0" via=":js_0_0" dir="r" state="M"/>
+    <connection from="ring_es" to="south_out" fromLane="0" toLane="0" via=":js_1_0" dir="r" state="M"/>
+    <connection from="west_in" to="ring_wn" fromLane="0" toLane="0" via=":jw_0_0" dir="r" state="M"/>
+    <connection from="ring_sw" to="west_out" fromLane="0" toLane="0" via=":jw_1_0" dir="r" state="M"/>
 </net>
