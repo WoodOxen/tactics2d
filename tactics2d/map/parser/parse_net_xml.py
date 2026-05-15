@@ -176,9 +176,9 @@ class NetXMLParser:
                 val = float(width_attr)
                 if val > 0:
                     return val / 2.0
-            except ValueError:
-                # Ignore invalid float conversions and proceed with fallback_width
-                pass
+            except ValueError as exc:
+                logging.debug("Ignored invalid float conversion: %s", exc)
+
         base = fallback_width if fallback_width is not None else self._DEFAULT_LANE_WIDTH
         return base / 2.0
 
@@ -195,9 +195,9 @@ class NetXMLParser:
                 computed = math.hypot(dx, dy)
                 if 1.5 < computed < 6.0:
                     return computed
-        except Exception:
-            # Exception explicitly ignored to fallback to default lane width
-            pass
+        except Exception as exc:
+            logging.debug("Ignored math error, fallback to default width: %s", exc)
+
         return self._DEFAULT_LANE_WIDTH
 
     def _load_lane(
@@ -421,9 +421,8 @@ class NetXMLParser:
                     for side in (lane.left_side, lane.right_side):
                         coords = list(side.coords)
                         junction_endpoints[to_sumo].append(coords[-1])
-                except Exception:
-                    # Ignore malformed lane geometries during endpoint extraction
-                    pass
+                except Exception as exc:
+                    logging.debug("Ignored malformed lane geometries: %s", exc)
 
             if tags.get("is_internal"):
                 parent_junc = tags.get("from_node", "")
@@ -433,9 +432,8 @@ class NetXMLParser:
                             coords = list(side.coords)
                             junction_endpoints[parent_junc].append(coords[0])
                             junction_endpoints[parent_junc].append(coords[-1])
-                    except Exception:
-                        # Ignore malformed internal lane geometries during endpoint extraction
-                        pass
+                    except Exception as exc:
+                        logging.debug("Ignored malformed lane geometries: %s", exc)
 
         for sumo_id, tactics_id in sumo_to_tactics.items():
             junction = map_.junctions.get(tactics_id)
