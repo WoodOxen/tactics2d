@@ -18,6 +18,7 @@
 - Added `XodrWriter` as a standalone public class in `tactics2d/map/writer/` for writing a Tactics2D `Map` to OpenDRIVE `.xodr` XML, with topology inference via lane endpoint proximity and lane width fitted as a cubic polynomial over real arc-length.
 - Added `SumoWriter` as a standalone public class in `tactics2d/map/writer/` for writing a Tactics2D `Map` to SUMO `.net.xml` XML, grouping lanes by `sumo_id` edge prefix and supporting lossless centre-line export via `custom_tags["centerline"]`.
 - Added `Net2OsmConverter` for converting SUMO `.net.xml` maps to Lanelet2-annotated `.osm` format via the `NetXMLParser` → `Map` → `OsmWriter` pipeline.
+- Added `Osm2NetConverter` for converting Lanelet2-annotated `.osm` maps to SUMO `.net.xml` format via the `OSMParser` → `Map` → `SumoWriter` pipeline.
 
 ### Fixed
 
