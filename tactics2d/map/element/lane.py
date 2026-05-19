@@ -5,10 +5,12 @@
 
 
 import logging
+from dataclasses import dataclass
 from enum import IntEnum
-from typing import Any, Union
+from typing import Any, Optional, Tuple, Union
 
-from shapely.geometry import LinearRing, LineString
+import numpy as np
+from shapely.geometry import LinearRing, LineString, Point
 
 
 class LaneRelationship(IntEnum):
@@ -16,6 +18,17 @@ class LaneRelationship(IntEnum):
     SUCCESSOR = 2
     LEFT_NEIGHBOR = 3
     RIGHT_NEIGHBOR = 4
+
+
+@dataclass(frozen=True)
+class LaneProjection:
+    """Projection of a point onto a lane centerline."""
+
+    s: float
+    d: float
+    point: Point
+    heading: float
+    distance: float
 
 
 class Lane:
@@ -164,6 +177,77 @@ class Lane:
     @property
     def shape(self) -> list:
         return list(self.geometry.coords)
+
+    def centerline(self) -> Optional[LineString]:
+        """Return the lane centerline if it can be obtained."""
+
+        if self.custom_tags is not None and "centerline" in self.custom_tags:
+            centerline = np.asarray(self.custom_tags["centerline"], dtype=float)
+            if centerline.ndim == 2 and centerline.shape[1] == 2 and len(centerline) >= 2:
+                return LineString(centerline)
+
+        if self.left_side is None or self.right_side is None:
+            return None
+
+        left = LineString(self.left_side)
+        right = LineString(self.right_side)
+        if left.length <= 0.0 or right.length <= 0.0:
+            return None
+
+        samples = np.linspace(0.0, 1.0, num=10)
+        points = []
+        for ratio in samples:
+            left_point = left.interpolate(float(ratio), normalized=True)
+            right_point = right.interpolate(float(ratio), normalized=True)
+            points.append(
+                (0.5 * (left_point.x + right_point.x), 0.5 * (left_point.y + right_point.y))
+            )
+        return LineString(points)
+
+    def get_width(self, samples: int = 5, default: Optional[float] = None) -> Optional[float]:
+        """Estimate lane width by sampling distances between left and right boundaries."""
+
+        if self.left_side is None or self.right_side is None:
+            return default
+
+        left = LineString(self.left_side)
+        right = LineString(self.right_side)
+        if left.length <= 0.0 or right.length <= 0.0:
+            return default
+
+        sample_count = max(2, int(samples))
+        distances = []
+        for ratio in np.linspace(0.0, 1.0, num=sample_count):
+            left_point = left.interpolate(float(ratio), normalized=True)
+            right_point = right.interpolate(float(ratio), normalized=True)
+            distances.append(left_point.distance(right_point))
+        return float(np.mean(distances)) if distances else default
+
+    def project_point(self, point: Union[Point, Tuple[float, float]]) -> Optional[LaneProjection]:
+        """Project a point onto the lane centerline.
+
+        Returns:
+            LaneProjection: ``s`` is the distance along the centerline, ``d`` is
+            the signed lateral offset, and ``distance`` is ``abs(d)``.
+        """
+
+        centerline = self.centerline()
+        if centerline is None or centerline.length <= 0.0:
+            return None
+
+        query = point if isinstance(point, Point) else Point(point)
+        progress = float(centerline.project(query))
+        projected = centerline.interpolate(progress)
+        ahead = centerline.interpolate(min(progress + 0.5, centerline.length))
+        behind = centerline.interpolate(max(progress - 0.5, 0.0))
+        heading = float(np.arctan2(ahead.y - behind.y, ahead.x - behind.x))
+        query_vec = np.array([query.x - projected.x, query.y - projected.y])
+        normal = np.array([-np.sin(heading), np.cos(heading)])
+        distance = float(query.distance(projected))
+        sign = 1.0 if float(np.dot(normal, query_vec)) >= 0.0 else -1.0
+        return LaneProjection(
+            s=progress, d=sign * distance, point=projected, heading=heading, distance=distance
+        )
 
     def is_related(self, id_: str) -> LaneRelationship:
         """Check if a given lane is related to the lane

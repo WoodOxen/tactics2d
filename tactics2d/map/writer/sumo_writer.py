@@ -201,20 +201,7 @@ class SumoWriter:
 
     @staticmethod
     def _get_width(lane: Lane) -> float:
-        left, right = lane.left_side, lane.right_side
-        if left is None or right is None:
-            return SumoWriter._DEFAULT_WIDTH
-        s_vals = np.linspace(0, 1, SumoWriter._WIDTH_SAMPLES)
-        return float(
-            np.mean(
-                [
-                    left.interpolate(s, normalized=True).distance(
-                        right.interpolate(s, normalized=True)
-                    )
-                    for s in s_vals
-                ]
-            )
-        )
+        return lane.get_width(samples=SumoWriter._WIDTH_SAMPLES, default=SumoWriter._DEFAULT_WIDTH)
 
     @staticmethod
     def _shape_to_str(coords: list) -> str:

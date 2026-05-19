@@ -39,6 +39,7 @@ nav:
     - graph_search_demo: "tutorial/graph_search_demo.ipynb"
     - sampling_search_demo: "tutorial/sampling_search_demo.ipynb"
     - routing: "tutorial/routing.ipynb"
+    - behavioral_model: "tutorial/behavioral_model.ipynb"
   - Community: "community.md"
   - Publications: "publication.md"
 

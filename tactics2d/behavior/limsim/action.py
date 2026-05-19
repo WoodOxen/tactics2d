@@ -1,0 +1,43 @@
+# Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Discrete behavior actions for the LimSim-style MCT planner."""
+
+from enum import Enum
+
+
+class LimSimAction(str, Enum):
+    """High-level actions used by the interaction planner.
+
+    The value strings follow the original LimSim implementation:
+    ``KS`` keeps the current longitudinal speed, ``AC`` accelerates, ``DC``
+    decelerates, and ``LCL``/``LCR`` request a lane change.
+    """
+
+    KS = "KS"
+    AC = "AC"
+    DC = "DC"
+    LCL = "LCL"
+    LCR = "LCR"
+
+    KEEP = "KS"
+    SPEED_UP = "AC"
+    SLOW_DOWN = "DC"
+    LANE_LEFT = "LCL"
+    LANE_RIGHT = "LCR"
+
+    @property
+    def acceleration(self) -> float:
+        """Nominal longitudinal acceleration attached to the action."""
+
+        if self == LimSimAction.AC:
+            return 0.7
+        if self == LimSimAction.DC:
+            return -8.0
+        return 0.0
+
+    @property
+    def is_lane_change(self) -> bool:
+        """Whether this action requests a lateral lane transition."""
+
+        return self in {LimSimAction.LCL, LimSimAction.LCR}

@@ -306,7 +306,7 @@ class WOMDParser:
 
     def _estimate_side_offsets(
         self, boundaries, lane_points: np.ndarray, map_: Map
-    ) -> Tuple[np.ndarray, List[str]]:
+    ) -> Tuple[np.ndarray, List[str], List[dict]]:
         """Estimate lateral offsets from centerline to one lane side.
 
         WOMD stores lane boundaries as segments referenced by lane polyline index ranges.
@@ -318,15 +318,16 @@ class WOMDParser:
         n_points = len(lane_points)
         offsets = np.full(n_points, np.nan, dtype=np.float64)
         line_ids = []
+        segments = []
         if n_points == 0:
-            return offsets, line_ids
+            return offsets, line_ids, segments
+
+        deltas = np.diff(lane_points, axis=0)
+        cumulative_s = np.concatenate([[0.0], np.cumsum(np.linalg.norm(deltas, axis=1))])
 
         for boundary in boundaries:
             id_ = "%05d" % boundary.boundary_feature_id
             line_ids.append(id_)
-            roadline = map_.roadlines.get(id_)
-            if roadline is None or roadline.geometry is None:
-                continue
 
             start_idx = int(boundary.lane_start_index)
             end_idx = int(boundary.lane_end_index)
@@ -338,6 +339,20 @@ class WOMDParser:
             if start_idx > end_idx:
                 continue
 
+            segments.append(
+                {
+                    "roadline_id": id_,
+                    "lane_start_index": start_idx,
+                    "lane_end_index": end_idx,
+                    "start_s": float(cumulative_s[start_idx]),
+                    "end_s": float(cumulative_s[end_idx]),
+                }
+            )
+
+            roadline = map_.roadlines.get(id_)
+            if roadline is None or roadline.geometry is None:
+                continue
+
             for idx in range(start_idx, end_idx + 1):
                 dist = roadline.geometry.distance(Point(lane_points[idx]))
                 if not np.isfinite(dist):
@@ -345,22 +360,22 @@ class WOMDParser:
                 if np.isnan(offsets[idx]) or dist < offsets[idx]:
                     offsets[idx] = dist
 
-        return offsets, line_ids
+        return offsets, line_ids, segments
 
     def _build_lane_sides(
         self, lane_feature, lane_subtype: str, map_: Map
-    ) -> Tuple[LineString, LineString, dict]:
+    ) -> Tuple[LineString, LineString, dict, dict]:
         """Construct lane sides from the centerline and segmented boundary metadata."""
         centerline = np.array(
             [[point.x, point.y] for point in lane_feature.polyline], dtype=np.float64
         )
         if len(centerline) < 2:
-            return None, None, {"left": [], "right": []}
+            return None, None, {"left": [], "right": []}, {"left": [], "right": []}
 
-        left_offsets, left_ids = self._estimate_side_offsets(
+        left_offsets, left_ids, left_segments = self._estimate_side_offsets(
             lane_feature.left_boundaries, centerline, map_
         )
-        right_offsets, right_ids = self._estimate_side_offsets(
+        right_offsets, right_ids, right_segments = self._estimate_side_offsets(
             lane_feature.right_boundaries, centerline, map_
         )
 
@@ -397,13 +412,14 @@ class WOMDParser:
             LineString(left_side.tolist()),
             LineString(right_side.tolist()),
             {"left": left_ids, "right": right_ids},
+            {"left": left_segments, "right": right_segments},
         )
 
     def _parse_map_features(self, map_feature, map_: Map):
         if map_feature.HasField("lane"):
             lane_feature = map_feature.lane
             lane_subtype = self._LANE_TYPE_MAPPING[lane_feature.type]
-            left_side, right_side, line_ids = self._build_lane_sides(
+            left_side, right_side, line_ids, boundary_segments = self._build_lane_sides(
                 lane_feature, lane_subtype, map_
             )
 
@@ -421,6 +437,7 @@ class WOMDParser:
                 custom_tags={
                     "interpolating": lane_feature.interpolating,
                     "centerline": [[point.x, point.y] for point in lane_feature.polyline],
+                    "boundary_segments": boundary_segments,
                 },
             )
 

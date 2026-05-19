@@ -6,5 +6,12 @@
 
 from .circle import Circle
 from .direction import CardinalDirection, RelativeDirection
+from .utils import euclidean_distance, normalize_angle
 
-__all__ = ["Circle", "RelativeDirection", "CardinalDirection"]
+__all__ = [
+    "Circle",
+    "RelativeDirection",
+    "CardinalDirection",
+    "euclidean_distance",
+    "normalize_angle",
+]
