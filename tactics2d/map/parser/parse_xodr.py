@@ -991,15 +991,6 @@ class XODRParser:
         Returns:
             Map: A Tactics2D Map populated with lanes, roadlines, junctions,
                 and area objects parsed from the OpenDRIVE file.
-
-        Example:
-        ```python
-        from tactics2d.map.parser import XODRParser
-
-        parser = XODRParser()
-        map_ = parser.parse("path/to/map.xodr")
-        print(len(map_.lanes))
-        ```
         """
         xml_root = ET.parse(file_path).getroot()
 
