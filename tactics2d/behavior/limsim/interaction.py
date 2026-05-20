@@ -8,7 +8,6 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from tactics2d.geometry import euclidean_distance
 from tactics2d.map.element import Map
 
-from .action import LimSimAction
 from .config import LimSimConfig
 from .geometry import footprint
 from .schema import AgentDecisionState
@@ -93,15 +92,15 @@ class InteractionGraph:
         if target.lane_id in lane_i.left_neighbors | lane_i.right_neighbors:
             if abs(source.route_progress - target.route_progress) > source.length + target.length:
                 return False
-            return source.action.is_lane_change or target.action.is_lane_change or distance <= (
-                source.length + target.length
+            return (
+                source.action.is_lane_change
+                or target.action.is_lane_change
+                or distance <= (source.length + target.length)
             )
 
         return distance <= self.config.interaction_distance
 
-    def _longitudinally_close(
-        self, source: AgentDecisionState, target: AgentDecisionState
-    ) -> bool:
+    def _longitudinally_close(self, source: AgentDecisionState, target: AgentDecisionState) -> bool:
         rear, front = (source, target)
         if source.route_progress > target.route_progress:
             rear, front = target, source
@@ -111,8 +110,12 @@ class InteractionGraph:
     def _dynamic_interaction_distance(self, agent: AgentDecisionState) -> float:
         return self.config.same_lane_time_headway * agent.speed + agent.length
 
-    def _successor_gap(self, rear: AgentDecisionState, front: AgentDecisionState, rear_lane) -> float:
-        lane_length = float(rear_lane.geometry.length) / 2.0 if rear_lane.geometry is not None else 0.0
+    def _successor_gap(
+        self, rear: AgentDecisionState, front: AgentDecisionState, rear_lane
+    ) -> float:
+        lane_length = (
+            float(rear_lane.geometry.length) / 2.0 if rear_lane.geometry is not None else 0.0
+        )
         return max(lane_length - rear.route_progress, 0.0) + front.route_progress
 
     def _is_junction_like(self, lane) -> bool:

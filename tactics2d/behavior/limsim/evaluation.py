@@ -5,7 +5,7 @@
 
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Sequence, Tuple
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 from shapely.geometry import Polygon
@@ -66,7 +66,9 @@ def evaluate_planning_result(
     )
 
 
-def dimensions_from_participants(participants: Dict[object, object]) -> Dict[object, Tuple[float, float]]:
+def dimensions_from_participants(
+    participants: Dict[object, object],
+) -> Dict[object, Tuple[float, float]]:
     """Extract ``(length, width)`` from Tactics2D participants."""
 
     dimensions = {}
@@ -104,8 +106,7 @@ def find_first_collision(
 
 
 def displacement_errors(
-    planned: Dict[object, Trajectory],
-    reference: Dict[object, Trajectory],
+    planned: Dict[object, Trajectory], reference: Dict[object, Trajectory]
 ) -> Dict[object, TrajectoryError]:
     """Compute ADE/FDE on frames shared by planned and reference trajectories."""
 
@@ -126,9 +127,7 @@ def displacement_errors(
             distances.append(euclidean_distance(planned_state.location, reference_state.location))
 
         errors[agent_id] = TrajectoryError(
-            ade=float(np.mean(distances)),
-            fde=float(distances[-1]),
-            samples=len(distances),
+            ade=float(np.mean(distances)), fde=float(distances[-1]), samples=len(distances)
         )
     return errors
 
