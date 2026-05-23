@@ -39,7 +39,8 @@ nav:
     - graph_search_demo: "tutorial/graph_search_demo.ipynb"
     - sampling_search_demo: "tutorial/sampling_search_demo.ipynb"
     - routing: "tutorial/routing.ipynb"
-    - behavioral_model: "tutorial/behavioral_model.ipynb"
+    - limsim_pdp_tutorial: "tutorial/limsim_pdp_tutorial.ipynb"
+    - limsim_pdp_visualization: "tutorial/limsim_pdp_visualization.ipynb"
   - Community: "community.md"
   - Publications: "publication.md"
 
