@@ -3,10 +3,11 @@
 
 """matplotlib renderer implementation."""
 
+from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 os.environ["MPLBACKEND"] = "Agg"
 import matplotlib
@@ -30,9 +31,9 @@ class MatplotlibRenderer:
 
     def __init__(
         self,
-        resolution: Tuple[float, float],
-        xlim: Optional[Tuple[float, float]] = None,
-        ylim: Optional[Tuple[float, float]] = None,
+        resolution: tuple[float, float],
+        xlim: tuple[float, float] | None = None,
+        ylim: tuple[float, float] | None = None,
         dpi: int = 200,
         auto_scale: bool = True,
     ):
@@ -96,7 +97,7 @@ class MatplotlibRenderer:
 
     def _calculate_bounds(
         self, geometry_data: dict, perception_range
-    ) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+    ) -> tuple[tuple[float, float], tuple[float, float]]:
         """Calculate bounds from geometry data in world coordinates."""
         if self.sensor_position is not None:
             if isinstance(perception_range, (list, tuple)) and len(perception_range) == 4:
@@ -225,7 +226,7 @@ class MatplotlibRenderer:
 
         return scalar % period
 
-    def _create_polygon(self, element: Dict[str, Any]) -> Optional[Polygon]:
+    def _create_polygon(self, element: dict[str, Any]) -> Polygon | None:
         """Create a matplotlib Polygon from element data."""
         if len(element["geometry"]) < 3:
             logging.warning(f"Polygon with id {element['id']} has less than 3 points, skipping.")
@@ -243,7 +244,7 @@ class MatplotlibRenderer:
             zorder=z_order,
         )
 
-    def _create_circle(self, element: Dict[str, Any]) -> Circle:
+    def _create_circle(self, element: dict[str, Any]) -> Circle:
         """Create a matplotlib Circle from element data."""
         color, z_order = self._resolve_style(element["color"], element.get("type"))
 
@@ -255,7 +256,7 @@ class MatplotlibRenderer:
             zorder=z_order,
         )
 
-    def _create_line(self, element: Dict[str, Any]) -> List[Line2D]:
+    def _create_line(self, element: dict[str, Any]) -> list[Line2D]:
         """Create matplotlib Line2D objects from element data."""
         line_shape = np.asarray(element["geometry"], dtype=float)
         lines = []
@@ -305,7 +306,7 @@ class MatplotlibRenderer:
 
         return lines
 
-    def _create_points(self, element: Dict[str, Any]) -> Optional[PathCollection]:
+    def _create_points(self, element: dict[str, Any]) -> PathCollection | None:
         """Create a matplotlib PathCollection from point cloud data."""
         points = np.array(element.get("points", []))
 
@@ -370,7 +371,7 @@ class MatplotlibRenderer:
 
     def _update_line(
         self,
-        lines: List[Line2D],
+        lines: list[Line2D],
         geometry: ArrayLike,
         position: ArrayLike = (0, 0),
         rotation: float = 0,
@@ -552,7 +553,7 @@ class MatplotlibRenderer:
                 self._update_line(self.road_lines[element_id], geometry)
 
     def save_single_frame(
-        self, save_to: Optional[str] = None, dpi: Optional[int] = None, return_array: bool = False
+        self, save_to: str | None = None, dpi: int | None = None, return_array: bool = False
     ):
         """Save the current frame to file or return as numpy array."""
         try:

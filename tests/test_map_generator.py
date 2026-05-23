@@ -3,12 +3,15 @@
 
 """Tests for map generator."""
 
+from __future__ import annotations
+
 import sys
 
 sys.path.append(".")
 sys.path.append("..")
 
 import logging
+from typing import Tuple
 
 import numpy as np
 import pytest
@@ -194,7 +197,33 @@ def _assert_ramp_result_basic(result: RoadModuleResult, kind: str, main_road_typ
     assert result.quality["main_self_intersection"] is False
     assert result.quality["connector_self_intersection"] is False
     assert isinstance(result.quality["accepted_reasons"], list)
+    assert "connector_min_radius" in result.quality
+    assert "connector_max_abs_curvature" in result.quality
+    assert "connector_max_abs_curvature_rate" in result.quality
+    assert result.quality["accepted"] is True
     assert result.id_counter > 0
+
+
+def _assert_freeway_ramp_common(result: RoadModuleResult, kind: str, ramp_side: str) -> None:
+    """Assert common freeway ramp properties."""
+    _assert_ramp_result_basic(result, kind, "freeway")
+    _assert_no_yellow_centerline(result)
+    _assert_has_ramp_auxiliary_line(result)
+
+    assert result.quality["ramp_side"] == ramp_side
+    assert "backward_in" not in result.ports
+    assert "backward_out" not in result.ports
+
+
+def _assert_urban_ramp_common(result: RoadModuleResult, kind: str) -> None:
+    """Assert common urban ramp properties."""
+    _assert_ramp_result_basic(result, kind, "urban")
+    _assert_has_yellow_centerline(result)
+    _assert_has_ramp_auxiliary_line(result)
+
+    assert result.quality["ramp_side"] == "right"
+    assert "backward_in" in result.ports
+    assert "backward_out" in result.ports
 
 
 @pytest.mark.map_generator
@@ -333,7 +362,6 @@ def test_lane_adapter_expand_right():
     assert result.quality["lane_delta"] == 1
     assert result.quality["change_side"] == "right"
     assert result.quality["accepted"] is True
-
     assert len(result.lanes) == 3
     assert len(result.roadlines) == 4
     assert len(result.ports["entry"].lane_ids) == 2
@@ -365,7 +393,6 @@ def test_lane_adapter_reduce_right():
     assert result.quality["lane_delta"] == -1
     assert result.quality["change_side"] == "right"
     assert result.quality["accepted"] is True
-
     assert len(result.lanes) == 3
     assert len(result.roadlines) == 4
     assert len(result.ports["entry"].lane_ids) == 3
@@ -397,7 +424,6 @@ def test_lane_adapter_expand_left():
     assert result.quality["lane_delta"] == 1
     assert result.quality["change_side"] == "left"
     assert result.quality["accepted"] is True
-
     assert len(result.lanes) == 3
     assert len(result.roadlines) == 4
     assert len(result.ports["entry"].lane_ids) == 2
@@ -429,7 +455,6 @@ def test_lane_adapter_reduce_left():
     assert result.quality["lane_delta"] == -1
     assert result.quality["change_side"] == "left"
     assert result.quality["accepted"] is True
-
     assert len(result.lanes) == 3
     assert len(result.roadlines) == 4
     assert len(result.ports["entry"].lane_ids) == 3
@@ -460,7 +485,6 @@ def test_lane_adapter_no_change():
     assert result.quality["end_lane_num"] == 2
     assert result.quality["lane_delta"] == 0
     assert result.quality["accepted"] is True
-
     assert len(result.lanes) == 2
     assert len(result.roadlines) == 3
     assert len(result.ports["entry"].lane_ids) == 2
@@ -515,7 +539,6 @@ def test_fork_right():
     assert result.quality["main_lane_num"] == 3
     assert result.quality["branch_lane_num"] == 1
     assert result.quality["accepted"] is True
-
     assert "main_in" in result.ports
     assert "main_out" in result.ports
     assert "branch_out" in result.ports
@@ -549,7 +572,6 @@ def test_fork_left():
     assert result.quality["main_lane_num"] == 3
     assert result.quality["branch_lane_num"] == 1
     assert result.quality["accepted"] is True
-
     assert "main_in" in result.ports
     assert "main_out" in result.ports
     assert "branch_out" in result.ports
@@ -661,7 +683,6 @@ def test_merge_right():
     assert result.quality["main_lane_num"] == 3
     assert result.quality["branch_lane_num"] == 1
     assert result.quality["accepted"] is True
-
     assert "main_in" in result.ports
     assert "branch_in" in result.ports
     assert "main_out" in result.ports
@@ -695,7 +716,6 @@ def test_merge_left():
     assert result.quality["main_lane_num"] == 3
     assert result.quality["branch_lane_num"] == 1
     assert result.quality["accepted"] is True
-
     assert "main_in" in result.ports
     assert "branch_in" in result.ports
     assert "main_out" in result.ports
@@ -864,6 +884,33 @@ def test_intersection_cross_curved():
 
 
 @pytest.mark.map_generator
+def test_intersection_asymmetric():
+    map_ = Map(name="intersection_asymmetric")
+    arms = [
+        {"heading": 0.0, "lane_num": 3},
+        {"heading": np.pi / 2, "lane_num": 1},
+        {"heading": np.pi, "lane_num": 3},
+        {"heading": 3 * np.pi / 2, "lane_num": 2},
+    ]
+
+    result = intersection(center=np.array([0.0, 0.0]), arms=arms, radius=12.0, id_offset=0)
+    _add_result(map_, result)
+
+    id_off = result.id_counter + 1000
+    for iface in result.interfaces:
+        road_result = _two_way_from_interface(iface, length=30.0, id_offset=id_off)
+        id_off = road_result.id_counter
+        _add_result(map_, road_result)
+
+    _render(map_, "./tests/runtime/intersection_asymmetric.png")
+
+    assert isinstance(result, RoadModuleResult)
+    assert result.quality["arm_num"] == 4
+    assert len(result.interfaces) == 4
+    assert len(map_.junctions) == 1
+
+
+@pytest.mark.map_generator
 def test_roundabout_4arm():
     map_ = Map(name="roundabout_4arm")
     arms = [{"heading": h, "lane_num": 2} for h in [0.0, np.pi / 2, np.pi, 3 * np.pi / 2]]
@@ -992,75 +1039,6 @@ def test_roundabout_curved_approach():
     assert len(result.junctions) == 1
     assert len(map_.junctions) == 1
     assert result.quality["accepted"] is True
-
-
-def _assert_has_yellow_centerline(result: RoadModuleResult) -> None:
-    """Assert that an urban two-way ramp has a yellow centerline."""
-    yellow_lines = [roadline for roadline in result.roadlines if roadline.color == "yellow"]
-    assert len(yellow_lines) >= 1
-    assert any(
-        roadline.custom_tags.get("marking_role") == "centerline"
-        or roadline.custom_tags.get("role") == "centerline"
-        for roadline in yellow_lines
-    )
-
-
-def _assert_has_ramp_auxiliary_line(result: RoadModuleResult) -> None:
-    """Assert that a ramp has a dashed auxiliary merge/diverge line."""
-    aux_lines = [
-        roadline
-        for roadline in result.roadlines
-        if roadline.custom_tags.get("marking_token") == "dashed_white_ramp"
-    ]
-    assert len(aux_lines) >= 1
-    assert all(roadline.subtype == "dashed" for roadline in aux_lines)
-    assert all(roadline.color == "white" for roadline in aux_lines)
-
-
-def _assert_ramp_result_basic(result: RoadModuleResult, kind: str, main_road_type: str) -> None:
-    """Assert basic ramp result interface and quality fields."""
-    assert isinstance(result, RoadModuleResult)
-
-    assert "main_in" in result.ports
-    assert "main_out" in result.ports
-    assert "ramp" in result.ports
-
-    assert result.quality["module"] == "ramp"
-    assert result.quality["kind"] == kind
-    assert result.quality["main_road_type"] == main_road_type
-
-    assert result.quality["connector_length"] > 0.0
-    assert result.quality["main_self_intersection"] is False
-    assert result.quality["connector_self_intersection"] is False
-    assert isinstance(result.quality["accepted_reasons"], list)
-
-    assert "connector_min_radius" in result.quality
-    assert "connector_max_abs_curvature" in result.quality
-    assert "connector_max_abs_curvature_rate" in result.quality
-    assert result.quality["accepted"] is True
-    assert result.id_counter > 0
-
-
-def _assert_freeway_ramp_common(result: RoadModuleResult, kind: str, ramp_side: str) -> None:
-    """Assert common freeway ramp properties."""
-    _assert_ramp_result_basic(result, kind, "freeway")
-    _assert_no_yellow_centerline(result)
-    _assert_has_ramp_auxiliary_line(result)
-
-    assert result.quality["ramp_side"] == ramp_side
-    assert "backward_in" not in result.ports
-    assert "backward_out" not in result.ports
-
-
-def _assert_urban_ramp_common(result: RoadModuleResult, kind: str) -> None:
-    """Assert common urban ramp properties."""
-    _assert_ramp_result_basic(result, kind, "urban")
-    _assert_has_yellow_centerline(result)
-    _assert_has_ramp_auxiliary_line(result)
-
-    assert result.quality["ramp_side"] == "right"
-    assert "backward_in" in result.ports
-    assert "backward_out" in result.ports
 
 
 @pytest.mark.map_generator
