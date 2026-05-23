@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+from tactics2d.geometry import normalize_angle
 from tactics2d.participant.trajectory import State, Trajectory
 
 from .action import LimSimAction
@@ -77,9 +78,10 @@ def states_to_trajectory(agent_id: object, states: List[AgentDecisionState], sta
     trajectory = Trajectory(id_=agent_id, fps=round(1.0 / dt, 3), stable_freq=True)
     for index, state in enumerate(states):
         frame = int(round(start_frame + (index + 1) * dt * 1000))
-        vx = state.speed * np.cos(state.heading)
-        vy = state.speed * np.sin(state.heading)
+        heading = normalize_angle(state.heading)
+        vx = state.speed * np.cos(heading)
+        vy = state.speed * np.sin(heading)
         trajectory.add_state(
-            State(frame=frame, x=state.x, y=state.y, heading=state.heading, vx=vx, vy=vy)
+            State(frame=frame, x=state.x, y=state.y, heading=heading, vx=vx, vy=vy)
         )
     return trajectory

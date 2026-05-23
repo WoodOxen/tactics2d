@@ -177,10 +177,7 @@ class LaneFollower:
             return agent.lateral_offset + self.config.lateral_speed * self.config.dt
         if action == LimSimAction.LCR:
             return agent.lateral_offset - self.config.lateral_speed * self.config.dt
-        if abs(agent.lateral_offset) < 0.05:
-            return 0.0
-        step = self.config.lateral_speed * self.config.dt
-        return float(np.sign(agent.lateral_offset) * max(abs(agent.lateral_offset) - step, 0.0))
+        return agent.lateral_offset
 
     def _select_route(
         self, agent: AgentDecisionState, action: LimSimAction, map_: Optional[Map]

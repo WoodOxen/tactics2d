@@ -3,12 +3,11 @@
 
 """Semantic map query helpers."""
 
-from .semantic_query import LaneConflict, SemanticMapQuery, SemanticReferencePath, StopLine, StopTarget
+from .semantic_query import LaneConflict, SemanticMapQuery, StopLine, StopTarget
 
 __all__ = [
     "LaneConflict",
     "SemanticMapQuery",
-    "SemanticReferencePath",
     "StopLine",
     "StopTarget",
 ]

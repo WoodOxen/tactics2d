@@ -9,16 +9,8 @@ from typing import Iterable, List, Optional, Sequence, Tuple, Union
 import numpy as np
 from shapely.geometry import GeometryCollection, LineString, MultiPoint, Point, Polygon, box
 
+from tactics2d.geometry import ReferencePath
 from tactics2d.map.element import Map, Regulatory
-
-
-@dataclass(frozen=True)
-class SemanticReferencePath:
-    """A route reference path built from lane centerlines."""
-
-    path: LineString
-    lane_ids: Tuple[str, ...]
-    lane_width: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -65,7 +57,7 @@ class SemanticMapQuery:
         lane_id: str,
         route_lane_ids: Optional[Sequence[str]] = None,
         lookahead_lanes: int = 3,
-    ) -> Optional[SemanticReferencePath]:
+    ) -> Optional[ReferencePath]:
         """Build a reference path by concatenating lane centerlines."""
 
         if lane_id not in self.map.lanes:
@@ -91,7 +83,7 @@ class SemanticMapQuery:
         if path is None:
             return None
         width = self.map.lanes[lane_id].get_width()
-        return SemanticReferencePath(path=path, lane_ids=tuple(lane_ids), lane_width=width)
+        return ReferencePath(path=path, lane_ids=tuple(lane_ids), lane_width=width)
 
     def query_lanes_in_region(self, region: Union[Tuple[float, float, float, float], Polygon]):
         """Return lane ids whose geometry intersects a region."""
@@ -107,10 +99,7 @@ class SemanticMapQuery:
         """Return the traffic-light regulatory element bound to a lane."""
 
         for regulation in self.map.regulations.values():
-            if regulation.subtype != "traffic_light":
-                continue
-            tags = regulation.custom_tags or {}
-            if tags.get("lane_id") == lane_id or lane_id in regulation.ways:
+            if regulation.is_traffic_light() and regulation.applies_to_lane(lane_id):
                 return regulation
         return None
 
@@ -120,21 +109,14 @@ class SemanticMapQuery:
         regulation = self.get_traffic_light_for_lane(lane_id)
         if regulation is None:
             return None
-        states = (regulation.custom_tags or {}).get("states", [])
-        if not states:
-            return None
-        if time_ms is None:
-            return states[-1]
-        return min(states, key=lambda state: abs(int(state.get("time_ms", 0)) - int(time_ms)))
+        return regulation.state_at(time_ms)
 
     def get_stop_signs(self, lane_id: Optional[str] = None) -> List[Regulatory]:
         """Return stop signs, optionally filtered by lane id."""
 
         stop_signs = []
         for regulation in self.map.regulations.values():
-            if regulation.subtype != "stop_sign":
-                continue
-            if lane_id is None or lane_id in regulation.ways:
+            if regulation.is_stop_sign() and (lane_id is None or regulation.applies_to_lane(lane_id)):
                 stop_signs.append(regulation)
         return stop_signs
 
@@ -163,7 +145,7 @@ class SemanticMapQuery:
         if include_traffic_lights:
             regulation = self.get_traffic_light_for_lane(lane_id)
             state_record = self.get_traffic_light_state(lane_id, time_ms)
-            point = self._traffic_light_stop_point(regulation, state_record)
+            point = regulation.stop_point_at(time_ms) if regulation is not None else None
             state = state_record.get("state") if state_record is not None else None
             if regulation is not None and point is not None:
                 targets.append(
@@ -422,14 +404,6 @@ class SemanticMapQuery:
             else:
                 coords.extend(line_coords)
         return LineString(coords) if len(coords) >= 2 else None
-
-    def _traffic_light_stop_point(self, regulation, state_record) -> Optional[Point]:
-        if state_record is not None and "stop_point" in state_record:
-            stop_point = state_record["stop_point"]
-            return Point(float(stop_point[0]), float(stop_point[1]))
-        if regulation is not None and regulation.position is not None:
-            return regulation.position
-        return None
 
     def _boundary_roadline_ids(self, lane, side: str, s: Optional[float]) -> List[str]:
         tags = lane.custom_tags or {}

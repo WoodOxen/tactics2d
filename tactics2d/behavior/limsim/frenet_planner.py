@@ -9,24 +9,21 @@ from typing import List, Optional, Sequence, Tuple
 import numpy as np
 from shapely.geometry import LineString, Point
 
-from tactics2d.geometry import euclidean_distance, normalize_angle
+from tactics2d.geometry import (
+    FrenetPoint,
+    ReferencePath,
+    euclidean_distance,
+    normalize_angle,
+    oriented_box,
+)
 from tactics2d.map.element import Map
 from tactics2d.map.query import SemanticMapQuery, StopTarget
 from tactics2d.routing.utils import concatenate_centerlines, get_lane_centerline
 
 from .action import LimSimAction
 from .config import LimSimConfig
-from .geometry import footprint
 from .planner import LaneFollower
 from .schema import AgentDecisionState
-
-
-@dataclass(frozen=True)
-class FrenetPoint:
-    """A point represented in reference-path Frenet coordinates."""
-
-    s: float
-    d: float
 
 
 @dataclass
@@ -117,70 +114,6 @@ class QuarticPolynomial:
         return float(np.dot(self.coeffs, powers))
 
 
-class ReferencePath:
-    """A lane-route reference path with Cartesian/Frenet conversion helpers."""
-
-    def __init__(self, path: LineString, lane_ids: Tuple[str, ...], lane_width: float):
-        self.path = path
-        self.lane_ids = lane_ids
-        self.lane_width = lane_width
-
-    @classmethod
-    def from_agent(
-        cls, agent: AgentDecisionState, map_: Optional[Map], config: LimSimConfig
-    ) -> Optional["ReferencePath"]:
-        if map_ is None or agent.lane_id is None or agent.lane_id not in map_.lanes:
-            return None
-
-        route_lanes = [agent.lane_id]
-        current_lane_id = agent.lane_id
-        while len(route_lanes) < config.max_routes_per_agent:
-            current_lane = map_.lanes.get(current_lane_id)
-            if current_lane is None or not current_lane.successors:
-                break
-            next_lane_id = sorted(current_lane.successors)[0]
-            if next_lane_id in route_lanes or next_lane_id not in map_.lanes:
-                break
-            route_lanes.append(next_lane_id)
-            current_lane_id = next_lane_id
-
-        centerlines = [get_lane_centerline(map_.lanes[lane_id]) for lane_id in route_lanes]
-        path_array = concatenate_centerlines(centerlines)
-        if path_array is None or len(path_array) < 2:
-            return None
-        path_array = _align_path_with_heading(path_array, agent.x, agent.y, agent.heading)
-
-        return cls(
-            LineString(path_array),
-            tuple(route_lanes),
-            lane_width=_lane_width(map_.lanes[agent.lane_id], config.default_lane_width),
-        )
-
-    def cartesian_to_frenet(self, x: float, y: float) -> FrenetPoint:
-        point = Point(x, y)
-        s = float(self.path.project(point))
-        ref_point = self.path.interpolate(s)
-        heading = self.heading_at(s)
-        dx = x - ref_point.x
-        dy = y - ref_point.y
-        d = float(-dx * np.sin(heading) + dy * np.cos(heading))
-        return FrenetPoint(s=s, d=d)
-
-    def frenet_to_cartesian(self, s: float, d: float) -> Tuple[float, float, float]:
-        s = float(np.clip(s, 0.0, self.path.length))
-        point = self.path.interpolate(s)
-        heading = self.heading_at(s)
-        x = float(point.x - d * np.sin(heading))
-        y = float(point.y + d * np.cos(heading))
-        return x, y, heading
-
-    def heading_at(self, s: float) -> float:
-        s0 = float(np.clip(s, 0.0, self.path.length))
-        ahead = self.path.interpolate(min(s0 + 0.5, self.path.length))
-        behind = self.path.interpolate(max(s0 - 0.5, 0.0))
-        return normalize_angle(np.arctan2(ahead.y - behind.y, ahead.x - behind.x))
-
-
 class FrenetTrajectoryPlanner:
     """Sample and score Frenet-style trajectories for one selected LimSim action."""
 
@@ -198,7 +131,7 @@ class FrenetTrajectoryPlanner:
     ) -> List[AgentDecisionState]:
         """Generate a final trajectory for one agent after the behavior action is fixed."""
 
-        reference_path = ReferencePath.from_agent(agent, map_, self.config)
+        reference_path = build_reference_path_from_agent(agent, map_, self.config)
         if reference_path is None or reference_path.path.length <= 1e-6:
             return self.fallback.rollout(agent, action, map_)
         start = reference_path.cartesian_to_frenet(agent.x, agent.y)
@@ -253,7 +186,7 @@ class FrenetTrajectoryPlanner:
         candidates = []
         for speed_offset in self.config.frenet_target_speed_offsets:
             target_speed = float(np.clip(nominal_speed + speed_offset, self.config.min_speed, self.config.max_speed))
-            for lateral_offset in self._sample_lateral_offsets(nominal_d):
+            for lateral_offset in self._sample_lateral_offsets(nominal_d, action):
                 states, accel_cost, jerk_cost = self._build_states(
                     agent,
                     action,
@@ -318,14 +251,24 @@ class FrenetTrajectoryPlanner:
             previous_s = s
 
         states = []
+        previous_heading = normalize_angle(agent.heading)
         for index, item in enumerate(raw):
             s, d, x, y, heading, speed, lane_id = item
             if index + 1 < len(raw):
                 nx, ny = raw[index + 1][2], raw[index + 1][3]
-                heading = normalize_angle(np.arctan2(ny - y, nx - x))
+                if euclidean_distance((x, y), (nx, ny)) > 1e-4:
+                    heading = normalize_angle(np.arctan2(ny - y, nx - x))
+                else:
+                    heading = previous_heading
             elif index > 0:
                 px, py = raw[index - 1][2], raw[index - 1][3]
-                heading = normalize_angle(np.arctan2(y - py, x - px))
+                if euclidean_distance((px, py), (x, y)) > 1e-4:
+                    heading = normalize_angle(np.arctan2(y - py, x - px))
+                else:
+                    heading = previous_heading
+            else:
+                heading = normalize_angle(heading)
+            previous_heading = heading
             states.append(
                 agent.with_updates(
                     x=x,
@@ -349,7 +292,7 @@ class FrenetTrajectoryPlanner:
         reference_path: ReferencePath,
     ) -> float:
         if action not in {LimSimAction.LCL, LimSimAction.LCR}:
-            return 0.0
+            return agent.lateral_offset
         if map_ is None or agent.lane_id is None or agent.lane_id not in map_.lanes:
             return agent.lateral_offset
 
@@ -362,7 +305,9 @@ class FrenetTrajectoryPlanner:
         signed_distance = 0.5 * (reference_path.lane_width + neighbor_width)
         return signed_distance if action == LimSimAction.LCL else -signed_distance
 
-    def _sample_lateral_offsets(self, nominal_d: float) -> List[float]:
+    def _sample_lateral_offsets(self, nominal_d: float, action: LimSimAction) -> List[float]:
+        if action not in {LimSimAction.LCL, LimSimAction.LCR}:
+            return [float(nominal_d)]
         if abs(nominal_d) < 1e-6:
             return list(self.config.frenet_lateral_offsets)
         return [float(nominal_d + offset) for offset in self.config.frenet_lateral_offsets]
@@ -405,13 +350,13 @@ class FrenetTrajectoryPlanner:
         cost += self.config.frenet_lateral_weight * sum((state.lateral_offset - nominal_d) ** 2 for state in states)
 
         for step, state in enumerate(states):
-            ego_shape = footprint(state)
+            ego_shape = _footprint(state)
             for obstacle in obstacle_trajectories:
                 if not obstacle:
                     continue
                 other = obstacle[min(step, len(obstacle) - 1)]
                 distance = euclidean_distance(state.location, other.location)
-                if ego_shape.intersects(footprint(other)):
+                if ego_shape.intersects(_footprint(other)):
                     cost += self.config.frenet_collision_penalty
                 elif distance < self.config.frenet_obstacle_buffer:
                     cost += self.config.frenet_proximity_weight * (
@@ -457,12 +402,12 @@ class FrenetTrajectoryPlanner:
         obstacle_trajectories: Sequence[Sequence[AgentDecisionState]],
     ) -> bool:
         for step, state in enumerate(states):
-            ego_shape = footprint(state)
+            ego_shape = _footprint(state)
             for obstacle in obstacle_trajectories:
                 if not obstacle:
                     continue
                 other = obstacle[min(step, len(obstacle) - 1)]
-                if ego_shape.intersects(footprint(other)):
+                if ego_shape.intersects(_footprint(other)):
                     return True
         return False
 
@@ -651,6 +596,39 @@ def _lane_width(lane, default_width: float) -> float:
     return float(width) if width is not None else default_width
 
 
+def build_reference_path_from_agent(
+    agent: AgentDecisionState, map_: Optional[Map], config: LimSimConfig
+) -> Optional[ReferencePath]:
+    """Build a generic reference path from LimSim agent state and map context."""
+
+    if map_ is None or agent.lane_id is None or agent.lane_id not in map_.lanes:
+        return None
+
+    route_lanes = [agent.lane_id]
+    current_lane_id = agent.lane_id
+    while len(route_lanes) < config.max_routes_per_agent:
+        current_lane = map_.lanes.get(current_lane_id)
+        if current_lane is None or not current_lane.successors:
+            break
+        next_lane_id = sorted(current_lane.successors)[0]
+        if next_lane_id in route_lanes or next_lane_id not in map_.lanes:
+            break
+        route_lanes.append(next_lane_id)
+        current_lane_id = next_lane_id
+
+    centerlines = [get_lane_centerline(map_.lanes[lane_id]) for lane_id in route_lanes]
+    path_array = concatenate_centerlines(centerlines)
+    if path_array is None or len(path_array) < 2:
+        return None
+    path_array = _align_path_with_heading(path_array, agent.x, agent.y, agent.heading)
+
+    return ReferencePath(
+        LineString(path_array),
+        tuple(route_lanes),
+        lane_width=_lane_width(map_.lanes[agent.lane_id], config.default_lane_width),
+    )
+
+
 def _align_path_with_heading(path_array: np.ndarray, x: float, y: float, heading: float) -> np.ndarray:
     line = LineString(path_array)
     progress = float(line.project(Point(x, y)))
@@ -663,3 +641,7 @@ def _align_path_with_heading(path_array: np.ndarray, x: float, y: float, heading
     if np.cos(normalize_angle(path_heading - heading)) < 0.0:
         return path_array[::-1].copy()
     return path_array
+
+
+def _footprint(state: AgentDecisionState):
+    return oriented_box(state.x, state.y, state.heading, state.length, state.width)

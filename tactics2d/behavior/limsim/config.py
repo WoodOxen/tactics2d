@@ -19,7 +19,8 @@ class LimSimConfig:
     exploration_weight: float = 1.0
     interaction_distance: float = 35.0
     conflict_distance: float = 3.0
-    lane_match_radius: float = 8.0
+    lane_match_radius: float = 4.0
+    lane_heading_match_weight: float = 2.0
     max_lateral_offset_for_lane_rollout: float = 2.5
     max_group_size: int = 3
     max_routes_per_agent: int = 3

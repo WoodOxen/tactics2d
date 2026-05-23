@@ -5,11 +5,10 @@
 
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from tactics2d.geometry import euclidean_distance
+from tactics2d.geometry import euclidean_distance, oriented_box
 from tactics2d.map.element import Map
 
 from .config import LimSimConfig
-from .geometry import footprint
 from .schema import AgentDecisionState
 
 
@@ -131,7 +130,7 @@ def has_trajectory_collision(trajectories: Sequence[Sequence[AgentDecisionState]
         return False
     steps = min(len(trajectory) for trajectory in trajectories)
     for step in range(steps):
-        footprints = [footprint(trajectory[step]) for trajectory in trajectories]
+        footprints = [_footprint(trajectory[step]) for trajectory in trajectories]
         for i, source in enumerate(footprints):
             for target in footprints[i + 1 :]:
                 if source.intersects(target):
@@ -148,7 +147,7 @@ def first_collision_info(
         return None
     steps = min(len(trajectory) for trajectory in trajectories)
     for step in range(steps):
-        footprints = [footprint(trajectory[step]) for trajectory in trajectories]
+        footprints = [_footprint(trajectory[step]) for trajectory in trajectories]
         for i, source in enumerate(footprints):
             for j, target in enumerate(footprints[i + 1 :], start=i + 1):
                 if source.intersects(target):
@@ -169,3 +168,7 @@ def minimum_pair_distance(trajectories: Sequence[Sequence[AgentDecisionState]]) 
                 distance = euclidean_distance(source[step].location, target[step].location)
                 min_distance = min(min_distance, distance)
     return min_distance
+
+
+def _footprint(state: AgentDecisionState):
+    return oriented_box(state.x, state.y, state.heading, state.length, state.width)
