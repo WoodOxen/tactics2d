@@ -7,7 +7,7 @@
 import logging
 
 import pytest
-from shapely.geometry import LineString, Polygon
+from shapely.geometry import LineString, Point, Polygon
 
 import tactics2d.map.element as map_element
 from tactics2d.map.generator import ParkingLotGenerator
@@ -75,6 +75,32 @@ def test_junction():
     junction = map_element.Junction(id_="0", connections={connection1.id_: connection1})
     junction.add_connection(connection2)
     assert len(junction.connections) == 2
+
+
+@pytest.mark.map_element
+def test_regulatory_semantic_helpers():
+    traffic_light = map_element.Regulatory(
+        id_="tl_A",
+        ways={"A": "refers"},
+        subtype="traffic_light",
+        dynamic=True,
+        position=Point(1.0, 10.0),
+        custom_tags={
+            "states": [
+                {"time_ms": 0, "state": "LANE_STATE_STOP", "stop_point": [1.0, 10.0]},
+                {"time_ms": 100, "state": "LANE_STATE_GO", "stop_point": [1.0, 11.0]},
+            ]
+        },
+    )
+    stop_sign = map_element.Regulatory(id_="stop_A", ways={"A": "refers"}, subtype="stop_sign")
+
+    assert traffic_light.is_traffic_light()
+    assert not traffic_light.is_stop_sign()
+    assert traffic_light.applies_to_lane("A")
+    assert not traffic_light.applies_to_lane("B")
+    assert traffic_light.state_at(90)["state"] == "LANE_STATE_GO"
+    assert traffic_light.stop_point_at(90).equals(Point(1.0, 11.0))
+    assert stop_sign.is_stop_sign()
 
 
 @pytest.mark.map_element

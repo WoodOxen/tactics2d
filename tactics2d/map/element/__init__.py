@@ -6,7 +6,7 @@
 
 from .area import Area
 from .junction import Junction
-from .lane import Lane, LaneRelationship
+from .lane import Lane, LaneProjection, LaneRelationship
 from .map import Map
 from .node import Node
 from .regulatory import Regulatory, RegulatoryMember
@@ -16,6 +16,7 @@ __all__ = [
     "Node",
     "RoadLine",
     "Lane",
+    "LaneProjection",
     "LaneRelationship",
     "Junction",
     "Area",

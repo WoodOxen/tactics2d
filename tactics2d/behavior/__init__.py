@@ -2,3 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """Behavior module."""
+
+from .limsim import LimSimBehaviorModel
+
+__all__ = ["LimSimBehaviorModel"]

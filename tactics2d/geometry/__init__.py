@@ -6,5 +6,16 @@
 
 from .circle import Circle
 from .direction import CardinalDirection, RelativeDirection
+from .frenet import FrenetPoint, ReferencePath
+from .utils import euclidean_distance, normalize_angle, oriented_box
 
-__all__ = ["Circle", "RelativeDirection", "CardinalDirection"]
+__all__ = [
+    "Circle",
+    "RelativeDirection",
+    "CardinalDirection",
+    "FrenetPoint",
+    "ReferencePath",
+    "euclidean_distance",
+    "normalize_angle",
+    "oriented_box",
+]

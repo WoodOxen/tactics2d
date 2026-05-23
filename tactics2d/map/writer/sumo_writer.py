@@ -293,30 +293,8 @@ class SumoWriter:
         return result
 
     @staticmethod
-    def _get_width(lane) -> float:
-        """Estimate lane width from boundary geometry."""
-        left = lane.left_side
-        right = lane.right_side
-        if left is None or right is None:
-            return SumoWriter._DEFAULT_WIDTH
-
-        try:
-            left_coords = np.array(left.coords)
-            right_coords = np.array(right.coords)
-            if len(left_coords) == len(right_coords):
-                diffs = left_coords - right_coords
-                dists = np.sqrt(np.sum(diffs**2, axis=1))
-                return float(np.mean(dists))
-        except Exception as exc:
-            logging.debug("Ignored shape mismatch, fallback to interpolation: %s", exc)
-
-        s_vals = np.linspace(0.0, 1.0, SumoWriter._WIDTH_SAMPLES)
-        dists = []
-        for s in s_vals:
-            lp = left.interpolate(float(s), normalized=True)
-            rp = right.interpolate(float(s), normalized=True)
-            dists.append(lp.distance(rp))
-        return float(np.mean(dists))
+    def _get_width(lane: Lane) -> float:
+        return lane.get_width(samples=SumoWriter._WIDTH_SAMPLES, default=SumoWriter._DEFAULT_WIDTH)
 
     @staticmethod
     def _shape_to_str(coords: list) -> str:

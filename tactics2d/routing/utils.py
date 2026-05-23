@@ -18,20 +18,10 @@ def get_lane_centerline(lane: Lane) -> Optional[np.ndarray]:
     available, approximate the centerline by averaging lane boundaries.
     """
 
-    if lane.custom_tags is not None and "centerline" in lane.custom_tags:
-        centerline = np.asarray(lane.custom_tags["centerline"], dtype=float)
-        if centerline.ndim == 2 and centerline.shape[1] == 2 and len(centerline) >= 2:
-            return centerline
-
-    if lane.left_side is None or lane.right_side is None:
+    centerline = lane.centerline()
+    if centerline is None:
         return None
-
-    left_coords = np.asarray(lane.left_side.coords, dtype=float)
-    right_coords = np.asarray(lane.right_side.coords, dtype=float)
-    if len(left_coords) != len(right_coords) or len(left_coords) < 2:
-        return None
-
-    return (left_coords + right_coords) / 2.0
+    return np.asarray(centerline.coords, dtype=float)
 
 
 def get_lane_length(lane: Lane) -> float:

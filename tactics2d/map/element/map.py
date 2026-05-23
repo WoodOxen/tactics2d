@@ -520,8 +520,23 @@ class Map:
             return self.roadlines[id_]
         elif self.ids[id_] == MapElement.REGULATORY:
             return self.regulations[id_]
+        elif self.ids[id_] == MapElement.JUNCTION:
+            return self.junctions[id_]
         elif self.ids[id_] == MapElement.CUSTOM:
             return self.customs[id_]
+
+    def get_speed_limit(self, lane_id: str, default=None):
+        """Return the speed limit of a lane.
+
+        Args:
+            lane_id (str): The id of the lane.
+            default: The value returned when the lane has no speed limit.
+        """
+
+        lane = self.lanes.get(lane_id)
+        if lane is None or lane.speed_limit is None:
+            return default
+        return lane.speed_limit
 
     def reset(self):
         """This function resets the map by clearing all the road elements."""

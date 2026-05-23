@@ -335,6 +335,10 @@ def test_womd_dynamic_traffic_lights(file_name: str, scenario_id: str, expected_
         and reg.custom_tags
         and "states" in reg.custom_tags
         and len(reg.custom_tags["states"]) > 0
+        and reg.is_traffic_light()
+        and any(reg.applies_to_lane(lane_id) for lane_id in reg.ways)
+        and reg.state_at() is not None
+        and reg.stop_point_at() is not None
         for reg in dynamic_lights
     )
 
