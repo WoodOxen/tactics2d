@@ -5,6 +5,9 @@
 
 ### Added
 
+- Added socket-driven road element generators for one-way roads, two-way roads, lane adapters, forks, merges, ramps, intersections, and roundabouts.
+- Added shared road module interfaces and rule-based lane marking utilities for local map generation.
+- Added tests for local road element generators.
 - Added a parser and corresponding tests, documentations for DriveInsightD dataset.
 - Added native SUMO `.net.xml` map parser (`NetXMLParser`) with junction geometry parsing, connection attachment, and junction shape auto-completion via convex hull.
 - Merged `Connection` class into `Junction` by flattening its properties directly into `Junction` with default values.
@@ -41,6 +44,7 @@
 
 ### Changed
 
+- Refactored road element generator utilities into `geometry`, `rules`, and `road_elements` submodules.
 - Extracted `OsmWriter` from `Xodr2OsmConverter` into `tactics2d/map/writer/osm_writer.py` as a standalone public class with full Google-style docstrings and type annotations.
 - Refactored `Xodr2OsmConverter` to reuse `XODRParser` and `OsmWriter` via the `Map` intermediate representation, removing the duplicate `_XodrReader` XML parser, the `_LaneGeom` intermediary struct, and the redundant geometry helper functions.
 - Refactored `Net2XodrConverter` and `Osm2XodrConverter` to delegate XML construction to `XodrWriter`, removing duplicated `_write_plan_view`, `_write_lanes`, and related private methods.
