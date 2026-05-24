@@ -177,42 +177,68 @@ def test_ngsim_parser(file, stamp_range, ids):
 @pytest.mark.parametrize(
     "file_name, stamp_range, expected",
     [
-        ("train_boston/2021.08.26.18.24.36_veh-28_00578_00663.db", None, 343),
-        ("train_pittsburgh/2021.09.13.19.54.06_veh-45_00781_00843.db", None, 57),
         (
-            "train_singapore/2021.09.29.01.04.10_veh-49_00808_00872.db",
-            (-float("inf"), float("inf")),
-            35,
+            "mini/2021.05.12.22.00.38_veh-35_01008_01518.db",
+            None,
+            {
+                "participants": 6460,
+                "time_range": (11427489651, 11427999600),
+                "location": "las_vegas",
+                "lanes": 4583,
+                "roadlines": 12092,
+                "areas": 1370,
+                "junctions": 522,
+                "regulations": 1164,
+            },
         ),
         (
-            "train_vegas_1/2021.05.18.21.31.22_veh-30_00062_00160.db",
-            (-float("inf"), float("inf")),
-            285,
+            "mini/2021.05.12.22.00.38_veh-35_01008_01518.db",
+            (11427489651, 11427499651),
+            {
+                "participants": 160,
+                "time_range": (11427489651, 11427499650),
+                "location": "las_vegas",
+                "lanes": 4583,
+                "roadlines": 12092,
+                "areas": 1370,
+                "junctions": 522,
+                "regulations": 1164,
+            },
         ),
-        ("val/2021.08.24.12.39.05_veh-42_01860_01929.db", None, 45),
-        ("test/2021.09.16.14.14.03_veh-45_00441_00502.db", None, 48),
     ],
 )
-def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
+def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: dict):
     folder_path = "./tactics2d/data/trajectory_sample/NuPlan/data/cache"
-    map_folder_path = "./tactics2d/data/map/NuPlan"
+    map_folder_path = "./tactics2d/data/map/NuPlan/maps"
 
     dataset_parser = NuPlanParser()
 
     t1 = time.time()
-    participants, _ = dataset_parser.parse_trajectory(file_name, folder_path, stamp_range)
+    participants, time_range = dataset_parser.parse_trajectory(file_name, folder_path, stamp_range)
     t2 = time.time()
     location = dataset_parser.get_location(file_name, folder_path)
-    map_path = NUPLAN_MAP_CONFIG[location]["gpkg_file"]
+    map_config = NUPLAN_MAP_CONFIG[location]
+    map_path = os.path.join(map_config["folder"], map_config["gpkg_file"])
 
-    try:
-        _ = dataset_parser.parse_map(map_path, map_folder_path)
-    except:
-        logging.info(f"{map_path}")
+    map_ = dataset_parser.parse_map(map_path, map_folder_path)
 
     t3 = time.time()
 
-    assert (len(participants)) == expected
+    assert len(participants) == expected["participants"]
+    assert time_range == expected["time_range"]
+    assert location == expected["location"]
+    assert len(map_.lanes) == expected["lanes"]
+    assert len(map_.roadlines) == expected["roadlines"]
+    assert len(map_.areas) == expected["areas"]
+    assert len(map_.junctions) == expected["junctions"]
+    assert len(map_.regulations) == expected["regulations"]
+
+    assert any(lane.centerline() is not None for lane in map_.lanes.values())
+    assert any(lane.successors for lane in map_.lanes.values())
+    assert any(lane.left_neighbors or lane.right_neighbors for lane in map_.lanes.values())
+    assert any(regulation.subtype == "traffic_light" for regulation in map_.regulations.values())
+    assert any(area.subtype == "crosswalk" for area in map_.areas.values())
+
     logging.info(f"The time needed to parse a NuPlan scenario: {t2 - t1}s")
     logging.info(f"The time needed to parse the map for a NuPlan scenario: {t3 - t2}s")
 

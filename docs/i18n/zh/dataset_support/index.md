@@ -178,7 +178,7 @@ NuPlan 是世界上首个用于自动驾驶的大规模规划基准。数据记�
 
 NuPlan 还有自己的可视化工具包 [nuplan-devkit](https://github.com/motional/nuplan-devkit/tree/master)。该开发套件的文档在 [这里](https://nuplan-devkit.readthedocs.io/_/downloads/en/latest/pdf/)。
 
-**TODO**: 修复解析器中的错误。
+当前 `NuPlanParser` 会将 sqlite 轨迹日志和 geopackage 地图转换到 Tactics2D 的通用结构：参与体的二维位置、朝向、速度、尺寸和类别；车道与连接车道的中心线、边界、限速、前驱后继和左右邻接；以及可行驶区域、停车区、人行横道、人行道、道路段、路口、停止线多边形和交通灯。
 
 ## Waymo Open Dataset v1.2 (WOMD)
 
