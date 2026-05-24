@@ -8,21 +8,27 @@ from __future__ import annotations
 from typing import Literal
 
 import numpy as np
-from shapely.geometry import LineString, Polygon
+from shapely.geometry import Polygon
 
-from tactics2d.map.element import Area, Lane, LaneRelationship, RoadLine
-
-from ..geometry.geometry_utils import offset_polyline
-from ..geometry.module_geometry import (
+from tactics2d.geometry import (
     as_point,
-    bezier_connection,
     curvature_stats,
-    fit_reference_line,
     has_self_intersection,
     nearest_s,
+    normalize_angle,
+    offset_polyline,
     polyline_length,
     sample_by_s,
 )
+from tactics2d.map.element import Area, Lane, LaneRelationship, RoadLine
+from tactics2d.map.generator.helpers.element_builder import (
+    add_ordered_lane_neighbors,
+    build_lane_from_boundaries,
+    build_roadline_from_points,
+    link_lanes,
+)
+from tactics2d.map.generator.helpers.reference_line import bezier_connection, fit_reference_line
+
 from ..rules.lane_marking_rules import (
     one_way_mark_kwargs,
     ramp_mark_kwargs,
@@ -37,11 +43,6 @@ MainRoadType = Literal["freeway", "urban"]
 RampSide = Literal["right", "left"]
 
 
-def _wrap_angle(angle: float) -> float:
-    """Wrap an angle to [-pi, pi)."""
-    return float((angle + np.pi) % (2.0 * np.pi) - np.pi)
-
-
 def _repair_heading_towards_chord(
     start_point: np.ndarray, end_point: np.ndarray, heading: float, max_error: float = np.pi / 3.0
 ) -> float:
@@ -54,60 +55,10 @@ def _repair_heading_towards_chord(
         return float(heading)
 
     chord_heading = float(np.arctan2(chord[1], chord[0]))
-    if abs(_wrap_angle(float(heading) - chord_heading)) > max_error:
+    if abs(normalize_angle(float(heading) - chord_heading)) > max_error:
         return chord_heading
 
     return float(heading)
-
-
-def _merge_tags(marking_kwargs: dict, tags: dict | None = None) -> dict:
-    """Merge marking metadata with module-specific metadata."""
-    merged = dict(marking_kwargs)
-    custom_tags = dict(merged.get("custom_tags", {}))
-    if tags is not None:
-        custom_tags.update(tags)
-    merged["custom_tags"] = custom_tags
-    return merged
-
-
-def _rl(id_: str, pts: np.ndarray, marking_kwargs: dict, tags=None) -> RoadLine:
-    """Create a RoadLine from renderer-compatible marking kwargs."""
-    return RoadLine(id_=id_, geometry=LineString(pts), **_merge_tags(marking_kwargs, tags))
-
-
-def _line_ids(ids: str | list[str]) -> list[str]:
-    """Return RoadLine ids as a list."""
-    if isinstance(ids, str):
-        return [ids]
-    return list(ids)
-
-
-def _lane(
-    id_: str,
-    left_pts: np.ndarray,
-    right_pts: np.ndarray,
-    left_rl_ids: str | list[str],
-    right_rl_ids: str | list[str],
-    speed_limit: float,
-    tags: dict,
-) -> Lane:
-    """Create a lane with one or more RoadLine ids on each side."""
-    return Lane(
-        id_=id_,
-        left_side=LineString(left_pts),
-        right_side=LineString(right_pts),
-        subtype="road",
-        speed_limit=speed_limit,
-        speed_limit_unit="km/h",
-        line_ids={"left": _line_ids(left_rl_ids), "right": _line_ids(right_rl_ids)},
-        custom_tags=tags,
-    )
-
-
-def _link(predecessor: Lane, successor: Lane) -> None:
-    """Link two lanes with predecessor-successor relationship."""
-    predecessor.add_related_lane(successor.id_, LaneRelationship.SUCCESSOR)
-    successor.add_related_lane(predecessor.id_, LaneRelationship.PREDECESSOR)
 
 
 def _side_neighbor_relationship(side: RampSide) -> tuple[LaneRelationship, LaneRelationship]:
@@ -140,7 +91,9 @@ def _build_segmented_roadline(
     if gap_interval is None:
         t = dict(tags)
         t["dash_offset"] = float(global_s_offset)
-        roadline = _rl(str(id_counter), pts, marking_kwargs, t)
+        roadline = build_roadline_from_points(
+            id_=id_counter, points=pts, marking_kwargs=marking_kwargs, custom_tags=t
+        )
         return [roadline], [roadline.id_], id_counter + 1
 
     gap_start, gap_end = gap_interval
@@ -157,7 +110,9 @@ def _build_segmented_roadline(
         seg_pts = _subline_by_s(pts, seg_start, seg_end, step_size)
         t = dict(tags)
         t["dash_offset"] = float(global_s_offset + seg_start)
-        roadline = _rl(str(id_counter), seg_pts, marking_kwargs, t)
+        roadline = build_roadline_from_points(
+            id_=id_counter, points=seg_pts, marking_kwargs=marking_kwargs, custom_tags=t
+        )
         id_counter += 1
 
         roadlines.append(roadline)
@@ -225,14 +180,14 @@ def _build_freeway_main_road(
         boundary_line_ids.append(generated_ids)
 
     for i in range(lane_num):
-        lane = _lane(
-            str(c),
-            boundary_pts[i],
-            boundary_pts[i + 1],
-            boundary_line_ids[i],
-            boundary_line_ids[i + 1],
-            speed_limit,
-            {
+        lane = build_lane_from_boundaries(
+            id_=c,
+            left_points=boundary_pts[i],
+            right_points=boundary_pts[i + 1],
+            left_roadline_ids=boundary_line_ids[i],
+            right_roadline_ids=boundary_line_ids[i + 1],
+            speed_limit=speed_limit,
+            custom_tags={
                 "module": "ramp",
                 "submodule": "main",
                 "main_road_type": "freeway",
@@ -243,11 +198,7 @@ def _build_freeway_main_road(
         c += 1
         lanes.append(lane)
 
-    for i, lane in enumerate(lanes):
-        if i > 0:
-            lane.add_related_lane(lanes[i - 1].id_, LaneRelationship.LEFT_NEIGHBOR)
-        if i < len(lanes) - 1:
-            lane.add_related_lane(lanes[i + 1].id_, LaneRelationship.RIGHT_NEIGHBOR)
+    add_ordered_lane_neighbors(lanes)
 
     if ramp_side == "right":
         attach_boundary = boundary_pts[-1]
@@ -278,11 +229,13 @@ def _build_urban_main_road(
     roadlines: list[RoadLine] = []
     c = id_counter
 
-    center_roadline = _rl(
-        str(c),
-        center_pts,
-        two_way_centerline_kwargs(forward_lane_num, backward_lane_num, no_passing=True),
-        {
+    center_roadline = build_roadline_from_points(
+        id_=c,
+        points=center_pts,
+        marking_kwargs=two_way_centerline_kwargs(
+            forward_lane_num, backward_lane_num, no_passing=True
+        ),
+        custom_tags={
             "module": "ramp",
             "submodule": "main",
             "main_road_type": "urban",
@@ -323,14 +276,14 @@ def _build_urban_main_road(
 
     forward_lanes: list[Lane] = []
     for i in range(forward_lane_num):
-        lane = _lane(
-            str(c),
-            forward_boundary_pts[i],
-            forward_boundary_pts[i + 1],
-            forward_boundary_line_ids[i],
-            forward_boundary_line_ids[i + 1],
-            speed_limit,
-            {
+        lane = build_lane_from_boundaries(
+            id_=c,
+            left_points=forward_boundary_pts[i],
+            right_points=forward_boundary_pts[i + 1],
+            left_roadline_ids=forward_boundary_line_ids[i],
+            right_roadline_ids=forward_boundary_line_ids[i + 1],
+            speed_limit=speed_limit,
+            custom_tags={
                 "module": "ramp",
                 "submodule": "main",
                 "main_road_type": "urban",
@@ -342,11 +295,7 @@ def _build_urban_main_road(
         forward_lanes.append(lane)
         lanes.append(lane)
 
-    for i, lane in enumerate(forward_lanes):
-        if i > 0:
-            lane.add_related_lane(forward_lanes[i - 1].id_, LaneRelationship.LEFT_NEIGHBOR)
-        if i < len(forward_lanes) - 1:
-            lane.add_related_lane(forward_lanes[i + 1].id_, LaneRelationship.RIGHT_NEIGHBOR)
+    add_ordered_lane_neighbors(forward_lanes)
 
     backward_boundary_pts_raw = [
         offset_polyline(center_pts, i * lane_width) for i in range(backward_lane_num + 1)
@@ -358,11 +307,11 @@ def _build_urban_main_road(
         is_outer_edge = boundary_idx == backward_lane_num
         marking_kwargs = two_way_backward_kwargs(boundary_idx - 1, backward_lane_num, "left")
 
-        roadline = _rl(
-            str(c),
-            pts,
-            marking_kwargs,
-            {
+        roadline = build_roadline_from_points(
+            id_=c,
+            points=pts,
+            marking_kwargs=marking_kwargs,
+            custom_tags={
                 "module": "ramp",
                 "submodule": "main",
                 "main_road_type": "urban",
@@ -380,14 +329,14 @@ def _build_urban_main_road(
         left_pts = backward_boundary_pts_raw[i][::-1]
         right_pts = backward_boundary_pts_raw[i + 1][::-1]
 
-        lane = _lane(
-            str(c),
-            left_pts,
-            right_pts,
-            backward_boundary_line_ids[i],
-            backward_boundary_line_ids[i + 1],
-            speed_limit,
-            {
+        lane = build_lane_from_boundaries(
+            id_=c,
+            left_points=left_pts,
+            right_points=right_pts,
+            left_roadline_ids=backward_boundary_line_ids[i],
+            right_roadline_ids=backward_boundary_line_ids[i + 1],
+            speed_limit=speed_limit,
+            custom_tags={
                 "module": "ramp",
                 "submodule": "main",
                 "main_road_type": "urban",
@@ -399,11 +348,11 @@ def _build_urban_main_road(
         backward_lanes.append(lane)
         lanes.append(lane)
 
-    for i, lane in enumerate(backward_lanes):
-        if i > 0:
-            lane.add_related_lane(backward_lanes[i - 1].id_, LaneRelationship.RIGHT_NEIGHBOR)
-        if i < len(backward_lanes) - 1:
-            lane.add_related_lane(backward_lanes[i + 1].id_, LaneRelationship.LEFT_NEIGHBOR)
+    add_ordered_lane_neighbors(
+        backward_lanes,
+        left_relationship=LaneRelationship.RIGHT_NEIGHBOR,
+        right_relationship=LaneRelationship.LEFT_NEIGHBOR,
+    )
 
     attach_boundary = forward_boundary_pts[-1]
     attach_lane = forward_lanes[-1]
@@ -427,22 +376,30 @@ def _build_single_lane_from_center(
     left_pts = offset_polyline(center_pts, lane_width / 2.0)
     right_pts = offset_polyline(center_pts, -lane_width / 2.0)
 
-    left_roadline = _rl(str(id_counter), left_pts, left_marking_kwargs, {**tags, "side": "left"})
-    id_counter += 1
-
-    right_roadline = _rl(
-        str(id_counter), right_pts, right_marking_kwargs, {**tags, "side": "right"}
+    left_roadline = build_roadline_from_points(
+        id_=id_counter,
+        points=left_pts,
+        marking_kwargs=left_marking_kwargs,
+        custom_tags={**tags, "side": "left"},
     )
     id_counter += 1
 
-    lane = _lane(
-        str(id_counter),
-        left_pts,
-        right_pts,
-        left_roadline.id_,
-        right_roadline.id_,
-        speed_limit,
-        tags,
+    right_roadline = build_roadline_from_points(
+        id_=id_counter,
+        points=right_pts,
+        marking_kwargs=right_marking_kwargs,
+        custom_tags={**tags, "side": "right"},
+    )
+    id_counter += 1
+
+    lane = build_lane_from_boundaries(
+        id_=id_counter,
+        left_points=left_pts,
+        right_points=right_pts,
+        left_roadline_ids=left_roadline.id_,
+        right_roadline_ids=right_roadline.id_,
+        speed_limit=speed_limit,
+        custom_tags=tags,
     )
     id_counter += 1
 
@@ -608,30 +565,30 @@ def _build_ramp(
         aux_left_marking = ramp_mark_kwargs("aux_right")
         aux_right_marking = ramp_mark_kwargs("aux_left")
 
-    aux_left_roadline = _rl(
-        str(id_counter),
-        aux_left,
-        aux_left_marking,
-        {"module": "ramp", "segment": aux_segment, "side": "left"},
+    aux_left_roadline = build_roadline_from_points(
+        id_=id_counter,
+        points=aux_left,
+        marking_kwargs=aux_left_marking,
+        custom_tags={"module": "ramp", "segment": aux_segment, "side": "left"},
     )
     id_counter += 1
 
-    aux_right_roadline = _rl(
-        str(id_counter),
-        aux_right,
-        aux_right_marking,
-        {"module": "ramp", "segment": aux_segment, "side": "right"},
+    aux_right_roadline = build_roadline_from_points(
+        id_=id_counter,
+        points=aux_right,
+        marking_kwargs=aux_right_marking,
+        custom_tags={"module": "ramp", "segment": aux_segment, "side": "right"},
     )
     id_counter += 1
 
-    aux_lane = _lane(
-        str(id_counter),
-        aux_left,
-        aux_right,
-        aux_left_roadline.id_,
-        aux_right_roadline.id_,
-        ramp_speed,
-        {"module": "ramp"},
+    aux_lane = build_lane_from_boundaries(
+        id_=id_counter,
+        left_points=aux_left,
+        right_points=aux_right,
+        left_roadline_ids=aux_left_roadline.id_,
+        right_roadline_ids=aux_right_roadline.id_,
+        speed_limit=ramp_speed,
+        custom_tags={"module": "ramp"},
     )
     id_counter += 1
 
@@ -695,11 +652,11 @@ def _build_ramp(
     aux_lane.add_related_lane(attach_lane.id_, aux_to_main_rel)
 
     if kind == "exit":
-        _link(attach_lane, aux_lane)
-        _link(aux_lane, connector_lane)
+        link_lanes(attach_lane, aux_lane)
+        link_lanes(aux_lane, connector_lane)
     else:
-        _link(connector_lane, aux_lane)
-        _link(aux_lane, attach_lane)
+        link_lanes(connector_lane, aux_lane)
+        link_lanes(aux_lane, attach_lane)
 
     forward_ids = tuple(lane.id_ for lane in forward_lanes)
     backward_ids = tuple(lane.id_ for lane in backward_lanes)

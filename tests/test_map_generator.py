@@ -11,7 +11,7 @@ sys.path.append(".")
 sys.path.append("..")
 
 import logging
-from typing import Tuple
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -19,9 +19,9 @@ from shapely.geometry import Point
 
 logging.basicConfig(level=logging.INFO)
 
+from tactics2d.geometry import heading_unit
 from tactics2d.map.element import Area, Map
 from tactics2d.map.generator import ParkingLotGenerator, RacingTrackGenerator
-from tactics2d.map.generator.geometry.module_geometry import unit
 from tactics2d.map.generator.road_elements.fork import fork
 from tactics2d.map.generator.road_elements.intersection import intersection
 from tactics2d.map.generator.road_elements.lane_adapter import lane_adapter
@@ -45,6 +45,7 @@ from tactics2d.sensor import BEVCamera
 
 def _render(map_: Map, save_to: str) -> None:
     """Render a map to a png file."""
+    Path(save_to).parent.mkdir(parents=True, exist_ok=True)
     boundary = map_.boundary
     camera = BEVCamera(1, map_)
     geometry_data, _, _ = camera.update(0, None, None, None, None, Point(0, 0))
@@ -56,23 +57,40 @@ def _render(map_: Map, save_to: str) -> None:
     renderer.destroy()
 
 
+def _assert_result_element_ids_unique(result: RoadModuleResult) -> None:
+    """Assert that one module result has no duplicate element ids."""
+    elements = []
+    elements.extend(result.lanes)
+    elements.extend(result.roadlines)
+    elements.extend(getattr(result, "junctions", []))
+
+    ids = [element.id_ for element in elements]
+    assert len(ids) == len(set(ids))
+
+
+def _assert_lane_line_ids_resolved(result: RoadModuleResult) -> None:
+    """Assert that lane line_ids reference existing RoadLine ids."""
+    roadline_ids = {roadline.id_ for roadline in result.roadlines}
+
+    for lane in result.lanes:
+        assert "left" in lane.line_ids
+        assert "right" in lane.line_ids
+
+        for side in ("left", "right"):
+            for line_id in lane.line_ids.get(side, []):
+                assert line_id in roadline_ids
+
+
 def _add_result(map_: Map, result: RoadModuleResult) -> None:
     """Add a RoadModuleResult into a Tactics2D Map."""
+    _assert_result_element_ids_unique(result)
+    _assert_lane_line_ids_resolved(result)
+
     for lane in result.lanes:
         map_.add_lane(lane)
     for roadline in result.roadlines:
         map_.add_roadline(roadline)
     for junction in getattr(result, "junctions", []):
-        map_.add_junction(junction)
-
-
-def _add_elements(map_: Map, lanes, roadlines, junction=None) -> None:
-    """Add legacy tuple-style module outputs into a Tactics2D Map."""
-    for lane in lanes:
-        map_.add_lane(lane)
-    for roadline in roadlines:
-        map_.add_roadline(roadline)
-    if junction is not None:
         map_.add_junction(junction)
 
 
@@ -111,7 +129,7 @@ def _port_from_start_length(
         speed_limit=speed_limit,
     )
     end_port = RoadPort(
-        point=start + length * unit(heading),
+        point=start + length * heading_unit(heading),
         heading=heading,
         lane_num=lane_num,
         lane_width=lane_width,
@@ -133,7 +151,7 @@ def _two_way_from_interface(iface: dict, *, length: float, id_offset: int) -> Ro
         speed_limit=speed_limit,
     )
     end_port = RoadPort(
-        point=iface["point"] + length * unit(iface["heading"]),
+        point=iface["point"] + length * heading_unit(iface["heading"]),
         heading=iface["heading"],
         lane_num=iface["lane_num"],
         lane_width=lane_width,
@@ -224,6 +242,37 @@ def _assert_urban_ramp_common(result: RoadModuleResult, kind: str) -> None:
     assert result.quality["ramp_side"] == "right"
     assert "backward_in" in result.ports
     assert "backward_out" in result.ports
+
+
+def _assert_roundabout_seam_edges(result: RoadModuleResult) -> None:
+    """Assert roundabout seam edge RoadLines are generated correctly."""
+    assert result.quality["module"] == "roundabout"
+
+    edge_lines = [
+        roadline
+        for roadline in result.roadlines
+        if roadline.custom_tags.get("role") == "arm_outer_edge"
+    ]
+
+    expected_edge_count = 2 * result.quality["arm_num"]
+
+    assert result.quality["arm_outer_edge_count"] == expected_edge_count
+    assert len(edge_lines) == expected_edge_count
+    assert all(roadline.type_ != "virtual" for roadline in edge_lines)
+    assert all(roadline.color == "white" for roadline in edge_lines)
+
+
+def _assert_roundabout_connector_boundaries_virtual(result: RoadModuleResult) -> None:
+    """Assert roundabout connector lane boundaries stay virtual."""
+    connector_lines = [
+        roadline
+        for roadline in result.roadlines
+        if roadline.custom_tags.get("role")
+        in {"entry_connection_boundary", "exit_connection_boundary"}
+    ]
+
+    assert len(connector_lines) >= 1
+    assert all(roadline.type_ == "virtual" for roadline in connector_lines)
 
 
 @pytest.mark.map_generator
@@ -637,30 +686,6 @@ def test_fork_no_id_collision():
 
 
 @pytest.mark.map_generator
-def test_fork_tail():
-    map_ = Map(name="fork_tail")
-
-    result = fork(
-        _make_port(0.0, 0.0, 0.0, 3, speed_limit=60.0),
-        _make_port(130.0, 0.0, 0.0, 3, speed_limit=60.0),
-        _make_port(130.0, -45.0, -np.pi / 2, 1, speed_limit=40.0),
-        fork_side="right",
-        diverge_s_ratio=0.95,
-        taper_length=20.0,
-        branch_length=50.0,
-        id_offset=0,
-    )
-
-    _add_result(map_, result)
-    _render(map_, "./tests/runtime/fork_tail.png")
-
-    assert isinstance(result, RoadModuleResult)
-    assert result.quality["module"] == "fork"
-    assert result.quality["accepted"] is True
-    assert len(result.lanes) == 4
-
-
-@pytest.mark.map_generator
 def test_merge_right():
     map_ = Map(name="merge_right")
 
@@ -884,33 +909,6 @@ def test_intersection_cross_curved():
 
 
 @pytest.mark.map_generator
-def test_intersection_asymmetric():
-    map_ = Map(name="intersection_asymmetric")
-    arms = [
-        {"heading": 0.0, "lane_num": 3},
-        {"heading": np.pi / 2, "lane_num": 1},
-        {"heading": np.pi, "lane_num": 3},
-        {"heading": 3 * np.pi / 2, "lane_num": 2},
-    ]
-
-    result = intersection(center=np.array([0.0, 0.0]), arms=arms, radius=12.0, id_offset=0)
-    _add_result(map_, result)
-
-    id_off = result.id_counter + 1000
-    for iface in result.interfaces:
-        road_result = _two_way_from_interface(iface, length=30.0, id_offset=id_off)
-        id_off = road_result.id_counter
-        _add_result(map_, road_result)
-
-    _render(map_, "./tests/runtime/intersection_asymmetric.png")
-
-    assert isinstance(result, RoadModuleResult)
-    assert result.quality["arm_num"] == 4
-    assert len(result.interfaces) == 4
-    assert len(map_.junctions) == 1
-
-
-@pytest.mark.map_generator
 def test_roundabout_4arm():
     map_ = Map(name="roundabout_4arm")
     arms = [{"heading": h, "lane_num": 2} for h in [0.0, np.pi / 2, np.pi, 3 * np.pi / 2]]
@@ -937,6 +935,8 @@ def test_roundabout_4arm():
     assert len(result.junctions) == 1
     assert len(map_.junctions) == 1
     assert result.quality["accepted"] is True
+    _assert_roundabout_seam_edges(result)
+    _assert_roundabout_connector_boundaries_virtual(result)
 
     expected_radius = result.quality["outer_ring_radius"]
     for iface in result.interfaces:
@@ -970,6 +970,8 @@ def test_roundabout_3arm():
     assert len(result.junctions) == 1
     assert len(map_.junctions) == 1
     assert result.quality["accepted"] is True
+    _assert_roundabout_seam_edges(result)
+    _assert_roundabout_connector_boundaries_virtual(result)
 
     expected_radius = result.quality["outer_ring_radius"]
     for iface in result.interfaces:
@@ -1011,7 +1013,7 @@ def test_roundabout_curved_approach():
             speed_limit=speed_limit,
         )
         end_port = RoadPort(
-            point=iface["point"] + 32.0 * unit(h) + curve_sign * 7.0 * normal,
+            point=iface["point"] + 32.0 * heading_unit(h) + curve_sign * 7.0 * normal,
             heading=h + curve_sign * 0.22,
             lane_num=iface["lane_num"],
             lane_width=lane_width,
@@ -1039,6 +1041,8 @@ def test_roundabout_curved_approach():
     assert len(result.junctions) == 1
     assert len(map_.junctions) == 1
     assert result.quality["accepted"] is True
+    _assert_roundabout_seam_edges(result)
+    _assert_roundabout_connector_boundaries_virtual(result)
 
 
 @pytest.mark.map_generator

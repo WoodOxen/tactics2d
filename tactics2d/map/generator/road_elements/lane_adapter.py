@@ -6,16 +6,16 @@
 from __future__ import annotations
 
 import numpy as np
-from shapely.geometry import LineString
 
-from tactics2d.map.element import Lane, LaneRelationship, RoadLine
-
-from ..geometry.module_geometry import (
-    curvature_stats,
-    fit_reference_line,
-    has_self_intersection,
-    polyline_length,
+from tactics2d.map.element import Lane, RoadLine
+from tactics2d.map.generator.helpers.element_builder import (
+    add_ordered_lane_neighbors,
+    build_lane_from_boundaries,
+    build_module_quality,
+    build_roadline_from_points,
 )
+from tactics2d.map.generator.helpers.reference_line import fit_reference_line
+
 from ..rules.lane_marking_rules import one_way_mark, roadline_render_kwargs
 from ..rules.module_types import RoadModuleResult, RoadPort, make_port, ports_to_interfaces
 
@@ -27,6 +27,8 @@ def _smoothstep(t: np.ndarray) -> np.ndarray:
 
 def _polyline_t(points: np.ndarray) -> np.ndarray:
     """Return normalized cumulative arc-length parameter for a polyline."""
+    points = np.asarray(points, dtype=float)
+
     if len(points) < 2:
         return np.zeros(len(points), dtype=float)
 
@@ -42,6 +44,7 @@ def _polyline_t(points: np.ndarray) -> np.ndarray:
 
 def _polyline_normals(points: np.ndarray) -> np.ndarray:
     """Return left normals along a polyline."""
+    points = np.asarray(points, dtype=float)
     normals = np.zeros_like(points, dtype=float)
 
     if len(points) < 2:
@@ -73,7 +76,7 @@ def _variable_offset_polyline(
     centerline = np.asarray(centerline, dtype=float)
     t = _smoothstep(_polyline_t(centerline))
     normals = _polyline_normals(centerline)
-    offsets = start_offset + (end_offset - start_offset) * t
+    offsets = float(start_offset) + (float(end_offset) - float(start_offset)) * t
 
     return centerline + offsets[:, None] * normals
 
@@ -243,10 +246,10 @@ def lane_adapter(
 
         marking_token = _boundary_marking_token(boundary_idx, boundary_num)
 
-        roadline = RoadLine(
-            id_=str(id_counter),
-            geometry=LineString(pts),
-            **roadline_render_kwargs(
+        roadline = build_roadline_from_points(
+            id_=id_counter,
+            points=pts,
+            marking_kwargs=roadline_render_kwargs(
                 marking_token,
                 {
                     "module": "lane_adapter",
@@ -265,21 +268,17 @@ def lane_adapter(
         left_pts = boundary_points[lane_idx]
         right_pts = boundary_points[lane_idx + 1]
 
-        left_line = LineString(left_pts)
-        right_line = LineString(right_pts)
-
         start_width = abs(start_offsets[lane_idx] - start_offsets[lane_idx + 1])
         end_width = abs(end_offsets[lane_idx] - end_offsets[lane_idx + 1])
         role = _lane_role(start_width, end_width)
 
-        lane = Lane(
-            id_=str(id_counter),
-            left_side=left_line,
-            right_side=right_line,
-            subtype="road",
+        lane = build_lane_from_boundaries(
+            id_=id_counter,
+            left_points=left_pts,
+            right_points=right_pts,
+            left_roadline_ids=roadlines[lane_idx].id_,
+            right_roadline_ids=roadlines[lane_idx + 1].id_,
             speed_limit=speed,
-            speed_limit_unit="km/h",
-            line_ids={"left": [roadlines[lane_idx].id_], "right": [roadlines[lane_idx + 1].id_]},
             custom_tags={
                 "module": "lane_adapter",
                 "lane_index": lane_idx,
@@ -293,11 +292,7 @@ def lane_adapter(
 
         lanes.append(lane)
 
-    for i, lane in enumerate(lanes):
-        if i > 0:
-            lane.add_related_lane(lanes[i - 1].id_, LaneRelationship.LEFT_NEIGHBOR)
-        if i < len(lanes) - 1:
-            lane.add_related_lane(lanes[i + 1].id_, LaneRelationship.RIGHT_NEIGHBOR)
+    add_ordered_lane_neighbors(lanes)
 
     active_start_indices = _active_lane_indices(start_offsets)
     active_end_indices = _active_lane_indices(end_offsets)
@@ -344,25 +339,20 @@ def lane_adapter(
         lane.id_ for lane in lanes if lane.custom_tags.get("lane_role") == "dropped"
     ]
 
-    stats = curvature_stats(center_pts)
-    self_intersection = has_self_intersection(center_pts)
-
-    quality = {
-        "module": "lane_adapter",
-        "start_lane_num": start_n,
-        "end_lane_num": end_n,
-        "lane_delta": end_n - start_n,
-        "change_side": change_side,
-        "length": polyline_length(center_pts),
-        "self_intersection": self_intersection,
-        "added_lane_ids": added_lane_ids,
-        "dropped_lane_ids": dropped_lane_ids,
-        "active_start_lane_ids": list(entry_lane_ids),
-        "active_end_lane_ids": list(exit_lane_ids),
-        "accepted_reasons": ["self_intersection"] if self_intersection else [],
-        "accepted": not self_intersection,
-        **stats,
-    }
+    quality = build_module_quality(
+        "lane_adapter",
+        center_pts,
+        extra={
+            "start_lane_num": start_n,
+            "end_lane_num": end_n,
+            "lane_delta": end_n - start_n,
+            "change_side": change_side,
+            "added_lane_ids": added_lane_ids,
+            "dropped_lane_ids": dropped_lane_ids,
+            "active_start_lane_ids": list(entry_lane_ids),
+            "active_end_lane_ids": list(exit_lane_ids),
+        },
+    )
 
     return RoadModuleResult(
         lanes=lanes,

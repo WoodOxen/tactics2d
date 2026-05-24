@@ -8,26 +8,31 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
-from shapely.geometry import LineString, Polygon
+from shapely.geometry import Polygon
 
+from tactics2d.geometry import (
+    curvature_stats,
+    has_self_intersection,
+    heading_unit,
+    normalize_angle,
+    offset_polyline,
+    polyline_length,
+)
 from tactics2d.interpolator import Bezier
-from tactics2d.map.element import Junction, Lane, LaneRelationship, RoadLine
+from tactics2d.map.element import Lane, RoadLine
+from tactics2d.map.generator.helpers.element_builder import (
+    add_ordered_lane_neighbors,
+    build_lane_from_boundaries,
+    build_pavement_junction,
+    build_roadline_from_points,
+)
+from tactics2d.map.generator.helpers.reference_line import sample_centerline
 
-from ..geometry.geometry_utils import offset_polyline, sample_centerline
-from ..geometry.module_geometry import curvature_stats, has_self_intersection, polyline_length
-from ..rules.lane_marking_rules import intersection_mark_kwargs
 from ..rules.module_types import RoadModuleResult, RoadPort, make_port
 
 
-def _wrap_angle(angle: float) -> float:
-    return float((angle + np.pi) % (2.0 * np.pi) - np.pi)
-
-
-def _unit(heading: float) -> np.ndarray:
-    return np.array([np.cos(heading), np.sin(heading)], dtype=float)
-
-
 def _left_normal(heading: float) -> np.ndarray:
+    """Return the left normal vector of a heading."""
     return np.array([-np.sin(heading), np.cos(heading)], dtype=float)
 
 
@@ -42,12 +47,12 @@ def _bezier_connection(
     if chord < 1e-6:
         return np.vstack([p0, p3])
 
-    delta = abs(_wrap_angle(h3 - h0))
+    delta = abs(normalize_angle(h3 - h0))
     tension = 1.0 / 3.0 + (delta / np.pi) * (1.0 / 6.0)
     handle_length = chord * tension
 
-    p1 = p0 + handle_length * _unit(h0)
-    p2 = p3 - handle_length * _unit(h3)
+    p1 = p0 + handle_length * heading_unit(h0)
+    p2 = p3 - handle_length * heading_unit(h3)
 
     n = max(2, int(chord / step_size) + 1)
     return Bezier.get_curve(np.array([p0, p1, p2, p3]), n, order=3)
@@ -60,7 +65,7 @@ def _arm_boundary_point(
     pts = sample_centerline(center, heading_outward, radius, curvature, step_size)
 
     if len(pts) < 2:
-        boundary_pt = center + radius * _unit(heading_outward)
+        boundary_pt = center + radius * heading_unit(heading_outward)
         return boundary_pt, heading_outward + np.pi
 
     boundary_pt = pts[-1]
@@ -154,7 +159,7 @@ def _arm_lane_centers(
 def _turn_direction(inc_heading: float, out_heading: float) -> str:
     """Classify a turn as right, straight, or left."""
     inc_outward = inc_heading + np.pi
-    angle = _wrap_angle(out_heading - inc_outward)
+    angle = normalize_angle(out_heading - inc_outward)
 
     if angle > np.pi / 4.0:
         return "left"
@@ -225,12 +230,7 @@ def _corner_boundary_roadlines(
     step_size: float,
     id_counter: int,
 ) -> tuple[list[RoadLine], int]:
-    """Generate boundary RoadLines for junction corner curves only.
-
-    Each corner is the Bezier arc connecting adjacent arm throats. These are
-    the curved edges that show as raw polygon boundaries without this fix.
-    Arm throat edges are not included because road segment edge lines cover them.
-    """
+    """Generate boundary RoadLines for junction corner curves only."""
     arm_data = list(zip(normalized_arms, arm_boundary_lines))
     arm_data.sort(key=lambda item: item[0]["heading_inward"])
 
@@ -252,9 +252,9 @@ def _corner_boundary_roadlines(
             continue
 
         corner_roadlines.append(
-            RoadLine(
-                id_=str(id_counter),
-                geometry=LineString(corner_pts),
+            build_roadline_from_points(
+                id_=id_counter,
+                points=corner_pts,
                 type_="road_border",
                 subtype="solid",
                 color="white",
@@ -272,13 +272,17 @@ def _corner_boundary_roadlines(
 
 
 def _intersection_mark_kwargs(tags: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Return RoadLine kwargs for an intersection connection marking."""
-    custom_tags = {"marking_role": "intersection_connection"}
+    """Return virtual RoadLine kwargs for an intersection connection boundary.
+
+    Internal intersection connection boundaries are needed by Lane.line_ids, but
+    they should not be rendered as visible lane markings inside the junction.
+    """
+    custom_tags = {"marking_role": "virtual", "marking_token": "intersection_connection"}
 
     if tags is not None:
         custom_tags.update(tags)
 
-    return intersection_mark_kwargs("connection", custom_tags=custom_tags)
+    return {"type_": "virtual", "subtype": "virtual", "color": "white", "custom_tags": custom_tags}
 
 
 def intersection(
@@ -394,35 +398,31 @@ def intersection(
                 left_pts = offset_polyline(center_pts, lane_w / 2.0)
                 right_pts = offset_polyline(center_pts, -lane_w / 2.0)
 
-                left_geom = LineString(left_pts)
-                right_geom = LineString(right_pts)
-
-                left_roadline = RoadLine(
-                    id_=str(id_counter),
-                    geometry=left_geom,
-                    **_intersection_mark_kwargs(
+                left_roadline = build_roadline_from_points(
+                    id_=id_counter,
+                    points=left_pts,
+                    marking_kwargs=_intersection_mark_kwargs(
                         {"from_arm": inc_idx, "to_arm": out_idx, "turn": turn, "side": "left"}
                     ),
                 )
                 id_counter += 1
 
-                right_roadline = RoadLine(
-                    id_=str(id_counter),
-                    geometry=right_geom,
-                    **_intersection_mark_kwargs(
+                right_roadline = build_roadline_from_points(
+                    id_=id_counter,
+                    points=right_pts,
+                    marking_kwargs=_intersection_mark_kwargs(
                         {"from_arm": inc_idx, "to_arm": out_idx, "turn": turn, "side": "right"}
                     ),
                 )
                 id_counter += 1
 
-                lane = Lane(
-                    id_=str(id_counter),
-                    left_side=left_geom,
-                    right_side=right_geom,
-                    subtype="road",
+                lane = build_lane_from_boundaries(
+                    id_=id_counter,
+                    left_points=left_pts,
+                    right_points=right_pts,
+                    left_roadline_ids=left_roadline.id_,
+                    right_roadline_ids=right_roadline.id_,
                     speed_limit=lane_speed,
-                    speed_limit_unit="km/h",
-                    line_ids={"left": [left_roadline.id_], "right": [right_roadline.id_]},
                     custom_tags={
                         "module": "intersection",
                         "from_arm": inc_idx,
@@ -443,35 +443,26 @@ def intersection(
                 connection_centerlines.append(center_pts)
 
     for group_lanes in connection_groups.values():
-        for i, lane in enumerate(group_lanes):
-            if i > 0:
-                lane.add_related_lane(group_lanes[i - 1].id_, LaneRelationship.LEFT_NEIGHBOR)
-            if i < len(group_lanes) - 1:
-                lane.add_related_lane(group_lanes[i + 1].id_, LaneRelationship.RIGHT_NEIGHBOR)
+        add_ordered_lane_neighbors(group_lanes)
 
     junction_shape = _junction_shape_from_arm_boundaries(
         normalized_arms=normalized_arms, arm_boundary_lines=arm_boundary_lines, step_size=step_size
     )
 
-    corner_rls, id_counter = _corner_boundary_roadlines(
+    corner_roadlines, id_counter = _corner_boundary_roadlines(
         normalized_arms=normalized_arms,
         arm_boundary_lines=arm_boundary_lines,
         step_size=step_size,
         id_counter=id_counter,
     )
-    roadlines.extend(corner_rls)
+    roadlines.extend(corner_roadlines)
 
-    junction = Junction(
-        id_=str(id_counter),
-        custom_tags={
-            "sumo_id": f"junction_{id_counter}",
-            "x": str(float(center[0])),
-            "y": str(float(center[1])),
-            "type": "road",
-            "junction_type": "intersection",
-            "sumo_type": "priority",
-            "shape": junction_shape,
-        },
+    junction = build_pavement_junction(
+        id_=id_counter,
+        shape_points=junction_shape,
+        center=center,
+        junction_type="intersection",
+        sumo_type="priority",
     )
     id_counter += 1
 
@@ -536,13 +527,12 @@ def intersection(
             centerline
         )
 
-    junction_area = 0.0
     try:
         junction_area = float(Polygon(junction_shape).area)
     except Exception:
         junction_area = 0.0
 
-    accepted_reasons = []
+    accepted_reasons: list[str] = []
     if connection_self_intersection:
         accepted_reasons.append("connection_self_intersection")
 

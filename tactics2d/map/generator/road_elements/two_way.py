@@ -6,17 +6,18 @@
 from __future__ import annotations
 
 import numpy as np
-from shapely.geometry import LineString
 
+from tactics2d.geometry import offset_polyline
 from tactics2d.map.element import Lane, LaneRelationship, RoadLine
-
-from ..geometry.geometry_utils import offset_polyline
-from ..geometry.module_geometry import (
-    curvature_stats,
-    fit_reference_line,
-    has_self_intersection,
-    polyline_length,
+from tactics2d.map.generator.helpers.element_builder import (
+    add_ordered_lane_neighbors,
+    build_lane_from_boundaries,
+    build_module_quality,
+    build_roadline_from_points,
+    lane_ids,
 )
+from tactics2d.map.generator.helpers.reference_line import fit_reference_line
+
 from ..rules.lane_marking_rules import (
     two_way_backward_kwargs,
     two_way_centerline_kwargs,
@@ -60,6 +61,8 @@ def two_way(
         raise ValueError("forward_lane_num must be >= 1.")
     if backward_n < 1:
         raise ValueError("backward_lane_num must be >= 1 for two_way roads.")
+    if lane_w <= 0.0:
+        raise ValueError("lane_width must be positive.")
     if step_size <= 0.0:
         raise ValueError("step_size must be positive.")
 
@@ -71,112 +74,112 @@ def two_way(
     roadlines: list[RoadLine] = []
     id_counter = id_offset
 
-    center_rl = RoadLine(
-        id_=str(id_counter),
-        geometry=LineString(center_pts),
-        **two_way_centerline_kwargs(forward_n, backward_n, custom_tags={"submodule": "centerline"}),
+    center_roadline = build_roadline_from_points(
+        id_=id_counter,
+        points=center_pts,
+        marking_kwargs=two_way_centerline_kwargs(
+            forward_n, backward_n, custom_tags={"submodule": "centerline"}
+        ),
     )
     id_counter += 1
-    roadlines.append(center_rl)
+    roadlines.append(center_roadline)
 
     forward_lanes: list[Lane] = []
 
-    for i in range(forward_n):
-        left_pts = offset_polyline(center_pts, -i * lane_w)
-        right_pts = offset_polyline(center_pts, -(i + 1) * lane_w)
+    for lane_idx in range(forward_n):
+        left_pts = offset_polyline(center_pts, -lane_idx * lane_w)
+        right_pts = offset_polyline(center_pts, -(lane_idx + 1) * lane_w)
 
-        if i == 0:
-            left_rl = center_rl
+        if lane_idx == 0:
+            left_roadline = center_roadline
         else:
-            left_rl = RoadLine(
-                id_=str(id_counter),
-                geometry=LineString(left_pts),
-                **two_way_forward_kwargs(
-                    i, forward_n, "left", custom_tags={"submodule": "forward"}
+            left_roadline = build_roadline_from_points(
+                id_=id_counter,
+                points=left_pts,
+                marking_kwargs=two_way_forward_kwargs(
+                    lane_idx, forward_n, "left", custom_tags={"submodule": "forward"}
                 ),
             )
             id_counter += 1
-            roadlines.append(left_rl)
+            roadlines.append(left_roadline)
 
-        right_rl = RoadLine(
-            id_=str(id_counter),
-            geometry=LineString(right_pts),
-            **two_way_forward_kwargs(i, forward_n, "right", custom_tags={"submodule": "forward"}),
+        right_roadline = build_roadline_from_points(
+            id_=id_counter,
+            points=right_pts,
+            marking_kwargs=two_way_forward_kwargs(
+                lane_idx, forward_n, "right", custom_tags={"submodule": "forward"}
+            ),
         )
         id_counter += 1
-        roadlines.append(right_rl)
+        roadlines.append(right_roadline)
 
-        lane = Lane(
-            id_=str(id_counter),
-            left_side=LineString(left_pts),
-            right_side=LineString(right_pts),
-            subtype="road",
+        lane = build_lane_from_boundaries(
+            id_=id_counter,
+            left_points=left_pts,
+            right_points=right_pts,
+            left_roadline_ids=left_roadline.id_,
+            right_roadline_ids=right_roadline.id_,
             speed_limit=speed,
-            speed_limit_unit="km/h",
-            line_ids={"left": [left_rl.id_], "right": [right_rl.id_]},
-            custom_tags={"module": "two_way", "direction": "forward", "lane_index": i},
+            custom_tags={"module": "two_way", "direction": "forward", "lane_index": lane_idx},
         )
         id_counter += 1
 
         forward_lanes.append(lane)
         lanes.append(lane)
 
-    for i, lane in enumerate(forward_lanes):
-        if i > 0:
-            lane.add_related_lane(forward_lanes[i - 1].id_, LaneRelationship.LEFT_NEIGHBOR)
-        if i < len(forward_lanes) - 1:
-            lane.add_related_lane(forward_lanes[i + 1].id_, LaneRelationship.RIGHT_NEIGHBOR)
+    add_ordered_lane_neighbors(forward_lanes)
 
     backward_lanes: list[Lane] = []
 
-    for i in range(backward_n):
-        left_pts_raw = offset_polyline(center_pts, (i + 1) * lane_w)[::-1]
-        right_pts_raw = offset_polyline(center_pts, i * lane_w)[::-1]
+    for lane_idx in range(backward_n):
+        left_pts_raw = offset_polyline(center_pts, (lane_idx + 1) * lane_w)[::-1]
+        right_pts_raw = offset_polyline(center_pts, lane_idx * lane_w)[::-1]
 
-        left_rl = RoadLine(
-            id_=str(id_counter),
-            geometry=LineString(left_pts_raw),
-            **two_way_backward_kwargs(i, backward_n, "left", custom_tags={"submodule": "backward"}),
+        left_roadline = build_roadline_from_points(
+            id_=id_counter,
+            points=left_pts_raw,
+            marking_kwargs=two_way_backward_kwargs(
+                lane_idx, backward_n, "left", custom_tags={"submodule": "backward"}
+            ),
         )
         id_counter += 1
-        roadlines.append(left_rl)
+        roadlines.append(left_roadline)
 
-        if i == 0:
-            right_rl = center_rl
+        if lane_idx == 0:
+            right_roadline = center_roadline
         else:
-            right_rl = RoadLine(
-                id_=str(id_counter),
-                geometry=LineString(right_pts_raw),
-                **two_way_backward_kwargs(
-                    i, backward_n, "right", custom_tags={"submodule": "backward"}
+            right_roadline = build_roadline_from_points(
+                id_=id_counter,
+                points=right_pts_raw,
+                marking_kwargs=two_way_backward_kwargs(
+                    lane_idx, backward_n, "right", custom_tags={"submodule": "backward"}
                 ),
             )
             id_counter += 1
-            roadlines.append(right_rl)
+            roadlines.append(right_roadline)
 
-        lane = Lane(
-            id_=str(id_counter),
-            left_side=LineString(right_pts_raw),
-            right_side=LineString(left_pts_raw),
-            subtype="road",
+        lane = build_lane_from_boundaries(
+            id_=id_counter,
+            left_points=right_pts_raw,
+            right_points=left_pts_raw,
+            left_roadline_ids=right_roadline.id_,
+            right_roadline_ids=left_roadline.id_,
             speed_limit=speed,
-            speed_limit_unit="km/h",
-            line_ids={"left": [right_rl.id_], "right": [left_rl.id_]},
-            custom_tags={"module": "two_way", "direction": "backward", "lane_index": i},
+            custom_tags={"module": "two_way", "direction": "backward", "lane_index": lane_idx},
         )
         id_counter += 1
 
         backward_lanes.append(lane)
         lanes.append(lane)
 
-    for i, lane in enumerate(backward_lanes):
-        if i > 0:
-            lane.add_related_lane(backward_lanes[i - 1].id_, LaneRelationship.RIGHT_NEIGHBOR)
-        if i < len(backward_lanes) - 1:
-            lane.add_related_lane(backward_lanes[i + 1].id_, LaneRelationship.LEFT_NEIGHBOR)
+    add_ordered_lane_neighbors(
+        backward_lanes,
+        left_relationship=LaneRelationship.RIGHT_NEIGHBOR,
+        right_relationship=LaneRelationship.LEFT_NEIGHBOR,
+    )
 
-    forward_ids = tuple(lane.id_ for lane in forward_lanes)
-    backward_ids = tuple(lane.id_ for lane in backward_lanes)
+    forward_ids = lane_ids(forward_lanes)
+    backward_ids = lane_ids(backward_lanes)
 
     reverse_start = RoadPort(
         point=np.asarray(end_port.point, dtype=float),
@@ -208,13 +211,7 @@ def two_way(
         ),
     }
 
-    stats = curvature_stats(center_pts)
-    quality = {
-        "module": "two_way",
-        "length": polyline_length(center_pts),
-        "self_intersection": has_self_intersection(center_pts),
-        **stats,
-    }
+    quality = build_module_quality("two_way", center_pts)
 
     return RoadModuleResult(
         lanes=lanes,

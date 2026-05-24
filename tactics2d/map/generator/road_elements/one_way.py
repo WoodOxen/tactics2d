@@ -5,17 +5,17 @@
 
 from __future__ import annotations
 
-from shapely.geometry import LineString
-
-from tactics2d.map.element import Lane, LaneRelationship, RoadLine
-
-from ..geometry.geometry_utils import offset_polyline
-from ..geometry.module_geometry import (
-    curvature_stats,
-    fit_reference_line,
-    has_self_intersection,
-    polyline_length,
+from tactics2d.geometry import offset_polyline
+from tactics2d.map.element import Lane, RoadLine
+from tactics2d.map.generator.helpers.element_builder import (
+    add_ordered_lane_neighbors,
+    build_lane_from_boundaries,
+    build_module_quality,
+    build_roadline_from_points,
+    lane_ids,
 )
+from tactics2d.map.generator.helpers.reference_line import fit_reference_line
+
 from ..rules.lane_marking_rules import one_way_mark_kwargs
 from ..rules.module_types import RoadModuleResult, RoadPort, make_port, ports_to_interfaces
 
@@ -50,6 +50,8 @@ def one_way(
 
     if lane_n < 1:
         raise ValueError("lane_num must be >= 1.")
+    if lane_w <= 0.0:
+        raise ValueError("lane_width must be positive.")
     if step_size <= 0.0:
         raise ValueError("step_size must be positive.")
 
@@ -58,65 +60,55 @@ def one_way(
     )
 
     total_half_width = lane_n * lane_w / 2.0
+
     lanes: list[Lane] = []
     roadlines: list[RoadLine] = []
     id_counter = id_offset
 
-    for i in range(lane_n):
-        left_offset = total_half_width - i * lane_w
+    for lane_idx in range(lane_n):
+        left_offset = total_half_width - lane_idx * lane_w
         right_offset = left_offset - lane_w
 
         left_pts = offset_polyline(center_pts, left_offset)
         right_pts = offset_polyline(center_pts, right_offset)
 
-        left_rl = RoadLine(
-            id_=str(id_counter),
-            geometry=LineString(left_pts),
-            **one_way_mark_kwargs(i, lane_n, "left"),
+        left_roadline = build_roadline_from_points(
+            id_=id_counter,
+            points=left_pts,
+            marking_kwargs=one_way_mark_kwargs(lane_idx, lane_n, "left"),
         )
         id_counter += 1
 
-        right_rl = RoadLine(
-            id_=str(id_counter),
-            geometry=LineString(right_pts),
-            **one_way_mark_kwargs(i, lane_n, "right"),
+        right_roadline = build_roadline_from_points(
+            id_=id_counter,
+            points=right_pts,
+            marking_kwargs=one_way_mark_kwargs(lane_idx, lane_n, "right"),
         )
         id_counter += 1
 
-        lane = Lane(
-            id_=str(id_counter),
-            left_side=LineString(left_pts),
-            right_side=LineString(right_pts),
-            subtype="road",
+        lane = build_lane_from_boundaries(
+            id_=id_counter,
+            left_points=left_pts,
+            right_points=right_pts,
+            left_roadline_ids=left_roadline.id_,
+            right_roadline_ids=right_roadline.id_,
             speed_limit=speed,
-            speed_limit_unit="km/h",
-            line_ids={"left": [left_rl.id_], "right": [right_rl.id_]},
-            custom_tags={"module": "one_way", "lane_index": i},
+            custom_tags={"module": "one_way", "lane_index": lane_idx},
         )
         id_counter += 1
 
         lanes.append(lane)
-        roadlines.extend([left_rl, right_rl])
+        roadlines.extend([left_roadline, right_roadline])
 
-    for i, lane in enumerate(lanes):
-        if i > 0:
-            lane.add_related_lane(lanes[i - 1].id_, LaneRelationship.LEFT_NEIGHBOR)
-        if i < len(lanes) - 1:
-            lane.add_related_lane(lanes[i + 1].id_, LaneRelationship.RIGHT_NEIGHBOR)
+    add_ordered_lane_neighbors(lanes)
 
-    lane_ids = tuple(lane.id_ for lane in lanes)
+    ids = lane_ids(lanes)
     ports = {
-        "entry": make_port(start_port, kind="entry", name="entry", lane_ids=lane_ids),
-        "exit": make_port(end_port, kind="exit", name="exit", lane_ids=lane_ids),
+        "entry": make_port(start_port, kind="entry", name="entry", lane_ids=ids),
+        "exit": make_port(end_port, kind="exit", name="exit", lane_ids=ids),
     }
 
-    stats = curvature_stats(center_pts)
-    quality = {
-        "module": "one_way",
-        "length": polyline_length(center_pts),
-        "self_intersection": has_self_intersection(center_pts),
-        **stats,
-    }
+    quality = build_module_quality("one_way", center_pts)
 
     return RoadModuleResult(
         lanes=lanes,

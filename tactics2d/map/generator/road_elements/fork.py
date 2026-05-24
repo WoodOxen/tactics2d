@@ -8,130 +8,30 @@ from __future__ import annotations
 import numpy as np
 from shapely.geometry import LineString, Point
 
-from tactics2d.map.element import Lane, LaneRelationship, RoadLine
-
-from ..geometry.geometry_utils import offset_polyline
-from ..geometry.module_geometry import (
+from tactics2d.geometry import (
     curvature_stats,
-    fit_reference_line,
+    cut_polyline,
+    find_intersection_point,
     has_self_intersection,
+    nearest_s,
+    normalize_angle,
+    offset_polyline,
+    point_at_s,
+    point_heading_at_s,
     polyline_length,
+    resample_polyline,
 )
+from tactics2d.map.element import Lane, RoadLine
+from tactics2d.map.generator.helpers.element_builder import (
+    add_ordered_lane_neighbors,
+    build_lane_from_boundaries,
+    build_optional_roadline_from_points,
+    link_lanes,
+)
+from tactics2d.map.generator.helpers.reference_line import fit_reference_line
+
 from ..rules.lane_marking_rules import one_way_mark, ramp_mark, roadline_render_kwargs
 from ..rules.module_types import RoadModuleResult, RoadPort, make_port, ports_to_interfaces
-
-
-def _wrap_angle(angle: float) -> float:
-    """Wrap an angle to [-pi, pi)."""
-    return float((angle + np.pi) % (2.0 * np.pi) - np.pi)
-
-
-def _polyline_cumulative_s(points: np.ndarray) -> np.ndarray:
-    """Return cumulative arc length of a polyline."""
-    points = np.asarray(points, dtype=float)
-
-    if len(points) < 2:
-        return np.zeros(len(points), dtype=float)
-
-    seg_lens = np.linalg.norm(np.diff(points, axis=0), axis=1)
-    return np.concatenate([[0.0], np.cumsum(seg_lens)])
-
-
-def _interp_at_s(points: np.ndarray, cum_s: np.ndarray, s: float) -> np.ndarray:
-    """Interpolate a point at arc-length coordinate s."""
-    points = np.asarray(points, dtype=float)
-
-    if len(points) < 2:
-        return points[0]
-
-    s = float(np.clip(s, 0.0, cum_s[-1]))
-    idx = int(np.searchsorted(cum_s, s, side="right") - 1)
-    idx = max(0, min(idx, len(points) - 2))
-
-    s0 = cum_s[idx]
-    s1 = cum_s[idx + 1]
-    denom = max(s1 - s0, 1e-9)
-    t = (s - s0) / denom
-
-    return points[idx] * (1.0 - t) + points[idx + 1] * t
-
-
-def _sample_polyline(points: np.ndarray, s: float) -> np.ndarray:
-    """Sample a point on a polyline by arc length."""
-    cum_s = _polyline_cumulative_s(points)
-    return _interp_at_s(points, cum_s, s)
-
-
-def _point_heading_at_s(points: np.ndarray, s: float) -> tuple[np.ndarray, float]:
-    """Sample point and heading at arc-length coordinate s."""
-    points = np.asarray(points, dtype=float)
-
-    if len(points) < 2:
-        return points[0], 0.0
-
-    cum_s = _polyline_cumulative_s(points)
-    total = cum_s[-1]
-    s = float(np.clip(s, 0.0, total))
-
-    idx = int(np.searchsorted(cum_s, s, side="right") - 1)
-    idx = max(0, min(idx, len(points) - 2))
-
-    point = _interp_at_s(points, cum_s, s)
-    tangent = points[idx + 1] - points[idx]
-    heading = float(np.arctan2(tangent[1], tangent[0]))
-
-    return point, heading
-
-
-def _project_s_to_polyline(points: np.ndarray, query: np.ndarray) -> float:
-    """Project a point to a polyline and return the arc-length coordinate."""
-    points = np.asarray(points, dtype=float)
-    query = np.asarray(query, dtype=float)
-
-    if len(points) < 2:
-        return 0.0
-
-    cum_s = _polyline_cumulative_s(points)
-    best_dist = float("inf")
-    best_s = 0.0
-
-    for i in range(len(points) - 1):
-        a = points[i]
-        b = points[i + 1]
-        ab = b - a
-        denom = float(np.dot(ab, ab))
-
-        if denom < 1e-9:
-            continue
-
-        t = float(np.clip(np.dot(query - a, ab) / denom, 0.0, 1.0))
-        proj = a + t * ab
-        dist = float(np.linalg.norm(query - proj))
-
-        if dist < best_dist:
-            best_dist = dist
-            best_s = cum_s[i] + t * (cum_s[i + 1] - cum_s[i])
-
-    return best_s
-
-
-def _resample_polyline(points: np.ndarray, n: int) -> np.ndarray:
-    """Resample a polyline to n points."""
-    points = np.asarray(points, dtype=float)
-
-    if len(points) == 0:
-        return np.empty((0, 2), dtype=float)
-    if len(points) == 1 or n <= 1:
-        return points[:1]
-
-    cum_s = _polyline_cumulative_s(points)
-    total = cum_s[-1]
-
-    if total < 1e-9:
-        return np.repeat(points[:1], n, axis=0)
-
-    samples = np.linspace(0.0, total, n)
-    return np.asarray([_interp_at_s(points, cum_s, s) for s in samples], dtype=float)
 
 
 def _boundary_offset(boundary_index: int, lane_num: int, lane_width: float) -> float:
@@ -147,6 +47,7 @@ def _boundary_token(boundary_index: int, boundary_num: int) -> str:
       - one-way left edge: solid yellow edge
       - one-way right edge: solid white edge
       - same-direction interior lane divider: dashed white
+
     GB mapping is handled by lane_marking_rules.one_way_mark().
     """
     lane_num = boundary_num - 1
@@ -168,6 +69,7 @@ def _branch_boundary_token(boundary_index: int, boundary_num: int, fork_side: st
       - left ramp edge: yellow edge
       - right ramp edge: white ramp edge
       - interior ramp dividers: dashed white ramp
+
     GB mapping is handled by lane_marking_rules.ramp_mark().
     """
     if boundary_index == 0:
@@ -179,28 +81,12 @@ def _branch_boundary_token(boundary_index: int, boundary_num: int, fork_side: st
     return ramp_mark("interior")
 
 
-def _make_roadline(
-    id_counter: int, points: np.ndarray, token: str, custom_tags: dict
-) -> tuple[RoadLine | None, int]:
-    """Create a RoadLine if the geometry has at least two points."""
-    if len(points) < 2:
-        return None, id_counter
-
-    roadline = RoadLine(
-        id_=str(id_counter),
-        geometry=LineString(points),
-        **roadline_render_kwargs(token, custom_tags),
-    )
-
-    return roadline, id_counter + 1
-
-
 def _choose_diverge_s(
     main_center: np.ndarray, branch_point: np.ndarray, taper_length: float, branch_length: float
 ) -> float:
     """Choose the branch diverge section on the main reference line."""
     total = polyline_length(main_center)
-    projected_s = _project_s_to_polyline(main_center, branch_point)
+    projected_s = nearest_s(main_center, branch_point)
 
     backoff = max(float(taper_length), float(branch_length) * 0.45)
 
@@ -257,7 +143,7 @@ def _branch_start_from_outer_boundary(
     else:
         boundary_s = diverge_s / main_length * boundary_total
 
-    outer_pt = _sample_polyline(boundary, boundary_s)
+    outer_pt = point_at_s(boundary, boundary_s)
 
     if fork_side == "right":
         inward_normal = np.array([-np.sin(diverge_heading), np.cos(diverge_heading)], dtype=float)
@@ -265,83 +151,6 @@ def _branch_start_from_outer_boundary(
         inward_normal = np.array([np.sin(diverge_heading), -np.cos(diverge_heading)], dtype=float)
 
     return outer_pt + inward_normal * (branch_n * lane_w / 2.0)
-
-
-def _intersection_points(geometry) -> list[Point]:
-    """Extract representative Point objects from a Shapely intersection geometry."""
-    if geometry.is_empty:
-        return []
-
-    geom_type = geometry.geom_type
-
-    if geom_type == "Point":
-        return [geometry]
-
-    if geom_type == "MultiPoint":
-        return [point for point in geometry.geoms]
-
-    if geom_type == "LineString":
-        coords = list(geometry.coords)
-        if len(coords) == 0:
-            return []
-        return [Point(coords[0]), Point(coords[-1])]
-
-    if geom_type == "MultiLineString":
-        points: list[Point] = []
-        for line in geometry.geoms:
-            coords = list(line.coords)
-            if len(coords) > 0:
-                points.append(Point(coords[0]))
-                points.append(Point(coords[-1]))
-        return points
-
-    if geom_type == "GeometryCollection":
-        points: list[Point] = []
-        for sub_geometry in geometry.geoms:
-            points.extend(_intersection_points(sub_geometry))
-        return points
-
-    return []
-
-
-def _find_intersection_point(
-    line1: LineString, line2: LineString, *, pick: str = "first_on_line1"
-) -> Point | None:
-    """Find a representative Point intersection between two LineStrings."""
-    points = _intersection_points(line1.intersection(line2))
-
-    if len(points) == 0:
-        return None
-
-    if pick == "first_on_line1":
-        return min(points, key=lambda pt: float(line1.project(pt)))
-    if pick == "last_on_line1":
-        return max(points, key=lambda pt: float(line1.project(pt)))
-    if pick == "first_on_line2":
-        return min(points, key=lambda pt: float(line2.project(pt)))
-    if pick == "last_on_line2":
-        return max(points, key=lambda pt: float(line2.project(pt)))
-
-    return points[0]
-
-
-def _cut_polyline(line: LineString, pt: Point, keep: str) -> np.ndarray:
-    """Truncate a polyline precisely at a given Point."""
-    coords = np.array(line.coords, dtype=float)
-    dist = float(line.project(pt))
-
-    dists = np.zeros(len(coords), dtype=float)
-    dists[1:] = np.cumsum(np.linalg.norm(np.diff(coords, axis=0), axis=1))
-
-    idx = int(np.searchsorted(dists, dist))
-    if idx == 0:
-        idx = 1
-
-    pt_coords = np.array([[pt.x, pt.y]], dtype=float)
-
-    if keep == "before":
-        return np.vstack([coords[:idx], pt_coords])
-    return np.vstack([pt_coords, coords[idx:]])
 
 
 def _branch_centerlines_from_boundaries(branch_boundaries: list[np.ndarray]) -> list[np.ndarray]:
@@ -352,8 +161,8 @@ def _branch_centerlines_from_boundaries(branch_boundaries: list[np.ndarray]) -> 
         left = branch_boundaries[i]
         right = branch_boundaries[i + 1]
         n = max(2, min(len(left), len(right)))
-        left_r = _resample_polyline(left, n)
-        right_r = _resample_polyline(right, n)
+        left_r = resample_polyline(left, n)
+        right_r = resample_polyline(right, n)
         centerlines.append((left_r + right_r) * 0.5)
 
     return centerlines
@@ -410,7 +219,7 @@ def fork(
         diverge_s = _choose_diverge_s(
             main_center, np.asarray(branch_out.point, dtype=float), taper_length, branch_length
         )
-    diverge_point, diverge_heading = _point_heading_at_s(main_center, diverge_s)
+    diverge_point, diverge_heading = point_heading_at_s(main_center, diverge_s)
 
     main_boundaries: list[np.ndarray] = []
     for boundary_idx in range(main_n + 1):
@@ -432,12 +241,9 @@ def fork(
         diverge_heading=diverge_heading,
     )
 
-    _branch_chord = np.asarray(branch_out.point, dtype=float) - branch_start
-    _branch_chord_len = float(np.linalg.norm(_branch_chord))
-    if _branch_chord_len > 1e-6:
-        branch_depart_heading = float(np.arctan2(_branch_chord[1], _branch_chord[0]))
-    else:
-        branch_depart_heading = diverge_heading
+    # Start the branch tangent to the main road.
+    # This avoids a hard chord-angle insertion at the fork opening.
+    branch_depart_heading = float(diverge_heading)
 
     branch_center = fit_reference_line(
         branch_start,
@@ -471,12 +277,12 @@ def fork(
 
     for local_idx, b_pts in enumerate(branch_boundaries):
         b_line = LineString(b_pts)
-        intersect = _find_intersection_point(b_line, main_out_line, pick="first_on_line1")
+        intersect = find_intersection_point(b_line, main_out_line, pick="first_on_line1")
 
         if intersect is None:
             branch_cut_lines.append(b_pts)
         else:
-            branch_cut_lines.append(_cut_polyline(b_line, intersect, "after"))
+            branch_cut_lines.append(cut_polyline(b_line, intersect, "after"))
             if local_idx == branch_inside_boundary_idx:
                 nose_pt = intersect
             if local_idx == branch_outside_boundary_idx:
@@ -502,9 +308,9 @@ def fork(
             main_outside_gap_start_s = s_nose
             main_outside_gap_end_s = s_diverge
 
-        main_before_pts = _cut_polyline(main_out_line, pt_first, "before")
-        main_rest = _cut_polyline(main_out_line, pt_first, "after")
-        main_after_pts = _cut_polyline(LineString(main_rest), pt_second, "after")
+        main_before_pts = cut_polyline(main_out_line, pt_first, "before")
+        main_rest = cut_polyline(main_out_line, pt_first, "after")
+        main_after_pts = cut_polyline(LineString(main_rest), pt_second, "after")
 
     branch_marking_start_s = 0.0
     if nose_pt is not None:
@@ -525,52 +331,58 @@ def fork(
         ids: list[str] = []
 
         if boundary_idx == main_outside_boundary_idx:
-            before_roadline, id_counter = _make_roadline(
+            before_roadline, id_counter = build_optional_roadline_from_points(
                 id_counter,
                 main_before_pts,
-                token,
-                {
-                    "module": "fork",
-                    "submodule": "main",
-                    "boundary_index": boundary_idx,
-                    "fork_side": fork_side,
-                    "segment": "before_branch_opening",
-                    "opening_hidden": True,
-                },
+                marking_kwargs=roadline_render_kwargs(
+                    token,
+                    {
+                        "module": "fork",
+                        "submodule": "main",
+                        "boundary_index": boundary_idx,
+                        "fork_side": fork_side,
+                        "segment": "before_branch_opening",
+                        "opening_hidden": True,
+                    },
+                ),
             )
             if before_roadline is not None:
                 ids.append(before_roadline.id_)
                 roadlines.append(before_roadline)
 
-            after_roadline, id_counter = _make_roadline(
+            after_roadline, id_counter = build_optional_roadline_from_points(
                 id_counter,
                 main_after_pts,
-                token,
-                {
-                    "module": "fork",
-                    "submodule": "main",
-                    "boundary_index": boundary_idx,
-                    "fork_side": fork_side,
-                    "segment": "after_branch_opening",
-                    "opening_hidden": True,
-                },
+                marking_kwargs=roadline_render_kwargs(
+                    token,
+                    {
+                        "module": "fork",
+                        "submodule": "main",
+                        "boundary_index": boundary_idx,
+                        "fork_side": fork_side,
+                        "segment": "after_branch_opening",
+                        "opening_hidden": True,
+                    },
+                ),
             )
             if after_roadline is not None:
                 ids.append(after_roadline.id_)
                 roadlines.append(after_roadline)
 
         else:
-            roadline, id_counter = _make_roadline(
+            roadline, id_counter = build_optional_roadline_from_points(
                 id_counter,
                 boundary_pts,
-                token,
-                {
-                    "module": "fork",
-                    "submodule": "main",
-                    "boundary_index": boundary_idx,
-                    "fork_side": fork_side,
-                    "kept_on_main": True,
-                },
+                marking_kwargs=roadline_render_kwargs(
+                    token,
+                    {
+                        "module": "fork",
+                        "submodule": "main",
+                        "boundary_index": boundary_idx,
+                        "fork_side": fork_side,
+                        "kept_on_main": True,
+                    },
+                ),
             )
             if roadline is not None:
                 ids.append(roadline.id_)
@@ -581,20 +393,13 @@ def fork(
     main_lanes: list[Lane] = []
 
     for lane_idx in range(main_n):
-        left_line = LineString(main_boundaries[lane_idx])
-        right_line = LineString(main_boundaries[lane_idx + 1])
-
-        lane = Lane(
-            id_=str(id_counter),
-            left_side=left_line,
-            right_side=right_line,
-            subtype="road",
+        lane = build_lane_from_boundaries(
+            id_=id_counter,
+            left_points=main_boundaries[lane_idx],
+            right_points=main_boundaries[lane_idx + 1],
+            left_roadline_ids=main_boundary_line_ids[lane_idx],
+            right_roadline_ids=main_boundary_line_ids[lane_idx + 1],
             speed_limit=speed,
-            speed_limit_unit="km/h",
-            line_ids={
-                "left": main_boundary_line_ids[lane_idx],
-                "right": main_boundary_line_ids[lane_idx + 1],
-            },
             custom_tags={
                 "module": "fork",
                 "submodule": "main",
@@ -607,11 +412,7 @@ def fork(
         lanes.append(lane)
         main_lanes.append(lane)
 
-    for i, lane in enumerate(main_lanes):
-        if i > 0:
-            lane.add_related_lane(main_lanes[i - 1].id_, LaneRelationship.LEFT_NEIGHBOR)
-        if i < len(main_lanes) - 1:
-            lane.add_related_lane(main_lanes[i + 1].id_, LaneRelationship.RIGHT_NEIGHBOR)
+    add_ordered_lane_neighbors(main_lanes)
 
     branch_boundary_line_ids: list[list[str]] = []
 
@@ -627,19 +428,21 @@ def fork(
 
         visible_boundary = branch_cut_lines[local_idx]
 
-        roadline, id_counter = _make_roadline(
+        roadline, id_counter = build_optional_roadline_from_points(
             id_counter,
             visible_boundary,
-            token,
-            {
-                "module": "fork",
-                "submodule": "branch",
-                "boundary_index": local_idx,
-                "fork_side": fork_side,
-                "source_main_boundary_index": source_boundaries[local_idx],
-                "visibility_rule": visibility_rule,
-                "branch_marking_start_s": float(branch_marking_start_s),
-            },
+            marking_kwargs=roadline_render_kwargs(
+                token,
+                {
+                    "module": "fork",
+                    "submodule": "branch",
+                    "boundary_index": local_idx,
+                    "fork_side": fork_side,
+                    "source_main_boundary_index": source_boundaries[local_idx],
+                    "visibility_rule": visibility_rule,
+                    "branch_marking_start_s": float(branch_marking_start_s),
+                },
+            ),
         )
 
         ids = []
@@ -652,21 +455,15 @@ def fork(
     branch_lanes: list[Lane] = []
 
     for lane_idx in range(branch_n):
-        left_line = LineString(branch_boundaries[lane_idx])
-        right_line = LineString(branch_boundaries[lane_idx + 1])
         source_lane_idx = source_lanes[lane_idx]
 
-        lane = Lane(
-            id_=str(id_counter),
-            left_side=left_line,
-            right_side=right_line,
-            subtype="road",
+        lane = build_lane_from_boundaries(
+            id_=id_counter,
+            left_points=branch_boundaries[lane_idx],
+            right_points=branch_boundaries[lane_idx + 1],
+            left_roadline_ids=branch_boundary_line_ids[lane_idx],
+            right_roadline_ids=branch_boundary_line_ids[lane_idx + 1],
             speed_limit=min(speed, float(branch_out.speed_limit)),
-            speed_limit_unit="km/h",
-            line_ids={
-                "left": branch_boundary_line_ids[lane_idx],
-                "right": branch_boundary_line_ids[lane_idx + 1],
-            },
             custom_tags={
                 "module": "fork",
                 "submodule": "branch",
@@ -681,17 +478,12 @@ def fork(
         lanes.append(lane)
         branch_lanes.append(lane)
 
-    for i, lane in enumerate(branch_lanes):
-        if i > 0:
-            lane.add_related_lane(branch_lanes[i - 1].id_, LaneRelationship.LEFT_NEIGHBOR)
-        if i < len(branch_lanes) - 1:
-            lane.add_related_lane(branch_lanes[i + 1].id_, LaneRelationship.RIGHT_NEIGHBOR)
+    add_ordered_lane_neighbors(branch_lanes)
 
     for local_idx, branch_lane in enumerate(branch_lanes):
         source_lane_idx = source_lanes[local_idx]
         main_lane = main_lanes[source_lane_idx]
-        main_lane.add_related_lane(branch_lane.id_, LaneRelationship.SUCCESSOR)
-        branch_lane.add_related_lane(main_lane.id_, LaneRelationship.PREDECESSOR)
+        link_lanes(main_lane, branch_lane)
 
     main_lane_ids = tuple(lane.id_ for lane in main_lanes)
     branch_lane_ids = tuple(lane.id_ for lane in branch_lanes)
@@ -774,6 +566,7 @@ def fork(
         "diverge_point": diverge_point.tolist(),
         "diverge_heading": float(diverge_heading),
         "branch_start": branch_start.tolist(),
+        "branch_depart_heading": float(branch_depart_heading),
         "source_lane_indices": source_lanes,
         "source_boundary_indices": source_boundaries,
         "main_outside_boundary_index": int(main_outside_boundary_idx),
@@ -782,7 +575,7 @@ def fork(
         "main_outside_gap_start_s": float(main_outside_gap_start_s),
         "main_outside_gap_end_s": float(main_outside_gap_end_s),
         "branch_marking_start_s": float(branch_marking_start_s),
-        "branch_angle_delta": float(_wrap_angle(float(branch_out.heading) - diverge_heading)),
+        "branch_angle_delta": float(normalize_angle(float(branch_out.heading) - diverge_heading)),
         "main_self_intersection": main_self_intersection,
         "branch_self_intersection": branch_self_intersection,
         "main_max_abs_curvature": main_stats["max_abs_curvature"],
