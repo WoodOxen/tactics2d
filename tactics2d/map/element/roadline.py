@@ -112,6 +112,25 @@ class RoadLine:
             set_by_type(self.subtype, (False, True))
         elif self.subtype == "dashed_solid":
             set_by_type(self.subtype, (True, False))
+        elif self.type_ in ["curbstone", "road_border"]:
+            set_by_type(self.type_, (False, False))
+        elif self.subtype in [
+            "guard_rail",
+            "wall",
+            "fence",
+            "zebra_marking",
+            "pedestrian_marking",
+            "bike_marking",
+            "keepout",
+            "jersey_barrier",
+            "gate",
+            "door",
+            "rail",
+        ]:
+            set_by_type(self.subtype, (False, False))
+
+        if self.lane_change is None:
+            self.lane_change = (True, True)
 
     @property
     def head(self) -> Point:
