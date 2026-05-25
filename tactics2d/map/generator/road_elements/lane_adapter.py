@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from tactics2d.geometry import cumulative_s
 from tactics2d.map.element import Lane, RoadLine
 from tactics2d.map.generator.helpers.element_builder import (
     add_ordered_lane_neighbors,
@@ -20,92 +21,31 @@ from ..rules.lane_marking_rules import one_way_mark, roadline_render_kwargs
 from ..rules.module_types import RoadModuleResult, RoadPort, make_port, ports_to_interfaces
 
 
-def _smoothstep(t: np.ndarray) -> np.ndarray:
-    """Smooth interpolation from 0 to 1."""
-    return t * t * (3.0 - 2.0 * t)
-
-
-def _polyline_t(points: np.ndarray) -> np.ndarray:
-    """Return normalized cumulative arc-length parameter for a polyline."""
-    points = np.asarray(points, dtype=float)
-
-    if len(points) < 2:
-        return np.zeros(len(points), dtype=float)
-
-    seg_lens = np.linalg.norm(np.diff(points, axis=0), axis=1)
-    cum_s = np.concatenate([[0.0], np.cumsum(seg_lens)])
-    total = cum_s[-1]
-
-    if total < 1e-9:
-        return np.zeros(len(points), dtype=float)
-
-    return cum_s / total
-
-
-def _polyline_normals(points: np.ndarray) -> np.ndarray:
-    """Return left normals along a polyline."""
-    points = np.asarray(points, dtype=float)
-    normals = np.zeros_like(points, dtype=float)
-
-    if len(points) < 2:
-        normals[:, 1] = 1.0
-        return normals
-
-    for i in range(len(points)):
-        if i == 0:
-            tangent = points[1] - points[0]
-        elif i == len(points) - 1:
-            tangent = points[-1] - points[-2]
-        else:
-            tangent = points[i + 1] - points[i - 1]
-
-        norm = float(np.linalg.norm(tangent))
-        if norm < 1e-9:
-            normals[i] = np.array([0.0, 1.0])
-        else:
-            tangent = tangent / norm
-            normals[i] = np.array([-tangent[1], tangent[0]])
-
-    return normals
-
-
 def _variable_offset_polyline(
     centerline: np.ndarray, start_offset: float, end_offset: float
 ) -> np.ndarray:
-    """Offset a polyline with smoothly varying lateral offset."""
-    centerline = np.asarray(centerline, dtype=float)
-    t = _smoothstep(_polyline_t(centerline))
-    normals = _polyline_normals(centerline)
+    """Offset a polyline with smoothly varying lateral offset using smoothstep interpolation."""
+    pts = np.asarray(centerline, dtype=float)
+
+    if len(pts) < 2:
+        return pts.copy()
+
+    cum = cumulative_s(pts)
+    total = cum[-1]
+    t = np.zeros(len(pts)) if total < 1e-9 else cum / total
+    t = t * t * (3.0 - 2.0 * t)
+
+    tangents = np.empty_like(pts)
+    tangents[0] = pts[1] - pts[0]
+    tangents[-1] = pts[-1] - pts[-2]
+    if len(pts) > 2:
+        tangents[1:-1] = pts[2:] - pts[:-2]
+    norms = np.linalg.norm(tangents, axis=1, keepdims=True)
+    tangents /= np.where(norms < 1e-9, 1.0, norms)
+    normals = np.column_stack([-tangents[:, 1], tangents[:, 0]])
+
     offsets = float(start_offset) + (float(end_offset) - float(start_offset)) * t
-
-    return centerline + offsets[:, None] * normals
-
-
-def _standard_boundary_offsets(lane_num: int, lane_width: float) -> list[float]:
-    """Return boundary offsets from left edge to right edge."""
-    half_width = lane_num * lane_width / 2.0
-    return [half_width - i * lane_width for i in range(lane_num + 1)]
-
-
-def _expanded_boundary_offsets(
-    lane_num: int, max_lane_num: int, lane_width: float, missing_side: str
-) -> list[float]:
-    """Return boundary offsets padded with a zero-width lane on one side."""
-    if lane_num == max_lane_num:
-        return _standard_boundary_offsets(lane_num, lane_width)
-
-    if lane_num != max_lane_num - 1:
-        raise ValueError("lane_adapter v1 only supports lane count difference of 1.")
-
-    offsets = _standard_boundary_offsets(lane_num, lane_width)
-
-    if missing_side == "right":
-        return offsets + [offsets[-1]]
-
-    if missing_side == "left":
-        return [offsets[0]] + offsets
-
-    raise ValueError("missing_side must be 'left' or 'right'.")
+    return pts + offsets[:, None] * normals
 
 
 def _boundary_offsets_for_adapter(
@@ -122,42 +62,21 @@ def _boundary_offsets_for_adapter(
             "Use multiple adapters for larger changes."
         )
 
+    def _uniform(n: int) -> list[float]:
+        half = n * lane_width / 2.0
+        return [half - i * lane_width for i in range(n + 1)]
+
+    def _padded(n: int, pad_side: str) -> list[float]:
+        offsets = _uniform(n)
+        return offsets + [offsets[-1]] if pad_side == "right" else [offsets[0]] + offsets
+
     max_lane_num = max(start_lane_num, end_lane_num)
-
     if lane_delta == 0:
-        offsets = _standard_boundary_offsets(start_lane_num, lane_width)
+        offsets = _uniform(start_lane_num)
         return offsets, offsets
-
     if lane_delta > 0:
-        start_offsets = _expanded_boundary_offsets(
-            lane_num=start_lane_num,
-            max_lane_num=max_lane_num,
-            lane_width=lane_width,
-            missing_side=change_side,
-        )
-        end_offsets = _standard_boundary_offsets(end_lane_num, lane_width)
-    else:
-        start_offsets = _standard_boundary_offsets(start_lane_num, lane_width)
-        end_offsets = _expanded_boundary_offsets(
-            lane_num=end_lane_num,
-            max_lane_num=max_lane_num,
-            lane_width=lane_width,
-            missing_side=change_side,
-        )
-
-    return start_offsets, end_offsets
-
-
-def _active_lane_indices(offsets: list[float], min_width: float = 1e-3) -> list[int]:
-    """Return lane indices whose width is non-zero at an adapter end."""
-    active = []
-
-    for i in range(len(offsets) - 1):
-        width = abs(offsets[i] - offsets[i + 1])
-        if width > min_width:
-            active.append(i)
-
-    return active
+        return _padded(start_lane_num, change_side), _uniform(max_lane_num)
+    return _uniform(max_lane_num), _padded(end_lane_num, change_side)
 
 
 def _boundary_marking_token(boundary_index: int, boundary_num: int) -> str:
@@ -198,7 +117,40 @@ def lane_adapter(
     step_size: float = 0.1,
     id_offset: int = 0,
 ) -> RoadModuleResult:
-    """Generate a same-direction lane-count adapter."""
+    """Generate a same-direction lane-count adapter.
+
+    Smoothly transitions between two road sections with different lane counts
+    (difference of at most one). The lane that is added or dropped tapers from
+    zero width at one end to full width at the other via smoothstep interpolation.
+
+    Args:
+        start_port: Upstream socket defining the entry geometry and lane metadata.
+        end_port: Downstream socket defining the exit geometry.
+        start_lane_num: Number of lanes at the entry. Defaults to
+            ``start_port.lane_num``.
+        end_lane_num: Number of lanes at the exit. Defaults to
+            ``end_port.lane_num``.
+        lane_width: Lane width in metres. Defaults to ``start_port.lane_width``.
+        speed_limit: Speed limit in km/h. Defaults to ``start_port.speed_limit``.
+        change_side: Side where the lane is added or dropped. ``"right"`` means
+            the rightmost lane changes; ``"left"`` means the leftmost lane changes.
+        step_size: Reference-line sampling interval in metres.
+        id_offset: First id used by generated map elements.
+
+    Returns:
+        A ``RoadModuleResult`` with generated lanes and roadlines, two named
+        ports (``"entry"`` with ``kind="adapter_in"`` and ``"exit"`` with
+        ``kind="adapter_out"``), and a ``quality`` dictionary containing
+        ``module``, ``start_lane_num``, ``end_lane_num``, ``lane_delta``,
+        ``change_side``, ``added_lane_ids``, ``dropped_lane_ids``,
+        ``active_start_lane_ids``, ``active_end_lane_ids``, plus standard
+        geometry statistics (length, curvature, self-intersection, ``accepted``).
+
+    Raises:
+        ValueError: If either lane count is less than 1; ``lane_width`` or
+            ``step_size`` is non-positive; ``change_side`` is not ``"left"``
+            or ``"right"``; or the lane count difference exceeds 1.
+    """
     start_n = int(start_lane_num if start_lane_num is not None else start_port.lane_num)
     end_n = int(end_lane_num if end_lane_num is not None else end_port.lane_num)
     lane_w = float(lane_width if lane_width is not None else start_port.lane_width)
@@ -294,8 +246,8 @@ def lane_adapter(
 
     add_ordered_lane_neighbors(lanes)
 
-    active_start_indices = _active_lane_indices(start_offsets)
-    active_end_indices = _active_lane_indices(end_offsets)
+    active_start_indices = np.where(np.abs(np.diff(start_offsets)) > 1e-3)[0].tolist()
+    active_end_indices = np.where(np.abs(np.diff(end_offsets)) > 1e-3)[0].tolist()
 
     entry_lane_ids = tuple(lanes[i].id_ for i in active_start_indices)
     exit_lane_ids = tuple(lanes[i].id_ for i in active_end_indices)

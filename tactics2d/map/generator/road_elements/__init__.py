@@ -1,7 +1,15 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Local road element generators."""
+"""Local road element generators.
+
+**Preferred entry points** for ramp generation are :func:`exit_ramp` and
+:func:`entrance_ramp`, which accept a ``main_road_type`` argument
+(``"freeway"`` or ``"urban"``). The six concrete wrappers
+(:func:`freeway_exit_ramp`, :func:`freeway_entrance_ramp`,
+:func:`urban_exit_ramp`, :func:`urban_entrance_ramp`) are thin aliases
+exported for convenience; prefer the unified interface in new code.
+"""
 
 from .fork import fork
 from .intersection import intersection

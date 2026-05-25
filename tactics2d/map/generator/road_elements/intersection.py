@@ -18,7 +18,6 @@ from tactics2d.geometry import (
     offset_polyline,
     polyline_length,
 )
-from tactics2d.interpolator import Bezier
 from tactics2d.map.element import Lane, RoadLine
 from tactics2d.map.generator.helpers.element_builder import (
     add_ordered_lane_neighbors,
@@ -26,7 +25,7 @@ from tactics2d.map.generator.helpers.element_builder import (
     build_pavement_junction,
     build_roadline_from_points,
 )
-from tactics2d.map.generator.helpers.reference_line import sample_centerline
+from tactics2d.map.generator.helpers.reference_line import bezier_connection, sample_centerline
 
 from ..rules.module_types import RoadModuleResult, RoadPort, make_port
 
@@ -34,28 +33,6 @@ from ..rules.module_types import RoadModuleResult, RoadPort, make_port
 def _left_normal(heading: float) -> np.ndarray:
     """Return the left normal vector of a heading."""
     return np.array([-np.sin(heading), np.cos(heading)], dtype=float)
-
-
-def _bezier_connection(
-    p0: np.ndarray, h0: float, p3: np.ndarray, h3: float, step_size: float = 0.1
-) -> np.ndarray:
-    """Generate a C1-continuous cubic Bezier curve between two poses."""
-    p0 = np.asarray(p0, dtype=float)
-    p3 = np.asarray(p3, dtype=float)
-
-    chord = float(np.linalg.norm(p3 - p0))
-    if chord < 1e-6:
-        return np.vstack([p0, p3])
-
-    delta = abs(normalize_angle(h3 - h0))
-    tension = 1.0 / 3.0 + (delta / np.pi) * (1.0 / 6.0)
-    handle_length = chord * tension
-
-    p1 = p0 + handle_length * heading_unit(h0)
-    p2 = p3 - handle_length * heading_unit(h3)
-
-    n = max(2, int(chord / step_size) + 1)
-    return Bezier.get_curve(np.array([p0, p1, p2, p3]), n, order=3)
 
 
 def _arm_boundary_point(
@@ -83,7 +60,16 @@ def _normalize_arm(
     default_speed_limit: float,
     step_size: float,
 ) -> dict[str, Any]:
-    """Convert an arm descriptor into an internal arm record."""
+    """Convert an arm descriptor into an internal arm record.
+
+    For ``RoadPort`` arms the socket is taken as-is.  For dict arms the socket
+    is placed at the end of a ``sample_centerline()`` path so that non-zero
+    ``curvature`` shifts the boundary point (unlike roundabout's version which
+    always places the socket on the outer ring circle).
+
+    See ``roundabout._normalize_arm()`` for the simpler circular-constraint
+    variant used by the roundabout generator.
+    """
     if isinstance(arm, RoadPort):
         point = np.asarray(arm.point, dtype=float)
         heading_outward = float(arm.heading)
@@ -212,7 +198,7 @@ def _junction_shape_from_arm_boundaries(
         p3 = next_boundary[0]
         h3 = float(next_arm["heading_inward"] + np.pi)
 
-        corner_pts = _bezier_connection(p0, h0, p3, h3, step_size)
+        corner_pts = bezier_connection(p0, h0, p3, h3, step_size, min_tangent=0.0)
 
         if len(corner_pts) > 2:
             for pt in corner_pts[1:-1]:
@@ -246,7 +232,7 @@ def _corner_boundary_roadlines(
         p3 = next_boundary[0]
         h3 = float(next_arm["heading_inward"] + np.pi)
 
-        corner_pts = _bezier_connection(p0, h0, p3, h3, step_size)
+        corner_pts = bezier_connection(p0, h0, p3, h3, step_size, min_tangent=0.0)
 
         if len(corner_pts) < 2:
             continue
@@ -297,16 +283,39 @@ def intersection(
     """Generate a T-junction or cross-junction.
 
     Args:
-        center: Junction centre point.
-        arms: Arm descriptors.
-        lane_width: Default lane width.
-        radius: Default arm boundary radius for dict arms.
-        speed_limit: Default speed limit.
-        step_size: Sampling interval.
-        id_offset: Starting id.
+        center: Junction centre point as a 2-D world coordinate.
+        arms: List of arm descriptors.  Each element is either a
+            :class:`~tactics2d.map.generator.rules.module_types.RoadPort`
+            (whose ``point`` and ``heading`` define the approach geometry) or a
+            plain ``dict`` with keys:
+
+            - ``"heading"`` *(required)*: Outward heading in radians.
+            - ``"lane_num"`` *(required)*: Number of lanes on this arm.
+            - ``"radius"`` *(optional, default* ``radius``*)*: Distance from
+              the junction centre to the arm boundary in metres.
+            - ``"curvature"`` *(optional, default 0)*: Approach curvature that
+              shifts the boundary point via a ``sample_centerline`` path.
+            - ``"lane_width"`` *(optional, default* ``lane_width``*)*: Lane
+              width in metres.
+            - ``"speed_limit"`` *(optional, default* ``speed_limit``*)*: Speed
+              limit in km/h.
+        lane_width: Default lane width in metres used when an arm dict omits
+            ``"lane_width"``.
+        radius: Default arm boundary radius in metres used when an arm dict
+            omits ``"radius"``.
+        speed_limit: Default speed limit in km/h.
+        step_size: Arc sampling interval in metres.
+        id_offset: First id used by generated map elements.
 
     Returns:
-        RoadModuleResult with lanes, roadlines, junctions, ports, interfaces and quality.
+        A ``RoadModuleResult`` with lanes, roadlines, junctions, ports,
+        interfaces, and quality.  Named ports are ``"arm_{i}_in"`` and
+        ``"arm_{i}_out"`` for each arm index ``i``.
+
+    Raises:
+        ValueError: If ``arms`` does not contain exactly 3 or 4 elements;
+            ``step_size`` is non-positive; or any arm has ``lane_num < 1`` or
+            ``lane_width <= 0``.
     """
     center = np.asarray(center, dtype=float)
 
@@ -385,7 +394,7 @@ def intersection(
             for inc_lane_idx, out_lane_idx in pairs:
                 p0 = arm_incoming_pts[inc_idx][inc_lane_idx]
                 p3 = arm_outgoing_pts[out_idx][out_lane_idx]
-                center_pts = _bezier_connection(p0, h_in, p3, h_out, step_size)
+                center_pts = bezier_connection(p0, h_in, p3, h_out, step_size, min_tangent=0.0)
 
                 if len(center_pts) < 2:
                     continue

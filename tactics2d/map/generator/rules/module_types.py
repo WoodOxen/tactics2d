@@ -18,11 +18,19 @@ PortKind = Literal[
     "exit",
     "main_in",
     "main_out",
+    "forward_in",
+    "forward_out",
     "backward_in",
     "backward_out",
     "ramp",
     "ramp_in",
     "ramp_out",
+    "fork_main_in",
+    "fork_main_out",
+    "fork_branch_out",
+    "merge_main_in",
+    "merge_branch_in",
+    "merge_main_out",
     "intersection_in",
     "intersection_out",
     "roundabout_in",
@@ -36,7 +44,7 @@ PortKind = Literal[
 class RoadPort:
     """Connection port of a road module.
 
-    Args:
+    Attributes:
         point: Port point in world coordinates.
         heading: Port heading in radians.
         lane_num: Number of lanes exposed by this port.
@@ -54,7 +62,7 @@ class RoadPort:
     lane_num: int
     lane_width: float = 3.5
     speed_limit: float = 50.0
-    kind: str = "generic"
+    kind: PortKind = "generic"
     name: str = ""
     lane_ids: tuple[str, ...] = field(default_factory=tuple)
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -84,7 +92,7 @@ class RoadPort:
 class RoadModuleResult:
     """Generated road module result.
 
-    Args:
+    Attributes:
         lanes: Generated Lane objects.
         roadlines: Generated RoadLine objects.
         ports: Named RoadPort dictionary.
@@ -112,7 +120,25 @@ def make_port(
     metadata: dict[str, Any] | None = None,
     custom_tags: dict[str, Any] | None = None,
 ) -> RoadPort:
-    """Create a new RoadPort from a base port with updated semantic fields."""
+    """Create a new ``RoadPort`` from a base port with updated semantic fields.
+
+    Merges ``base_port.metadata``, ``base_port.custom_tags``, the provided
+    ``metadata``, and ``custom_tags`` in that order (later values win).
+
+    Args:
+        base_port: Source port whose geometry and lane attributes are copied.
+        kind: Override for ``RoadPort.kind``. Defaults to ``base_port.kind``.
+        name: Override for ``RoadPort.name``. Defaults to ``base_port.name``.
+        lane_ids: Override for ``RoadPort.lane_ids``. Defaults to
+            ``base_port.lane_ids``.
+        metadata: Additional metadata dict merged into the new port.
+        custom_tags: Additional custom_tags merged into the new port
+            (kept in sync with ``metadata``).
+
+    Returns:
+        A new ``RoadPort`` with the same geometry as ``base_port`` and the
+        merged semantic fields.
+    """
     merged_metadata = dict(getattr(base_port, "metadata", {}))
 
     if getattr(base_port, "custom_tags", None):
@@ -139,7 +165,18 @@ def make_port(
 
 
 def ports_to_interfaces(ports: dict[str, RoadPort]) -> list[dict[str, Any]]:
-    """Convert RoadPort objects into legacy interface dictionaries."""
+    """Convert a named ``RoadPort`` dict into the legacy interface list format.
+
+    Args:
+        ports: Mapping of port name → ``RoadPort`` as returned by every
+            generator in ``road_elements/``.
+
+    Returns:
+        A list of plain dicts, each containing ``name``, ``kind``,
+        ``point``, ``heading``, ``lane_num``, ``lane_width``,
+        ``speed_limit``, ``lane_ids``, ``metadata``, and ``custom_tags``.
+        Order matches ``ports.values()`` iteration order.
+    """
     interfaces = []
 
     for key, port in ports.items():

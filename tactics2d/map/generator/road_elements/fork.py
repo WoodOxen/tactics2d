@@ -13,13 +13,10 @@ from tactics2d.geometry import (
     cut_polyline,
     find_intersection_point,
     has_self_intersection,
-    nearest_s,
     normalize_angle,
     offset_polyline,
-    point_at_s,
     point_heading_at_s,
     polyline_length,
-    resample_polyline,
 )
 from tactics2d.map.element import Lane, RoadLine
 from tactics2d.map.generator.helpers.element_builder import (
@@ -30,142 +27,19 @@ from tactics2d.map.generator.helpers.element_builder import (
 )
 from tactics2d.map.generator.helpers.reference_line import fit_reference_line
 
-from ..rules.lane_marking_rules import one_way_mark, ramp_mark, roadline_render_kwargs
+from ..rules.lane_marking_rules import roadline_render_kwargs
 from ..rules.module_types import RoadModuleResult, RoadPort, make_port, ports_to_interfaces
-
-
-def _boundary_offset(boundary_index: int, lane_num: int, lane_width: float) -> float:
-    """Return boundary offset from road reference line."""
-    half_width = lane_num * lane_width / 2.0
-    return half_width - boundary_index * lane_width
-
-
-def _boundary_token(boundary_index: int, boundary_num: int) -> str:
-    """Return active-standard token for a main one-way road boundary.
-
-    MUTCD:
-      - one-way left edge: solid yellow edge
-      - one-way right edge: solid white edge
-      - same-direction interior lane divider: dashed white
-
-    GB mapping is handled by lane_marking_rules.one_way_mark().
-    """
-    lane_num = boundary_num - 1
-
-    if boundary_index == 0:
-        return one_way_mark(0, lane_num, "left")
-
-    if boundary_index == boundary_num - 1:
-        return one_way_mark(lane_num - 1, lane_num, "right")
-
-    return one_way_mark(boundary_index - 1, lane_num, "right")
-
-
-def _branch_boundary_token(boundary_index: int, boundary_num: int, fork_side: str) -> str:
-    """Return active-standard token for a fork branch/ramp boundary.
-
-    Branch boundaries are indexed from left to right in branch driving direction.
-    MUTCD:
-      - left ramp edge: yellow edge
-      - right ramp edge: white ramp edge
-      - interior ramp dividers: dashed white ramp
-
-    GB mapping is handled by lane_marking_rules.ramp_mark().
-    """
-    if boundary_index == 0:
-        return ramp_mark("left_edge")
-
-    if boundary_index == boundary_num - 1:
-        return ramp_mark("right_edge")
-
-    return ramp_mark("interior")
-
-
-def _choose_diverge_s(
-    main_center: np.ndarray, branch_point: np.ndarray, taper_length: float, branch_length: float
-) -> float:
-    """Choose the branch diverge section on the main reference line."""
-    total = polyline_length(main_center)
-    projected_s = nearest_s(main_center, branch_point)
-
-    backoff = max(float(taper_length), float(branch_length) * 0.45)
-
-    lower = total * 0.15
-    upper = total * 0.82
-
-    if upper <= lower:
-        return total * 0.5
-
-    return float(np.clip(projected_s - backoff, lower, upper))
-
-
-def _source_lane_indices(main_lane_num: int, branch_lane_num: int, fork_side: str) -> list[int]:
-    """Return main-lane indices used by the branch."""
-    if branch_lane_num > main_lane_num:
-        raise ValueError("branch_lane_num cannot exceed main_lane_num in fork v1.")
-
-    if fork_side == "right":
-        start = main_lane_num - branch_lane_num
-        return list(range(start, main_lane_num))
-
-    return list(range(branch_lane_num))
-
-
-def _source_boundary_indices(main_lane_num: int, branch_lane_num: int, fork_side: str) -> list[int]:
-    """Return main-boundary indices used by the branch section."""
-    if branch_lane_num > main_lane_num:
-        raise ValueError("branch_lane_num cannot exceed main_lane_num in fork v1.")
-
-    if fork_side == "right":
-        start = main_lane_num - branch_lane_num
-        return list(range(start, main_lane_num + 1))
-
-    return list(range(0, branch_lane_num + 1))
-
-
-def _branch_start_from_outer_boundary(
-    main_boundaries: list[np.ndarray],
-    source_boundaries: list[int],
-    diverge_s: float,
-    main_length: float,
-    fork_side: str,
-    branch_n: int,
-    lane_w: float,
-    diverge_heading: float,
-) -> np.ndarray:
-    """Return the branch reference-line start point."""
-    outer_idx = source_boundaries[-1] if fork_side == "right" else source_boundaries[0]
-    boundary = main_boundaries[outer_idx]
-    boundary_total = polyline_length(boundary)
-
-    if main_length < 1e-9:
-        boundary_s = 0.0
-    else:
-        boundary_s = diverge_s / main_length * boundary_total
-
-    outer_pt = point_at_s(boundary, boundary_s)
-
-    if fork_side == "right":
-        inward_normal = np.array([-np.sin(diverge_heading), np.cos(diverge_heading)], dtype=float)
-    else:
-        inward_normal = np.array([np.sin(diverge_heading), -np.cos(diverge_heading)], dtype=float)
-
-    return outer_pt + inward_normal * (branch_n * lane_w / 2.0)
-
-
-def _branch_centerlines_from_boundaries(branch_boundaries: list[np.ndarray]) -> list[np.ndarray]:
-    """Build approximate branch centerlines from adjacent boundary pairs."""
-    centerlines: list[np.ndarray] = []
-
-    for i in range(len(branch_boundaries) - 1):
-        left = branch_boundaries[i]
-        right = branch_boundaries[i + 1]
-        n = max(2, min(len(left), len(right)))
-        left_r = resample_polyline(left, n)
-        right_r = resample_polyline(right, n)
-        centerlines.append((left_r + right_r) * 0.5)
-
-    return centerlines
+from ._fork_merge_helpers import accumulate_branch_stats as _accumulate_branch_stats
+from ._fork_merge_helpers import boundary_offset as _boundary_offset
+from ._fork_merge_helpers import branch_boundary_token as _shared_branch_boundary_token
+from ._fork_merge_helpers import (
+    branch_centerlines_from_boundaries as _branch_centerlines_from_boundaries,
+)
+from ._fork_merge_helpers import branch_outer_point as _branch_outer_point
+from ._fork_merge_helpers import build_main_road_section as _build_main_road_section
+from ._fork_merge_helpers import choose_diverge_s as _choose_diverge_s
+from ._fork_merge_helpers import side_boundary_indices as _side_boundary_indices
+from ._fork_merge_helpers import side_lane_indices as _side_lane_indices
 
 
 def fork(
@@ -184,7 +58,42 @@ def fork(
     step_size: float = 0.1,
     id_offset: int = 0,
 ) -> RoadModuleResult:
-    """Generate a lane-level fork module."""
+    """Generate a lane-level fork module.
+
+    Args:
+        main_in: Upstream main-road socket. Its point and heading define the
+            incoming reference line, and its lane metadata is used as defaults.
+        main_out: Downstream main-road socket.
+        branch_out: Downstream branch socket.
+        fork_side: Side of the main road where the branch leaves. Must be
+            ``"left"`` or ``"right"``.
+        main_lane_num: Number of main-road lanes. Defaults to ``main_in.lane_num``.
+        branch_lane_num: Number of branch lanes. Defaults to ``branch_out.lane_num``.
+        lane_width: Lane width in metres. Defaults to ``main_in.lane_width``.
+        speed_limit: Main-road speed limit. Defaults to ``main_in.speed_limit``.
+        taper_length: Minimum longitudinal distance reserved for the fork opening.
+        branch_length: Nominal branch length used when choosing the diverge point.
+        diverge_s_ratio: Optional normalized diverge position on the main reference
+            line. When omitted, the diverge position is inferred from ``branch_out``.
+        step_size: Reference-line sampling interval.
+        id_offset: First id used by generated map elements.
+
+    Returns:
+        A ``RoadModuleResult`` containing generated main/branch lanes, roadlines,
+        ports, interfaces, and the next id counter. The ``quality`` dictionary
+        includes ``module``, ``fork_side``, lane counts, ``main_length``,
+        ``branch_length``, ``diverge_s``, ``diverge_point``,
+        ``diverge_heading``, ``branch_start``, ``branch_depart_heading``,
+        source lane/boundary indices, hidden-opening arc-length fields,
+        branch angle delta, self-intersection flags, curvature statistics,
+        ``accepted_reasons``, and ``accepted``.
+
+    Raises:
+        ValueError: If ``fork_side`` is not ``"left"`` or ``"right"``;
+            ``step_size``, ``taper_length``, ``branch_length``, or ``lane_width``
+            is non-positive; a lane count is smaller than one; or
+            ``branch_lane_num`` exceeds ``main_lane_num``.
+    """
     if fork_side not in ("left", "right"):
         raise ValueError("fork_side must be 'left' or 'right'.")
     if step_size <= 0.0:
@@ -227,22 +136,20 @@ def fork(
             offset_polyline(main_center, _boundary_offset(boundary_idx, main_n, lane_w))
         )
 
-    source_lanes = _source_lane_indices(main_n, branch_n, fork_side)
-    source_boundaries = _source_boundary_indices(main_n, branch_n, fork_side)
+    source_lanes = _side_lane_indices(main_n, branch_n, fork_side, module_name="fork")
+    source_boundaries = _side_boundary_indices(main_n, branch_n, fork_side, module_name="fork")
 
-    branch_start = _branch_start_from_outer_boundary(
+    branch_start = _branch_outer_point(
         main_boundaries=main_boundaries,
-        source_boundaries=source_boundaries,
-        diverge_s=diverge_s,
+        side_boundaries=source_boundaries,
+        s_on_main=diverge_s,
         main_length=main_length,
-        fork_side=fork_side,
+        side=fork_side,
         branch_n=branch_n,
         lane_w=lane_w,
-        diverge_heading=diverge_heading,
+        heading=diverge_heading,
     )
 
-    # Start the branch tangent to the main road.
-    # This avoids a hard chord-angle insertion at the fork opening.
     branch_depart_heading = float(diverge_heading)
 
     branch_center = fit_reference_line(
@@ -324,100 +231,25 @@ def fork(
     roadlines: list[RoadLine] = []
     id_counter = id_offset
 
-    main_boundary_line_ids: list[list[str]] = []
-
-    for boundary_idx, boundary_pts in enumerate(main_boundaries):
-        token = _boundary_token(boundary_idx, main_n + 1)
-        ids: list[str] = []
-
-        if boundary_idx == main_outside_boundary_idx:
-            before_roadline, id_counter = build_optional_roadline_from_points(
-                id_counter,
-                main_before_pts,
-                marking_kwargs=roadline_render_kwargs(
-                    token,
-                    {
-                        "module": "fork",
-                        "submodule": "main",
-                        "boundary_index": boundary_idx,
-                        "fork_side": fork_side,
-                        "segment": "before_branch_opening",
-                        "opening_hidden": True,
-                    },
-                ),
-            )
-            if before_roadline is not None:
-                ids.append(before_roadline.id_)
-                roadlines.append(before_roadline)
-
-            after_roadline, id_counter = build_optional_roadline_from_points(
-                id_counter,
-                main_after_pts,
-                marking_kwargs=roadline_render_kwargs(
-                    token,
-                    {
-                        "module": "fork",
-                        "submodule": "main",
-                        "boundary_index": boundary_idx,
-                        "fork_side": fork_side,
-                        "segment": "after_branch_opening",
-                        "opening_hidden": True,
-                    },
-                ),
-            )
-            if after_roadline is not None:
-                ids.append(after_roadline.id_)
-                roadlines.append(after_roadline)
-
-        else:
-            roadline, id_counter = build_optional_roadline_from_points(
-                id_counter,
-                boundary_pts,
-                marking_kwargs=roadline_render_kwargs(
-                    token,
-                    {
-                        "module": "fork",
-                        "submodule": "main",
-                        "boundary_index": boundary_idx,
-                        "fork_side": fork_side,
-                        "kept_on_main": True,
-                    },
-                ),
-            )
-            if roadline is not None:
-                ids.append(roadline.id_)
-                roadlines.append(roadline)
-
-        main_boundary_line_ids.append(ids)
-
-    main_lanes: list[Lane] = []
-
-    for lane_idx in range(main_n):
-        lane = build_lane_from_boundaries(
-            id_=id_counter,
-            left_points=main_boundaries[lane_idx],
-            right_points=main_boundaries[lane_idx + 1],
-            left_roadline_ids=main_boundary_line_ids[lane_idx],
-            right_roadline_ids=main_boundary_line_ids[lane_idx + 1],
-            speed_limit=speed,
-            custom_tags={
-                "module": "fork",
-                "submodule": "main",
-                "lane_index": lane_idx,
-                "fork_side": fork_side,
-            },
-        )
-        id_counter += 1
-
-        lanes.append(lane)
-        main_lanes.append(lane)
-
-    add_ordered_lane_neighbors(main_lanes)
+    main_lanes, main_roadlines, _, id_counter = _build_main_road_section(
+        main_n=main_n,
+        main_boundaries=main_boundaries,
+        outside_boundary_idx=main_outside_boundary_idx,
+        before_pts=main_before_pts,
+        after_pts=main_after_pts,
+        speed=speed,
+        module="fork",
+        side_key="fork_side",
+        side_value=fork_side,
+        id_counter=id_counter,
+    )
+    lanes.extend(main_lanes)
+    roadlines.extend(main_roadlines)
 
     branch_boundary_line_ids: list[list[str]] = []
 
     for local_idx, boundary_pts in enumerate(branch_boundaries):
-        token = _branch_boundary_token(local_idx, branch_n + 1, fork_side)
+        token = _shared_branch_boundary_token(local_idx, branch_n + 1)
 
         if local_idx == branch_outside_boundary_idx:
             visibility_rule = "outside_edge_from_origin"
@@ -537,17 +369,12 @@ def fork(
     main_stats = curvature_stats(main_center)
     main_self_intersection = has_self_intersection(main_center)
 
-    branch_total_length = 0.0
-    branch_max_curvature = 0.0
-    branch_max_curvature_rate = 0.0
-    branch_self_intersection = False
-
-    for centerline in branch_centerlines:
-        stats = curvature_stats(centerline)
-        branch_total_length += polyline_length(centerline)
-        branch_max_curvature = max(branch_max_curvature, stats["max_abs_curvature"])
-        branch_max_curvature_rate = max(branch_max_curvature_rate, stats["max_abs_curvature_rate"])
-        branch_self_intersection = branch_self_intersection or has_self_intersection(centerline)
+    (
+        branch_total_length,
+        branch_max_curvature,
+        branch_max_curvature_rate,
+        branch_self_intersection,
+    ) = _accumulate_branch_stats(branch_centerlines)
 
     accepted_reasons: list[str] = []
     if main_self_intersection:

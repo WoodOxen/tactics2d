@@ -27,15 +27,19 @@ def _as_polyline(pts: np.ndarray, min_points: int = 2) -> np.ndarray:
 def offset_polyline(pts: np.ndarray, offset: float) -> np.ndarray:
     """Offset a polyline laterally by a signed distance.
 
-    Positive offset is to the left of the polyline direction. Negative offset
+    Positive offset is to the left of the polyline direction; negative offset
     is to the right.
 
     Args:
-        pts: Input polyline points with shape ``(N, 2)``.
+        pts: Input polyline points with shape ``(N, 2)``, ``N >= 2``.
         offset: Signed lateral offset distance in metres.
 
     Returns:
         Offset polyline points with shape ``(N, 2)``.
+
+    Raises:
+        ValueError: If ``pts`` does not have shape ``(N, 2)`` or contains
+            fewer than 2 points.
     """
     pts = _as_polyline(pts)
 
@@ -56,10 +60,12 @@ def polyline_length(pts: np.ndarray) -> float:
     """Return the arc length of a polyline.
 
     Args:
-        pts: Input polyline points with shape ``(N, 2)``.
+        pts: Input polyline points with shape ``(N, 2)``. Arrays with fewer
+            than 2 points return ``0.0`` without raising.
 
     Returns:
-        Total polyline length.
+        Total arc length in the same unit as the coordinate values. Returns
+        ``0.0`` for empty or single-point inputs.
     """
     pts = np.asarray(pts, dtype=float)
 
@@ -73,10 +79,12 @@ def cumulative_s(pts: np.ndarray) -> np.ndarray:
     """Return cumulative arc-length coordinates of a polyline.
 
     Args:
-        pts: Input polyline points with shape ``(N, 2)``.
+        pts: Input polyline points with shape ``(N, 2)``. Empty and
+            single-point arrays are handled gracefully.
 
     Returns:
-        Cumulative arc-length coordinates with shape ``(N,)``.
+        Cumulative arc-length array with shape ``(N,)``, starting at ``0.0``.
+        Returns an empty array for empty input.
     """
     pts = np.asarray(pts, dtype=float)
 
@@ -91,14 +99,20 @@ def cumulative_s(pts: np.ndarray) -> np.ndarray:
 
 
 def nearest_s(polyline: np.ndarray, point: np.ndarray) -> float:
-    """Project a point to a polyline and return the arc-length coordinate.
+    """Project a point onto a polyline and return the arc-length coordinate.
 
     Args:
-        polyline: Input polyline points with shape ``(N, 2)``.
+        polyline: Input polyline points with shape ``(N, 2)``, ``N >= 2``.
         point: Query point with shape ``(2,)``.
 
     Returns:
-        Arc-length coordinate of the projected point.
+        Arc-length coordinate (``s``) of the closest point on the polyline,
+        in the same unit as the coordinate values.
+
+    Raises:
+        ValueError: If ``polyline`` does not have shape ``(N, 2)`` or
+            contains fewer than 2 points, or if ``point`` shape is not
+            ``(2,)``.
     """
     polyline = _as_polyline(polyline)
     point = np.asarray(point, dtype=float)
@@ -112,19 +126,31 @@ def nearest_s(polyline: np.ndarray, point: np.ndarray) -> float:
 def sample_by_s(
     pts: np.ndarray, s_start: float, s_end: float, n_samples: int
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Sample positions, headings, and right normals by arc length.
+    """Sample positions, headings, and right normals uniformly by arc length.
+
+    ``s_start`` and ``s_end`` are clamped to ``[0, total_length]``.
+    ``n_samples`` is clamped to at least 2.
 
     Args:
-        pts: Input polyline points with shape ``(N, 2)``.
+        pts: Input polyline points with shape ``(N, 2)``, ``N >= 2``.
         s_start: Start arc-length coordinate.
-        s_end: End arc-length coordinate.
-        n_samples: Number of sampled points.
+        s_end: End arc-length coordinate. Must be ``>= s_start`` after
+            clamping; equal values produce a degenerate single-point
+            segment.
+        n_samples: Number of output points. Values below 2 are raised to 2.
 
     Returns:
         A tuple ``(positions, headings, right_normals)``:
-            - positions: sampled points with shape ``(n_samples, 2)``.
-            - headings: tangent headings with shape ``(n_samples,)``.
-            - right_normals: right normal vectors with shape ``(n_samples, 2)``.
+
+        - **positions**: sampled points with shape ``(n_samples, 2)``.
+        - **headings**: tangent heading angles in radians with shape
+          ``(n_samples,)``.
+        - **right_normals**: unit right-normal vectors with shape
+          ``(n_samples, 2)``.
+
+    Raises:
+        ValueError: If ``pts`` does not have shape ``(N, 2)`` or contains
+            fewer than 2 points.
     """
     pts = _as_polyline(pts)
     cum = cumulative_s(pts)
@@ -160,10 +186,15 @@ def polyline_end_pose(pts: np.ndarray) -> tuple[np.ndarray, float]:
     """Return the end point and tangent heading of a polyline.
 
     Args:
-        pts: Input polyline points with shape ``(N, 2)``.
+        pts: Input polyline points with shape ``(N, 2)``, ``N >= 2``.
 
     Returns:
-        A tuple ``(end_point, end_heading)``.
+        A tuple ``(end_point, end_heading)`` where ``end_point`` has shape
+        ``(2,)`` and ``end_heading`` is the tangent angle in radians.
+
+    Raises:
+        ValueError: If ``pts`` does not have shape ``(N, 2)`` or contains
+            fewer than 2 points.
     """
     pts = _as_polyline(pts)
 
@@ -179,12 +210,20 @@ def polyline_end_pose(pts: np.ndarray) -> tuple[np.ndarray, float]:
 def curvature_stats(pts: np.ndarray) -> dict[str, float]:
     """Estimate maximum absolute curvature and curvature-rate of a polyline.
 
+    Uses finite-difference heading changes between consecutive segments.
+    Returns zero statistics for polylines with fewer than 4 points or fewer
+    than 3 non-degenerate segments.
+
     Args:
         pts: Input polyline points with shape ``(N, 2)``.
 
     Returns:
-        Dictionary containing ``max_abs_curvature`` and
-        ``max_abs_curvature_rate``.
+        Dictionary with keys:
+
+        - ``"max_abs_curvature"``: maximum absolute curvature in
+          radians/metre.
+        - ``"max_abs_curvature_rate"``: maximum absolute rate of change of
+          curvature in radians/metre².
     """
     pts = np.asarray(pts, dtype=float)
 
@@ -222,11 +261,14 @@ def curvature_stats(pts: np.ndarray) -> dict[str, float]:
 def has_self_intersection(pts: np.ndarray) -> bool:
     """Return whether a polyline self-intersects.
 
+    Polylines with fewer than 4 points cannot self-intersect and always
+    return ``False``.
+
     Args:
         pts: Input polyline points with shape ``(N, 2)``.
 
     Returns:
-        Whether the polyline has self-intersection.
+        ``True`` if any two non-adjacent segments cross each other.
     """
     pts = np.asarray(pts, dtype=float)
 
@@ -240,39 +282,50 @@ def point_at_s(points: np.ndarray, s: float) -> np.ndarray:
     """Sample one point from a polyline by arc-length coordinate.
 
     Args:
-        points: Polyline points with shape ``(N, 2)``.
-        s: Arc-length coordinate.
+        points: Polyline points with shape ``(N, 2)``, ``N >= 2``.
+        s: Arc-length coordinate. Clamped to ``[0, total_length]``.
 
     Returns:
-        Sampled point with shape ``(2,)``.
+        Interpolated point at arc-length ``s`` with shape ``(2,)``.
+
+    Raises:
+        ValueError: If ``points`` does not have shape ``(N, 2)`` or contains
+            fewer than 2 points.
     """
     positions, _, _ = sample_by_s(points, s, s, 2)
     return positions[0].copy()
 
 
 def point_heading_at_s(points: np.ndarray, s: float) -> tuple[np.ndarray, float]:
-    """Sample one point and heading from a polyline by arc-length coordinate.
+    """Sample one point and tangent heading from a polyline by arc-length coordinate.
 
     Args:
-        points: Polyline points with shape ``(N, 2)``.
-        s: Arc-length coordinate.
+        points: Polyline points with shape ``(N, 2)``, ``N >= 2``.
+        s: Arc-length coordinate. Clamped to ``[0, total_length]``.
 
     Returns:
-        A tuple ``(point, heading)``.
+        A tuple ``(point, heading)`` where ``point`` has shape ``(2,)`` and
+        ``heading`` is the tangent angle in radians at ``s``.
+
+    Raises:
+        ValueError: If ``points`` does not have shape ``(N, 2)`` or contains
+            fewer than 2 points.
     """
     positions, headings, _ = sample_by_s(points, s, s, 2)
     return positions[0].copy(), float(headings[0])
 
 
 def resample_polyline(points: np.ndarray, n: int) -> np.ndarray:
-    """Resample a polyline to ``n`` points by arc length.
+    """Resample a polyline to exactly ``n`` uniformly spaced points by arc length.
 
     Args:
         points: Polyline points with shape ``(N, 2)``.
-        n: Number of output points.
+        n: Number of output points. Values ``<= 1`` return the first point
+            only.
 
     Returns:
-        Resampled polyline points with shape ``(n, 2)``.
+        Resampled polyline points with shape ``(n, 2)``.  Returns an empty
+        array for empty input.
     """
     points = np.asarray(points, dtype=float)
 
@@ -336,16 +389,24 @@ def _intersection_points(geometry) -> list[Point]:
 def find_intersection_point(
     line1: LineString, line2: LineString, *, pick: str = "first_on_line1"
 ) -> Point | None:
-    """Find a representative Point intersection between two LineStrings.
+    """Find a representative intersection point between two LineStrings.
 
     Args:
-        line1: First line.
-        line2: Second line.
-        pick: Selection rule. One of ``first_on_line1``, ``last_on_line1``,
-            ``first_on_line2`` or ``last_on_line2``.
+        line1: First Shapely LineString.
+        line2: Second Shapely LineString.
+        pick: Selection rule controlling which intersection point is
+            returned. One of:
+
+            - ``"first_on_line1"``: closest to the start of ``line1``.
+            - ``"last_on_line1"``: closest to the end of ``line1``.
+            - ``"first_on_line2"``: closest to the start of ``line2``.
+            - ``"last_on_line2"``: closest to the end of ``line2``.
+
+            Any other value returns the first intersection found.
 
     Returns:
-        A representative intersection point, or ``None``.
+        A Shapely :class:`~shapely.geometry.Point` representing the chosen
+        intersection, or ``None`` if the lines do not intersect.
     """
     points = _intersection_points(line1.intersection(line2))
 
@@ -365,15 +426,23 @@ def find_intersection_point(
 
 
 def cut_polyline(line: LineString, pt: Point, keep: str) -> np.ndarray:
-    """Cut a polyline at a point and keep one side.
+    """Cut a Shapely LineString at a point and return one side as a numpy array.
 
     Args:
-        line: Source line.
-        pt: Cutting point.
-        keep: ``before`` or ``after``.
+        line: Source Shapely :class:`~shapely.geometry.LineString`.
+        pt: Cutting point as a Shapely :class:`~shapely.geometry.Point`.
+            The nearest projection of ``pt`` onto ``line`` is used as the
+            cut location.
+        keep: Which side of the cut to return. ``"before"`` returns the
+            segment from the start up to the cut; ``"after"`` returns the
+            segment from the cut to the end.
 
     Returns:
-        Cut polyline points.
+        Cut polyline points as an ``(M, 2)`` numpy array. Returns an empty
+        ``(0, 2)`` array if ``line`` has no coordinates.
+
+    Raises:
+        ValueError: If ``keep`` is not ``"before"`` or ``"after"``.
     """
     if keep not in ("before", "after"):
         raise ValueError("keep must be 'before' or 'after'.")

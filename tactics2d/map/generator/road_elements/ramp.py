@@ -61,21 +61,6 @@ def _repair_heading_towards_chord(
     return float(heading)
 
 
-def _side_neighbor_relationship(side: RampSide) -> tuple[LaneRelationship, LaneRelationship]:
-    """Return neighbor relationships between main lane and ramp auxiliary lane."""
-    if side == "right":
-        return LaneRelationship.RIGHT_NEIGHBOR, LaneRelationship.LEFT_NEIGHBOR
-    return LaneRelationship.LEFT_NEIGHBOR, LaneRelationship.RIGHT_NEIGHBOR
-
-
-def _subline_by_s(pts: np.ndarray, s_start: float, s_end: float, step_size: float) -> np.ndarray:
-    """Sample a polyline segment by arc-length interval."""
-    length = max(0.0, float(s_end - s_start))
-    n_samples = max(2, int(length / max(step_size, 1e-3)) + 1)
-    positions, _, _ = sample_by_s(pts, s_start, s_end, n_samples)
-    return positions
-
-
 def _build_segmented_roadline(
     pts: np.ndarray,
     gap_interval: tuple[float, float] | None,
@@ -85,7 +70,21 @@ def _build_segmented_roadline(
     tags: dict,
     global_s_offset: float = 0.0,
 ) -> tuple[list[RoadLine], list[str], int]:
-    """Build a roadline while optionally leaving one gap interval."""
+    """Build a RoadLine, optionally split around a single gap interval.
+
+    Args:
+        pts: Polyline points for the boundary.
+        gap_interval: ``(start_s, end_s)`` arc-length range to leave empty, or
+            ``None`` for a continuous line.
+        marking_kwargs: Marking style dict passed to ``build_roadline_from_points``.
+        id_counter: Current id counter; incremented for each created RoadLine.
+        step_size: Sampling interval used when slicing segments.
+        tags: Extra custom_tags dict merged into each created RoadLine.
+        global_s_offset: Arc-length origin offset added to ``dash_offset`` tags.
+
+    Returns:
+        Tuple of ``(roadlines, roadline_ids, updated_id_counter)``.
+    """
     total_length = polyline_length(pts)
 
     if gap_interval is None:
@@ -107,7 +106,9 @@ def _build_segmented_roadline(
         if seg_end - seg_start <= max(step_size, 1e-3):
             continue
 
-        seg_pts = _subline_by_s(pts, seg_start, seg_end, step_size)
+        _seg_len = max(0.0, float(seg_end - seg_start))
+        _n = max(2, int(_seg_len / max(step_size, 1e-3)) + 1)
+        seg_pts, _, _ = sample_by_s(pts, seg_start, seg_end, _n)
         t = dict(tags)
         t["dash_offset"] = float(global_s_offset + seg_start)
         roadline = build_roadline_from_points(
@@ -131,13 +132,30 @@ def _build_freeway_main_road(
     ramp_side: RampSide,
     edge_gap: tuple[float, float] | None = None,
 ) -> tuple[list[Lane], list[RoadLine], list[Lane], list[Lane], np.ndarray, Lane, int]:
-    """Build a one-way freeway mainline from a carriageway reference line."""
+    """Build a one-way freeway mainline from a carriageway reference line.
+
+    Args:
+        center_pts: Sampled carriageway centreline points.
+        lane_num: Number of forward lanes.
+        lane_width: Width per lane in metres.
+        speed_limit: Speed limit in km/h.
+        id_counter: Starting id counter.
+        step_size: Sampling interval used for segmented boundary roadlines.
+        ramp_side: Side where the ramp auxiliary lane attaches; the boundary on
+            that side receives the ``edge_gap`` opening.
+        edge_gap: ``(start_s, end_s)`` gap interval on the ramp-side outer edge,
+            or ``None`` for a solid edge.
+
+    Returns:
+        Tuple ``(lanes, roadlines, forward_lanes, backward_lanes,
+        attach_boundary, attach_lane, id_counter)`` where ``backward_lanes``
+        is always empty for freeway.
+    """
     if lane_num < 1:
         raise ValueError("lane_num must be greater than or equal to 1.")
 
     lanes: list[Lane] = []
     roadlines: list[RoadLine] = []
-    c = id_counter
 
     total_half_width = lane_num * lane_width / 2.0
     boundary_offsets = [total_half_width - i * lane_width for i in range(lane_num + 1)]
@@ -161,11 +179,11 @@ def _build_freeway_main_road(
             side = "interior"
             gap = None
 
-        generated_roadlines, generated_ids, c = _build_segmented_roadline(
+        generated_roadlines, generated_ids, id_counter = _build_segmented_roadline(
             pts,
             gap,
             marking_kwargs,
-            c,
+            id_counter,
             step_size,
             {
                 "module": "ramp",
@@ -181,7 +199,7 @@ def _build_freeway_main_road(
 
     for i in range(lane_num):
         lane = build_lane_from_boundaries(
-            id_=c,
+            id_=id_counter,
             left_points=boundary_pts[i],
             right_points=boundary_pts[i + 1],
             left_roadline_ids=boundary_line_ids[i],
@@ -195,7 +213,7 @@ def _build_freeway_main_road(
                 "lane_index": i,
             },
         )
-        c += 1
+        id_counter += 1
         lanes.append(lane)
 
     add_ordered_lane_neighbors(lanes)
@@ -207,7 +225,9 @@ def _build_freeway_main_road(
         attach_boundary = boundary_pts[0]
         attach_lane = lanes[0]
 
-    return lanes, roadlines, lanes, [], attach_boundary, attach_lane, c
+    forward_lanes = lanes
+    backward_lanes: list[Lane] = []
+    return lanes, roadlines, forward_lanes, backward_lanes, attach_boundary, attach_lane, id_counter
 
 
 def _build_urban_main_road(
@@ -221,16 +241,33 @@ def _build_urban_main_road(
     ramp_side: RampSide,
     edge_gap: tuple[float, float] | None = None,
 ) -> tuple[list[Lane], list[RoadLine], list[Lane], list[Lane], np.ndarray, Lane, int]:
-    """Build a two-way urban main road from a centerline."""
+    """Build a two-way urban main road from a centerline.
+
+    Args:
+        center_pts: Sampled carriageway centreline points.
+        forward_lane_num: Number of forward (ramp-side) lanes.
+        backward_lane_num: Number of backward lanes on the opposite side.
+        lane_width: Width per lane in metres.
+        speed_limit: Speed limit in km/h.
+        id_counter: Starting id counter.
+        step_size: Sampling interval used for segmented boundary roadlines.
+        ramp_side: Side where the ramp auxiliary lane attaches. Currently only
+            ``"right"`` is supported.
+        edge_gap: ``(start_s, end_s)`` gap interval on the ramp-side forward
+            outer edge, or ``None`` for a solid edge.
+
+    Returns:
+        Tuple ``(lanes, roadlines, forward_lanes, backward_lanes,
+        attach_boundary, attach_lane, id_counter)``.
+    """
     if ramp_side != "right":
         raise ValueError("urban ramp currently supports only ramp_side='right'.")
 
     lanes: list[Lane] = []
     roadlines: list[RoadLine] = []
-    c = id_counter
 
     center_roadline = build_roadline_from_points(
-        id_=c,
+        id_=id_counter,
         points=center_pts,
         marking_kwargs=two_way_centerline_kwargs(
             forward_lane_num, backward_lane_num, no_passing=True
@@ -239,11 +276,11 @@ def _build_urban_main_road(
             "module": "ramp",
             "submodule": "main",
             "main_road_type": "urban",
-            "role": "centerline",
+            "marking_role": "centerline",
             "boundary_index": 0,
         },
     )
-    c += 1
+    id_counter += 1
     roadlines.append(center_roadline)
 
     forward_boundary_pts = [
@@ -256,11 +293,11 @@ def _build_urban_main_road(
         is_outer_edge = boundary_idx == forward_lane_num
         marking_kwargs = two_way_forward_kwargs(boundary_idx - 1, forward_lane_num, "right")
 
-        generated_roadlines, generated_ids, c = _build_segmented_roadline(
+        generated_roadlines, generated_ids, id_counter = _build_segmented_roadline(
             pts,
             edge_gap if is_outer_edge else None,
             marking_kwargs,
-            c,
+            id_counter,
             step_size,
             {
                 "module": "ramp",
@@ -277,7 +314,7 @@ def _build_urban_main_road(
     forward_lanes: list[Lane] = []
     for i in range(forward_lane_num):
         lane = build_lane_from_boundaries(
-            id_=c,
+            id_=id_counter,
             left_points=forward_boundary_pts[i],
             right_points=forward_boundary_pts[i + 1],
             left_roadline_ids=forward_boundary_line_ids[i],
@@ -291,7 +328,7 @@ def _build_urban_main_road(
                 "lane_index": i,
             },
         )
-        c += 1
+        id_counter += 1
         forward_lanes.append(lane)
         lanes.append(lane)
 
@@ -308,7 +345,7 @@ def _build_urban_main_road(
         marking_kwargs = two_way_backward_kwargs(boundary_idx - 1, backward_lane_num, "left")
 
         roadline = build_roadline_from_points(
-            id_=c,
+            id_=id_counter,
             points=pts,
             marking_kwargs=marking_kwargs,
             custom_tags={
@@ -320,7 +357,7 @@ def _build_urban_main_road(
                 "side": "left" if is_outer_edge else "interior",
             },
         )
-        c += 1
+        id_counter += 1
         roadlines.append(roadline)
         backward_boundary_line_ids.append([roadline.id_])
 
@@ -330,7 +367,7 @@ def _build_urban_main_road(
         right_pts = backward_boundary_pts_raw[i + 1][::-1]
 
         lane = build_lane_from_boundaries(
-            id_=c,
+            id_=id_counter,
             left_points=left_pts,
             right_points=right_pts,
             left_roadline_ids=backward_boundary_line_ids[i],
@@ -344,7 +381,7 @@ def _build_urban_main_road(
                 "lane_index": i,
             },
         )
-        c += 1
+        id_counter += 1
         backward_lanes.append(lane)
         lanes.append(lane)
 
@@ -357,7 +394,7 @@ def _build_urban_main_road(
     attach_boundary = forward_boundary_pts[-1]
     attach_lane = forward_lanes[-1]
 
-    return lanes, roadlines, forward_lanes, backward_lanes, attach_boundary, attach_lane, c
+    return lanes, roadlines, forward_lanes, backward_lanes, attach_boundary, attach_lane, id_counter
 
 
 def _build_single_lane_from_center(
@@ -369,9 +406,20 @@ def _build_single_lane_from_center(
     id_counter: int,
     tags: dict,
 ) -> tuple[Lane, list[RoadLine], int]:
-    """Build a single lane around a centerline.
+    """Build a single lane symmetrically around a centreline.
 
-    left/right are defined in the lane driving direction.
+    Args:
+        center_pts: Lane centreline points. Left and right boundaries are offset
+            by ``lane_width / 2`` on each side.
+        lane_width: Total lane width in metres.
+        speed_limit: Speed limit in km/h.
+        left_marking_kwargs: Marking style dict for the left boundary RoadLine.
+        right_marking_kwargs: Marking style dict for the right boundary RoadLine.
+        id_counter: Starting id counter.
+        tags: Extra custom_tags merged into all three generated elements.
+
+    Returns:
+        Tuple ``(lane, [left_roadline, right_roadline], updated_id_counter)``.
     """
     left_pts = offset_polyline(center_pts, lane_width / 2.0)
     right_pts = offset_polyline(center_pts, -lane_width / 2.0)
@@ -423,7 +471,56 @@ def _build_ramp(
     step_size: float,
     id_offset: int,
 ) -> RoadModuleResult:
-    """Build an entrance or exit ramp module."""
+    """Shared core builder for all six public ramp generators.
+
+    This function is the single implementation backing ``exit_ramp()``,
+    ``entrance_ramp()``, and their four ``freeway_*/urban_*`` aliases.
+
+    Geometry overview
+    -----------------
+    A ramp consists of three longitudinal elements laid side-by-side on the
+    main road:
+
+    1. **Main road** (``_build_freeway_main_road`` or ``_build_urban_main_road``):
+       Spans from ``main_in`` to ``main_out`` with a boundary gap on the ramp
+       side marking the taper and parallel sections.
+    2. **Auxiliary lane**: A full-width lane that runs parallel to the main road
+       (``parallel_length``) and then tapers to/from zero width
+       (``taper_length``).  For exit, taper is at the upstream end; for
+       entrance, taper is at the downstream end.
+    3. **Connector lane**: A bezier-curved single lane connecting the auxiliary
+       lane tip to the ``ramp_port`` socket.
+
+    Args:
+        kind: ``"exit"`` (traffic leaves main road) or ``"entrance"``
+            (traffic joins main road).
+        main_road_type: ``"freeway"`` for a one-way carriageway;
+            ``"urban"`` for a two-way road with a backward direction.
+        ramp_side: Side of the main road where the ramp attaches.
+            Only ``"right"`` is supported for urban type.
+        main_in: Upstream main-road socket.
+        main_out: Downstream main-road socket.
+        ramp_port: Ramp socket — ``ramp_out`` for exit, ``ramp_in`` for
+            entrance.
+        backward_lane_num: Number of backward lanes; ignored for freeway.
+        lane_width: Lane width in metres. Defaults to ``main_in.lane_width``.
+        main_speed_limit: Main-road speed limit. Defaults to
+            ``main_in.speed_limit``.
+        ramp_speed_limit: Ramp speed limit. Defaults to
+            ``ramp_port.speed_limit``.
+        taper_length: Longitudinal length of the auxiliary-lane taper zone.
+        parallel_length: Longitudinal length of the full-width auxiliary lane
+            running parallel to the main road.
+        step_size: Reference-line sampling interval in metres.
+        id_offset: First id used for generated map elements.
+
+    Returns:
+        A ``RoadModuleResult`` with ports ``"main_in"``, ``"main_out"``,
+        ``"ramp"`` (plus ``"backward_in"``/``"backward_out"`` for urban),
+        and a ``quality`` dict containing ``module``, ``kind``,
+        ``main_road_type``, ``ramp_side``, geometry statistics for main and
+        connector roads, ``accepted_reasons``, and ``accepted``.
+    """
     if kind not in ("exit", "entrance"):
         raise ValueError("kind must be 'exit' or 'entrance'.")
     if main_in.lane_num != main_out.lane_num:
@@ -647,7 +744,16 @@ def _build_ramp(
             )
             id_counter += 1
 
-    main_to_aux_rel, aux_to_main_rel = _side_neighbor_relationship(ramp_side)
+    if ramp_side == "right":
+        main_to_aux_rel, aux_to_main_rel = (
+            LaneRelationship.RIGHT_NEIGHBOR,
+            LaneRelationship.LEFT_NEIGHBOR,
+        )
+    else:
+        main_to_aux_rel, aux_to_main_rel = (
+            LaneRelationship.LEFT_NEIGHBOR,
+            LaneRelationship.RIGHT_NEIGHBOR,
+        )
     attach_lane.add_related_lane(aux_lane.id_, main_to_aux_rel)
     aux_lane.add_related_lane(attach_lane.id_, aux_to_main_rel)
 
@@ -760,7 +866,36 @@ def exit_ramp(
     step_size: float = 0.5,
     id_offset: int = 0,
 ) -> RoadModuleResult:
-    """Generate an exit ramp."""
+    """Generate an exit ramp module where traffic peels off from the main road.
+
+    Args:
+        main_in: Upstream main-road socket.
+        main_out: Downstream main-road socket (after the exit opening).
+        ramp_out: Downstream ramp socket where exiting traffic departs.
+        main_road_type: ``"freeway"`` for a one-way main road; ``"urban"`` for a
+            two-way main road with a separate backward direction.
+        ramp_side: Side of the main road where the ramp exits. Currently only
+            ``"right"`` is supported for ``"urban"`` type.
+        backward_lane_num: Number of backward lanes; ignored for ``"freeway"``.
+        lane_width: Lane width in metres. Defaults to ``main_in.lane_width``.
+        main_speed_limit: Speed limit on the main road in km/h. Defaults to
+            ``main_in.speed_limit``.
+        ramp_speed_limit: Speed limit on the ramp in km/h. Defaults to
+            ``ramp_out.speed_limit``.
+        taper_length: Longitudinal length of the auxiliary lane taper in metres.
+        parallel_length: Longitudinal length of the full-width auxiliary lane
+            running parallel to the main road before the taper.
+        step_size: Reference-line sampling interval in metres.
+        id_offset: First id used by generated map elements.
+
+    Returns:
+        A ``RoadModuleResult`` with named ports ``"main_in"``, ``"main_out"``,
+        and ``"ramp_out"``, plus geometry quality statistics and ``accepted``.
+
+    Raises:
+        ValueError: If ``main_road_type`` or ``ramp_side`` is unsupported, or
+            any length/width/step parameter is non-positive.
+    """
     return _build_ramp(
         kind="exit",
         main_road_type=main_road_type,
@@ -795,7 +930,36 @@ def entrance_ramp(
     step_size: float = 0.5,
     id_offset: int = 0,
 ) -> RoadModuleResult:
-    """Generate an entrance ramp."""
+    """Generate an entrance ramp module where traffic merges onto the main road.
+
+    Args:
+        main_in: Upstream main-road socket.
+        main_out: Downstream main-road socket (after the merge opening).
+        ramp_in: Upstream ramp socket where entering traffic arrives.
+        main_road_type: ``"freeway"`` for a one-way main road; ``"urban"`` for a
+            two-way main road with a separate backward direction.
+        ramp_side: Side of the main road where the ramp merges. Currently only
+            ``"right"`` is supported for ``"urban"`` type.
+        backward_lane_num: Number of backward lanes; ignored for ``"freeway"``.
+        lane_width: Lane width in metres. Defaults to ``main_in.lane_width``.
+        main_speed_limit: Speed limit on the main road in km/h. Defaults to
+            ``main_in.speed_limit``.
+        ramp_speed_limit: Speed limit on the ramp in km/h. Defaults to
+            ``ramp_in.speed_limit``.
+        taper_length: Longitudinal length of the auxiliary lane taper in metres.
+        parallel_length: Longitudinal length of the full-width auxiliary lane
+            running parallel to the main road before the taper.
+        step_size: Reference-line sampling interval in metres.
+        id_offset: First id used by generated map elements.
+
+    Returns:
+        A ``RoadModuleResult`` with named ports ``"main_in"``, ``"main_out"``,
+        and ``"ramp_in"``, plus geometry quality statistics and ``accepted``.
+
+    Raises:
+        ValueError: If ``main_road_type`` or ``ramp_side`` is unsupported, or
+            any length/width/step parameter is non-positive.
+    """
     return _build_ramp(
         kind="entrance",
         main_road_type=main_road_type,
@@ -822,7 +986,24 @@ def freeway_exit_ramp(
     ramp_side: RampSide = "right",
     **kwargs,
 ) -> RoadModuleResult:
-    """Generate a one-way freeway exit ramp."""
+    """Generate a one-way freeway exit ramp.
+
+    Convenience alias for :func:`exit_ramp` with ``main_road_type="freeway"``.
+
+    Args:
+        main_in: Upstream main-road socket.
+        main_out: Downstream main-road socket.
+        ramp_out: Downstream ramp socket where exiting traffic departs.
+        ramp_side: Side of the main road where the ramp exits
+            (``"right"`` or ``"left"``).
+        **kwargs: Additional keyword arguments forwarded to :func:`exit_ramp`:
+            ``lane_width``, ``main_speed_limit``, ``ramp_speed_limit``,
+            ``taper_length``, ``parallel_length``, ``step_size``,
+            ``id_offset``.
+
+    Returns:
+        See :func:`exit_ramp`.
+    """
     return exit_ramp(
         main_in, main_out, ramp_out, main_road_type="freeway", ramp_side=ramp_side, **kwargs
     )
@@ -836,7 +1017,24 @@ def freeway_entrance_ramp(
     ramp_side: RampSide = "right",
     **kwargs,
 ) -> RoadModuleResult:
-    """Generate a one-way freeway entrance ramp."""
+    """Generate a one-way freeway entrance ramp.
+
+    Convenience alias for :func:`entrance_ramp` with ``main_road_type="freeway"``.
+
+    Args:
+        main_in: Upstream main-road socket.
+        main_out: Downstream main-road socket.
+        ramp_in: Upstream ramp socket where entering traffic arrives.
+        ramp_side: Side of the main road where the ramp merges
+            (``"right"`` or ``"left"``).
+        **kwargs: Additional keyword arguments forwarded to
+            :func:`entrance_ramp`: ``lane_width``, ``main_speed_limit``,
+            ``ramp_speed_limit``, ``taper_length``, ``parallel_length``,
+            ``step_size``, ``id_offset``.
+
+    Returns:
+        See :func:`entrance_ramp`.
+    """
     return entrance_ramp(
         main_in, main_out, ramp_in, main_road_type="freeway", ramp_side=ramp_side, **kwargs
     )
@@ -850,7 +1048,24 @@ def urban_exit_ramp(
     backward_lane_num: int = 1,
     **kwargs,
 ) -> RoadModuleResult:
-    """Generate a two-way urban exit ramp."""
+    """Generate a two-way urban exit ramp (``ramp_side`` fixed to ``"right"``).
+
+    Convenience alias for :func:`exit_ramp` with ``main_road_type="urban"``
+    and ``ramp_side="right"``.
+
+    Args:
+        main_in: Upstream main-road socket.
+        main_out: Downstream main-road socket.
+        ramp_out: Downstream ramp socket where exiting traffic departs.
+        backward_lane_num: Number of backward lanes on the main road.
+        **kwargs: Additional keyword arguments forwarded to :func:`exit_ramp`:
+            ``lane_width``, ``main_speed_limit``, ``ramp_speed_limit``,
+            ``taper_length``, ``parallel_length``, ``step_size``,
+            ``id_offset``.
+
+    Returns:
+        See :func:`exit_ramp`.
+    """
     return exit_ramp(
         main_in,
         main_out,
@@ -870,7 +1085,24 @@ def urban_entrance_ramp(
     backward_lane_num: int = 1,
     **kwargs,
 ) -> RoadModuleResult:
-    """Generate a two-way urban entrance ramp."""
+    """Generate a two-way urban entrance ramp (``ramp_side`` fixed to ``"right"``).
+
+    Convenience alias for :func:`entrance_ramp` with ``main_road_type="urban"``
+    and ``ramp_side="right"``.
+
+    Args:
+        main_in: Upstream main-road socket.
+        main_out: Downstream main-road socket.
+        ramp_in: Upstream ramp socket where entering traffic arrives.
+        backward_lane_num: Number of backward lanes on the main road.
+        **kwargs: Additional keyword arguments forwarded to
+            :func:`entrance_ramp`: ``lane_width``, ``main_speed_limit``,
+            ``ramp_speed_limit``, ``taper_length``, ``parallel_length``,
+            ``step_size``, ``id_offset``.
+
+    Returns:
+        See :func:`entrance_ramp`.
+    """
     return entrance_ramp(
         main_in,
         main_out,
