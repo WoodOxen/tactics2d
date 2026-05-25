@@ -227,6 +227,19 @@ def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: dict):
     assert len(participants) == expected["participants"]
     assert time_range == expected["time_range"]
     assert location == expected["location"]
+    participant_ids = list(participants.keys())
+    participant_render_ids = participant_ids + [
+        participant_id + 0.5 for participant_id in participant_ids
+    ]
+    assert all(isinstance(participant_id, int) for participant_id in participant_ids)
+    assert len(set(participant_render_ids)) == len(participant_render_ids)
+    assert all(hasattr(participant, "source_id") for participant in participants.values())
+    assert any(participant.type_ == "vehicle" for participant in participants.values())
+    assert any(
+        hasattr(state, "confidence") and hasattr(state, "length") and hasattr(state, "width")
+        for participant in participants.values()
+        for state in participant.trajectory.history_states.values()
+    )
     assert len(map_.lanes) == expected["lanes"]
     assert len(map_.roadlines) == expected["roadlines"]
     assert len(map_.areas) == expected["areas"]

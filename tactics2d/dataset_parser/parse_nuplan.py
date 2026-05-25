@@ -6,7 +6,7 @@
 import datetime
 import sqlite3
 from pathlib import Path
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import geopandas as gpd
 import numpy as np
@@ -59,10 +59,7 @@ class NuPlanParser:
         3: ("virtual", None),
     }
 
-    _LANE_TYPE_MAPPING = {
-        0: "road",
-        1: "bicycle_lane",
-    }
+    _LANE_TYPE_MAPPING = {0: "road", 1: "bicycle_lane"}
 
     _STOP_POLYGON_MAPPING = {
         0: "crosswalk_stop_line",
@@ -74,9 +71,6 @@ class NuPlanParser:
 
     # Millisecond-level timestamp at 2021-01-01 00:00:00.
     _DATETIME = datetime.datetime(2021, 1, 1, 0, 0, 0).timestamp() * 1000
-
-    def __init__(self):
-        self.transform_matrix = np.zeros((6, 1))
 
     def get_location(self, file: str, folder: str) -> str:
         """Get the NuPlan location of a single trajectory database."""
@@ -105,7 +99,8 @@ class NuPlanParser:
             Tactics2D participant objects and the range is in milliseconds.
         """
 
-        participants = {}
+        track_infos = {}
+        states = {}
         time_stamps = set()
         file_path = self._resolve_path(file, folder)
 
@@ -126,20 +121,19 @@ class NuPlanParser:
                     track.height AS height
                 FROM track
                 INNER JOIN category ON category.token = track.category_token
+                ORDER BY track.token
                 """
             )
-            for row in cursor.fetchall():
+            for id_, row in enumerate(cursor.fetchall()):
                 category_name = row["category_name"]
-                participant_cls = self._CLASS_MAPPING.get(category_name, Other)
-                id_ = int.from_bytes(row["track_token"], byteorder="big")
-                participants[row["track_token"]] = participant_cls(
-                    id_=id_,
-                    type_=self._TYPE_MAPPING.get(category_name, category_name),
-                    trajectory=Trajectory(id_=id_, fps=20, stable_freq=False),
-                    length=row["length"],
-                    width=row["width"],
-                    height=row["height"],
-                )
+                track_infos[row["track_token"]] = {
+                    "id_": id_,
+                    "participant_cls": self._CLASS_MAPPING.get(category_name, Other),
+                    "type_": self._TYPE_MAPPING.get(category_name, category_name),
+                    "length": row["length"],
+                    "width": row["width"],
+                    "height": row["height"],
+                }
 
             cursor.execute(
                 """
@@ -148,10 +142,14 @@ class NuPlanParser:
                     lidar_box.x AS x,
                     lidar_box.y AS y,
                     lidar_box.z AS z,
+                    lidar_box.width AS width,
+                    lidar_box.length AS length,
+                    lidar_box.height AS height,
                     lidar_box.yaw AS yaw,
                     lidar_box.vx AS vx,
                     lidar_box.vy AS vy,
                     lidar_box.vz AS vz,
+                    lidar_box.confidence AS confidence,
                     lidar_pc.timestamp AS timestamp
                 FROM lidar_box
                 INNER JOIN lidar_pc ON lidar_pc.token = lidar_box.lidar_pc_token
@@ -163,27 +161,45 @@ class NuPlanParser:
                 if time_stamp < time_range[0] or time_stamp > time_range[1]:
                     continue
 
-                participant = participants.get(row["track_token"])
-                if participant is None:
+                track_token = row["track_token"]
+                if track_token not in track_infos:
                     continue
 
                 time_stamps.add(time_stamp)
-                participant.trajectory.add_state(
-                    State(
-                        frame=time_stamp,
-                        x=row["x"],
-                        y=row["y"],
-                        heading=row["yaw"],
-                        vx=row["vx"],
-                        vy=row["vy"],
-                    )
+                state = State(
+                    frame=time_stamp,
+                    x=row["x"],
+                    y=row["y"],
+                    heading=row["yaw"],
+                    vx=row["vx"],
+                    vy=row["vy"],
                 )
+                state.length = row["length"]
+                state.width = row["width"]
+                state.height = row["height"]
+                state.confidence = row["confidence"]
+                states.setdefault(track_token, []).append(state)
 
-        participants = {
-            participant.id_: participant
-            for participant in participants.values()
-            if len(participant.trajectory) > 0
-        }
+        participants = {}
+        for track_token, track_info in track_infos.items():
+            if track_token not in states:
+                continue
+
+            id_ = track_info["id_"]
+            participant = track_info["participant_cls"](
+                id_=id_,
+                type_=track_info["type_"],
+                trajectory=Trajectory(id_=id_, fps=20, stable_freq=False),
+                length=track_info["length"],
+                width=track_info["width"],
+                height=track_info["height"],
+            )
+            participant.type_ = track_info["type_"]
+            participant.source_id = track_token.hex()
+            for state in states[track_token]:
+                participant.trajectory.add_state(state)
+            participants[participant.id_] = participant
+
         actual_time_range = (
             (min(time_stamps), max(time_stamps)) if time_stamps else (np.inf, -np.inf)
         )
@@ -277,9 +293,7 @@ class NuPlanParser:
                     geometry=geometry,
                     custom_tags={
                         "nuplan_layer": "boundaries",
-                        "boundary_segment_fids": self._split_ids(
-                            row.get("boundary_segment_fids")
-                        ),
+                        "boundary_segment_fids": self._split_ids(row.get("boundary_segment_fids")),
                         "has_reflectors": bool(row.get("has_reflectors", False)),
                     },
                 )
