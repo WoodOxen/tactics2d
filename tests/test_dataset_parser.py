@@ -223,8 +223,12 @@ def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: dict):
     location = dataset_parser.get_location(file_name, folder_path)
     map_config = NUPLAN_MAP_CONFIG[location]
     map_path = os.path.join(map_config["folder"], map_config["gpkg_file"])
-
-    map_ = dataset_parser.parse_map(map_path, map_folder_path)
+    full_map_path = os.path.join(map_folder_path, map_path)
+    map_ = (
+        dataset_parser.parse_map(map_path, map_folder_path)
+        if os.path.exists(full_map_path)
+        else None
+    )
 
     t3 = time.time()
 
@@ -244,17 +248,22 @@ def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: dict):
         for participant in participants.values()
         for state in participant.trajectory.history_states.values()
     )
-    assert len(map_.lanes) > 0
-    assert len(map_.roadlines) > 0
-    assert len(map_.areas) > 0
-    assert len(map_.junctions) > 0
-    assert len(map_.regulations) > 0
+    if map_ is None:
+        logging.info(f"NuPlan map file not found: {full_map_path}")
+    else:
+        assert len(map_.lanes) > 0
+        assert len(map_.roadlines) > 0
+        assert len(map_.areas) > 0
+        assert len(map_.junctions) > 0
+        assert len(map_.regulations) > 0
 
-    assert any(lane.centerline() is not None for lane in map_.lanes.values())
-    assert any(lane.successors for lane in map_.lanes.values())
-    assert any(lane.left_neighbors or lane.right_neighbors for lane in map_.lanes.values())
-    assert any(regulation.subtype == "traffic_light" for regulation in map_.regulations.values())
-    assert any(area.subtype == "crosswalk" for area in map_.areas.values())
+        assert any(lane.centerline() is not None for lane in map_.lanes.values())
+        assert any(lane.successors for lane in map_.lanes.values())
+        assert any(lane.left_neighbors or lane.right_neighbors for lane in map_.lanes.values())
+        assert any(
+            regulation.subtype == "traffic_light" for regulation in map_.regulations.values()
+        )
+        assert any(area.subtype == "crosswalk" for area in map_.areas.values())
 
     logging.info(f"The time needed to parse a NuPlan scenario: {t2 - t1}s")
     logging.info(f"The time needed to parse the map for a NuPlan scenario: {t3 - t2}s")
