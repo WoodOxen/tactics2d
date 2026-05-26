@@ -177,42 +177,94 @@ def test_ngsim_parser(file, stamp_range, ids):
 @pytest.mark.parametrize(
     "file_name, stamp_range, expected",
     [
-        ("train_boston/2021.08.26.18.24.36_veh-28_00578_00663.db", None, 343),
-        ("train_pittsburgh/2021.09.13.19.54.06_veh-45_00781_00843.db", None, 57),
+        (
+            "train_boston/2021.08.26.18.24.36_veh-28_00578_00663.db",
+            None,
+            {"participants": 343, "location": "us-ma-boston"},
+        ),
+        (
+            "train_pittsburgh/2021.09.13.19.54.06_veh-45_00781_00843.db",
+            None,
+            {"participants": 57, "location": "us-pa-pittsburgh-hazelwood"},
+        ),
         (
             "train_singapore/2021.09.29.01.04.10_veh-49_00808_00872.db",
             (-float("inf"), float("inf")),
-            35,
+            {"participants": 35, "location": "sg-one-north"},
         ),
         (
             "train_vegas_1/2021.05.18.21.31.22_veh-30_00062_00160.db",
             (-float("inf"), float("inf")),
-            285,
+            {"participants": 285, "location": "las_vegas"},
         ),
-        ("val/2021.08.24.12.39.05_veh-42_01860_01929.db", None, 45),
-        ("test/2021.09.16.14.14.03_veh-45_00441_00502.db", None, 48),
+        (
+            "val/2021.08.24.12.39.05_veh-42_01860_01929.db",
+            None,
+            {"participants": 45, "location": "us-pa-pittsburgh-hazelwood"},
+        ),
+        (
+            "test/2021.09.16.14.14.03_veh-45_00441_00502.db",
+            None,
+            {"participants": 48, "location": "us-pa-pittsburgh-hazelwood"},
+        ),
     ],
 )
-def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
+def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: dict):
     folder_path = "./tactics2d/data/trajectory_sample/NuPlan/data/cache"
-    map_folder_path = "./tactics2d/data/map/NuPlan"
+    map_folder_path = "./tactics2d/data/map/NuPlan/maps"
+    if not os.path.exists(map_folder_path):
+        map_folder_path = "./tactics2d/data/map/NuPlan"
 
     dataset_parser = NuPlanParser()
 
     t1 = time.time()
-    participants, _ = dataset_parser.parse_trajectory(file_name, folder_path, stamp_range)
+    participants, time_range = dataset_parser.parse_trajectory(file_name, folder_path, stamp_range)
     t2 = time.time()
     location = dataset_parser.get_location(file_name, folder_path)
-    map_path = NUPLAN_MAP_CONFIG[location]["gpkg_file"]
-
-    try:
-        _ = dataset_parser.parse_map(map_path, map_folder_path)
-    except:
-        logging.info(f"{map_path}")
+    map_config = NUPLAN_MAP_CONFIG[location]
+    map_path = os.path.join(map_config["folder"], map_config["gpkg_file"])
+    full_map_path = os.path.join(map_folder_path, map_path)
+    map_ = (
+        dataset_parser.parse_map(map_path, map_folder_path)
+        if os.path.exists(full_map_path)
+        else None
+    )
 
     t3 = time.time()
 
-    assert (len(participants)) == expected
+    assert len(participants) == expected["participants"]
+    assert time_range[0] <= time_range[1]
+    assert location == expected["location"]
+    participant_ids = list(participants.keys())
+    participant_render_ids = participant_ids + [
+        participant_id + 0.5 for participant_id in participant_ids
+    ]
+    assert all(isinstance(participant_id, int) for participant_id in participant_ids)
+    assert len(set(participant_render_ids)) == len(participant_render_ids)
+    assert all(hasattr(participant, "source_id") for participant in participants.values())
+    assert any(participant.type_ == "vehicle" for participant in participants.values())
+    assert any(
+        hasattr(state, "confidence") and hasattr(state, "length") and hasattr(state, "width")
+        for participant in participants.values()
+        for state in participant.trajectory.history_states.values()
+    )
+    if map_ is None:
+        logging.info(f"NuPlan map file not found: {full_map_path}")
+    else:
+        assert len(map_.lanes) > 0
+        assert len(map_.roadlines) > 0
+        assert len(map_.areas) > 0
+        assert len(map_.junctions) > 0
+        assert len(map_.regulations) > 0
+
+        assert any(lane.centerline() is not None for lane in map_.lanes.values())
+        assert any(lane.successors for lane in map_.lanes.values())
+        assert any(lane.left_neighbors or lane.right_neighbors for lane in map_.lanes.values())
+        assert any(
+            regulation.subtype == "traffic_light" for regulation in map_.regulations.values()
+        )
+        assert any(area.subtype == "crosswalk" for area in map_.areas.values())
+
     logging.info(f"The time needed to parse a NuPlan scenario: {t2 - t1}s")
     logging.info(f"The time needed to parse the map for a NuPlan scenario: {t3 - t2}s")
 

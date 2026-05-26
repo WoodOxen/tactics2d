@@ -160,7 +160,7 @@ class Lane:
         if speed_limit is None:
             self.speed_limit = None
         elif speed_limit_unit == "m/s":
-            pass
+            self.speed_limit = speed_limit
         elif speed_limit_unit == "km/h":
             self.speed_limit = round(speed_limit / 3.6, 3)
         elif speed_limit_unit == "mi/h" or speed_limit_unit == "mph":
