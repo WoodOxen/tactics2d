@@ -200,7 +200,7 @@ def test_ngsim_parser(file, stamp_range, ids):
         (
             "val/2021.08.24.12.39.05_veh-42_01860_01929.db",
             None,
-            {"participants": 45, "location": "us-ma-boston"},
+            {"participants": 45, "location": "us-pa-pittsburgh-hazelwood"},
         ),
         (
             "test/2021.09.16.14.14.03_veh-45_00441_00502.db",
