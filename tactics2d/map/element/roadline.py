@@ -12,7 +12,7 @@ from shapely.geometry import LineString, Point
 
 
 class RoadLine:
-    """This class implements the map element *LineString*
+    """This class implements the map element *LineString*.
 
     !!! quote "Reference"
         - [OpenStreetMap's description of a way](https://wiki.openstreetmap.org/wiki/Way)
@@ -23,15 +23,17 @@ class RoadLine:
         geometry (LineString): The geometry information of the roadline.
         type_ (str, optional): The type of the roadline. Defaults to "virtual".
         subtype (str, optional): The subtype of the line. Defaults to None.
-        color (Any): The color of the area. If not specified, the color will be assigned based on the rendering template later. Defaults to None.
-        width (float, optional): The width of the line (in m). Used in rendering. Defaults to None.
-        height (float, optional): The height of line (in m). The linestring then represents the lower outline/lowest edge of the object. Defaults to None.
-        lane_change (Tuple[bool, bool], optional): Whether a vehicle can switch to a left lane or a right lane. The first element in the tuple denotes whether the vehicle can switch from the left to the right of the line, and the second element denotes whether the vehicle can switch from the right to the left of the line. Defaults to None.
-        temporary (bool, optional): Whether the roadline is a temporary lane mark or not. Defaults to False.
-        custom_tags (dict, optional): The custom tags of the raodline. Defaults to None.
-        head (Point): The head point of the roadline. This attribute is **read-only**.
-        end (Point): The end point of the roadline. This attribute is **read-only**.
-        shape (list): The shape of the roadline. This attribute is **read-only**.
+        color (Any): The color of the line. If not specified, the color will be
+            assigned based on the rendering template later. Defaults to None.
+        width (float, optional): The width of the line in metres. Defaults to None.
+        height (float, optional): The height of line in metres. Defaults to None.
+        lane_change (Tuple[bool, bool], optional): Whether a vehicle can cross
+            the line from left to right and from right to left. Defaults to None.
+        temporary (bool, optional): Whether the roadline is temporary. Defaults to False.
+        custom_tags (dict, optional): Custom tags of the roadline. Defaults to None.
+        head (Point): The head point of the roadline. Read-only.
+        end (Point): The end point of the roadline. Read-only.
+        shape (list): The shape of the roadline. Read-only.
     """
 
     __slots__ = (
@@ -60,19 +62,21 @@ class RoadLine:
         temporary: bool = False,
         custom_tags: dict = None,
     ):
-        """Initialize an instance of the class.
+        """Initialize an instance of RoadLine.
 
         Args:
-            id_ (str): The unique identifier of the roadline.
-            geometry (LineString): The shape of the line expressed in geometry format.
-            type_ (str, optional): The type of the roadline.
-            subtype (str, optional): The subtype of the line.
-            color (tuple, optional): The color of the area. If not specified, the color will be assigned based on the rendering template later.
-            width (float, optional): The width of the line (in m). Used in rendering.
-            height (float, optional):
-            lane_change (Tuple[bool, bool], optional): Whether a vehicle can switch to a left lane or a right lane. The first element in the tuple denotes whether the vehicle can switch from the left to the right of the line, and the second element denotes whether the vehicle can switch from the right to the left of the line.
-            temporary (bool, optional): Whether the roadline is a temporary lane mark or not.
-            custom_tags (dict, optional): The custom tags of the raodline.
+            id_: The unique identifier of the roadline.
+            geometry: The shape of the line expressed in geometry format.
+            type_: The type of the roadline.
+            subtype: The subtype of the line.
+            color: The color of the line. If not specified, the color will be
+                assigned based on the rendering template later.
+            width: The width of the line in metres.
+            height: The height of the line in metres.
+            lane_change: Whether a vehicle can cross from left to right and
+                from right to left.
+            temporary: Whether the roadline is temporary.
+            custom_tags: Custom tags of the roadline.
         """
         self.id_ = id_
         self.geometry = geometry
@@ -83,24 +87,26 @@ class RoadLine:
         self.height = height
         self.lane_change = lane_change
         self.temporary = temporary
-        self.custom_tags = custom_tags
+        self.custom_tags = custom_tags or {}
 
         self._set_lane_change()
 
     def _set_lane_change(self):
+        """Infer lane-change permission from native roadline subtype."""
+
         def set_by_type(type_: str, lane_change: Tuple[bool, bool]):
             if self.lane_change is None:
                 self.lane_change = lane_change
             elif self.lane_change != lane_change:
                 logging.warning(
-                    f"The lane change rule of a {type_} roadline is supposed to be {lane_change}. Line {self.id_} has lane change rule {self.lane_change}."
+                    f"The lane change rule of a {type_} roadline is supposed to be "
+                    f"{lane_change}. Line {self.id_} has lane change rule "
+                    f"{self.lane_change}."
                 )
 
-        if self.subtype == "solid":
+        if self.subtype in ["solid", "solid_solid"]:
             set_by_type(self.subtype, (False, False))
-        elif self.subtype == "solid_solid":
-            set_by_type(self.subtype, (False, False))
-        elif self.subtype == "dashed":
+        elif self.subtype in ["dashed", "dashed_dashed"]:
             set_by_type(self.subtype, (True, True))
         elif self.subtype == "solid_dashed":
             set_by_type(self.subtype, (False, True))
