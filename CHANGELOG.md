@@ -5,6 +5,8 @@
 
 ### Added
 
+- Added shared geometry and RoadLine utilities for road-segment map generation, including polyline sampling, cutting, offsetting, intersection extraction, curvature checks, and marking metadata support.
+- Added lane-marking foundations for map generation, including marking token specifications, MUTCD/GB rule tables, lane-change permissions, rendering metadata, and shared road module socket/result types.
 - Added a parser and corresponding tests, documentations for DriveInsightD dataset.
 - Added native SUMO `.net.xml` map parser (`NetXMLParser`) with junction geometry parsing, connection attachment, and junction shape auto-completion via convex hull.
 - Merged `Connection` class into `Junction` by flattening its properties directly into `Junction` with default values.
