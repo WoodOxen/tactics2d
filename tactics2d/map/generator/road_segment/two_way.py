@@ -111,7 +111,6 @@ class TwoWay(RoadSegment):
         id_counter += 1
         roadlines.append(center_roadline)
 
-        # --- Forward direction: N+1 shared boundary roadlines, N lanes ---
         forward_boundary_pts: list[np.ndarray] = [center_pts]
         forward_boundary_rls: list[RoadLine] = [center_roadline]
 
@@ -147,9 +146,6 @@ class TwoWay(RoadSegment):
 
         add_ordered_lane_neighbors(forward_lanes)
 
-        # --- Backward direction: N+1 shared boundary roadlines, N lanes ---
-        # Polylines are reversed so each backward lane drives end→start.
-        # boundary[0] reuses center_roadline; boundary[1..N] are new at increasing offsets.
         backward_boundary_pts: list[np.ndarray] = [center_pts[::-1]]
         backward_boundary_rls: list[RoadLine] = [center_roadline]
 

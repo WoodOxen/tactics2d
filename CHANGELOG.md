@@ -5,6 +5,8 @@
 
 ### Added
 
+- Refined structured road-segment generators, including fork/merge, ramp, intersection, two-way road, and related test coverage.
+- Updated generator rules and geometry helpers to improve roadline metadata handling, reference-line construction, and module connection consistency.
 - Added shared geometry and RoadLine utilities for road-segment map generation, including polyline sampling, cutting, offsetting, intersection extraction, curvature checks, and marking metadata support.
 - Added lane-marking foundations for map generation, including marking token specifications, MUTCD/GB rule tables, lane-change permissions, rendering metadata, and shared road module socket/result types.
 - Added a parser and corresponding tests, documentations for DriveInsightD dataset.
