@@ -20,7 +20,7 @@ from tactics2d.geometry import (
 )
 from tactics2d.map.element import Area, Lane, LaneRelationship, RoadLine
 from tactics2d.map.generator.rules.lane_marking_rules import (
-    one_way_mark,
+    one_way_boundary_token,
     ramp_mark,
     roadline_render_kwargs,
     two_way_backward,
@@ -38,6 +38,7 @@ from tactics2d.map.generator.rules.module_types import (
 
 from .element_builder import (
     add_ordered_lane_neighbors,
+    boundary_offset,
     build_lane_from_boundaries,
     build_roadline_from_points,
     build_segmented_roadline,
@@ -135,27 +136,25 @@ def _build_freeway_main_road(
     lanes: list[Lane] = []
     roadlines: list[RoadLine] = []
 
-    total_half_width = lane_num * lane_width / 2.0
-    boundary_offsets = [total_half_width - i * lane_width for i in range(lane_num + 1)]
-    boundary_pts = [offset_polyline(center_pts, offset) for offset in boundary_offsets]
+    boundary_num = lane_num + 1
+    boundary_pts = [
+        offset_polyline(center_pts, boundary_offset(i, lane_num, lane_width))
+        for i in range(boundary_num)
+    ]
     boundary_line_ids: list[list[str]] = []
 
     for boundary_idx, pts in enumerate(boundary_pts):
         is_left_edge = boundary_idx == 0
         is_right_edge = boundary_idx == lane_num
 
+        marking_kwargs = roadline_render_kwargs(one_way_boundary_token(boundary_idx, boundary_num))
         if is_left_edge:
-            marking_kwargs = roadline_render_kwargs(one_way_mark(0, lane_num, "left"))
             side = "left"
             gap = edge_gap if ramp_side == "left" else None
         elif is_right_edge:
-            marking_kwargs = roadline_render_kwargs(one_way_mark(lane_num - 1, lane_num, "right"))
             side = "right"
             gap = edge_gap if ramp_side == "right" else None
         else:
-            marking_kwargs = roadline_render_kwargs(
-                one_way_mark(boundary_idx - 1, lane_num, "right")
-            )
             side = "interior"
             gap = None
 
@@ -688,11 +687,11 @@ def _build_ramp(
 
     if main_road_type == "freeway":
         total_half_width = lane_num * lane_w / 2.0
-        boundary_offset = -total_half_width if ramp_side == "right" else total_half_width
+        ramp_edge_offset = -total_half_width if ramp_side == "right" else total_half_width
     else:
-        boundary_offset = -lane_num * lane_w
+        ramp_edge_offset = -lane_num * lane_w
 
-    boundary_preview = offset_polyline(center_pts, boundary_offset)
+    boundary_preview = offset_polyline(center_pts, ramp_edge_offset)
     boundary_length = polyline_length(boundary_preview)
     ramp_s = nearest_s(boundary_preview, as_point(ramp_port.point))
 
@@ -892,7 +891,7 @@ def _build_ramp(
         )
 
     return RoadModuleResult(
-        lanes=lanes, roadlines=roadlines, ports=ports, id_counter=id_counter, junctions=areas
+        lanes=lanes, roadlines=roadlines, ports=ports, id_counter=id_counter, areas=areas
     )
 
 

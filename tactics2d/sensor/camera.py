@@ -5,7 +5,7 @@
 
 
 import time
-from typing import Any, Dict, List, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 from shapely.geometry import Point, Polygon
@@ -20,12 +20,12 @@ class BEVCamera(SensorBase):
     """This class defines the render paradigm of a BEV camera.
 
     Attributes:
-        id_ (int): The unique identifier of the sensor. This attribute is **read-only** once the instance is initialized.
-        map_ (Map): The map that the sensor is attached to. This attribute is **read-only** once the instance is initialized.
+        id_ (int): The unique identifier of the sensor. This attribute is read-only once the instance is initialized.
+        map_ (Map): The map that the sensor is attached to. This attribute is read-only once the instance is initialized.
         perception_range (Union[float, Tuple[float]]): The distance from the sensor to its maximum detection range in (left, right, front, back). When this value is undefined, the sensor is assumed to detect the whole map. Defaults to None.
         position (Point): The position of the sensor in the global 2D coordinate system.
-        bind_id (Any): The unique identifier of object that the sensor is bound to. This attribute is **read-only** and can only be set using the `bind_with` method.
-        is_bound (bool): Whether the sensor is bound to an object. This attribute is **read-only** once the instance is initialized.
+        bind_id (Any): The unique identifier of object that the sensor is bound to. This attribute is read-only and can only be set using the bind_with method.
+        is_bound (bool): Whether the sensor is bound to an object. This attribute is read-only once the instance is initialized.
     """
 
     def __init__(self, id_: int, map_: Map, perception_range: Union[float, Tuple[float]] = None):
@@ -45,32 +45,32 @@ class BEVCamera(SensorBase):
             geometry: Shapely geometry object to check.
 
         Returns:
-            True if geometry is within perception range or sensor has no position,
-            False otherwise.
+            True if geometry is within perception range or sensor has no position, False otherwise.
         """
         if self._position is None:
             return True
 
         return geometry.distance(self._position) <= self.max_perception_distance * 1.5
 
+    def _is_pavement_junction(self, junction: Junction) -> bool:
+        """Return whether a junction is a generated road-surface fill polygon."""
+        return junction.custom_tags.get("type") == "road"
+
     def _get_type(self, element: Any) -> str:
         """Get the type string for a map or participant element.
 
         Args:
-            element: Map element (Area, Junction, Lane, RoadLine) or participant element.
+            element: Map element or participant element.
 
         Returns:
             String type identifier for the element.
         """
+        if isinstance(element, Junction):
+            return element.custom_tags.get("type") or "junction"
         if hasattr(element, "subtype") and element.subtype:
             return element.subtype
         elif hasattr(element, "type_") and element.type_:
             return element.type_
-        elif isinstance(element, Junction):
-            # Use the SUMO junction type stored in custom_tags when available,
-            # otherwise fall back to the generic "junction" key so that
-            # matplotlib_config.DEFAULT_COLOR["junction"] is resolved.
-            return element.custom_tags.get("type") or "junction"
         elif isinstance(element, Area):
             return "area"
         elif isinstance(element, Lane):
@@ -86,63 +86,72 @@ class BEVCamera(SensorBase):
 
         return "default"
 
+    def _make_junction_element(
+        self, junction: Junction
+    ) -> Tuple[Optional[Dict[str, Any]], Optional[int]]:
+        """Convert a Junction into a renderer element."""
+        shape_pts = junction.custom_tags.get("shape", [])
+        if len(shape_pts) < 3:
+            return None, None
+
+        try:
+            junction_polygon = Polygon(shape_pts)
+        except Exception:
+            return None, None
+
+        if not self._in_perception_range(junction_polygon):
+            return None, None
+
+        if self._is_pavement_junction(junction):
+            buffered_polygon = junction_polygon.buffer(0.05)
+            if buffered_polygon.is_empty or buffered_polygon.geom_type != "Polygon":
+                buffered_polygon = junction_polygon
+
+            element_color = "road"
+            element_type: str | float = 3.1
+            element_geometry = list(buffered_polygon.exterior.coords)
+        else:
+            element_color = self._get_type(junction)
+            element_type = element_color
+            element_geometry = list(junction_polygon.exterior.coords)
+
+        element_id = int(2e6 + int(junction.id_))
+
+        return (
+            {
+                "id": element_id,
+                "shape": "polygon",
+                "geometry": element_geometry,
+                "color": element_color,
+                "type": element_type,
+                "line_width": 0,
+            },
+            element_id,
+        )
+
     def _get_map_elements(self, prev_road_id_set: Set[int]) -> Tuple[Dict, Set[int]]:
         """Get map elements within perception range for rendering.
 
-        Processes junctions, areas, lanes, and roadlines in z-order (lowest first)
-        so that junction fill polygons are drawn beneath lane polygons and road
-        markings, matching SUMO-GUI's default visual style.
-
-        Args:
-            prev_road_id_set: Set of road IDs from previous frame.
-
-        Returns:
-            Tuple of (map_data, road_id_set) where map_data contains road elements
-            to remove and create, and road_id_set is the set of road IDs in current frame.
+        Render order is areas, lanes, junctions, then roadlines.
+        Ordinary junctions stay below lanes through their z-order.
+        Pavement-fill junctions use type 3.1 and are inserted after lanes to cover lane end-cap seams.
         """
         road_id_list = []
         road_element_list = []
         white = "white"
 
-        # Process junctions (z-order 2, beneath lanes)
-        for junction in self._map.junctions.values():
-            shape_pts = junction.custom_tags.get("shape", [])
-            if len(shape_pts) < 3:
-                continue
-
-            try:
-                junction_polygon = Polygon(shape_pts)
-            except Exception:
-                continue
-
-            if not self._in_perception_range(junction_polygon):
-                continue
-
-            junc_type = self._get_type(junction)
-            element_id = int(2e6 + int(junction.id_))
-
-            road_element_list.append(
-                {
-                    "id": element_id,
-                    "shape": "polygon",
-                    "geometry": list(junction_polygon.exterior.coords),
-                    "color": junc_type,
-                    "type": junc_type,
-                    "line_width": 0,
-                }
-            )
-            road_id_list.append(element_id)
-
-        # Process areas (obstacles, etc.)
         for area in self._map.areas.values():
+            if area.geometry is None:
+                continue
             if not self._in_perception_range(area.geometry):
                 continue
 
             interiors = list(area.geometry.interiors)
+            area_id = int(1e6 + int(area.id_))
 
             road_element_list.append(
                 {
-                    "id": int(1e6 + int(area.id_)),
+                    "id": area_id,
                     "shape": "polygon",
                     "geometry": list(area.geometry.exterior.coords),
                     "color": area.color,
@@ -150,12 +159,14 @@ class BEVCamera(SensorBase):
                     "line_width": 0,
                 }
             )
-            road_id_list.append(int(1e6 + int(area.id_)))
+            road_id_list.append(area_id)
 
             for i, interior in enumerate(interiors):
+                hole_id = int(1e6 + int(area.id_) + i * 1e5)
+
                 road_element_list.append(
                     {
-                        "id": int(1e6 + int(area.id_) + i * 1e5),
+                        "id": hole_id,
                         "shape": "polygon",
                         "geometry": list(interior.coords),
                         "color": white,
@@ -163,16 +174,19 @@ class BEVCamera(SensorBase):
                         "line_width": 0,
                     }
                 )
-                road_id_list.append(int(1e6 + int(area.id_) + i * 1e5))
+                road_id_list.append(hole_id)
 
-        # Process lanes
         for lane in self._map.lanes.values():
+            if lane.geometry is None:
+                continue
             if not self._in_perception_range(lane.geometry):
                 continue
 
+            lane_id = int(1e6 + int(lane.id_))
+
             road_element_list.append(
                 {
-                    "id": int(1e6 + int(lane.id_)),
+                    "id": lane_id,
                     "shape": "polygon",
                     "geometry": list(lane.geometry.coords),
                     "color": lane.color,
@@ -180,10 +194,20 @@ class BEVCamera(SensorBase):
                     "line_width": 0,
                 }
             )
-            road_id_list.append(int(1e6 + int(lane.id_)))
+            road_id_list.append(lane_id)
 
-        # Process roadlines (skip virtual lines)
+        for junction in self._map.junctions.values():
+            junction_element, junction_id = self._make_junction_element(junction)
+
+            if junction_element is None or junction_id is None:
+                continue
+
+            road_element_list.append(junction_element)
+            road_id_list.append(junction_id)
+
         for roadline in self._map.roadlines.values():
+            if roadline.geometry is None:
+                continue
             if roadline.type_ == "virtual" or not self._in_perception_range(roadline.geometry):
                 continue
 
@@ -194,10 +218,11 @@ class BEVCamera(SensorBase):
                 line_width = 2
 
             line_color = white if roadline.color is None else roadline.color
+            roadline_id = int(1e6 + int(roadline.id_))
 
             road_element_list.append(
                 {
-                    "id": int(1e6 + int(roadline.id_)),
+                    "id": roadline_id,
                     "shape": "line",
                     "geometry": list(roadline.geometry.coords),
                     "color": line_color,
@@ -206,7 +231,7 @@ class BEVCamera(SensorBase):
                     "line_width": line_width,
                 }
             )
-            road_id_list.append(int(1e6 + int(roadline.id_)))
+            road_id_list.append(roadline_id)
 
         road_id_set = set(road_id_list)
         road_id_to_create = road_id_set - prev_road_id_set
@@ -240,9 +265,7 @@ class BEVCamera(SensorBase):
             prev_participant_id_set: Set of participant IDs from previous frame.
 
         Returns:
-            Tuple of (participant_data, participant_id_set) where participant_data contains
-            participant elements to remove and create, and participant_id_set is the set of
-            participant IDs in current frame.
+            Tuple of participant_data and participant_id_set.
         """
         participant_id_list = []
         participant_list = []
@@ -340,24 +363,7 @@ class BEVCamera(SensorBase):
         position: Point = None,
         heading: float = None,
     ) -> Tuple[Dict, Set, Set]:
-        """This function is used to update the camera's position and obtain the geometry data under specific rendering paradigm.
-
-        Args:
-            frame (int): The frame of the observation.
-            participants (Dict): The participants in the scenario.
-            participant_ids (List): The list of participant IDs to be rendered.
-            prev_road_id_set (Set, optional): The set of road IDs that were rendered in the previous frame.
-                Defaults to None.
-            prev_participant_id_set (Set, optional): The set of participant IDs that were rendered in the previous frame.
-                Defaults to None.
-            position (Point, optional): The position of the camera. Defaults to None.
-            heading (float, optional): The heading of the camera in radians. Defaults to None.
-
-        Returns:
-            geometry_data (Dict): The geometry data to be rendered in unified format.
-            road_id_set (Set): The set of road IDs that were rendered in the current frame.
-            participant_id_set (Set): The set of participant IDs that were rendered in the current frame.
-        """
+        """Update the camera and return geometry data."""
         self._set_position_heading(position, heading)
 
         participant_ids, prev_road_id_set, prev_participant_id_set = self._setup_update_parameters(

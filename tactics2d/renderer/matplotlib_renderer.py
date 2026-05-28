@@ -232,86 +232,64 @@ class MatplotlibRenderer:
         self.ylim = (new_y_min, new_y_max)
 
     def _resolve_style(self, color_key: str, type_key) -> tuple:
-        """Resolve style keys to concrete color value and z-order.
+        if isinstance(color_key, str) and color_key.lower() in ("none", "transparent"):
+            if isinstance(type_key, (int, float)):
+                z_order = type_key
+            elif isinstance(type_key, str) and type_key in DEFAULT_ORDER:
+                z_order = DEFAULT_ORDER[type_key]
+            else:
+                z_order = 1
+            return "none", z_order
 
-        Args:
-            color_key: Color key (could be color name like 'white' or type key like 'vehicle')
-            type_key: Element type key (string) or numeric z-order (int/float)
-
-        Returns:
-            tuple: (color_value, z_order)
-        """
-        # Resolve color
         if color_key in COLOR_PALETTE:
-            # Direct color name like 'white', 'red', etc.
             color = COLOR_PALETTE[color_key]
         elif color_key in DEFAULT_COLOR:
-            # Type-based key like 'vehicle', 'lane', etc.
             color_value = DEFAULT_COLOR[color_key]
-            # The value might be a color name or hex code
-            if color_value in COLOR_PALETTE:
-                color = COLOR_PALETTE[color_value]
-            else:
-                color = color_value  # Assume it's already a hex code or valid color
+            color = COLOR_PALETTE.get(color_value, color_value)
         elif isinstance(color_key, str) and color_key.startswith("#"):
-            # Hex color code like "#FF0000"
             color = color_key
         elif type_key in DEFAULT_COLOR:
-            # Type-based key like 'vehicle', 'lane', etc.
             color_value = DEFAULT_COLOR[type_key]
-            # The value might be a color name or hex code
-            if color_value in COLOR_PALETTE:
-                color = COLOR_PALETTE[color_value]
-            else:
-                color = color_value  # Assume it's already a hex code or valid color
+            color = COLOR_PALETTE.get(color_value, color_value)
         else:
-            # Fallback to default color
             color = COLOR_PALETTE["black"]
 
-        # Resolve z-order from type key
         if isinstance(type_key, (int, float)):
-            # Already a numeric value
             z_order = type_key
         elif isinstance(type_key, str) and type_key in DEFAULT_ORDER:
-            # String key, look up in DEFAULT_ORDER
             z_order = DEFAULT_ORDER[type_key]
+        elif isinstance(color_key, str) and color_key in DEFAULT_ORDER:
+            z_order = DEFAULT_ORDER[color_key]
         else:
-            # Fallback: try to use color_key as type key
-            if isinstance(color_key, str) and color_key in DEFAULT_ORDER:
-                z_order = DEFAULT_ORDER[color_key]
-            else:
-                # Fallback to default z-order
-                z_order = 1
+            z_order = 1
 
         return color, z_order
 
     def _create_polygon(self, element: Dict[str, Any]) -> Optional[Polygon]:
-        """Create a matplotlib Polygon from element data.
-
-        Args:
-            element (Dict[str, Any]): Polygon element data with keys:
-                'id' (str): Element identifier.
-                'geometry' (List[Tuple[float, float]]): Polygon vertices.
-                'color' (str): Color key (color name or type key).
-                'line_width' (float): Border line width.
-                'order' (str): Z-order key (type key).
-
-        Returns:
-            Optional[Polygon]: Polygon object if geometry has at least 3 points,
-                otherwise None.
-        """
         if len(element["geometry"]) < 3:
             logging.warning(f"Polygon with id {element['id']} has less than 3 points, skipping.")
             return None
 
-        # Resolve color and z-order from style keys
         color, z_order = self._resolve_style(element["color"], element.get("type"))
+
+        if color == "none":
+            return Polygon(
+                xy=element["geometry"],
+                closed=True,
+                facecolor="none",
+                edgecolor="none",
+                linewidth=0,
+                antialiased=False,
+                zorder=z_order,
+            )
 
         return Polygon(
             xy=element["geometry"],
             closed=True,
             facecolor=color,
-            linewidth=element["line_width"],
+            edgecolor=color,
+            linewidth=0,
+            antialiased=False,
             zorder=z_order,
         )
 

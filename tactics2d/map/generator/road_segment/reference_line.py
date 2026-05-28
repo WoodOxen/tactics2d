@@ -8,7 +8,6 @@ from __future__ import annotations
 import numpy as np
 
 from tactics2d.geometry import as_point, heading_unit, normalize_angle
-from tactics2d.geometry.polyline import polyline_end_pose
 from tactics2d.interpolator import Bezier
 from tactics2d.interpolator.spiral import Spiral
 
@@ -66,30 +65,6 @@ def sample_centerline(
         gamma=0.0,
         n_interpolation=n_interpolation,
     )
-
-
-def get_exit(pts: np.ndarray, heading: float, curvature: float) -> tuple[np.ndarray, float]:
-    """Return exit point and heading of a sampled centre line.
-
-    Args:
-        pts: Sampled centre-line points with shape ``(N, 2)``.
-        heading: Input heading in radians.
-        curvature: Centre-line curvature.
-
-    Returns:
-        A tuple ``(exit_point, exit_heading)``.
-    """
-    pts = np.asarray(pts, dtype=float)
-
-    if pts.ndim != 2 or pts.shape[1] != 2:
-        raise ValueError(f"pts must have shape (N, 2), got {pts.shape}.")
-    if len(pts) < 2:
-        raise ValueError("pts must contain at least two points.")
-
-    if abs(float(curvature)) < 1e-9:
-        return pts[-1].copy(), float(heading)
-
-    return polyline_end_pose(pts)
 
 
 def arc_pts(
@@ -239,26 +214,3 @@ def fit_reference_line(
         return p0 + np.outer(s, chord / length)
 
     return bezier_connection(p0=p0, h0=start_heading, p3=p1, h3=end_heading, step_size=step_size)
-
-
-def hermite_cubic_width(s_local: np.ndarray, length: float, target_width: float) -> np.ndarray:
-    """Return a zero-slope cubic width transition (smoothstep Hermite cubic).
-
-    Args:
-        s_local: Local arc-length coordinates.
-        length: Transition length. Must be positive.
-        target_width: Target width or width delta.
-
-    Returns:
-        Width values with the same shape as ``s_local``.
-    """
-    length = float(length)
-    target_width = float(target_width)
-
-    if length <= 0.0:
-        raise ValueError("length must be positive.")
-
-    s_local = np.asarray(s_local, dtype=float)
-    t = np.clip(s_local / length, 0.0, 1.0)
-
-    return target_width * (3.0 * t**2 - 2.0 * t**3)

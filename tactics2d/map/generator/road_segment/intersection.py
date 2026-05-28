@@ -11,6 +11,7 @@ import numpy as np
 
 from tactics2d.geometry import heading_unit, normalize_angle, offset_polyline
 from tactics2d.map.element import Lane, RoadLine
+from tactics2d.map.generator.rules.lane_marking_rules import roadline_render_kwargs
 from tactics2d.map.generator.rules.module_types import RoadModuleResult, RoadPort
 
 from .element_builder import (
@@ -19,6 +20,7 @@ from .element_builder import (
     build_lane_from_boundaries,
     build_pavement_junction,
     build_roadline_from_points,
+    merge_marking_kwargs,
 )
 from .reference_line import bezier_connection, sample_centerline
 from .road_segment import RoadSegment
@@ -324,15 +326,24 @@ def _junction_shape_and_corners(
 def _intersection_mark_kwargs(tags: dict[str, Any] | None = None) -> dict[str, Any]:
     """Return virtual RoadLine kwargs for an intersection connection boundary.
 
-    Internal intersection connection boundaries are needed by Lane.line_ids, but
-    they should not be rendered as visible lane markings inside the junction.
+    Internal intersection connection boundaries are required by ``Lane.line_ids``
+    but must not be rendered as visible markings inside the junction.  The kwargs
+    are built through :func:`roadline_render_kwargs` so that all standard metadata
+    fields (``marking_standard``, ``opendrive_*``, etc.) are populated consistently
+    with every other road-line builder.
+
+    Args:
+        tags: Optional extra tags merged into ``custom_tags`` with higher priority
+            than the built-in marking metadata.
+
+    Returns:
+        Dict with keys ``type_``, ``subtype``, ``color``, and ``custom_tags``
+        suitable for passing directly to :class:`~tactics2d.map.element.RoadLine`.
     """
-    custom_tags = {"marking_role": "virtual", "marking_token": "intersection_connection"}
-
+    extra = {"marking_token": "intersection_connection"}
     if tags is not None:
-        custom_tags.update(tags)
-
-    return {"type_": "virtual", "subtype": "virtual", "color": "white", "custom_tags": custom_tags}
+        extra.update(tags)
+    return merge_marking_kwargs(roadline_render_kwargs("virtual"), extra)
 
 
 def _intersection_build(

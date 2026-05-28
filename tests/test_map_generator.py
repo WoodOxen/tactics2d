@@ -55,7 +55,7 @@ def _render(map_: Map, save_to: str) -> None:
 
 def _assert_result_element_ids_unique(result: RoadModuleResult) -> None:
     """Assert that one module result has no duplicate element ids."""
-    elements = [*result.lanes, *result.roadlines, *getattr(result, "junctions", [])]
+    elements = [*result.lanes, *result.roadlines, *result.junctions, *result.areas]
     ids = [element.id_ for element in elements]
     assert len(ids) == len(set(ids))
 
@@ -79,8 +79,10 @@ def _add_result(map_: Map, result: RoadModuleResult) -> None:
         map_.add_lane(lane)
     for roadline in result.roadlines:
         map_.add_roadline(roadline)
-    for junction in getattr(result, "junctions", []):
+    for junction in result.junctions:
         map_.add_junction(junction)
+    for area in result.areas:
+        map_.add_area(area)
 
 
 def _make_port(
@@ -202,8 +204,9 @@ def test_one_way_curved():
     _add_result(map_, result)
     _render(map_, "./tests/runtime/one_way_curved.png")
     assert len(map_.lanes) == 2
-    assert isinstance(result.ports["exit"].point, np.ndarray)
-    assert isinstance(result.ports["exit"].heading, float)
+    assert result.ports["exit"].lane_num == 2
+    assert result.ports["exit"].heading == pytest.approx(0.65)
+    np.testing.assert_allclose(result.ports["exit"].point, [30.0, 15.0], atol=1e-9)
 
 
 @pytest.mark.map_generator
@@ -579,8 +582,8 @@ def test_ramp_no_id_collision() -> None:
         id_offset=r1.id_counter,
     )
     assert r2.id_counter > r1.id_counter
-    ids1 = {e.id_ for e in [*r1.lanes, *r1.roadlines, *r1.junctions]}
-    ids2 = {e.id_ for e in [*r2.lanes, *r2.roadlines, *r2.junctions]}
+    ids1 = {e.id_ for e in [*r1.lanes, *r1.roadlines, *r1.junctions, *r1.areas]}
+    ids2 = {e.id_ for e in [*r2.lanes, *r2.roadlines, *r2.junctions, *r2.areas]}
     assert len(ids1 & ids2) == 0
 
 

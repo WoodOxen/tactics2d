@@ -268,7 +268,7 @@ def lane_ids(lanes: Iterable[Lane]) -> tuple[str, ...]:
 
 def build_pavement_junction(
     id_: str | int,
-    shape_points,
+    shape_points: list[tuple[float, float]],
     *,
     center: np.ndarray | None = None,
     junction_type: str,

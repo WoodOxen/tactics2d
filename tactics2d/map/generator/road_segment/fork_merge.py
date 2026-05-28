@@ -127,6 +127,23 @@ def _choose_branch_s(
 
     Returns:
         Arc-length position on the main centreline in metres.
+
+    Note:
+        The valid s-range is controlled by four module-level fraction constants
+        (expressed as a proportion of the total main-road length):
+
+        * ``_DIVERGE_LOWER`` = 0.15, ``_DIVERGE_UPPER`` = 0.82 — for fork, the
+          diverge point is constrained to the middle 67 % of the main road.
+          The 15 % head room prevents the opening from starting at the very
+          beginning of the segment; the 18 % tail room keeps the branch nose
+          visible before the exit socket.
+        * ``_MERGE_LOWER`` = 0.18, ``_MERGE_UPPER`` = 0.85 — the symmetric bounds
+          for merge; slightly tighter at the head end so the branch has room to
+          approach from upstream.
+        * ``_BRANCH_OFFSET_FACTOR`` = 0.45 — scales ``branch_length`` into a
+          longitudinal upstream/downstream offset so the inferred s-position
+          lands upstream (fork) or downstream (merge) of the branch socket's
+          nearest point on the main centreline, rather than right at it.
     """
     total = polyline_length(main_center)
     offset = max(float(taper_length), float(branch_length) * _BRANCH_OFFSET_FACTOR)

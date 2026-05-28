@@ -204,24 +204,6 @@ def two_way_backward(
     return t["tw_backward_interior"]
 
 
-def one_way_mark(
-    lane_index: int,
-    total_lanes: int,
-    side: Literal["left", "right"],
-    *,
-    standard: str | None = None,
-) -> str:
-    """Return the marking token for a lane boundary in a one-way road."""
-    t = _table(standard)
-
-    if side == "left" and lane_index == 0:
-        return t["ow_left_edge"]
-    if side == "right" and lane_index == total_lanes - 1:
-        return t["ow_right_edge"]
-
-    return t["ow_interior"]
-
-
 def ramp_mark(
     role: Literal[
         "aux_left",
@@ -269,10 +251,10 @@ def one_way_boundary_token(boundary_index: int, boundary_num: int) -> str:
     Returns:
         Marking token string.
     """
-    lane_num = boundary_num - 1
+    t = _table(None)
 
     if boundary_index == 0:
-        return one_way_mark(0, lane_num, "left")
+        return t["ow_left_edge"]
     if boundary_index == boundary_num - 1:
-        return one_way_mark(lane_num - 1, lane_num, "right")
-    return one_way_mark(boundary_index - 1, lane_num, "right")
+        return t["ow_right_edge"]
+    return t["ow_interior"]

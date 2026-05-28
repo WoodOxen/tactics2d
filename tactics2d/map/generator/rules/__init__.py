@@ -7,7 +7,6 @@ from .lane_marking_config import GB_RULES, MARKING_SPECS, MUTCD_RULES, STANDARD_
 from .lane_marking_rules import (
     get_standard,
     one_way_boundary_token,
-    one_way_mark,
     ramp_mark,
     roadline_render_kwargs,
     set_standard,
@@ -33,7 +32,6 @@ __all__ = [
     "set_standard",
     "roadline_render_kwargs",
     "one_way_boundary_token",
-    "one_way_mark",
     "ramp_mark",
     "two_way_backward",
     "two_way_centerline",
