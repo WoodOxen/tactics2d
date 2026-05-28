@@ -3,8 +3,6 @@
 
 """Polyline geometry utilities."""
 
-from __future__ import annotations
-
 import numpy as np
 from shapely.geometry import LineString, Point
 

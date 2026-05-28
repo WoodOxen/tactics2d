@@ -39,6 +39,13 @@ class RoadSegment(ABC):
                 each subclass documents which keys are accepted.
 
         Returns:
-            A :class:`RoadModuleResult` containing lanes, roadlines, ports,
-            interfaces, quality statistics, and the next available id counter.
+            A :class:`RoadModuleResult` containing lanes, roadlines, junctions,
+            named ports, and the next available id counter.
+
+        Note:
+            Centre-based generators (:class:`~tactics2d.map.generator.road_segment.Intersection`
+            and :class:`~tactics2d.map.generator.road_segment.Roundabout`) override this
+            signature with ``(center, arms, *, id_offset)`` because their primary
+            inputs are a world-space centre point and a list of arm descriptors rather
+            than a flat sequence of :class:`RoadPort` sockets.
         """

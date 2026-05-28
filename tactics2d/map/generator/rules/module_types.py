@@ -98,14 +98,17 @@ class RoadModuleResult:
         ports: Named RoadPort dictionary, keyed by logical port name.
         id_counter: Next available element id.  Pass as ``id_offset`` to the
             next generator to prevent id collisions across modules.
-        junctions: Generated Junction (or Area) objects.
+        junctions: Generated Junction objects, e.g. intersection pavement polygons
+            and roundabout rings.
+        areas: Generated Area objects, e.g. gore islands and surface fill polygons.
     """
 
     lanes: list[Lane]
     roadlines: list[RoadLine]
     ports: dict[str, RoadPort]
     id_counter: int
-    junctions: list[Junction | Area] = field(default_factory=list)
+    junctions: list[Junction] = field(default_factory=list)
+    areas: list[Area] = field(default_factory=list)
 
 
 def make_port(
