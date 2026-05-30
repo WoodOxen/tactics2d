@@ -1,0 +1,27 @@
+name: "Tactics2D CodeQL Configuration"
+
+paths:
+  - "**"
+
+paths-ignore:
+  - "**/tests/"
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/__pycache__/"
+  - "**/.pytest_cache/"
+  - "**/.venv/"
+  - "**/env/"
+  - "**/venv/"
+  - "**/node_modules/"
+  - "**/bower_components/"
+  - "**/dist/"
+  - "**/build/"
+  - "**/.git/"
+  - "**/.github/"
+
+queries:
+  - uses: security-and-quality
+
+query-filters:
+  - exclude:
+      id: py/clear-text-logging

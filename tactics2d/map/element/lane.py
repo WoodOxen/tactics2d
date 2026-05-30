@@ -1,16 +1,16 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: lane.py
-# @Description: This file defines a class for a map lane.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Lane implementation."""
 
 
 import logging
+from dataclasses import dataclass
 from enum import IntEnum
-from typing import Any, Union
+from typing import Any, Optional, Tuple, Union
 
-from shapely.geometry import LinearRing, LineString
+import numpy as np
+from shapely.geometry import LinearRing, LineString, Point
 
 
 class LaneRelationship(IntEnum):
@@ -18,6 +18,17 @@ class LaneRelationship(IntEnum):
     SUCCESSOR = 2
     LEFT_NEIGHBOR = 3
     RIGHT_NEIGHBOR = 4
+
+
+@dataclass(frozen=True)
+class LaneProjection:
+    """Projection of a point onto a lane centerline."""
+
+    s: float
+    d: float
+    point: Point
+    heading: float
+    distance: float
 
 
 class Lane:
@@ -51,13 +62,35 @@ class Lane:
         shape (list): The shape of the lane. This attribute is **read-only**.
     """
 
+    __slots__ = (
+        "id_",
+        "left_side",
+        "right_side",
+        "line_ids",
+        "regulatory_ids",
+        "type_",
+        "subtype",
+        "color",
+        "location",
+        "inferred_participants",
+        "speed_limit_mandatory",
+        "custom_tags",
+        "geometry",
+        "speed_limit",
+        "predecessors",
+        "successors",
+        "left_neighbors",
+        "right_neighbors",
+    )
+
     _speed_units = ["km/h", "mi/h", "m/s", "mph"]
 
     def __init__(
         self,
         id_: str,
-        left_side: LineString,
-        right_side: LineString,
+        left_side: LineString = None,
+        right_side: LineString = None,
+        geometry: LinearRing = None,
         line_ids: set = dict(left=[], right=[]),
         regulatory_ids: set = set(),
         type_: str = "lanelet",
@@ -74,19 +107,20 @@ class Lane:
 
         Args:
             id_ (str): The unique identifier of the lane.
-            left_side (LineString): The left side of the lane.
-            right_side (LineString): The right side of the lane.
+            left_side (LineString, optional): The left side of the lane. Defaults to None.
+            right_side (LineString, optional): The right side of the lane. Defaults to None.
+            geometry (LinearRing, optional): The geometry of the lane. This parameter only takes effect when the `left_side` or `right_side` is None. Defaults to None.
             line_ids (set, optional): The ids of the lines that make up the lane.
             regulatory_ids (set, optional): The ids of the regulations that apply to the lane.
             type_ (str, optional): The type of the lane.
-            subtype (str, optional): The subtype of the lane.
-            color (Any, optional): The color of the lane. If not specified, the color will be assigned based on the rendering template later.
-            location (str, optional): The location of the lane (urban, nonurban, etc.).
-            inferred_participants (list, optional): The allowing type of traffic participants that can pass the lane. If not specified, the lane is not restricted to any type of traffic participants.
-            speed_limit (float, optional): The speed limit in this lane.
+            subtype (str, optional): The subtype of the lane. Defaults to None.
+            color (Any, optional): The color of the lane. If not specified, the color will be assigned based on the rendering template later. Defaults to None.
+            location (str, optional): The location of the lane (urban, nonurban, etc.). Defaults to None.
+            inferred_participants (list, optional): The allowing type of traffic participants that can pass the lane. If not specified, the lane is not restricted to any type of traffic participants. Defaults to None.
+            speed_limit (float, optional): The speed limit in this lane. Defaults to None.
             speed_limit_unit (str, optional): The unit of speed limit in this lane. The valid units are `km/h`, `mi/h`, and `m/s`. Defaults to "km/h". The speed limit will be automatically converted to `m/s` when initializing the instance. If the unit is invalid, the speed limit will be set to None.
             speed_limit_mandatory (bool, optional): Whether the speed limit is mandatory or not.
-            custom_tags (dict, optional): The custom tags of the lane.
+            custom_tags (dict, optional): The custom tags of the lane. Defaults to None.
         """
         self.id_ = id_
         self.left_side = left_side
@@ -101,12 +135,12 @@ class Lane:
         self.speed_limit_mandatory = speed_limit_mandatory
         self.custom_tags = custom_tags
 
-        if not None in [left_side, right_side]:
+        if None not in [left_side, right_side]:
             self.geometry = LinearRing(
                 list(left_side.coords) + list(reversed(list(right_side.coords)))
             )
         else:
-            self.geometry = None
+            self.geometry = geometry
 
         self._set_speed_limit_unit(speed_limit, speed_limit_unit)
 
@@ -116,7 +150,7 @@ class Lane:
         self.right_neighbors = set()
 
     def _set_speed_limit_unit(self, speed_limit: float, speed_limit_unit: str):
-        if not speed_limit_unit in self._speed_units:
+        if speed_limit_unit not in self._speed_units:
             logging.warning(
                 "Invalid speed limit unit %s. The legal units types are %s"
                 % (speed_limit_unit, ", ".join(self._speed_units))
@@ -126,7 +160,7 @@ class Lane:
         if speed_limit is None:
             self.speed_limit = None
         elif speed_limit_unit == "m/s":
-            pass
+            self.speed_limit = speed_limit
         elif speed_limit_unit == "km/h":
             self.speed_limit = round(speed_limit / 3.6, 3)
         elif speed_limit_unit == "mi/h" or speed_limit_unit == "mph":
@@ -143,6 +177,77 @@ class Lane:
     @property
     def shape(self) -> list:
         return list(self.geometry.coords)
+
+    def centerline(self) -> Optional[LineString]:
+        """Return the lane centerline if it can be obtained."""
+
+        if self.custom_tags is not None and "centerline" in self.custom_tags:
+            centerline = np.asarray(self.custom_tags["centerline"], dtype=float)
+            if centerline.ndim == 2 and centerline.shape[1] == 2 and len(centerline) >= 2:
+                return LineString(centerline)
+
+        if self.left_side is None or self.right_side is None:
+            return None
+
+        left = LineString(self.left_side)
+        right = LineString(self.right_side)
+        if left.length <= 0.0 or right.length <= 0.0:
+            return None
+
+        samples = np.linspace(0.0, 1.0, num=10)
+        points = []
+        for ratio in samples:
+            left_point = left.interpolate(float(ratio), normalized=True)
+            right_point = right.interpolate(float(ratio), normalized=True)
+            points.append(
+                (0.5 * (left_point.x + right_point.x), 0.5 * (left_point.y + right_point.y))
+            )
+        return LineString(points)
+
+    def get_width(self, samples: int = 5, default: Optional[float] = None) -> Optional[float]:
+        """Estimate lane width by sampling distances between left and right boundaries."""
+
+        if self.left_side is None or self.right_side is None:
+            return default
+
+        left = LineString(self.left_side)
+        right = LineString(self.right_side)
+        if left.length <= 0.0 or right.length <= 0.0:
+            return default
+
+        sample_count = max(2, int(samples))
+        distances = []
+        for ratio in np.linspace(0.0, 1.0, num=sample_count):
+            left_point = left.interpolate(float(ratio), normalized=True)
+            right_point = right.interpolate(float(ratio), normalized=True)
+            distances.append(left_point.distance(right_point))
+        return float(np.mean(distances)) if distances else default
+
+    def project_point(self, point: Union[Point, Tuple[float, float]]) -> Optional[LaneProjection]:
+        """Project a point onto the lane centerline.
+
+        Returns:
+            LaneProjection: ``s`` is the distance along the centerline, ``d`` is
+            the signed lateral offset, and ``distance`` is ``abs(d)``.
+        """
+
+        centerline = self.centerline()
+        if centerline is None or centerline.length <= 0.0:
+            return None
+
+        query = point if isinstance(point, Point) else Point(point)
+        progress = float(centerline.project(query))
+        projected = centerline.interpolate(progress)
+        ahead = centerline.interpolate(min(progress + 0.5, centerline.length))
+        behind = centerline.interpolate(max(progress - 0.5, 0.0))
+        heading = float(np.arctan2(ahead.y - behind.y, ahead.x - behind.x))
+        query_vec = np.array([query.x - projected.x, query.y - projected.y])
+        normal = np.array([-np.sin(heading), np.cos(heading)])
+        distance = float(query.distance(projected))
+        sign = 1.0 if float(np.dot(normal, query_vec)) >= 0.0 else -1.0
+        return LaneProjection(
+            s=progress, d=sign * distance, point=projected, heading=heading, distance=distance
+        )
 
     def is_related(self, id_: str) -> LaneRelationship:
         """Check if a given lane is related to the lane

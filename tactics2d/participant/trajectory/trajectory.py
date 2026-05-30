@@ -1,9 +1,8 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: trajectory.py
-# @Description: This file defines a trajectory data structure.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Trajectory implementation."""
+
 
 import logging
 from typing import Any, List, Tuple
@@ -125,7 +124,7 @@ class Trajectory:
         """
         # check input type first
         if not isinstance(state, State):
-            raise ValueError(f"The input state is not a valid State object.")
+            raise ValueError("The input state is not a valid State object.")
 
         if state.frame in self._history_states:
             self._history_states[state.frame] = state

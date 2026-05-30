@@ -6,7 +6,7 @@
 [![Read the Docs](https://img.shields.io/readthedocs/tactics2d)](https://tactics2d.readthedocs.io/en/latest/)
 [![Downloads](https://img.shields.io/pypi/dm/tactics2d)](https://pypi.org/project/tactics2d/)
 
-![python-version](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11-blue)
+![python-version](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Github license](https://img.shields.io/github/license/WoodOxen/tactics2d)](https://github.com/WoodOxen/tactics2d/blob/dev/LICENSE)
 
@@ -39,11 +39,11 @@ Welcome to the official documentation of Python Library tactics2d!
 
 ### Features
 
-> Updated on April 1, 2024.
+> Updated on April 15, 2026.
 >
-> Corresponds to version 0.1.6.
+> Corresponds to version 0.1.9rc3.
 
-**Dataset Parser**
+#### Dataset Parser
 
 Support parsing maps and trajectories from the following datasets:
 
@@ -53,11 +53,12 @@ Support parsing maps and trajectories from the following datasets:
 - ExiD
 - Argoverse
 - Dragon Lake Parking (DLP)
+- DriveInsightD
 - INTERACTION
 - NuPlan
 - WOMD
 
-**Map Parser**
+#### Map Parser
 
 Support parsing maps in the following formats:
 
@@ -65,7 +66,7 @@ Support parsing maps in the following formats:
 - OpenStreetMap annotated in Lanelet2
 - OpenDRIVE (XODR)
 
-**Math Interpolation Algorithms**
+#### Math Interpolation Algorithms
 
 Support the following interpolation algorithms:
 
@@ -76,7 +77,7 @@ Support the following interpolation algorithms:
 - Dubins
 - Reeds Shepp
 
-**Traffic Participant**
+#### Traffic Participant
 
 The following traffic participants are implemented:
 
@@ -86,7 +87,7 @@ The following traffic participants are implemented:
 
 For each traffic participants, a set of parameters are available to configure the behavior.
 
-**Physics Model**
+#### Physics Model
 
 The following physics model of traffic participants are supported:
 
@@ -95,7 +96,7 @@ The following physics model of traffic participants are supported:
 - Point mass (Kinematic): recommended for pedestrians
 - Single-track drift model (Dynamic): recommended for vehicles
 
-**Road Element**
+#### Road Element
 
 The following road elements are implemented:
 
@@ -105,13 +106,21 @@ The following road elements are implemented:
 - Road line
 - Base class of traffic regulations
 
-**Traffic Event Detection**
+#### Traffic Event Detection
 
 - Static collision detection
 - Dynamic collision detection
 - Arrival event detection
 
-**Sensor**
+#### Routing
+
+- Lane-level route planning on parsed map topology
+- Unified `routing` module with reusable graph building, search adaptation, and route containers
+- Built-in routing cost presets for distance, time, averaged relation-aware traversal cost, and node/edge traversal cost, all configurable through the unified `Router` interface; the routing tutorial documents their Lanelet2-style and Apollo-inspired background
+- Custom routing cost function injection for user-defined experiments and downstream navigation logic
+- Notebook demo for end-to-end routing workflow and visualized route output
+
+#### Sensor
 
 - Bird-eye-view (BEV) semantic segmentation RGB image
 - Single-line LiDAR point cloud

@@ -1,15 +1,13 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: test_map_element.py
-# @Description: This file is used to test the elements in the map module.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Tests for map element."""
 
 
 import logging
 
 import pytest
-from shapely.geometry import LineString, Polygon
+from shapely.geometry import LineString, Point, Polygon
 
 import tactics2d.map.element as map_element
 from tactics2d.map.generator import ParkingLotGenerator
@@ -68,15 +66,41 @@ def test_lane():
 
 @pytest.mark.map_element
 def test_junction():
-    connection1 = map_element.Connection(
+    connection1 = map_element.Junction(
         id_="1", incoming_road="2", connecting_road="3", contact_point="start", lane_links=[]
     )
-    connection2 = map_element.Connection(
+    connection2 = map_element.Junction(
         id_="2", incoming_road="4", connecting_road="5", contact_point="end", lane_links=[]
     )
-    junction = map_element.Junction(id_="1", connections={connection1.id_: connection1})
+    junction = map_element.Junction(id_="0", connections={connection1.id_: connection1})
     junction.add_connection(connection2)
     assert len(junction.connections) == 2
+
+
+@pytest.mark.map_element
+def test_regulatory_semantic_helpers():
+    traffic_light = map_element.Regulatory(
+        id_="tl_A",
+        ways={"A": "refers"},
+        subtype="traffic_light",
+        dynamic=True,
+        position=Point(1.0, 10.0),
+        custom_tags={
+            "states": [
+                {"time_ms": 0, "state": "LANE_STATE_STOP", "stop_point": [1.0, 10.0]},
+                {"time_ms": 100, "state": "LANE_STATE_GO", "stop_point": [1.0, 11.0]},
+            ]
+        },
+    )
+    stop_sign = map_element.Regulatory(id_="stop_A", ways={"A": "refers"}, subtype="stop_sign")
+
+    assert traffic_light.is_traffic_light()
+    assert not traffic_light.is_stop_sign()
+    assert traffic_light.applies_to_lane("A")
+    assert not traffic_light.applies_to_lane("B")
+    assert traffic_light.state_at(90)["state"] == "LANE_STATE_GO"
+    assert traffic_light.stop_point_at(90).equals(Point(1.0, 11.0))
+    assert stop_sign.is_stop_sign()
 
 
 @pytest.mark.map_element

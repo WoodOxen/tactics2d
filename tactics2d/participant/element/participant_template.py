@@ -1,9 +1,8 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: templates.py
-# @Description: The parameter templates for different types of vehicles and participants.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Template implementation."""
+
 
 from tabulate import tabulate
 

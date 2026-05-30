@@ -7,6 +7,11 @@
 **/logs/*
 tests/runtime
 
+# claude code
+.claude/settings.local.json
+CLAUDE.local.md
+claude-*.md
+
 #  vscode
 *.code-workspace
 .vscode/
