@@ -260,7 +260,7 @@ class CarFollowingEnv(gym.Env):
             participants, actual_time_stamp = self.trajectory_parser.parse_trajectory(
                 target_vehicle_index["File"],
                 get_absolute_path(target_vehicle_index["Folder"]),
-                stamp_range=(target_vehicle_index["Start_Following"], np.inf),
+                time_range=(target_vehicle_index["Start_Following"], np.inf),
                 ids=[target_vehicle_index["Vehicle_ID"], target_vehicle_index["Following"]],
             )
 
