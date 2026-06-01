@@ -48,6 +48,17 @@ function makeShape(points) {
   return shape;
 }
 
+function parseOptionalNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  return Number(value);
+}
+
+function parseOptionalText(value) {
+  if (value === null || value === undefined) return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+}
+
 class SensorView {
   constructor(sensor) {
     this.id = sensor.id;
@@ -219,6 +230,241 @@ class SensorView {
   }
 }
 
+class PreviewControls {
+  constructor() {
+    this.sourceSelect = document.getElementById("preview-source");
+    this.datasetForm = document.getElementById("dataset-form");
+    this.mapForm = document.getElementById("map-form");
+    this.demoPanel = document.getElementById("demo-panel");
+    this.datasetSelect = document.getElementById("dataset-select");
+    this.datasetMapConfig = document.getElementById("dataset-map-config");
+    this.mapConfig = document.getElementById("map-config");
+    this.status = document.getElementById("preview-status");
+    this.options = { levelx_datasets: [], map_configs: [], defaults: {} };
+
+    this.bind();
+    this.loadOptions();
+    window.setInterval(() => this.refreshStatus(), 1000);
+  }
+
+  bind() {
+    this.sourceSelect.addEventListener("change", () => this.showSource(this.sourceSelect.value));
+    this.datasetSelect.addEventListener("change", () => this.updateDatasetMapConfigs());
+    document
+      .getElementById("dataset-file")
+      .addEventListener("change", () => this.updateDatasetMapConfigs());
+    this.datasetForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      this.startDatasetPreview();
+    });
+    this.mapForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      this.loadMapPreview();
+    });
+    document.getElementById("demo-button").addEventListener("click", () => this.startDemo());
+    document.getElementById("stop-preview").addEventListener("click", () => this.stopPreview());
+  }
+
+  async request(path, payload = null) {
+    const options = payload
+      ? {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }
+      : {};
+    const response = await fetch(path, options);
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.detail || data.message || response.statusText);
+    }
+    return data;
+  }
+
+  async loadOptions() {
+    try {
+      this.options = await this.request("/api/preview/options");
+      this.populateDatasetSelect();
+      this.populateDefaults();
+      this.updateDatasetMapConfigs();
+      this.updateMapConfigSelect();
+      this.showSource(this.sourceSelect.value);
+    } catch (error) {
+      this.setStatus(error.message, "error");
+    }
+  }
+
+  populateDatasetSelect() {
+    this.datasetSelect.replaceChildren();
+    this.options.levelx_datasets.forEach((dataset) => {
+      const option = document.createElement("option");
+      option.value = dataset;
+      option.textContent = dataset;
+      this.datasetSelect.appendChild(option);
+    });
+  }
+
+  populateDefaults() {
+    const defaults = this.options.defaults || {};
+    this.datasetSelect.value = defaults.dataset || "highD";
+    document.getElementById("dataset-folder").value = defaults.folder || "";
+    document.getElementById("dataset-file").value = defaults.file || "";
+    document.getElementById("dataset-frames").value = defaults.frames || 300;
+    document.getElementById("dataset-max-fps").value = defaults.max_fps || 30;
+    document.getElementById("dataset-range").value = defaults.perception_range || 80;
+    document.getElementById("map-osm").value = "data/highD_map/highD_1.osm";
+  }
+
+  updateDatasetMapConfigs() {
+    const dataset = this.datasetSelect.value;
+    const configs = this.options.map_configs.filter((config) => config.dataset === dataset);
+    this.datasetMapConfig.replaceChildren(this.blankOption("自动"));
+    configs.forEach((config) => this.datasetMapConfig.appendChild(this.configOption(config)));
+
+    const file = Number(document.getElementById("dataset-file").value);
+    const matchingConfig = configs.find((config) => (config.trajectory_files || []).includes(file));
+    if (matchingConfig) this.datasetMapConfig.value = matchingConfig.name;
+  }
+
+  updateMapConfigSelect() {
+    this.mapConfig.replaceChildren(this.blankOption("无"));
+    this.options.map_configs.forEach((config) => this.mapConfig.appendChild(this.configOption(config)));
+  }
+
+  blankOption(label) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = label;
+    return option;
+  }
+
+  configOption(config) {
+    const option = document.createElement("option");
+    option.value = config.name;
+    option.textContent = `${config.name} ${config.description || ""}`.trim();
+    return option;
+  }
+
+  showSource(source) {
+    document.querySelectorAll("[data-source-panel]").forEach((panel) => {
+      panel.classList.toggle("is-hidden", panel.getAttribute("data-source-panel") !== source);
+    });
+  }
+
+  datasetPayload() {
+    return {
+      dataset: this.datasetSelect.value,
+      folder: document.getElementById("dataset-folder").value,
+      file: document.getElementById("dataset-file").value,
+      frames: Number(document.getElementById("dataset-frames").value || 300),
+      max_fps: Number(document.getElementById("dataset-max-fps").value || 30),
+      perception_range: Number(document.getElementById("dataset-range").value || 80),
+      map_config: parseOptionalText(this.datasetMapConfig.value),
+      osm_path: parseOptionalText(document.getElementById("dataset-osm").value),
+      start_time_ms: parseOptionalNumber(document.getElementById("dataset-start").value),
+      follow_id: parseOptionalNumber(document.getElementById("dataset-follow").value),
+      ids: parseOptionalText(document.getElementById("dataset-ids").value),
+      lanelet2: document.getElementById("dataset-lanelet2").checked
+    };
+  }
+
+  mapPayload() {
+    return {
+      osm_path: document.getElementById("map-osm").value,
+      map_config: parseOptionalText(this.mapConfig.value),
+      lanelet2: document.getElementById("map-lanelet2").checked
+    };
+  }
+
+  async startDatasetPreview() {
+    try {
+      this.setStatus("加载中", "running");
+      await this.request("/api/preview/dataset", this.datasetPayload());
+      await this.refreshStatus();
+    } catch (error) {
+      this.setStatus(error.message, "error");
+    }
+  }
+
+  async loadMapPreview() {
+    try {
+      this.setStatus("加载地图", "running");
+      const result = await this.request("/api/preview/map", this.mapPayload());
+      this.applyStatus(result);
+    } catch (error) {
+      this.setStatus(error.message, "error");
+    }
+  }
+
+  async startDemo() {
+    try {
+      this.setStatus("播放示例", "running");
+      await this.request("/api/preview/demo", {
+        max_fps: Number(document.getElementById("demo-max-fps").value || 30)
+      });
+      await this.refreshStatus();
+    } catch (error) {
+      this.setStatus(error.message, "error");
+    }
+  }
+
+  async stopPreview() {
+    try {
+      const result = await this.request("/api/preview/stop", {});
+      this.applyStatus(result);
+    } catch (error) {
+      this.setStatus(error.message, "error");
+    }
+  }
+
+  async refreshStatus() {
+    try {
+      const status = await this.request("/api/preview/status");
+      this.applyStatus(status);
+    } catch {
+      this.setStatus("未连接", "error");
+    }
+  }
+
+  applyStatus(status) {
+    if (status.status === "running" && status.source === "dataset") {
+      this.setStatus(
+        `${status.sensor_id || "数据集"} ${status.frame || ""} 发送 ${status.sent_frames || 0}`,
+        "running"
+      );
+      return;
+    }
+    if (status.status === "running") {
+      this.setStatus(status.source === "demo" ? "示例播放中" : "运行中", "running");
+      return;
+    }
+    if (status.status === "loading") {
+      this.setStatus("加载中", "running");
+      return;
+    }
+    if (status.status === "complete") {
+      const frames = status.sent_frames ? ` 发送 ${status.sent_frames}` : "";
+      this.setStatus(`${status.sensor_id || "完成"}${frames}`, "idle");
+      return;
+    }
+    if (status.status === "error") {
+      this.setStatus(status.message || "错误", "error");
+      return;
+    }
+    if (status.status === "stopped") {
+      this.setStatus("已停止", "idle");
+      return;
+    }
+    this.setStatus("就绪", "idle");
+  }
+
+  setStatus(message, mode = "idle") {
+    this.status.textContent = message;
+    this.status.classList.toggle("is-error", mode === "error");
+    this.status.classList.toggle("is-running", mode === "running");
+  }
+}
+
 class RenderManager {
   constructor() {
     this.container = document.getElementById("sensor-grid");
@@ -309,4 +555,5 @@ class RenderManager {
 
 window.addEventListener("DOMContentLoaded", () => {
   window.tactics2dFrontend = new RenderManager();
+  window.tactics2dPreviewControls = new PreviewControls();
 });

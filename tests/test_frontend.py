@@ -142,6 +142,38 @@ def test_frontend_replays_snapshot_to_new_browser():
     assert sensor["participant_data"]["participants"][0]["position"] == [1, 0]
 
 
+def test_preview_options_endpoint_contains_levelx_defaults():
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    from tactics2d.frontend.server import create_app
+
+    client = TestClient(create_app())
+    response = client.get("/api/preview/options")
+
+    assert response.status_code == 200
+    assert "highD" in response.json()["levelx_datasets"]
+    assert response.json()["defaults"]["folder"] == "/mnt/server_data/Datasets/highD/data"
+
+
+def test_preview_map_endpoint_publishes_frame():
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    from tactics2d.frontend.server import create_app
+
+    client = TestClient(create_app())
+    response = client.post(
+        "/api/preview/map", json={"osm_path": "tests/runtime/net2osm_net.osm", "lanelet2": True}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "complete"
+    assert client.get("/health").json()["last_frame_id"] == 0
+
+
 def test_demo_frame_contains_sensor_payloads():
     from tactics2d.frontend.server import _demo_frame
 

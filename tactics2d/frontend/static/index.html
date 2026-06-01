@@ -23,6 +23,106 @@
       <span id="connection-status" class="status-dot" title="Disconnected"></span>
     </div>
   </header>
-  <main id="sensor-grid" class="sensor-grid"></main>
+  <div class="workspace">
+    <aside class="control-panel">
+      <div class="field">
+        <label for="preview-source">场景</label>
+        <select id="preview-source">
+          <option value="dataset">数据集</option>
+          <option value="map">地图</option>
+          <option value="demo">示例</option>
+        </select>
+      </div>
+
+      <form id="dataset-form" class="preview-form" data-source-panel="dataset">
+        <div class="field">
+          <label for="dataset-select">数据集</label>
+          <select id="dataset-select" name="dataset"></select>
+        </div>
+        <div class="field">
+          <label for="dataset-folder">数据目录</label>
+          <input id="dataset-folder" name="folder" autocomplete="off">
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="dataset-file">文件号</label>
+            <input id="dataset-file" name="file" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="dataset-frames">帧数</label>
+            <input id="dataset-frames" name="frames" type="number" min="1" max="10000">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="dataset-max-fps">FPS</label>
+            <input id="dataset-max-fps" name="max_fps" type="number" min="1" max="100">
+          </div>
+          <div class="field">
+            <label for="dataset-range">范围</label>
+            <input id="dataset-range" name="perception_range" type="number" min="1">
+          </div>
+        </div>
+        <div class="field">
+          <label for="dataset-map-config">地图配置</label>
+          <select id="dataset-map-config" name="map_config"></select>
+        </div>
+        <details class="advanced-options">
+          <summary>更多</summary>
+          <div class="field">
+            <label for="dataset-osm">OSM路径</label>
+            <input id="dataset-osm" name="osm_path" autocomplete="off">
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <label for="dataset-start">起始ms</label>
+              <input id="dataset-start" name="start_time_ms" type="number" min="0">
+            </div>
+            <div class="field">
+              <label for="dataset-follow">跟随ID</label>
+              <input id="dataset-follow" name="follow_id" type="number" min="0">
+            </div>
+          </div>
+          <div class="field">
+            <label for="dataset-ids">对象ID</label>
+            <input id="dataset-ids" name="ids" autocomplete="off">
+          </div>
+          <label class="check-field">
+            <input id="dataset-lanelet2" name="lanelet2" type="checkbox" checked>
+            <span>Lanelet2</span>
+          </label>
+        </details>
+        <button class="primary-button" type="submit">加载数据集</button>
+      </form>
+
+      <form id="map-form" class="preview-form is-hidden" data-source-panel="map">
+        <div class="field">
+          <label for="map-osm">OSM路径</label>
+          <input id="map-osm" name="osm_path" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="map-config">地图配置</label>
+          <select id="map-config" name="map_config"></select>
+        </div>
+        <label class="check-field">
+          <input id="map-lanelet2" name="lanelet2" type="checkbox" checked>
+          <span>Lanelet2</span>
+        </label>
+        <button class="primary-button" type="submit">加载地图</button>
+      </form>
+
+      <div id="demo-panel" class="preview-form is-hidden" data-source-panel="demo">
+        <div class="field">
+          <label for="demo-max-fps">FPS</label>
+          <input id="demo-max-fps" name="max_fps" type="number" min="1" max="100" value="30">
+        </div>
+        <button id="demo-button" class="primary-button" type="button">播放示例</button>
+      </div>
+
+      <button id="stop-preview" class="secondary-button" type="button">停止</button>
+      <div id="preview-status" class="preview-status">就绪</div>
+    </aside>
+    <main id="sensor-grid" class="sensor-grid"></main>
+  </div>
 </body>
 </html>

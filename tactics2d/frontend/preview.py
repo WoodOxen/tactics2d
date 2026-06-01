@@ -9,7 +9,7 @@ import logging
 import re
 import time
 import webbrowser
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -37,6 +37,57 @@ class DatasetPreviewResult:
     actual_time_range: tuple[int, int]
     sent_frames: int
     dropped_frames: int
+
+
+@dataclass
+class LevelXPreviewScene:
+    """Loaded LevelX scene state used by CLI and server-side previews."""
+
+    dataset_name: str
+    file_id: int
+    sensor_id: str
+    actual_time_range: tuple[int, int]
+    map_: Any
+    camera: Any
+    participants: dict[int, Any]
+    fallback_position: tuple[float, float]
+    follow_id: int | None = None
+    prev_road_id_set: set = field(default_factory=set)
+    prev_participant_id_set: set = field(default_factory=set)
+
+    def iter_frames(self):
+        """Yield frame ids in dataset timestamp units."""
+
+        return range(
+            int(self.actual_time_range[0]), int(self.actual_time_range[1]) + 1, LEVELX_FRAME_STEP_MS
+        )
+
+    def sensor_for_frame(self, frame: int) -> dict[str, Any]:
+        """Build one frontend sensor payload for a dataset frame."""
+
+        from shapely.geometry import Point
+
+        active_ids = _active_participant_ids(self.participants, frame)
+        position, heading = _choose_camera_pose(
+            self.participants, active_ids, frame, self.fallback_position, follow_id=self.follow_id
+        )
+        geometry_data, self.prev_road_id_set, self.prev_participant_id_set = self.camera.update(
+            frame,
+            self.participants,
+            active_ids,
+            self.prev_road_id_set,
+            self.prev_participant_id_set,
+            Point(*position),
+            heading,
+        )
+        return _sensor_payload(
+            self.sensor_id,
+            frame,
+            position,
+            heading,
+            float(self.camera.max_perception_distance),
+            geometry_data,
+        )
 
 
 def canonical_levelx_dataset(dataset: str) -> str:
@@ -71,6 +122,39 @@ def iter_map_configs() -> Iterable[tuple[str, dict[str, Any]]]:
     for config_name in _MAP_CONFIG_NAMES:
         configs = getattr(map_config, config_name)
         yield from configs.items()
+
+
+def list_levelx_preview_options() -> dict[str, Any]:
+    """Return lightweight option metadata for the browser controls."""
+
+    map_configs = []
+    for name, config in iter_map_configs():
+        dataset = config.get("dataset")
+        if dataset is None:
+            continue
+
+        map_configs.append(
+            {
+                "name": name,
+                "dataset": dataset,
+                "osm_file": config.get("osm_file"),
+                "trajectory_files": config.get("trajectory_files", []),
+                "description": config.get("name", name),
+            }
+        )
+
+    return {
+        "levelx_datasets": LEVELX_DATASETS,
+        "map_configs": map_configs,
+        "defaults": {
+            "dataset": "highD",
+            "folder": "/mnt/server_data/Datasets/highD/data",
+            "file": "11",
+            "frames": 300,
+            "max_fps": 30,
+            "perception_range": 80,
+        },
+    }
 
 
 def resolve_levelx_map_config(
@@ -242,26 +326,20 @@ def _sensor_payload(
     }
 
 
-def stream_levelx_preview(
+def load_levelx_preview_scene(
     dataset: str,
     folder: Path,
     file: str | int,
     osm_path: Path | None = None,
     map_config: str | None = None,
-    host: str = "127.0.0.1",
-    port: int = 8765,
-    max_fps: int = 30,
-    open_browser: bool = True,
     lanelet2: bool = True,
     frames: int = 300,
     start_time_ms: int | None = None,
     ids: list[int] | None = None,
     follow_id: int | None = None,
     perception_range: float = 80.0,
-) -> DatasetPreviewResult:
-    """Stream a LevelX dataset slice into the browser frontend."""
-
-    from shapely.geometry import Point
+) -> LevelXPreviewScene:
+    """Load a LevelX scene and return a frame payload source."""
 
     from tactics2d.dataset_parser import LevelXParser
     from tactics2d.map.parser import OSMParser
@@ -290,46 +368,66 @@ def stream_levelx_preview(
     LOGGER.info("Loading map %s%s.", osm_path, f" with config {config_name}" if config_name else "")
     map_ = OSMParser(lanelet2=lanelet2).parse(str(osm_path), configs)
     camera = BEVCamera(id_=0, map_=map_, perception_range=perception_range)
-    renderer = ensure_frontend_server(host, port, max_fps, open_browser=open_browser)
-    ack_timeout = 1.0 / max(1, min(max_fps, 100))
 
     fallback_position = (
         0.5 * (map_.boundary[0] + map_.boundary[1]),
         0.5 * (map_.boundary[2] + map_.boundary[3]),
     )
-    prev_road_id_set = set()
-    prev_participant_id_set = set()
+
+    return LevelXPreviewScene(
+        dataset_name=dataset_name,
+        file_id=file_id,
+        sensor_id=f"{dataset_name}-{file_id:02d}",
+        actual_time_range=(int(actual_time_range[0]), int(actual_time_range[1])),
+        map_=map_,
+        camera=camera,
+        participants=participants,
+        fallback_position=fallback_position,
+        follow_id=follow_id,
+    )
+
+
+def stream_levelx_preview(
+    dataset: str,
+    folder: Path,
+    file: str | int,
+    osm_path: Path | None = None,
+    map_config: str | None = None,
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    max_fps: int = 30,
+    open_browser: bool = True,
+    lanelet2: bool = True,
+    frames: int = 300,
+    start_time_ms: int | None = None,
+    ids: list[int] | None = None,
+    follow_id: int | None = None,
+    perception_range: float = 80.0,
+) -> DatasetPreviewResult:
+    """Stream a LevelX dataset slice into the browser frontend."""
+
+    scene = load_levelx_preview_scene(
+        dataset=dataset,
+        folder=folder,
+        file=file,
+        osm_path=osm_path,
+        map_config=map_config,
+        lanelet2=lanelet2,
+        frames=frames,
+        start_time_ms=start_time_ms,
+        ids=ids,
+        follow_id=follow_id,
+        perception_range=perception_range,
+    )
+    renderer = ensure_frontend_server(host, port, max_fps, open_browser=open_browser)
+    ack_timeout = 1.0 / max(1, min(max_fps, 100))
+
     sent_frames = 0
     last_dropped_count = 0
-    sensor_id = f"{dataset_name}-{file_id:02d}"
 
-    for frame in range(
-        int(actual_time_range[0]), int(actual_time_range[1]) + 1, LEVELX_FRAME_STEP_MS
-    ):
-        active_ids = _active_participant_ids(participants, frame)
-        position, heading = _choose_camera_pose(
-            participants, active_ids, frame, fallback_position, follow_id=follow_id
-        )
-        geometry_data, prev_road_id_set, prev_participant_id_set = camera.update(
-            frame,
-            participants,
-            active_ids,
-            prev_road_id_set,
-            prev_participant_id_set,
-            Point(*position),
-            heading,
-        )
+    for frame in scene.iter_frames():
         response = renderer.send_frame(
-            [
-                _sensor_payload(
-                    sensor_id,
-                    frame,
-                    position,
-                    heading,
-                    float(camera.max_perception_distance),
-                    geometry_data,
-                )
-            ],
+            [scene.sensor_for_frame(frame)],
             frame=frame,
             layout="grid",
             wait_ack=True,
@@ -346,8 +444,8 @@ def stream_levelx_preview(
     time.sleep(0.1)
     return DatasetPreviewResult(
         base_url=renderer.base_url,
-        sensor_id=sensor_id,
-        actual_time_range=(int(actual_time_range[0]), int(actual_time_range[1])),
+        sensor_id=scene.sensor_id,
+        actual_time_range=scene.actual_time_range,
         sent_frames=sent_frames,
         dropped_frames=int(last_dropped_count),
     )

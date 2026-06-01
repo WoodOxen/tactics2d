@@ -222,6 +222,136 @@ def _frontend_static_dir() -> Path:
     return Path(__file__).resolve().parent / "static"
 
 
+def _optional_int(value) -> int | None:
+    if value in (None, ""):
+        return None
+    return int(value)
+
+
+def _optional_path(value) -> Path | None:
+    if value in (None, ""):
+        return None
+    return Path(value)
+
+
+def _parse_ids(value) -> list[int] | None:
+    if value in (None, "", []):
+        return None
+    if isinstance(value, str):
+        return [int(item.strip()) for item in value.split(",") if item.strip()]
+    return [int(item) for item in value]
+
+
+async def _cancel_task(task) -> None:
+    if task is None or task.done():
+        return
+
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+
+async def _stop_preview_tasks(app) -> None:
+    await _cancel_task(getattr(app.state, "demo_task", None))
+    await _cancel_task(getattr(app.state, "preview_task", None))
+    app.state.demo_task = None
+    app.state.preview_task = None
+
+
+def _map_config_from_name(name: str | None) -> dict | None:
+    if not name:
+        return None
+
+    from tactics2d.frontend.preview import iter_map_configs
+
+    configs = dict(iter_map_configs())
+    lower_to_name = {config_name.lower(): config_name for config_name in configs}
+    resolved_name = name if name in configs else lower_to_name.get(name.lower())
+    if resolved_name is None:
+        raise KeyError(f"Unknown map config: {name}")
+
+    return configs[resolved_name]
+
+
+async def _run_levelx_dataset_preview(manager: ConnectionManager, status: dict, payload: dict):
+    from tactics2d.frontend.preview import load_levelx_preview_scene
+
+    max_fps = max(1, min(int(payload.get("max_fps", 30)), 100))
+    interval = 1.0 / max_fps
+    sent_frames = 0
+    dropped_frames = 0
+
+    try:
+        status.update({"status": "loading", "message": "loading dataset"})
+        scene = await asyncio.to_thread(
+            load_levelx_preview_scene,
+            dataset=payload["dataset"],
+            folder=Path(payload["folder"]),
+            file=payload["file"],
+            osm_path=_optional_path(payload.get("osm_path")),
+            map_config=payload.get("map_config") or None,
+            lanelet2=bool(payload.get("lanelet2", True)),
+            frames=int(payload.get("frames", 300)),
+            start_time_ms=_optional_int(payload.get("start_time_ms")),
+            ids=_parse_ids(payload.get("ids")),
+            follow_id=_optional_int(payload.get("follow_id")),
+            perception_range=float(payload.get("perception_range", 80.0)),
+        )
+        status.update(
+            {
+                "status": "running",
+                "source": "dataset",
+                "sensor_id": scene.sensor_id,
+                "actual_time_range": scene.actual_time_range,
+                "sent_frames": 0,
+                "dropped_frames": 0,
+                "message": "streaming",
+            }
+        )
+
+        for frame in scene.iter_frames():
+            started = asyncio.get_running_loop().time()
+            sensor = await asyncio.to_thread(scene.sensor_for_frame, frame)
+            result = await manager.publish_frame(
+                {
+                    "frame": frame,
+                    "layout": "grid",
+                    "sensors": [sensor],
+                    "remove_missing_sensors": True,
+                },
+                frame_id=frame,
+                wait_ack=True,
+                ack_timeout=interval,
+                drop_if_busy=True,
+            )
+            dropped_frames = int(result.get("dropped_frames", dropped_frames))
+            if result.get("status") != "dropped":
+                sent_frames += 1
+
+            status.update(
+                {"frame": frame, "sent_frames": sent_frames, "dropped_frames": dropped_frames}
+            )
+            elapsed = asyncio.get_running_loop().time() - started
+            if elapsed < interval:
+                await asyncio.sleep(interval - elapsed)
+
+        status.update(
+            {
+                "status": "complete",
+                "message": "complete",
+                "sent_frames": sent_frames,
+                "dropped_frames": dropped_frames,
+            }
+        )
+    except asyncio.CancelledError:
+        status.update({"status": "stopped", "message": "stopped"})
+    except Exception as exc:
+        LOGGER.exception("Dataset preview failed.")
+        status.update({"status": "error", "message": str(exc)})
+
+
 def _demo_map_data() -> dict:
     road = {
         "id": 1001,
@@ -330,12 +460,13 @@ def create_app(demo: bool = False, max_fps: int = 30):
         try:
             yield
         finally:
-            demo_task = getattr(app.state, "demo_task", None)
-            if demo_task is not None:
-                demo_task.cancel()
+            await _stop_preview_tasks(app)
 
     app = FastAPI(lifespan=lifespan)
     app.state.connection_manager = manager
+    app.state.demo_task = None
+    app.state.preview_task = None
+    app.state.preview_status = {"status": "idle", "message": "ready"}
 
     @app.get("/")
     async def index():
@@ -373,6 +504,77 @@ def create_app(demo: bool = False, max_fps: int = 30):
         layout = payload.get("layout", "grid")
         delivered = await manager.broadcast({"type": "layout.set", "layout": layout})
         return {"status": "ok", "delivered": delivered, "layout": layout}
+
+    @app.get("/api/preview/options")
+    async def preview_options():
+        from tactics2d.frontend.preview import list_levelx_preview_options
+
+        return list_levelx_preview_options()
+
+    @app.get("/api/preview/status")
+    async def preview_status():
+        return app.state.preview_status
+
+    @app.post("/api/preview/stop")
+    async def stop_preview():
+        await _stop_preview_tasks(app)
+        app.state.preview_status = {"status": "stopped", "message": "stopped"}
+        return app.state.preview_status
+
+    @app.post("/api/preview/demo")
+    async def start_demo(request: Request):
+        payload = await request.json()
+        await _stop_preview_tasks(app)
+        requested_fps = int(payload.get("max_fps", max_fps))
+        app.state.demo_task = asyncio.create_task(_run_demo(manager, requested_fps))
+        app.state.preview_status = {
+            "status": "running",
+            "source": "demo",
+            "message": "demo running",
+        }
+        return app.state.preview_status
+
+    @app.post("/api/preview/map")
+    async def preview_map(request: Request):
+        from tactics2d.frontend.preview import build_map_preview_sensor
+
+        payload = await request.json()
+        await _stop_preview_tasks(app)
+        configs = _map_config_from_name(payload.get("map_config"))
+        sensor = await asyncio.to_thread(
+            build_map_preview_sensor,
+            Path(payload["osm_path"]),
+            bool(payload.get("lanelet2", True)),
+            configs,
+        )
+        result = await manager.publish_frame(
+            {"frame": 0, "layout": "grid", "sensors": [sensor], "remove_missing_sensors": True},
+            frame_id=0,
+            wait_ack=False,
+            drop_if_busy=False,
+        )
+        app.state.preview_status = {
+            "status": "complete",
+            "source": "map",
+            "sensor_id": sensor["id"],
+            "message": "map loaded",
+            "result": result,
+        }
+        return app.state.preview_status
+
+    @app.post("/api/preview/dataset")
+    async def preview_dataset(request: Request):
+        payload = await request.json()
+        await _stop_preview_tasks(app)
+        app.state.preview_status = {
+            "status": "loading",
+            "source": "dataset",
+            "message": "loading dataset",
+        }
+        app.state.preview_task = asyncio.create_task(
+            _run_levelx_dataset_preview(manager, app.state.preview_status, payload)
+        )
+        return app.state.preview_status
 
     @app.websocket("/ws")
     async def websocket_endpoint(websocket: WebSocket):
