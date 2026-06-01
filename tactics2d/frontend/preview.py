@@ -273,6 +273,7 @@ def build_map_preview_sensor(
     return {
         "id": f"map-{osm_path.stem}",
         "perception_range": float(preview_range),
+        "viewport_aspect": float(max(1.0, x_span / (2 * preview_range))),
         "position": [x_center, y_center],
         "yaw": 0,
         "frame": 0,
@@ -314,10 +315,12 @@ def _sensor_payload(
     heading: float,
     perception_range: float,
     geometry_data: dict[str, Any],
+    viewport_aspect: float = 16 / 9,
 ) -> dict[str, Any]:
     return {
         "id": sensor_id,
         "perception_range": perception_range,
+        "viewport_aspect": viewport_aspect,
         "position": list(position),
         "yaw": heading,
         "frame": frame,

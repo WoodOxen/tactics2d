@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tactics2D Frontend</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260601-ui2">
+  <link rel="stylesheet" href="/static/styles.css?v=20260601-ui4">
   <script type="importmap">
     {
       "imports": {
@@ -12,7 +12,7 @@
       }
     }
   </script>
-  <script type="module" src="/static/app.js?v=20260601-ui2"></script>
+  <script type="module" src="/static/app.js?v=20260601-ui4"></script>
 </head>
 <body>
   <header class="toolbar">
@@ -88,6 +88,10 @@
             <input id="dataset-lanelet2" name="lanelet2" type="checkbox" checked>
             <span>Lanelet2</span>
           </label>
+          <label class="check-field">
+            <input id="dataset-loop" name="loop" type="checkbox">
+            <span>循环播放</span>
+          </label>
         </details>
         <button class="primary-button" type="submit">加载数据集</button>
       </form>
@@ -116,7 +120,13 @@
         <button id="demo-button" class="primary-button" type="button">播放示例</button>
       </div>
 
-      <button id="stop-preview" class="secondary-button" type="button">停止</button>
+      <div class="playback-controls">
+        <button id="pause-preview" class="secondary-button" type="button">暂停</button>
+        <button id="stop-preview" class="secondary-button" type="button">停止</button>
+      </div>
+      <div class="progress-track" aria-hidden="true">
+        <div id="preview-progress" class="progress-fill"></div>
+      </div>
       <div id="preview-status" class="preview-status">就绪</div>
     </aside>
     <main id="sensor-grid" class="sensor-grid"></main>

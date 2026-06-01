@@ -174,6 +174,26 @@ def test_preview_map_endpoint_publishes_frame():
     assert client.get("/health").json()["last_frame_id"] == 0
 
 
+def test_preview_pause_and_resume_endpoints():
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    from tactics2d.frontend.server import create_app
+
+    client = TestClient(create_app())
+
+    response = client.post("/api/preview/pause", json={})
+    assert response.status_code == 200
+    assert response.json()["status"] == "paused"
+    assert response.json()["paused"] is True
+
+    response = client.post("/api/preview/resume", json={})
+    assert response.status_code == 200
+    assert response.json()["status"] == "running"
+    assert response.json()["paused"] is False
+
+
 def test_demo_frame_contains_sensor_payloads():
     from tactics2d.frontend.server import _demo_frame
 
@@ -182,6 +202,7 @@ def test_demo_frame_contains_sensor_payloads():
     assert frame["frame"] == 0
     assert len(frame["sensors"]) == 2
     assert frame["sensors"][0]["map_data"]["road_elements"]
+    assert frame["sensors"][0]["viewport_aspect"] == 16 / 9
 
 
 def test_cli_preview_map_arguments():

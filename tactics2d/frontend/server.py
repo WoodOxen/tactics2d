@@ -254,6 +254,10 @@ async def _cancel_task(task) -> None:
 
 
 async def _stop_preview_tasks(app) -> None:
+    pause_event = getattr(app.state, "preview_pause_event", None)
+    if pause_event is not None:
+        pause_event.set()
+
     await _cancel_task(getattr(app.state, "demo_task", None))
     await _cancel_task(getattr(app.state, "preview_task", None))
     app.state.demo_task = None
@@ -275,13 +279,17 @@ def _map_config_from_name(name: str | None) -> dict | None:
     return configs[resolved_name]
 
 
-async def _run_levelx_dataset_preview(manager: ConnectionManager, status: dict, payload: dict):
+async def _run_levelx_dataset_preview(
+    manager: ConnectionManager, status: dict, payload: dict, pause_event: asyncio.Event
+):
     from tactics2d.frontend.preview import load_levelx_preview_scene
 
     max_fps = max(1, min(int(payload.get("max_fps", 30)), 100))
     interval = 1.0 / max_fps
+    loop = bool(payload.get("loop", False))
     sent_frames = 0
     dropped_frames = 0
+    loop_count = 0
 
     try:
         status.update({"status": "loading", "message": "loading dataset"})
@@ -299,48 +307,77 @@ async def _run_levelx_dataset_preview(manager: ConnectionManager, status: dict, 
             follow_id=_optional_int(payload.get("follow_id")),
             perception_range=float(payload.get("perception_range", 80.0)),
         )
+        frame_ids = list(scene.iter_frames())
+        total_frames = len(frame_ids)
         status.update(
             {
                 "status": "running",
                 "source": "dataset",
                 "sensor_id": scene.sensor_id,
                 "actual_time_range": scene.actual_time_range,
+                "total_frames": total_frames,
+                "frame_index": 0,
+                "progress": 0,
+                "paused": False,
+                "loop": loop,
+                "loop_count": loop_count,
                 "sent_frames": 0,
                 "dropped_frames": 0,
                 "message": "streaming",
             }
         )
 
-        for frame in scene.iter_frames():
-            started = asyncio.get_running_loop().time()
-            sensor = await asyncio.to_thread(scene.sensor_for_frame, frame)
-            result = await manager.publish_frame(
-                {
-                    "frame": frame,
-                    "layout": "grid",
-                    "sensors": [sensor],
-                    "remove_missing_sensors": True,
-                },
-                frame_id=frame,
-                wait_ack=True,
-                ack_timeout=interval,
-                drop_if_busy=True,
-            )
-            dropped_frames = int(result.get("dropped_frames", dropped_frames))
-            if result.get("status") != "dropped":
-                sent_frames += 1
+        while True:
+            for frame_index, frame in enumerate(frame_ids, start=1):
+                if not pause_event.is_set():
+                    status.update({"status": "paused", "paused": True, "message": "paused"})
+                await pause_event.wait()
+                status.update({"status": "running", "paused": False, "message": "streaming"})
 
-            status.update(
-                {"frame": frame, "sent_frames": sent_frames, "dropped_frames": dropped_frames}
-            )
-            elapsed = asyncio.get_running_loop().time() - started
-            if elapsed < interval:
-                await asyncio.sleep(interval - elapsed)
+                started = asyncio.get_running_loop().time()
+                sensor = await asyncio.to_thread(scene.sensor_for_frame, frame)
+                result = await manager.publish_frame(
+                    {
+                        "frame": frame,
+                        "layout": "grid",
+                        "sensors": [sensor],
+                        "remove_missing_sensors": True,
+                    },
+                    frame_id=frame,
+                    wait_ack=True,
+                    ack_timeout=interval,
+                    drop_if_busy=True,
+                )
+                dropped_frames = int(result.get("dropped_frames", dropped_frames))
+                if result.get("status") != "dropped":
+                    sent_frames += 1
+
+                status.update(
+                    {
+                        "frame": frame,
+                        "frame_index": frame_index,
+                        "total_frames": total_frames,
+                        "progress": frame_index / total_frames if total_frames else 0,
+                        "sent_frames": sent_frames,
+                        "dropped_frames": dropped_frames,
+                        "loop_count": loop_count,
+                    }
+                )
+                elapsed = asyncio.get_running_loop().time() - started
+                if elapsed < interval:
+                    await asyncio.sleep(interval - elapsed)
+
+            if not loop:
+                break
+
+            loop_count += 1
 
         status.update(
             {
                 "status": "complete",
                 "message": "complete",
+                "paused": False,
+                "progress": 1,
                 "sent_frames": sent_frames,
                 "dropped_frames": dropped_frames,
             }
@@ -402,6 +439,7 @@ def _demo_sensor(frame_id: int, sensor_id: str, offset: float, include_map: bool
     return {
         "id": sensor_id,
         "perception_range": 50,
+        "viewport_aspect": 16 / 9,
         "position": [0, 0],
         "yaw": 0,
         "frame": frame_id,
@@ -425,10 +463,15 @@ def _demo_frame(frame_id: int) -> dict:
     }
 
 
-async def _run_demo(manager: ConnectionManager, max_fps: int):
+async def _run_demo(
+    manager: ConnectionManager, max_fps: int, pause_event: asyncio.Event | None = None
+):
     frame_id = 0
     interval = 1.0 / max(1, min(max_fps, 100))
     while True:
+        if pause_event is not None:
+            await pause_event.wait()
+
         result = await manager.publish_frame(
             _demo_frame(frame_id),
             frame_id=frame_id,
@@ -466,6 +509,8 @@ def create_app(demo: bool = False, max_fps: int = 30):
     app.state.connection_manager = manager
     app.state.demo_task = None
     app.state.preview_task = None
+    app.state.preview_pause_event = asyncio.Event()
+    app.state.preview_pause_event.set()
     app.state.preview_status = {"status": "idle", "message": "ready"}
 
     @app.get("/")
@@ -521,15 +566,34 @@ def create_app(demo: bool = False, max_fps: int = 30):
         app.state.preview_status = {"status": "stopped", "message": "stopped"}
         return app.state.preview_status
 
+    @app.post("/api/preview/pause")
+    async def pause_preview():
+        app.state.preview_pause_event.clear()
+        app.state.preview_status.update({"status": "paused", "paused": True, "message": "paused"})
+        return app.state.preview_status
+
+    @app.post("/api/preview/resume")
+    async def resume_preview():
+        app.state.preview_pause_event.set()
+        app.state.preview_status.update(
+            {"status": "running", "paused": False, "message": "streaming"}
+        )
+        return app.state.preview_status
+
     @app.post("/api/preview/demo")
     async def start_demo(request: Request):
         payload = await request.json()
         await _stop_preview_tasks(app)
         requested_fps = int(payload.get("max_fps", max_fps))
-        app.state.demo_task = asyncio.create_task(_run_demo(manager, requested_fps))
+        app.state.preview_pause_event = asyncio.Event()
+        app.state.preview_pause_event.set()
+        app.state.demo_task = asyncio.create_task(
+            _run_demo(manager, requested_fps, app.state.preview_pause_event)
+        )
         app.state.preview_status = {
             "status": "running",
             "source": "demo",
+            "paused": False,
             "message": "demo running",
         }
         return app.state.preview_status
@@ -571,8 +635,12 @@ def create_app(demo: bool = False, max_fps: int = 30):
             "source": "dataset",
             "message": "loading dataset",
         }
+        app.state.preview_pause_event = asyncio.Event()
+        app.state.preview_pause_event.set()
         app.state.preview_task = asyncio.create_task(
-            _run_levelx_dataset_preview(manager, app.state.preview_status, payload)
+            _run_levelx_dataset_preview(
+                manager, app.state.preview_status, payload, app.state.preview_pause_event
+            )
         )
         return app.state.preview_status
 

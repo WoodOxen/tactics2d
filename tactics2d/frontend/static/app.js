@@ -1,5 +1,7 @@
 import * as THREE from "three";
 
+const DEFAULT_VIEWPORT_ASPECT = 16 / 9;
+
 const COLORS = {
   area: "#2f3542",
   bicycle: "#fd9644",
@@ -63,6 +65,7 @@ class SensorView {
   constructor(sensor) {
     this.id = sensor.id;
     this.perceptionRange = sensor.perception_range || 50;
+    this.viewportAspect = sensor.viewport_aspect || DEFAULT_VIEWPORT_ASPECT;
     this.roadObjects = new Map();
     this.participantObjects = new Map();
 
@@ -73,14 +76,18 @@ class SensorView {
     this.label = document.createElement("div");
     this.label.className = "sensor-label";
     this.label.textContent = sensor.id;
-    this.element.appendChild(this.label);
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(COLORS.hole);
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.domElement.addEventListener("webglcontextrestored", () => this.resize());
-    this.element.appendChild(this.renderer.domElement);
+
+    this.viewport = document.createElement("div");
+    this.viewport.className = "sensor-viewport";
+    this.viewport.appendChild(this.renderer.domElement);
+    this.element.appendChild(this.viewport);
+    this.element.appendChild(this.label);
 
     this.camera = new THREE.OrthographicCamera(-50, 50, 50, -50, 0.1, 1000);
     this.camera.position.set(0, 0, 200);
@@ -92,8 +99,20 @@ class SensorView {
   }
 
   resize() {
-    const width = Math.max(1, this.element.clientWidth);
-    const height = Math.max(1, this.element.clientHeight);
+    const containerWidth = Math.max(1, this.element.clientWidth);
+    const containerHeight = Math.max(1, this.element.clientHeight);
+    const containerAspect = containerWidth / containerHeight;
+    let width = containerWidth;
+    let height = containerHeight;
+
+    if (containerAspect > this.viewportAspect) {
+      width = Math.round(containerHeight * this.viewportAspect);
+    } else {
+      height = Math.round(containerWidth / this.viewportAspect);
+    }
+
+    this.viewport.style.width = `${width}px`;
+    this.viewport.style.height = `${height}px`;
     this.renderer.setSize(width, height, false);
     this.updateCameraBounds();
     this.render();
@@ -120,12 +139,9 @@ class SensorView {
   }
 
   updateCameraBounds() {
-    const width = Math.max(1, this.element.clientWidth);
-    const height = Math.max(1, this.element.clientHeight);
-    const aspect = width / height;
     const range = this.perceptionRange;
-    this.camera.left = -range * aspect;
-    this.camera.right = range * aspect;
+    this.camera.left = -range * this.viewportAspect;
+    this.camera.right = range * this.viewportAspect;
     this.camera.top = range;
     this.camera.bottom = -range;
     this.camera.far = Math.max(1000, range * 8);
@@ -135,6 +151,7 @@ class SensorView {
   updateView(sensor) {
     const position = sensor.position || [0, 0];
     this.perceptionRange = sensor.perception_range || this.perceptionRange;
+    this.viewportAspect = sensor.viewport_aspect || this.viewportAspect;
     this.camera.position.set(position[0], position[1], this.perceptionRange * 4);
     this.camera.rotation.set(0, 0, sensor.yaw || 0);
     this.updateCameraBounds();
@@ -241,11 +258,14 @@ class PreviewControls {
     this.datasetMapConfig = document.getElementById("dataset-map-config");
     this.mapConfig = document.getElementById("map-config");
     this.status = document.getElementById("preview-status");
+    this.progress = document.getElementById("preview-progress");
+    this.pauseButton = document.getElementById("pause-preview");
+    this.isPaused = false;
     this.options = { levelx_datasets: [], map_configs: [], defaults: {} };
 
     this.bind();
     this.loadOptions();
-    window.setInterval(() => this.refreshStatus(), 1000);
+    window.setInterval(() => this.refreshStatus(), 500);
   }
 
   bind() {
@@ -265,6 +285,7 @@ class PreviewControls {
       this.loadMapPreview();
     });
     document.getElementById("demo-button").addEventListener("click", () => this.startDemo());
+    this.pauseButton.addEventListener("click", () => this.togglePause());
     document.getElementById("stop-preview").addEventListener("click", () => this.stopPreview());
   }
 
@@ -375,7 +396,8 @@ class PreviewControls {
       start_time_ms: parseOptionalNumber(document.getElementById("dataset-start").value),
       follow_id: parseOptionalNumber(document.getElementById("dataset-follow").value),
       ids: parseOptionalText(document.getElementById("dataset-ids").value),
-      lanelet2: document.getElementById("dataset-lanelet2").checked
+      lanelet2: document.getElementById("dataset-lanelet2").checked,
+      loop: document.getElementById("dataset-loop").checked
     };
   }
 
@@ -392,6 +414,7 @@ class PreviewControls {
       this.setStatus("加载中", "running");
       await this.request("/api/preview/dataset", this.datasetPayload());
       await this.refreshStatus();
+      window.setTimeout(() => this.refreshStatus(), 250);
     } catch (error) {
       this.setStatus(error.message, "error");
     }
@@ -428,6 +451,18 @@ class PreviewControls {
     }
   }
 
+  async togglePause() {
+    try {
+      const result = await this.request(
+        this.isPaused ? "/api/preview/resume" : "/api/preview/pause",
+        {}
+      );
+      this.applyStatus(result);
+    } catch (error) {
+      this.setStatus(error.message, "error");
+    }
+  }
+
   async refreshStatus() {
     try {
       const status = await this.request("/api/preview/status");
@@ -438,11 +473,24 @@ class PreviewControls {
   }
 
   applyStatus(status) {
+    const progress = Number(status.progress || 0);
+    this.progress.style.width = `${Math.max(0, Math.min(1, progress)) * 100}%`;
+    this.isPaused = status.status === "paused" || status.paused === true;
+    this.pauseButton.textContent = this.isPaused ? "继续" : "暂停";
+
     if (status.status === "running" && status.source === "dataset") {
+      const position =
+        status.total_frames && status.frame_index
+          ? `${status.frame_index}/${status.total_frames}`
+          : status.frame || "";
       this.setStatus(
-        `${status.sensor_id || "数据集"} ${status.frame || ""} 发送 ${status.sent_frames || 0}`,
+        `${status.sensor_id || "数据集"} ${position} 发送 ${status.sent_frames || 0}`,
         "running"
       );
+      return;
+    }
+    if (status.status === "paused") {
+      this.setStatus("已暂停", "idle");
       return;
     }
     if (status.status === "running") {
