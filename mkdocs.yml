@@ -36,6 +36,7 @@ nav:
     - tactics2d.sensor: "api/sensor.md"
     - tactics2d.traffic: "api/traffic.md"
   - Tutorial:
+    - browser_frontend: "tutorial/browser_frontend.md"
     - graph_search_demo: "tutorial/graph_search_demo.ipynb"
     - sampling_search_demo: "tutorial/sampling_search_demo.ipynb"
     - routing: "tutorial/routing.ipynb"
