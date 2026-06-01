@@ -35,15 +35,35 @@ class ConnectionManager:
 
     def __init__(self):
         self._clients = []
+        self._ack_events = {}
+        self._dropped_frames = 0
         self._last_ack = None
+        self._last_frame_message = None
+        self._last_frame_id = None
 
     @property
     def client_count(self) -> int:
         return len(self._clients)
 
     @property
+    def dropped_frames(self) -> int:
+        return self._dropped_frames
+
+    @property
     def last_ack(self) -> Any:
         return self._last_ack
+
+    @property
+    def last_frame_id(self) -> Any:
+        return self._last_frame_id
+
+    @property
+    def is_render_busy(self) -> bool:
+        return (
+            self.client_count > 0
+            and self._last_frame_id is not None
+            and self._last_ack != self._last_frame_id
+        )
 
     async def connect(self, websocket):
         await websocket.accept()
@@ -71,8 +91,61 @@ class ConnectionManager:
 
         return delivered
 
+    async def publish_frame(
+        self,
+        payload: dict,
+        frame_id: Any = None,
+        wait_ack: bool = False,
+        ack_timeout: float = 0.05,
+        drop_if_busy: bool = False,
+    ) -> dict:
+        if drop_if_busy and self.is_render_busy:
+            self._dropped_frames += 1
+            return {
+                "status": "dropped",
+                "delivered": 0,
+                "acked": False,
+                "frame_id": frame_id,
+                "dropped_frames": self._dropped_frames,
+            }
+
+        self._last_frame_id = frame_id
+        self._last_frame_message = {
+            "type": "frame.update",
+            "frame_id": frame_id,
+            "payload": payload,
+        }
+        delivered = await self.broadcast(self._last_frame_message)
+        acked = delivered == 0
+        if acked:
+            self.record_ack(frame_id)
+        if wait_ack and delivered > 0:
+            acked = await self.wait_for_ack(frame_id, ack_timeout)
+
+        return {
+            "status": "ok",
+            "delivered": delivered,
+            "acked": acked,
+            "frame_id": frame_id,
+            "dropped_frames": self._dropped_frames,
+        }
+
     def record_ack(self, frame_id: Any) -> None:
         self._last_ack = frame_id
+        event = self._ack_events.pop(frame_id, None)
+        if event is not None:
+            event.set()
+
+    async def wait_for_ack(self, frame_id: Any, timeout: float) -> bool:
+        if self.client_count == 0 or self._last_ack == frame_id:
+            return True
+
+        event = self._ack_events.setdefault(frame_id, asyncio.Event())
+        try:
+            await asyncio.wait_for(event.wait(), timeout=max(timeout, 0))
+            return True
+        except asyncio.TimeoutError:
+            return False
 
 
 def _frontend_static_dir() -> Path:
@@ -156,10 +229,15 @@ async def _run_demo(manager: ConnectionManager, max_fps: int):
     frame_id = 0
     interval = 1.0 / max(1, min(max_fps, 100))
     while True:
-        await manager.broadcast(
-            {"type": "frame.update", "frame_id": frame_id, "payload": _demo_frame(frame_id)}
+        result = await manager.publish_frame(
+            _demo_frame(frame_id),
+            frame_id=frame_id,
+            wait_ack=True,
+            ack_timeout=interval,
+            drop_if_busy=True,
         )
-        frame_id += 1
+        if result["status"] != "dropped":
+            frame_id += 1
         await asyncio.sleep(interval)
 
 
@@ -195,16 +273,29 @@ def create_app(demo: bool = False, max_fps: int = 30):
 
     @app.get("/health")
     async def health():
-        return {"status": "running", "clients": manager.client_count, "last_ack": manager.last_ack}
+        return {
+            "status": "running",
+            "clients": manager.client_count,
+            "last_ack": manager.last_ack,
+            "last_frame_id": manager.last_frame_id,
+            "render_busy": manager.is_render_busy,
+            "dropped_frames": manager.dropped_frames,
+        }
 
     @app.post("/api/frame")
     async def publish_frame(request: Request):
         payload = await request.json()
+        wait_ack = bool(payload.pop("wait_ack", False))
+        ack_timeout = float(payload.pop("ack_timeout", 0.05))
+        drop_if_busy = bool(payload.pop("drop_if_busy", False))
         frame_id = payload.get("frame", payload.get("frame_id"))
-        delivered = await manager.broadcast(
-            {"type": "frame.update", "frame_id": frame_id, "payload": payload}
+        return await manager.publish_frame(
+            payload,
+            frame_id=frame_id,
+            wait_ack=wait_ack,
+            ack_timeout=ack_timeout,
+            drop_if_busy=drop_if_busy,
         )
-        return {"status": "ok", "delivered": delivered, "frame_id": frame_id}
 
     @app.post("/api/layout")
     async def set_layout(request: Request):
@@ -219,6 +310,8 @@ def create_app(demo: bool = False, max_fps: int = 30):
         await websocket.send_text(
             orjson.dumps({"type": "client.count", "clients": manager.client_count}).decode("utf-8")
         )
+        if manager._last_frame_message is not None:
+            await websocket.send_text(orjson.dumps(manager._last_frame_message).decode("utf-8"))
         try:
             while True:
                 raw_message = await websocket.receive_text()

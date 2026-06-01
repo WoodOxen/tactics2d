@@ -35,12 +35,22 @@ class FrontendRenderer:
     """Send sensor frames to a running Tactics2D frontend server."""
 
     def __init__(
-        self, host: str = "127.0.0.1", port: int = 8765, max_fps: int = 60, timeout: float = 1.0
+        self,
+        host: str = "127.0.0.1",
+        port: int = 8765,
+        max_fps: int = 60,
+        timeout: float = 1.0,
+        wait_ack: bool = True,
+        ack_timeout: float = 0.05,
+        drop_if_busy: bool = True,
     ):
         self.host = host
         self.port = port
         self.timeout = timeout
         self.max_fps = min(max(1, int(max_fps)), 100)
+        self.wait_ack = wait_ack
+        self.ack_timeout = ack_timeout
+        self.drop_if_busy = drop_if_busy
         self._last_send_time = 0.0
 
     @property
@@ -76,7 +86,15 @@ class FrontendRenderer:
         return self._post("/api/layout", {"layout": layout})
 
     def send_frame(
-        self, sensors: Iterable[dict[str, Any]], frame: int | None = None, layout: str | None = None
+        self,
+        sensors: Iterable[dict[str, Any]],
+        frame: int | None = None,
+        layout: str | None = None,
+        sensor_id_to_remove: Iterable[str] | None = None,
+        remove_missing_sensors: bool = True,
+        wait_ack: bool | None = None,
+        ack_timeout: float | None = None,
+        drop_if_busy: bool | None = None,
     ) -> dict[str, Any]:
         min_interval = 1.0 / self.max_fps
         elapsed = time.monotonic() - self._last_send_time
@@ -88,10 +106,54 @@ class FrontendRenderer:
             payload["frame"] = frame
         if layout is not None:
             payload["layout"] = layout
+        if sensor_id_to_remove is not None:
+            payload["sensor_id_to_remove"] = list(sensor_id_to_remove)
+
+        payload["remove_missing_sensors"] = remove_missing_sensors
+        payload["wait_ack"] = self.wait_ack if wait_ack is None else wait_ack
+        payload["ack_timeout"] = self.ack_timeout if ack_timeout is None else ack_timeout
+        payload["drop_if_busy"] = self.drop_if_busy if drop_if_busy is None else drop_if_busy
 
         response = self._post("/api/frame", payload)
         self._last_send_time = time.monotonic()
         return response
+
+
+class FrontendServer:
+    """Context manager that owns a background frontend server process."""
+
+    def __init__(
+        self,
+        host: str = "127.0.0.1",
+        port: int = 8765,
+        max_fps: int = 60,
+        open_browser: bool = False,
+        pid_file: Path | None = None,
+    ):
+        self.host = host
+        self.port = port
+        self.max_fps = max_fps
+        self.open_browser = open_browser
+        self.pid_file = pid_file
+        self.process = None
+        self.renderer = FrontendRenderer(host, port, max_fps=max_fps)
+
+    def __enter__(self) -> FrontendRenderer:
+        self.process = start_server_process(
+            self.host,
+            self.port,
+            demo=False,
+            max_fps=self.max_fps,
+            open_browser=self.open_browser,
+            pid_file=self.pid_file,
+        )
+        if not self.renderer.wait_until_ready(timeout=5.0):
+            raise RuntimeError(f"Tactics2D frontend did not start on {self.renderer.base_url}.")
+
+        return self.renderer
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        stop_server_process(self.pid_file)
 
 
 def start_server_process(

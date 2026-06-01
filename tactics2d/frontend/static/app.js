@@ -87,6 +87,26 @@ class SensorView {
     this.render();
   }
 
+  disposeObject(mesh) {
+    if (!mesh) return;
+    if (mesh.geometry) mesh.geometry.dispose();
+    if (mesh.material) mesh.material.dispose();
+  }
+
+  dispose() {
+    this.resizeObserver.disconnect();
+    this.roadObjects.forEach((mesh) => {
+      this.scene.remove(mesh);
+      this.disposeObject(mesh);
+    });
+    this.participantObjects.forEach((mesh) => {
+      this.scene.remove(mesh);
+      this.disposeObject(mesh);
+    });
+    this.renderer.dispose();
+    this.element.remove();
+  }
+
   updateCameraBounds() {
     const width = Math.max(1, this.element.clientWidth);
     const height = Math.max(1, this.element.clientHeight);
@@ -96,6 +116,7 @@ class SensorView {
     this.camera.right = range * aspect;
     this.camera.top = range;
     this.camera.bottom = -range;
+    this.camera.far = Math.max(1000, range * 8);
     this.camera.updateProjectionMatrix();
   }
 
@@ -137,7 +158,10 @@ class SensorView {
 
   replaceObject(targetMap, id, mesh) {
     const existing = targetMap.get(id);
-    if (existing) this.scene.remove(existing);
+    if (existing) {
+      this.scene.remove(existing);
+      this.disposeObject(existing);
+    }
     targetMap.set(id, mesh);
     this.scene.add(mesh);
   }
@@ -216,7 +240,7 @@ class RenderManager {
   }
 
   setLayout(layout) {
-    this.layout = layout === "master" ? "master" : "grid";
+    this.layout = layout === "master" || layout === "hierarchical" ? "master" : "grid";
     this.container.classList.toggle("is-master", this.layout === "master");
     document.querySelectorAll("[data-layout]").forEach((button) => {
       button.classList.toggle("is-active", button.dataset.layout === this.layout);
@@ -248,7 +272,11 @@ class RenderManager {
 
   updateFrame(payload, frameId) {
     if (payload.layout) this.setLayout(payload.layout);
+    (payload.sensor_id_to_remove || []).forEach((sensorId) => this.removeSensor(sensorId));
+
+    const activeSensorIds = new Set();
     (payload.sensors || []).forEach((sensor) => {
+      activeSensorIds.add(sensor.id);
       let sensorView = this.sensors.get(sensor.id);
       if (!sensorView) {
         sensorView = new SensorView(sensor);
@@ -258,9 +286,22 @@ class RenderManager {
       sensorView.update(sensor);
     });
 
+    if (payload.remove_missing_sensors !== false) {
+      Array.from(this.sensors.keys()).forEach((sensorId) => {
+        if (!activeSensorIds.has(sensorId)) this.removeSensor(sensorId);
+      });
+    }
+
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify({ type: "render.ack", frame_id: frameId }));
     }
+  }
+
+  removeSensor(sensorId) {
+    const sensorView = this.sensors.get(sensorId);
+    if (!sensorView) return;
+    sensorView.dispose();
+    this.sensors.delete(sensorId);
   }
 }
 

@@ -3,7 +3,7 @@
 
 """Browser-based frontend utilities for Tactics2D."""
 
-from .renderer import FrontendRenderer
+from .renderer import FrontendRenderer, FrontendServer
 from .server import run_server
 
-__all__ = ["FrontendRenderer", "run_server"]
+__all__ = ["FrontendRenderer", "FrontendServer", "run_server"]
