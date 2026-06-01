@@ -41,6 +41,28 @@ body {
   gap: 8px;
 }
 
+.render-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: #aeb8b0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.render-stats span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.render-stats strong {
+  color: #e9eef2;
+  font-size: 12px;
+}
+
 .icon-button {
   display: inline-grid;
   place-items: center;
@@ -340,6 +362,23 @@ body {
 }
 
 @media (max-width: 720px) {
+  .toolbar {
+    padding: 0 10px;
+  }
+
+  .render-stats {
+    gap: 7px;
+    font-size: 11px;
+  }
+
+  .render-stats strong {
+    font-size: 11px;
+  }
+
+  .render-stats span:nth-child(3) {
+    display: none;
+  }
+
   .workspace {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);

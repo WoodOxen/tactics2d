@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tactics2D Frontend</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260601-ui4">
+  <link rel="stylesheet" href="/static/styles.css?v=20260601-ui5">
   <script type="importmap">
     {
       "imports": {
@@ -12,12 +12,18 @@
       }
     }
   </script>
-  <script type="module" src="/static/app.js?v=20260601-ui4"></script>
+  <script type="module" src="/static/app.js?v=20260601-ui5"></script>
 </head>
 <body>
   <header class="toolbar">
     <div class="brand">Tactics2D</div>
     <div class="toolbar-actions">
+      <div class="render-stats" aria-live="polite">
+        <span>FPS <strong id="render-fps">0</strong></span>
+        <span>帧 <strong id="render-frame">-</strong></span>
+        <span>传感器 <strong id="render-sensors">0</strong></span>
+        <span>跳帧 <strong id="render-dropped">0</strong></span>
+      </div>
       <button class="icon-button is-active" data-layout="grid" title="Grid layout">▦</button>
       <button class="icon-button" data-layout="master" title="Master layout">◫</button>
       <span id="connection-status" class="status-dot" title="Disconnected"></span>

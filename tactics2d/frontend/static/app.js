@@ -528,10 +528,21 @@ class RenderManager {
   constructor() {
     this.container = document.getElementById("sensor-grid");
     this.status = document.getElementById("connection-status");
+    this.fpsElement = document.getElementById("render-fps");
+    this.frameElement = document.getElementById("render-frame");
+    this.sensorCountElement = document.getElementById("render-sensors");
+    this.droppedElement = document.getElementById("render-dropped");
     this.sensors = new Map();
     this.layout = "grid";
+    this.pendingFrame = null;
+    this.frameScheduled = false;
+    this.renderedFrames = 0;
+    this.fpsFrames = 0;
+    this.lastFpsAt = performance.now();
+    this.browserDroppedFrames = 0;
     this.connect();
     this.bindLayoutButtons();
+    this.updateStats("-");
   }
 
   bindLayoutButtons() {
@@ -573,7 +584,26 @@ class RenderManager {
   handleMessage(event) {
     const message = JSON.parse(event.data);
     if (message.type === "layout.set") this.setLayout(message.layout);
-    if (message.type === "frame.update") this.updateFrame(message.payload, message.frame_id);
+    if (message.type === "frame.update") this.queueFrame(message);
+  }
+
+  queueFrame(message) {
+    if (this.pendingFrame) this.browserDroppedFrames += 1;
+    this.pendingFrame = message;
+    if (this.frameScheduled) return;
+
+    this.frameScheduled = true;
+    window.requestAnimationFrame(() => this.renderPendingFrame());
+  }
+
+  renderPendingFrame() {
+    this.frameScheduled = false;
+    const message = this.pendingFrame;
+    this.pendingFrame = null;
+    if (!message) return;
+
+    this.updateFrame(message.payload, message.frame_id);
+    this.recordRenderedFrame(message.frame_id);
   }
 
   updateFrame(payload, frameId) {
@@ -602,6 +632,28 @@ class RenderManager {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify({ type: "render.ack", frame_id: frameId }));
     }
+  }
+
+  recordRenderedFrame(frameId) {
+    const now = performance.now();
+    this.renderedFrames += 1;
+    this.fpsFrames += 1;
+    if (now - this.lastFpsAt >= 500) {
+      const fps = Math.round((this.fpsFrames * 1000) / (now - this.lastFpsAt));
+      this.fpsFrames = 0;
+      this.lastFpsAt = now;
+      this.updateStats(frameId, fps);
+      return;
+    }
+
+    this.updateStats(frameId);
+  }
+
+  updateStats(frameId, fps = null) {
+    if (fps !== null && this.fpsElement) this.fpsElement.textContent = String(fps);
+    if (this.frameElement) this.frameElement.textContent = String(frameId ?? "-");
+    if (this.sensorCountElement) this.sensorCountElement.textContent = String(this.sensors.size);
+    if (this.droppedElement) this.droppedElement.textContent = String(this.browserDroppedFrames);
   }
 
   removeSensor(sensorId) {
