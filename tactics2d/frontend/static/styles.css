@@ -353,6 +353,39 @@ body {
   border-top: 1px solid #30342f;
 }
 
+.timeline-status {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mode-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 54px;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid #444b43;
+  border-radius: 999px;
+  background: #101310;
+  color: #c8d0ca;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.mode-badge.is-live {
+  border-color: #b4554d;
+  color: #ffd1cc;
+}
+
+.mode-badge.is-replay {
+  border-color: #57b6a8;
+  color: #bff4ec;
+}
+
 .playback-controls {
   display: grid;
   grid-template-columns: 78px 78px;
@@ -369,6 +402,10 @@ body {
   border-radius: 999px;
   background: #0d100d;
   border: 1px solid #333931;
+}
+
+.progress-track.is-hidden {
+  display: none;
 }
 
 .progress-fill {
@@ -421,6 +458,10 @@ body {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
     min-height: 98px;
+  }
+
+  .timeline-status {
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
   .playback-controls {

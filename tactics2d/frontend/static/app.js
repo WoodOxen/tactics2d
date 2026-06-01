@@ -259,6 +259,8 @@ class PreviewControls {
     this.mapConfig = document.getElementById("map-config");
     this.status = document.getElementById("preview-status");
     this.progress = document.getElementById("preview-progress");
+    this.progressTrack = document.getElementById("progress-track");
+    this.streamMode = document.getElementById("stream-mode");
     this.pauseButton = document.getElementById("pause-preview");
     this.isPaused = false;
     this.options = { levelx_datasets: [], map_configs: [], defaults: {} };
@@ -475,6 +477,9 @@ class PreviewControls {
   applyStatus(status) {
     const progress = Number(status.progress || 0);
     this.progress.style.width = `${Math.max(0, Math.min(1, progress)) * 100}%`;
+    const hasReplayProgress = status.source === "dataset" && Number(status.total_frames || 0) > 0;
+    this.progressTrack.classList.toggle("is-hidden", !hasReplayProgress);
+    this.setStreamMode(status, hasReplayProgress);
     this.isPaused = status.status === "paused" || status.paused === true;
     this.pauseButton.textContent = this.isPaused ? "继续" : "暂停";
 
@@ -515,6 +520,22 @@ class PreviewControls {
       return;
     }
     this.setStatus("就绪", "idle");
+  }
+
+  setStreamMode(status, hasReplayProgress) {
+    this.streamMode.classList.toggle("is-live", false);
+    this.streamMode.classList.toggle("is-replay", false);
+    if (hasReplayProgress) {
+      this.streamMode.textContent = "回放";
+      this.streamMode.classList.toggle("is-replay", true);
+      return;
+    }
+    if (status.status === "running" || status.status === "paused") {
+      this.streamMode.textContent = "LIVE";
+      this.streamMode.classList.toggle("is-live", true);
+      return;
+    }
+    this.streamMode.textContent = "就绪";
   }
 
   setStatus(message, mode = "idle") {

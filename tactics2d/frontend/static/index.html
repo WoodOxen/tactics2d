@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tactics2D Frontend</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260601-ui6">
+  <link rel="stylesheet" href="/static/styles.css?v=20260601-ui7">
   <script type="importmap">
     {
       "imports": {
@@ -12,7 +12,7 @@
       }
     }
   </script>
-  <script type="module" src="/static/app.js?v=20260601-ui6"></script>
+  <script type="module" src="/static/app.js?v=20260601-ui7"></script>
 </head>
 <body>
   <header class="toolbar">
@@ -131,8 +131,11 @@
       <div id="sensor-grid" class="sensor-grid"></div>
       <div class="player-bar">
         <div id="preview-status" class="preview-status">就绪</div>
-        <div class="progress-track" aria-hidden="true">
-          <div id="preview-progress" class="progress-fill"></div>
+        <div class="timeline-status">
+          <span id="stream-mode" class="mode-badge">就绪</span>
+          <div id="progress-track" class="progress-track is-hidden" aria-hidden="true">
+            <div id="preview-progress" class="progress-fill"></div>
+          </div>
         </div>
         <div class="playback-controls">
           <button id="pause-preview" class="secondary-button" type="button">暂停</button>
