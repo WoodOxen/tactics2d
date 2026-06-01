@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tactics2D Frontend</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.164.1/build/three.module.js"
+      }
+    }
+  </script>
+  <script type="module" src="/static/app.js"></script>
+</head>
+<body>
+  <header class="toolbar">
+    <div class="brand">Tactics2D</div>
+    <div class="toolbar-actions">
+      <button class="icon-button is-active" data-layout="grid" title="Grid layout">▦</button>
+      <button class="icon-button" data-layout="master" title="Master layout">◫</button>
+      <span id="connection-status" class="status-dot" title="Disconnected"></span>
+    </div>
+  </header>
+  <main id="sensor-grid" class="sensor-grid"></main>
+</body>
+</html>

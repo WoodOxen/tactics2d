@@ -1,0 +1,134 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #101418;
+  color: #e9eef2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 14px;
+  background: #151c22;
+  border-bottom: 1px solid #2a343d;
+}
+
+.brand {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 32px;
+  border: 1px solid #34414b;
+  border-radius: 6px;
+  background: #1f2a32;
+  color: #e9eef2;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.icon-button:hover,
+.icon-button.is-active {
+  border-color: #57b6a8;
+  color: #57b6a8;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #d55858;
+  box-shadow: 0 0 0 3px rgba(213, 88, 88, 0.16);
+}
+
+.status-dot.is-connected {
+  background: #57b6a8;
+  box-shadow: 0 0 0 3px rgba(87, 182, 168, 0.16);
+}
+
+.sensor-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  gap: 8px;
+  width: 100%;
+  height: calc(100vh - 48px);
+  padding: 8px;
+  background: #101418;
+}
+
+.sensor-grid.is-master {
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  grid-auto-rows: minmax(180px, 1fr);
+}
+
+.sensor-view {
+  position: relative;
+  min-width: 0;
+  min-height: 180px;
+  overflow: hidden;
+  border: 1px solid #25303a;
+  border-radius: 6px;
+  background: #f4f7f7;
+}
+
+.sensor-grid.is-master .sensor-view:first-child {
+  grid-row: span 2;
+}
+
+.sensor-view canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sensor-label {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(16, 20, 24, 0.76);
+  color: #e9eef2;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+@media (max-width: 720px) {
+  .sensor-grid,
+  .sensor-grid.is-master {
+    grid-template-columns: 1fr;
+  }
+
+  .sensor-grid.is-master .sensor-view:first-child {
+    grid-row: auto;
+  }
+}
