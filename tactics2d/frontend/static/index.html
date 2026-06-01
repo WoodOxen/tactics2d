@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tactics2D Frontend</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260601-ui8">
+  <link rel="stylesheet" href="/static/styles.css?v=20260601-ui11">
   <script type="importmap">
     {
       "imports": {
@@ -12,7 +12,7 @@
       }
     }
   </script>
-  <script type="module" src="/static/app.js?v=20260601-ui8"></script>
+  <script type="module" src="/static/app.js?v=20260601-ui11"></script>
 </head>
 <body>
   <header class="toolbar">
@@ -32,12 +32,12 @@
   <div class="workspace">
     <aside class="control-panel">
       <div class="source-tabs" role="tablist" aria-label="场景">
-        <button class="is-active" type="button" data-source-tab="dataset" role="tab" aria-selected="true">数据集</button>
+        <button type="button" data-source-tab="dataset" role="tab" aria-selected="false">数据集</button>
         <button type="button" data-source-tab="map" role="tab" aria-selected="false">地图</button>
-        <button type="button" data-source-tab="live" role="tab" aria-selected="false">实时</button>
+        <button class="is-active" type="button" data-source-tab="live" role="tab" aria-selected="true">实时</button>
       </div>
 
-      <form id="dataset-form" class="preview-form" data-source-panel="dataset" role="tabpanel">
+      <form id="dataset-form" class="preview-form is-hidden" data-source-panel="dataset" role="tabpanel" hidden>
         <div class="field">
           <label for="dataset-select">数据集</label>
           <select id="dataset-select" name="dataset"></select>
@@ -118,9 +118,7 @@
         <button class="primary-button" type="submit">加载地图</button>
       </form>
 
-      <div id="live-panel" class="preview-form is-hidden" data-source-panel="live" role="tabpanel" hidden>
-        <button id="live-button" class="primary-button" type="button">进入实时</button>
-      </div>
+      <div id="live-panel" class="preview-form" data-source-panel="live" role="tabpanel"></div>
 
     </aside>
     <main class="viewer-shell">

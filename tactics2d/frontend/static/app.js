@@ -4,12 +4,14 @@ const DEFAULT_VIEWPORT_ASPECT = 16 / 9;
 
 const COLORS = {
   area: "#2f3542",
+  black: "#101418",
   bicycle: "#fd9644",
   bus: "#4b6584",
   cyclist: "#fd9644",
   default: "#a5b1c2",
   heading_arrow: "#101418",
   hole: "#f4f7f7",
+  highway: "#2f3542",
   lane: "#2f3542",
   "light-blue": "#45aaf2",
   "light-turquoise": "#2bcbba",
@@ -25,6 +27,8 @@ const ORDERS = {
   lane: 2,
   hole: 3,
   roadline: 4,
+  solid: 4,
+  dashed: 4,
   vehicle: 6,
   cyclist: 6,
   pedestrian: 6,
@@ -249,7 +253,7 @@ class SensorView {
 
 class PreviewControls {
   constructor() {
-    this.source = "dataset";
+    this.source = "live";
     this.sourceButtons = Array.from(document.querySelectorAll("[data-source-tab]"));
     this.datasetForm = document.getElementById("dataset-form");
     this.mapForm = document.getElementById("map-form");
@@ -286,7 +290,6 @@ class PreviewControls {
       event.preventDefault();
       this.loadMapPreview();
     });
-    document.getElementById("live-button").addEventListener("click", () => this.startLive());
     this.pauseButton.addEventListener("click", () => this.togglePause());
     document.getElementById("stop-preview").addEventListener("click", () => this.stopPreview());
   }
@@ -497,7 +500,9 @@ class PreviewControls {
       return;
     }
     if (status.status === "running") {
-      this.setStatus(status.source === "live" ? "实时输出中" : "运行中", "running");
+      const isWaitingLive =
+        status.source === "live" && Number(status.sensor_count || 0) === 0 && status.frame == null;
+      this.setStatus(isWaitingLive ? "等待实时帧" : status.source === "live" ? "实时输出中" : "运行中", "running");
       return;
     }
     if (status.status === "loading") {

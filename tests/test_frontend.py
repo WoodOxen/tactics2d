@@ -210,6 +210,54 @@ def test_live_preview_endpoint_sets_live_status():
     assert client.get("/api/preview/status").json()["source"] == "live"
 
 
+def test_live_preview_endpoint_preserves_existing_live_snapshot():
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    from tactics2d.frontend.server import create_app
+
+    frame = {
+        "frame": 7,
+        "sensors": [
+            {
+                "id": "camera-1",
+                "map_data": {
+                    "road_id_to_remove": [],
+                    "road_elements": [
+                        {
+                            "id": 10,
+                            "shape": "line",
+                            "geometry": [[0, 0], [1, 1]],
+                            "color": "roadline",
+                            "type": "roadline",
+                        }
+                    ],
+                },
+                "participant_data": {
+                    "participant_id_to_create": [],
+                    "participant_id_to_remove": [],
+                    "participants": [],
+                },
+            }
+        ],
+    }
+
+    client = TestClient(create_app())
+    client.post("/api/frame", json=frame)
+    response = client.post("/api/preview/live", json={})
+
+    assert response.json()["sensor_count"] == 1
+    assert response.json()["frame"] == 7
+
+    with client.websocket_connect("/ws") as websocket:
+        assert websocket.receive_json()["type"] == "client.count"
+        cached_frame = websocket.receive_json()
+
+    sensor = cached_frame["payload"]["sensors"][0]
+    assert sensor["map_data"]["road_elements"][0]["id"] == 10
+
+
 def test_frame_endpoint_marks_programmatic_stream_as_live():
     pytest.importorskip("fastapi")
     pytest.importorskip("httpx")

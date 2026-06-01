@@ -511,7 +511,13 @@ def create_app(demo: bool = False, max_fps: int = 30):
     app.state.preview_task = None
     app.state.preview_pause_event = asyncio.Event()
     app.state.preview_pause_event.set()
-    app.state.preview_status = {"status": "idle", "message": "ready"}
+    app.state.preview_status = {
+        "status": "running",
+        "source": "live",
+        "paused": False,
+        "sensor_count": 0,
+        "message": "waiting live stream",
+    }
 
     @app.get("/")
     async def index():
@@ -636,22 +642,23 @@ def create_app(demo: bool = False, max_fps: int = 30):
 
     @app.post("/api/preview/live")
     async def start_live_preview():
+        previous_status = dict(app.state.preview_status)
         await _stop_preview_tasks(app)
         app.state.preview_pause_event = asyncio.Event()
         app.state.preview_pause_event.set()
-        result = await manager.publish_frame(
-            {"frame": None, "layout": "grid", "sensors": [], "remove_missing_sensors": True},
-            frame_id=None,
-            wait_ack=False,
-            drop_if_busy=False,
-        )
         app.state.preview_status = {
             "status": "running",
             "source": "live",
             "paused": False,
+            "sensor_count": (
+                previous_status.get("sensor_count", 0)
+                if previous_status.get("source") == "live"
+                else 0
+            ),
             "message": "waiting live stream",
-            "result": result,
         }
+        if previous_status.get("source") == "live" and "frame" in previous_status:
+            app.state.preview_status["frame"] = previous_status["frame"]
         return app.state.preview_status
 
     @app.post("/api/preview/map")

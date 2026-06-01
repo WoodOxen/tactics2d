@@ -24,7 +24,8 @@ def parse_args(argv=None):
     start_parser.add_argument("--port", type=int, default=8765)
     start_parser.add_argument("--max-fps", type=int, default=30)
     start_parser.add_argument("--demo", action="store_true")
-    start_parser.add_argument("--open", action="store_true", dest="open_browser")
+    start_parser.add_argument("--open", action="store_true", dest="open_browser", default=True)
+    start_parser.add_argument("--no-open", action="store_false", dest="open_browser")
     start_parser.add_argument("--background", action="store_true")
     start_parser.add_argument("--pid-file", type=Path, default=None)
 
