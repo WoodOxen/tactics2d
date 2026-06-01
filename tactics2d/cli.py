@@ -53,6 +53,7 @@ def parse_args(argv=None):
     map_parser.add_argument("--no-open", action="store_false", dest="open_browser")
     map_parser.add_argument("--lanelet2", action="store_true", default=True)
     map_parser.add_argument("--plain-osm", action="store_false", dest="lanelet2")
+    map_parser.add_argument("--map-config", default=None)
 
     dataset_parser = preview_subparsers.add_parser("dataset", help="Preview a dataset scene.")
     dataset_parser.add_argument("--dataset", choices=LEVELX_DATASETS, required=True)
@@ -72,6 +73,7 @@ def parse_args(argv=None):
     dataset_parser.add_argument("--ids", type=int, nargs="+", default=None)
     dataset_parser.add_argument("--follow-id", type=int, default=None)
     dataset_parser.add_argument("--perception-range", type=float, default=80.0)
+    dataset_parser.add_argument("--loop", action="store_true")
 
     return parser.parse_args(argv)
 
@@ -109,55 +111,41 @@ def _status(args):
 
 
 def _preview(args):
-    from tactics2d.frontend import run_server
-    from tactics2d.frontend.preview import (
-        build_map_preview_sensor,
-        ensure_frontend_server,
-        stream_levelx_preview,
-    )
+    from tactics2d.frontend.preview import ensure_frontend_server
 
     if args.preview_command == "demo":
-        run_server(
-            args.host, args.port, demo=True, max_fps=args.max_fps, open_browser=args.open_browser
+        renderer = ensure_frontend_server(
+            args.host, args.port, args.max_fps, open_browser=args.open_browser
         )
+        renderer.preview_demo(max_fps=args.max_fps)
+        LOGGER.info("Previewing demo scene at %s.", renderer.base_url)
     elif args.preview_command == "map":
         renderer = ensure_frontend_server(
             args.host, args.port, args.max_fps, open_browser=args.open_browser
         )
 
-        renderer.send_frame(
-            [build_map_preview_sensor(args.osm, args.lanelet2)],
-            frame=0,
-            layout="grid",
-            wait_ack=False,
-            drop_if_busy=False,
-        )
+        renderer.preview_map(args.osm, lanelet2=args.lanelet2, map_config=args.map_config)
         LOGGER.info("Previewing %s at %s", args.osm, renderer.base_url)
     elif args.preview_command == "dataset":
-        result = stream_levelx_preview(
+        renderer = ensure_frontend_server(
+            args.host, args.port, args.max_fps, open_browser=args.open_browser
+        )
+        renderer.preview_dataset(
             dataset=args.dataset,
             folder=args.folder,
             file=args.file,
             osm_path=args.osm,
             map_config=args.map_config,
-            host=args.host,
-            port=args.port,
             max_fps=args.max_fps,
-            open_browser=args.open_browser,
             lanelet2=args.lanelet2,
             frames=args.frames,
             start_time_ms=args.start_time_ms,
             ids=args.ids,
             follow_id=args.follow_id,
             perception_range=args.perception_range,
+            loop=args.loop,
         )
-        LOGGER.info(
-            "Previewing %s at %s (%s sent, %s dropped).",
-            result.sensor_id,
-            result.base_url,
-            result.sent_frames,
-            result.dropped_frames,
-        )
+        LOGGER.info("Previewing %s recording %s at %s.", args.dataset, args.file, renderer.base_url)
     else:
         raise SystemExit("Please choose a preview target, for example `tactics2d preview demo`.")
 

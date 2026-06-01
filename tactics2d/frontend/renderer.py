@@ -22,6 +22,8 @@ def _default_pid_file() -> Path:
 
 
 def _json_default(value):
+    if isinstance(value, Path):
+        return str(value)
     if hasattr(value, "x") and hasattr(value, "y"):
         return [value.x, value.y]
     if hasattr(value, "tolist"):
@@ -68,9 +70,12 @@ class FrontendRenderer:
         with request.urlopen(http_request, timeout=self.timeout) as response:
             return json.loads(response.read().decode("utf-8"))
 
-    def health(self) -> dict[str, Any]:
-        with request.urlopen(f"{self.base_url}/health", timeout=self.timeout) as response:
+    def _get(self, path: str) -> dict[str, Any]:
+        with request.urlopen(f"{self.base_url}{path}", timeout=self.timeout) as response:
             return json.loads(response.read().decode("utf-8"))
+
+    def health(self) -> dict[str, Any]:
+        return self._get("/health")
 
     def wait_until_ready(self, timeout: float = 5.0) -> bool:
         deadline = time.monotonic() + timeout
@@ -84,6 +89,65 @@ class FrontendRenderer:
 
     def set_layout(self, layout: str) -> dict[str, Any]:
         return self._post("/api/layout", {"layout": layout})
+
+    def preview_status(self) -> dict[str, Any]:
+        return self._get("/api/preview/status")
+
+    def pause_preview(self) -> dict[str, Any]:
+        return self._post("/api/preview/pause", {})
+
+    def resume_preview(self) -> dict[str, Any]:
+        return self._post("/api/preview/resume", {})
+
+    def stop_preview(self) -> dict[str, Any]:
+        return self._post("/api/preview/stop", {})
+
+    def preview_demo(self, max_fps: int | None = None) -> dict[str, Any]:
+        payload = {}
+        if max_fps is not None:
+            payload["max_fps"] = max_fps
+        return self._post("/api/preview/demo", payload)
+
+    def preview_map(
+        self, osm_path: Path | str, lanelet2: bool = True, map_config: str | None = None
+    ) -> dict[str, Any]:
+        return self._post(
+            "/api/preview/map",
+            {"osm_path": osm_path, "lanelet2": lanelet2, "map_config": map_config},
+        )
+
+    def preview_dataset(
+        self,
+        dataset: str,
+        folder: Path | str,
+        file: str | int,
+        osm_path: Path | str | None = None,
+        map_config: str | None = None,
+        lanelet2: bool = True,
+        frames: int = 300,
+        start_time_ms: int | None = None,
+        ids: Iterable[int] | str | None = None,
+        follow_id: int | None = None,
+        perception_range: float = 80.0,
+        max_fps: int | None = None,
+        loop: bool = False,
+    ) -> dict[str, Any]:
+        payload = {
+            "dataset": dataset,
+            "folder": folder,
+            "file": file,
+            "osm_path": osm_path,
+            "map_config": map_config,
+            "lanelet2": lanelet2,
+            "frames": frames,
+            "start_time_ms": start_time_ms,
+            "ids": ids,
+            "follow_id": follow_id,
+            "perception_range": perception_range,
+            "max_fps": self.max_fps if max_fps is None else max_fps,
+            "loop": loop,
+        }
+        return self._post("/api/preview/dataset", payload)
 
     def send_frame(
         self,

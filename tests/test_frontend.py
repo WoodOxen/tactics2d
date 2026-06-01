@@ -205,13 +205,26 @@ def test_demo_frame_contains_sensor_payloads():
     assert frame["sensors"][0]["viewport_aspect"] == 16 / 9
 
 
+def test_frontend_programmatic_entrypoints_are_exported():
+    import tactics2d.frontend as frontend
+
+    assert frontend.FrontendRenderer
+    assert frontend.FrontendServer
+    assert frontend.ensure_frontend_server
+    assert frontend.start_server_process
+    assert frontend.stop_server_process
+
+
 def test_cli_preview_map_arguments():
     from tactics2d.cli import parse_args
 
-    args = parse_args(["preview", "map", "tests/runtime/net2osm_net.osm", "--no-open"])
+    args = parse_args(
+        ["preview", "map", "tests/runtime/net2osm_net.osm", "--map-config", "highD_1", "--no-open"]
+    )
 
     assert args.command == "preview"
     assert args.preview_command == "map"
+    assert args.map_config == "highD_1"
     assert args.open_browser is False
 
 
@@ -231,6 +244,7 @@ def test_cli_preview_dataset_arguments():
             "--no-open",
             "--frames",
             "10",
+            "--loop",
         ]
     )
 
@@ -241,6 +255,7 @@ def test_cli_preview_dataset_arguments():
     assert args.file == "11"
     assert args.open_browser is False
     assert args.frames == 10
+    assert args.loop is True
 
 
 def test_levelx_preview_resolves_map_config_from_recording():
@@ -271,3 +286,71 @@ def test_frontend_renderer_frame_controls_are_sent():
     assert payloads[0][1]["wait_ack"] is True
     assert payloads[0][1]["drop_if_busy"] is True
     assert payloads[0][1]["sensor_id_to_remove"] == ["camera-0"]
+
+
+def test_frontend_renderer_preview_dataset_payload():
+    from tactics2d.frontend import FrontendRenderer
+
+    renderer = FrontendRenderer(max_fps=75)
+    payloads = []
+
+    def fake_post(path, payload):
+        payloads.append((path, payload))
+        return {"status": "loading"}
+
+    renderer._post = fake_post
+    renderer.preview_dataset(
+        dataset="highD",
+        folder=Path("data/highD"),
+        file="11",
+        osm_path=Path("data/highD_map/highD_1.osm"),
+        map_config="highD_1",
+        frames=120,
+        ids=[1, 2],
+        follow_id=1,
+        loop=True,
+    )
+
+    assert payloads[0][0] == "/api/preview/dataset"
+    assert payloads[0][1]["folder"] == Path("data/highD")
+    assert payloads[0][1]["max_fps"] == 75
+    assert payloads[0][1]["loop"] is True
+    assert payloads[0][1]["ids"] == [1, 2]
+
+
+def test_frontend_renderer_preview_controls_call_endpoints():
+    from tactics2d.frontend import FrontendRenderer
+
+    renderer = FrontendRenderer()
+    calls = []
+
+    def fake_get(path):
+        calls.append(("GET", path, None))
+        return {"status": "idle"}
+
+    def fake_post(path, payload):
+        calls.append(("POST", path, payload))
+        return {"status": "ok"}
+
+    renderer._get = fake_get
+    renderer._post = fake_post
+
+    assert renderer.preview_status()["status"] == "idle"
+    renderer.pause_preview()
+    renderer.resume_preview()
+    renderer.stop_preview()
+    renderer.preview_demo(max_fps=45)
+    renderer.preview_map("data/map.osm", lanelet2=False, map_config="plain")
+
+    assert calls == [
+        ("GET", "/api/preview/status", None),
+        ("POST", "/api/preview/pause", {}),
+        ("POST", "/api/preview/resume", {}),
+        ("POST", "/api/preview/stop", {}),
+        ("POST", "/api/preview/demo", {"max_fps": 45}),
+        (
+            "POST",
+            "/api/preview/map",
+            {"osm_path": "data/map.osm", "lanelet2": False, "map_config": "plain"},
+        ),
+    ]
