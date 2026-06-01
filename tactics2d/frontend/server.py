@@ -535,13 +535,49 @@ def create_app(demo: bool = False, max_fps: int = 30):
         ack_timeout = float(payload.pop("ack_timeout", 0.05))
         drop_if_busy = bool(payload.pop("drop_if_busy", False))
         frame_id = payload.get("frame", payload.get("frame_id"))
-        return await manager.publish_frame(
+
+        if app.state.preview_status.get("source") != "live":
+            await _stop_preview_tasks(app)
+            app.state.preview_pause_event = asyncio.Event()
+            app.state.preview_pause_event.set()
+
+        if not app.state.preview_pause_event.is_set():
+            app.state.preview_status.update(
+                {
+                    "status": "paused",
+                    "source": "live",
+                    "paused": True,
+                    "frame": frame_id,
+                    "message": "paused",
+                }
+            )
+            return {
+                "status": "paused",
+                "delivered": 0,
+                "acked": False,
+                "frame_id": frame_id,
+                "dropped_frames": manager.dropped_frames,
+            }
+
+        result = await manager.publish_frame(
             payload,
             frame_id=frame_id,
             wait_ack=wait_ack,
             ack_timeout=ack_timeout,
             drop_if_busy=drop_if_busy,
         )
+        app.state.preview_status.update(
+            {
+                "status": "running",
+                "source": "live",
+                "paused": False,
+                "frame": frame_id,
+                "sensor_count": len(payload.get("sensors", [])),
+                "dropped_frames": result.get("dropped_frames", manager.dropped_frames),
+                "message": "live streaming",
+            }
+        )
+        return result
 
     @app.post("/api/layout")
     async def set_layout(request: Request):
@@ -595,6 +631,26 @@ def create_app(demo: bool = False, max_fps: int = 30):
             "source": "demo",
             "paused": False,
             "message": "demo running",
+        }
+        return app.state.preview_status
+
+    @app.post("/api/preview/live")
+    async def start_live_preview():
+        await _stop_preview_tasks(app)
+        app.state.preview_pause_event = asyncio.Event()
+        app.state.preview_pause_event.set()
+        result = await manager.publish_frame(
+            {"frame": None, "layout": "grid", "sensors": [], "remove_missing_sensors": True},
+            frame_id=None,
+            wait_ack=False,
+            drop_if_busy=False,
+        )
+        app.state.preview_status = {
+            "status": "running",
+            "source": "live",
+            "paused": False,
+            "message": "waiting live stream",
+            "result": result,
         }
         return app.state.preview_status
 

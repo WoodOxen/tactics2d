@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tactics2D Frontend</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260601-ui7">
+  <link rel="stylesheet" href="/static/styles.css?v=20260601-ui8">
   <script type="importmap">
     {
       "imports": {
@@ -12,7 +12,7 @@
       }
     }
   </script>
-  <script type="module" src="/static/app.js?v=20260601-ui7"></script>
+  <script type="module" src="/static/app.js?v=20260601-ui8"></script>
 </head>
 <body>
   <header class="toolbar">
@@ -34,7 +34,7 @@
       <div class="source-tabs" role="tablist" aria-label="场景">
         <button class="is-active" type="button" data-source-tab="dataset" role="tab" aria-selected="true">数据集</button>
         <button type="button" data-source-tab="map" role="tab" aria-selected="false">地图</button>
-        <button type="button" data-source-tab="demo" role="tab" aria-selected="false">示例</button>
+        <button type="button" data-source-tab="live" role="tab" aria-selected="false">实时</button>
       </div>
 
       <form id="dataset-form" class="preview-form" data-source-panel="dataset" role="tabpanel">
@@ -118,12 +118,8 @@
         <button class="primary-button" type="submit">加载地图</button>
       </form>
 
-      <div id="demo-panel" class="preview-form is-hidden" data-source-panel="demo" role="tabpanel" hidden>
-        <div class="field">
-          <label for="demo-max-fps">FPS</label>
-          <input id="demo-max-fps" name="max_fps" type="number" min="1" max="100" value="30">
-        </div>
-        <button id="demo-button" class="primary-button" type="button">播放示例</button>
+      <div id="live-panel" class="preview-form is-hidden" data-source-panel="live" role="tabpanel" hidden>
+        <button id="live-button" class="primary-button" type="button">进入实时</button>
       </div>
 
     </aside>

@@ -194,6 +194,57 @@ def test_preview_pause_and_resume_endpoints():
     assert response.json()["paused"] is False
 
 
+def test_live_preview_endpoint_sets_live_status():
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    from tactics2d.frontend.server import create_app
+
+    client = TestClient(create_app())
+    response = client.post("/api/preview/live", json={})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "running"
+    assert response.json()["source"] == "live"
+    assert client.get("/api/preview/status").json()["source"] == "live"
+
+
+def test_frame_endpoint_marks_programmatic_stream_as_live():
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    from tactics2d.frontend.server import create_app
+
+    client = TestClient(create_app())
+    response = client.post("/api/frame", json={"frame": 42, "sensors": [{"id": "camera"}]})
+
+    assert response.status_code == 200
+    status = client.get("/api/preview/status").json()
+    assert status["status"] == "running"
+    assert status["source"] == "live"
+    assert status["frame"] == 42
+    assert status["sensor_count"] == 1
+
+
+def test_paused_live_preview_drops_programmatic_frames():
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    from tactics2d.frontend.server import create_app
+
+    client = TestClient(create_app())
+    client.post("/api/preview/live", json={})
+    client.post("/api/preview/pause", json={})
+    response = client.post("/api/frame", json={"frame": 43, "sensors": [{"id": "camera"}]})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "paused"
+    assert client.get("/api/preview/status").json()["paused"] is True
+
+
 def test_demo_frame_contains_sensor_payloads():
     from tactics2d.frontend.server import _demo_frame
 

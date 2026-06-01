@@ -253,7 +253,7 @@ class PreviewControls {
     this.sourceButtons = Array.from(document.querySelectorAll("[data-source-tab]"));
     this.datasetForm = document.getElementById("dataset-form");
     this.mapForm = document.getElementById("map-form");
-    this.demoPanel = document.getElementById("demo-panel");
+    this.livePanel = document.getElementById("live-panel");
     this.datasetSelect = document.getElementById("dataset-select");
     this.datasetMapConfig = document.getElementById("dataset-map-config");
     this.mapConfig = document.getElementById("map-config");
@@ -286,7 +286,7 @@ class PreviewControls {
       event.preventDefault();
       this.loadMapPreview();
     });
-    document.getElementById("demo-button").addEventListener("click", () => this.startDemo());
+    document.getElementById("live-button").addEventListener("click", () => this.startLive());
     this.pauseButton.addEventListener("click", () => this.togglePause());
     document.getElementById("stop-preview").addEventListener("click", () => this.stopPreview());
   }
@@ -432,12 +432,10 @@ class PreviewControls {
     }
   }
 
-  async startDemo() {
+  async startLive() {
     try {
-      this.setStatus("播放示例", "running");
-      await this.request("/api/preview/demo", {
-        max_fps: Number(document.getElementById("demo-max-fps").value || 30)
-      });
+      this.setStatus("等待实时帧", "running");
+      await this.request("/api/preview/live", {});
       await this.refreshStatus();
     } catch (error) {
       this.setStatus(error.message, "error");
@@ -499,7 +497,7 @@ class PreviewControls {
       return;
     }
     if (status.status === "running") {
-      this.setStatus(status.source === "demo" ? "示例播放中" : "运行中", "running");
+      this.setStatus(status.source === "live" ? "实时输出中" : "运行中", "running");
       return;
     }
     if (status.status === "loading") {
