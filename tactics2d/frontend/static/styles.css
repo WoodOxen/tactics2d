@@ -145,8 +145,35 @@ body {
   margin-top: 12px;
 }
 
-.preview-form.is-hidden {
+.preview-form.is-hidden,
+.preview-form[hidden] {
   display: none;
+}
+
+.source-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.source-tabs button {
+  min-width: 0;
+  height: 34px;
+  border: 1px solid #3d423c;
+  border-radius: 6px;
+  background: #111311;
+  color: #c8d0ca;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.source-tabs button:hover,
+.source-tabs button.is-active {
+  border-color: #57b6a8;
+  background: #20302d;
+  color: #bff4ec;
 }
 
 .field {

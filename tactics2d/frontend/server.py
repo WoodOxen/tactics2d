@@ -470,7 +470,7 @@ def create_app(demo: bool = False, max_fps: int = 30):
 
     @app.get("/")
     async def index():
-        return FileResponse(static_dir / "index.html")
+        return FileResponse(static_dir / "index.html", headers={"Cache-Control": "no-store"})
 
     @app.get("/health")
     async def health():

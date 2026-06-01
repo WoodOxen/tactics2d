@@ -4,15 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tactics2D Frontend</title>
-  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/styles.css?v=20260601-ui2">
   <script type="importmap">
     {
       "imports": {
-        "three": "/static/vendor/three.module.js"
+        "three": "/static/vendor/three.module.js?v=0.164.1"
       }
     }
   </script>
-  <script type="module" src="/static/app.js"></script>
+  <script type="module" src="/static/app.js?v=20260601-ui2"></script>
 </head>
 <body>
   <header class="toolbar">
@@ -25,16 +25,13 @@
   </header>
   <div class="workspace">
     <aside class="control-panel">
-      <div class="field">
-        <label for="preview-source">场景</label>
-        <select id="preview-source">
-          <option value="dataset">数据集</option>
-          <option value="map">地图</option>
-          <option value="demo">示例</option>
-        </select>
+      <div class="source-tabs" role="tablist" aria-label="场景">
+        <button class="is-active" type="button" data-source-tab="dataset" role="tab" aria-selected="true">数据集</button>
+        <button type="button" data-source-tab="map" role="tab" aria-selected="false">地图</button>
+        <button type="button" data-source-tab="demo" role="tab" aria-selected="false">示例</button>
       </div>
 
-      <form id="dataset-form" class="preview-form" data-source-panel="dataset">
+      <form id="dataset-form" class="preview-form" data-source-panel="dataset" role="tabpanel">
         <div class="field">
           <label for="dataset-select">数据集</label>
           <select id="dataset-select" name="dataset"></select>
@@ -95,7 +92,7 @@
         <button class="primary-button" type="submit">加载数据集</button>
       </form>
 
-      <form id="map-form" class="preview-form is-hidden" data-source-panel="map">
+      <form id="map-form" class="preview-form is-hidden" data-source-panel="map" role="tabpanel" hidden>
         <div class="field">
           <label for="map-osm">OSM路径</label>
           <input id="map-osm" name="osm_path" autocomplete="off">
@@ -111,7 +108,7 @@
         <button class="primary-button" type="submit">加载地图</button>
       </form>
 
-      <div id="demo-panel" class="preview-form is-hidden" data-source-panel="demo">
+      <div id="demo-panel" class="preview-form is-hidden" data-source-panel="demo" role="tabpanel" hidden>
         <div class="field">
           <label for="demo-max-fps">FPS</label>
           <input id="demo-max-fps" name="max_fps" type="number" min="1" max="100" value="30">

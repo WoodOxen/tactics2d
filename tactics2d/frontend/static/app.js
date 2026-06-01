@@ -232,7 +232,8 @@ class SensorView {
 
 class PreviewControls {
   constructor() {
-    this.sourceSelect = document.getElementById("preview-source");
+    this.source = "dataset";
+    this.sourceButtons = Array.from(document.querySelectorAll("[data-source-tab]"));
     this.datasetForm = document.getElementById("dataset-form");
     this.mapForm = document.getElementById("map-form");
     this.demoPanel = document.getElementById("demo-panel");
@@ -248,7 +249,9 @@ class PreviewControls {
   }
 
   bind() {
-    this.sourceSelect.addEventListener("change", () => this.showSource(this.sourceSelect.value));
+    this.sourceButtons.forEach((button) => {
+      button.addEventListener("click", () => this.showSource(button.dataset.sourceTab));
+    });
     this.datasetSelect.addEventListener("change", () => this.updateDatasetMapConfigs());
     document
       .getElementById("dataset-file")
@@ -288,7 +291,7 @@ class PreviewControls {
       this.populateDefaults();
       this.updateDatasetMapConfigs();
       this.updateMapConfigSelect();
-      this.showSource(this.sourceSelect.value);
+      this.showSource(this.source);
     } catch (error) {
       this.setStatus(error.message, "error");
     }
@@ -346,8 +349,16 @@ class PreviewControls {
   }
 
   showSource(source) {
+    this.source = source;
+    this.sourceButtons.forEach((button) => {
+      const isActive = button.dataset.sourceTab === source;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
     document.querySelectorAll("[data-source-panel]").forEach((panel) => {
-      panel.classList.toggle("is-hidden", panel.getAttribute("data-source-panel") !== source);
+      const isHidden = panel.getAttribute("data-source-panel") !== source;
+      panel.hidden = isHidden;
+      panel.classList.toggle("is-hidden", isHidden);
     });
   }
 
