@@ -39,7 +39,9 @@ class ConnectionManager:
         self._dropped_frames = 0
         self._last_ack = None
         self._last_frame_message = None
+        self._last_snapshot_message = None
         self._last_frame_id = None
+        self._sensor_snapshots = {}
 
     @property
     def client_count(self) -> int:
@@ -115,6 +117,11 @@ class ConnectionManager:
             "frame_id": frame_id,
             "payload": payload,
         }
+        self._last_snapshot_message = {
+            "type": "frame.update",
+            "frame_id": frame_id,
+            "payload": self._snapshot_payload(payload),
+        }
         delivered = await self.broadcast(self._last_frame_message)
         acked = delivered == 0
         if acked:
@@ -146,6 +153,69 @@ class ConnectionManager:
             return True
         except asyncio.TimeoutError:
             return False
+
+    def _snapshot_payload(self, payload: dict) -> dict:
+        sensor_id_to_remove = set(payload.get("sensor_id_to_remove", []))
+        for sensor_id in sensor_id_to_remove:
+            self._sensor_snapshots.pop(sensor_id, None)
+
+        sensors = payload.get("sensors", [])
+        if payload.get("remove_missing_sensors", True):
+            active_sensor_ids = {sensor.get("id") for sensor in sensors}
+            for sensor_id in list(self._sensor_snapshots):
+                if sensor_id not in active_sensor_ids:
+                    self._sensor_snapshots.pop(sensor_id, None)
+
+        for sensor in sensors:
+            sensor_id = sensor.get("id")
+            if sensor_id is None:
+                continue
+
+            snapshot = self._sensor_snapshots.get(
+                sensor_id, {"sensor": {"id": sensor_id}, "roads": {}, "participants": {}}
+            )
+            sensor_snapshot = dict(snapshot["sensor"])
+            for key, value in sensor.items():
+                if key not in {"map_data", "participant_data"}:
+                    sensor_snapshot[key] = value
+
+            roads = dict(snapshot["roads"])
+            map_data = sensor.get("map_data")
+            if map_data is not None:
+                for road_id in map_data.get("road_id_to_remove", []):
+                    roads.pop(road_id, None)
+                for road_element in map_data.get("road_elements", []):
+                    roads[road_element["id"]] = road_element
+
+            participants = dict(snapshot["participants"])
+            participant_data = sensor.get("participant_data")
+            if participant_data is not None:
+                for participant_id in participant_data.get("participant_id_to_remove", []):
+                    participants.pop(participant_id, None)
+                for participant in participant_data.get("participants", []):
+                    participants[participant["id"]] = participant
+
+            sensor_snapshot["map_data"] = {
+                "road_id_to_remove": [],
+                "road_elements": list(roads.values()),
+            }
+            sensor_snapshot["participant_data"] = {
+                "participant_id_to_create": list(participants.keys()),
+                "participant_id_to_remove": [],
+                "participants": list(participants.values()),
+            }
+            self._sensor_snapshots[sensor_id] = {
+                "sensor": sensor_snapshot,
+                "roads": roads,
+                "participants": participants,
+            }
+
+        snapshot_payload = dict(payload)
+        snapshot_payload["sensor_id_to_remove"] = []
+        snapshot_payload["sensors"] = [
+            snapshot["sensor"] for snapshot in self._sensor_snapshots.values()
+        ]
+        return snapshot_payload
 
 
 def _frontend_static_dir() -> Path:
@@ -310,8 +380,8 @@ def create_app(demo: bool = False, max_fps: int = 30):
         await websocket.send_text(
             orjson.dumps({"type": "client.count", "clients": manager.client_count}).decode("utf-8")
         )
-        if manager._last_frame_message is not None:
-            await websocket.send_text(orjson.dumps(manager._last_frame_message).decode("utf-8"))
+        if manager._last_snapshot_message is not None:
+            await websocket.send_text(orjson.dumps(manager._last_snapshot_message).decode("utf-8"))
         try:
             while True:
                 raw_message = await websocket.receive_text()

@@ -3,6 +3,8 @@
 
 """Frontend server smoke tests."""
 
+from pathlib import Path
+
 import pytest
 
 
@@ -75,6 +77,71 @@ def test_frontend_replays_latest_frame_to_new_browser():
     assert cached_frame["frame_id"] == 15
 
 
+def test_frontend_replays_snapshot_to_new_browser():
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    from tactics2d.frontend.server import create_app
+
+    first_frame = {
+        "frame": 1,
+        "sensors": [
+            {
+                "id": "camera-1",
+                "perception_range": 50,
+                "position": [0, 0],
+                "map_data": {
+                    "road_id_to_remove": [],
+                    "road_elements": [
+                        {
+                            "id": 10,
+                            "shape": "line",
+                            "geometry": [[0, 0], [1, 1]],
+                            "color": "roadline",
+                            "type": "roadline",
+                        }
+                    ],
+                },
+                "participant_data": {
+                    "participant_id_to_create": [1],
+                    "participant_id_to_remove": [],
+                    "participants": [{"id": 1, "shape": "circle", "position": [0, 0]}],
+                },
+            }
+        ],
+    }
+    next_frame = {
+        "frame": 2,
+        "sensors": [
+            {
+                "id": "camera-1",
+                "perception_range": 50,
+                "position": [1, 0],
+                "map_data": {"road_id_to_remove": [], "road_elements": []},
+                "participant_data": {
+                    "participant_id_to_create": [],
+                    "participant_id_to_remove": [],
+                    "participants": [{"id": 1, "shape": "circle", "position": [1, 0]}],
+                },
+            }
+        ],
+    }
+
+    client = TestClient(create_app())
+    client.post("/api/frame", json=first_frame)
+    client.post("/api/frame", json=next_frame)
+
+    with client.websocket_connect("/ws") as websocket:
+        assert websocket.receive_json()["type"] == "client.count"
+        cached_frame = websocket.receive_json()
+
+    sensor = cached_frame["payload"]["sensors"][0]
+    assert cached_frame["frame_id"] == 2
+    assert sensor["map_data"]["road_elements"][0]["id"] == 10
+    assert sensor["participant_data"]["participants"][0]["position"] == [1, 0]
+
+
 def test_demo_frame_contains_sensor_payloads():
     from tactics2d.frontend.server import _demo_frame
 
@@ -93,6 +160,43 @@ def test_cli_preview_map_arguments():
     assert args.command == "preview"
     assert args.preview_command == "map"
     assert args.open_browser is False
+
+
+def test_cli_preview_dataset_arguments():
+    from tactics2d.cli import parse_args
+
+    args = parse_args(
+        [
+            "preview",
+            "dataset",
+            "--dataset",
+            "highD",
+            "--folder",
+            "data/highD",
+            "--file",
+            "11",
+            "--no-open",
+            "--frames",
+            "10",
+        ]
+    )
+
+    assert args.command == "preview"
+    assert args.preview_command == "dataset"
+    assert args.dataset == "highD"
+    assert args.folder == Path("data/highD")
+    assert args.file == "11"
+    assert args.open_browser is False
+    assert args.frames == 10
+
+
+def test_levelx_preview_resolves_map_config_from_recording():
+    from tactics2d.frontend.preview import resolve_levelx_map_config
+
+    name, config = resolve_levelx_map_config("highD", "11")
+
+    assert name == "highD_1"
+    assert config["osm_file"] == "highD_1.osm"
 
 
 def test_frontend_renderer_frame_controls_are_sent():

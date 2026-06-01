@@ -68,6 +68,7 @@ class SensorView {
     this.scene.background = new THREE.Color(COLORS.hole);
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.domElement.addEventListener("webglcontextrestored", () => this.resize());
     this.element.appendChild(this.renderer.domElement);
 
     this.camera = new THREE.OrthographicCamera(-50, 50, 50, -50, 0.1, 1000);
@@ -282,6 +283,7 @@ class RenderManager {
         sensorView = new SensorView(sensor);
         this.sensors.set(sensor.id, sensorView);
         this.container.appendChild(sensorView.element);
+        sensorView.resize();
       }
       sensorView.update(sensor);
     });
