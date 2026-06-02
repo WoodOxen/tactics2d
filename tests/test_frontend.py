@@ -166,7 +166,7 @@ def test_preview_map_endpoint_publishes_frame():
 
     client = TestClient(create_app())
     response = client.post(
-        "/api/preview/map", json={"osm_path": "tests/runtime/net2osm_net.osm", "lanelet2": True}
+        "/api/preview/map", json={"osm_path": "tests/cases/OsmSamples/cross.osm", "lanelet2": True}
     )
 
     assert response.status_code == 200
@@ -318,7 +318,14 @@ def test_cli_preview_map_arguments():
     from tactics2d.cli import parse_args
 
     args = parse_args(
-        ["preview", "map", "tests/runtime/net2osm_net.osm", "--map-config", "highD_1", "--no-open"]
+        [
+            "preview",
+            "map",
+            "tests/cases/OsmSamples/cross.osm",
+            "--map-config",
+            "highD_1",
+            "--no-open",
+        ]
     )
 
     assert args.command == "preview"
