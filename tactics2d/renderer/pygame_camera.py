@@ -102,7 +102,7 @@ class TopDownCamera(PygameSensorBase):
             pygame.draw.polygon(self.map_surface, color, outer_points)
             for inner_points in inner_list:
                 pygame.draw.polygon(
-                    self.map_surface, pygame.Color(DEFAULT_COLOR["hole"]), inner_points
+                    self.map_surface, pygame.Color(DEFAULT_COLOR["hole"]), list(inner_points.coords)
                 )
 
     def _render_lanes(self):
