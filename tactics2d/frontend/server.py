@@ -224,6 +224,34 @@ class ConnectionManager:
         return snapshot_payload
 
 
+class _PreviewPauseEvent:
+    """Delay asyncio.Event creation until code is inside an event loop."""
+
+    def __init__(self, is_set: bool = True):
+        self._is_set = is_set
+        self._event = None
+
+    def is_set(self) -> bool:
+        return self._event.is_set() if self._event is not None else self._is_set
+
+    def set(self) -> None:
+        self._is_set = True
+        if self._event is not None:
+            self._event.set()
+
+    def clear(self) -> None:
+        self._is_set = False
+        if self._event is not None:
+            self._event.clear()
+
+    async def wait(self) -> None:
+        if self._event is None:
+            self._event = asyncio.Event()
+            if self._is_set:
+                self._event.set()
+        await self._event.wait()
+
+
 def _frontend_static_dir() -> Path:
     return Path(__file__).resolve().parent / "static"
 
@@ -515,8 +543,7 @@ def create_app(demo: bool = False, max_fps: int = 30):
     app.state.connection_manager = manager
     app.state.demo_task = None
     app.state.preview_task = None
-    app.state.preview_pause_event = asyncio.Event()
-    app.state.preview_pause_event.set()
+    app.state.preview_pause_event = _PreviewPauseEvent(is_set=True)
     app.state.preview_status = {
         "status": "running",
         "source": "live",
