@@ -10,6 +10,7 @@ import asyncio
 import logging
 import math
 from contextlib import asynccontextmanager
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +29,11 @@ except ImportError:
     StaticFiles = None
 
 LOGGER = logging.getLogger(__name__)
+
+
+async def _to_thread(func, /, *args, **kwargs):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, partial(func, *args, **kwargs))
 
 
 class ConnectionManager:
@@ -293,7 +299,7 @@ async def _run_levelx_dataset_preview(
 
     try:
         status.update({"status": "loading", "message": "loading dataset"})
-        scene = await asyncio.to_thread(
+        scene = await _to_thread(
             load_levelx_preview_scene,
             dataset=payload["dataset"],
             folder=Path(payload["folder"]),
@@ -335,7 +341,7 @@ async def _run_levelx_dataset_preview(
                 status.update({"status": "running", "paused": False, "message": "streaming"})
 
                 started = asyncio.get_running_loop().time()
-                sensor = await asyncio.to_thread(scene.sensor_for_frame, frame)
+                sensor = await _to_thread(scene.sensor_for_frame, frame)
                 result = await manager.publish_frame(
                     {
                         "frame": frame,
@@ -668,7 +674,7 @@ def create_app(demo: bool = False, max_fps: int = 30):
         payload = await request.json()
         await _stop_preview_tasks(app)
         configs = _map_config_from_name(payload.get("map_config"))
-        sensor = await asyncio.to_thread(
+        sensor = await _to_thread(
             build_map_preview_sensor,
             Path(payload["osm_path"]),
             bool(payload.get("lanelet2", True)),
