@@ -3,6 +3,26 @@
 
 """Behavior module."""
 
+from .bits import (
+    BitsBatchBuilder,
+    BitsBehaviorModel,
+    BitsConfig,
+    BitsRasterizer,
+    BitsRollingRunner,
+    BitsSampleDataset,
+    NuPlanBitsDataset,
+    evaluate_bits_rolling_result,
+)
 from .limsim import LimSimBehaviorModel
 
-__all__ = ["LimSimBehaviorModel"]
+__all__ = [
+    "BitsBatchBuilder",
+    "BitsBehaviorModel",
+    "BitsConfig",
+    "BitsRasterizer",
+    "BitsRollingRunner",
+    "BitsSampleDataset",
+    "NuPlanBitsDataset",
+    "evaluate_bits_rolling_result",
+    "LimSimBehaviorModel",
+]
