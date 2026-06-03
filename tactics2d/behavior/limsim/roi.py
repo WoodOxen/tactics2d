@@ -145,8 +145,7 @@ class RoISelector:
 
         _, _, anchor_state = min(scored, key=lambda item: item[0])
         ordered = sorted(
-            active,
-            key=lambda item: euclidean_distance(item[1].location, anchor_state.location),
+            active, key=lambda item: euclidean_distance(item[1].location, anchor_state.location)
         )
         agent_ids = [agent_id for agent_id, _ in ordered[:max_agents]]
         return RoISelection(agent_ids=agent_ids, center=anchor_state.location)

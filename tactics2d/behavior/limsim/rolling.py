@@ -73,9 +73,7 @@ class LimSimRollingRunner:
             ego_id=ego_id,
         )
         simulated_participants = self._clone_participants_at_frame(
-            participants,
-            frame,
-            simulation_agent_ids,
+            participants, frame, simulation_agent_ids
         )
         frames = [frame]
         results = []
@@ -99,10 +97,7 @@ class LimSimRollingRunner:
             )
             results.append(result)
             self._update_committed_trajectories(
-                result,
-                frame,
-                committed_trajectories,
-                committed_actions,
+                result, frame, committed_trajectories, committed_actions
             )
             predictions.append(
                 self.behavior_model.predictor.predict(
@@ -115,17 +110,9 @@ class LimSimRollingRunner:
             )
             next_frame = self._next_frame(frame)
             self._advance_participants(
-                simulated_participants,
-                map_,
-                frame,
-                next_frame,
-                result,
-                committed_trajectories,
+                simulated_participants, map_, frame, next_frame, result, committed_trajectories
             )
-            last_planned_trajectories = self._prediction_memory(
-                result,
-                committed_trajectories,
-            )
+            last_planned_trajectories = self._prediction_memory(result, committed_trajectories)
             frame = next_frame
             frames.append(frame)
 
@@ -152,11 +139,7 @@ class LimSimRollingRunner:
             return None
         if ego_id is not None:
             selection = RoISelector.select_around_agent(
-                participants,
-                frame,
-                ego_id=ego_id,
-                radius=roi_radius,
-                outer_radius=roi_outer_radius,
+                participants, frame, ego_id=ego_id, radius=roi_radius, outer_radius=roi_outer_radius
             )
         elif roi_center is not None:
             selection = RoISelector.select_by_radius(
@@ -185,9 +168,7 @@ class LimSimRollingRunner:
             initial_state = participant.trajectory.get_state(frame)
             clone = copy(participant)
             clone.trajectory = Trajectory(
-                id_=participant.trajectory.id_,
-                fps=round(1.0 / self.config.dt, 3),
-                stable_freq=True,
+                id_=participant.trajectory.id_, fps=round(1.0 / self.config.dt, 3), stable_freq=True
             )
             clone.trajectory.add_state(
                 State(
@@ -241,7 +222,9 @@ class LimSimRollingRunner:
                     vy=planned_state.vy,
                 )
             elif agent_id in background_next_states:
-                next_state = self._state_from_decision_state(background_next_states[agent_id], next_frame)
+                next_state = self._state_from_decision_state(
+                    background_next_states[agent_id], next_frame
+                )
 
             if next_state is not None:
                 participant.trajectory.add_state(next_state)
@@ -255,7 +238,9 @@ class LimSimRollingRunner:
     ) -> None:
         next_frame = self._next_frame(frame)
         for agent_id in list(committed_trajectories):
-            if agent_id not in result.actions or not committed_trajectories[agent_id].has_state(next_frame):
+            if agent_id not in result.actions or not committed_trajectories[agent_id].has_state(
+                next_frame
+            ):
                 committed_trajectories.pop(agent_id, None)
                 committed_actions.pop(agent_id, None)
                 continue
@@ -264,19 +249,14 @@ class LimSimRollingRunner:
         for agent_id, action in result.actions.items():
             if not action.is_lane_change:
                 continue
-            if (
-                agent_id not in committed_trajectories
-                or committed_actions.get(agent_id) != action
-            ):
+            if agent_id not in committed_trajectories or committed_actions.get(agent_id) != action:
                 trajectory = result.trajectories.get(agent_id)
                 if trajectory is not None:
                     committed_trajectories[agent_id] = trajectory
                     committed_actions[agent_id] = action
 
     def _prediction_memory(
-        self,
-        result: PlanningResult,
-        committed_trajectories: Dict[object, Trajectory],
+        self, result: PlanningResult, committed_trajectories: Dict[object, Trajectory]
     ) -> Dict[object, Trajectory]:
         memory = dict(result.trajectories)
         for agent_id, trajectory in committed_trajectories.items():

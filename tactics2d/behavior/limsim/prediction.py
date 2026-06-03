@@ -40,9 +40,7 @@ class LimSimPredictor:
         prediction = {}
         selected_ids = list(participants.keys()) if agent_ids is None else list(agent_ids)
         for agent_id in selected_ids:
-            remaining = self._remaining_trajectory(
-                agent_id, frame, last_planned_trajectories or {}
-            )
+            remaining = self._remaining_trajectory(agent_id, frame, last_planned_trajectories or {})
             if remaining is not None:
                 prediction[agent_id] = remaining
                 continue
@@ -57,10 +55,7 @@ class LimSimPredictor:
         return prediction
 
     def _remaining_trajectory(
-        self,
-        agent_id: object,
-        frame: int,
-        last_planned_trajectories: Dict[object, Trajectory],
+        self, agent_id: object, frame: int, last_planned_trajectories: Dict[object, Trajectory]
     ) -> Optional[Trajectory]:
         trajectory = last_planned_trajectories.get(agent_id)
         if trajectory is None:

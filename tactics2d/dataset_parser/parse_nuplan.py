@@ -135,8 +135,16 @@ class NuPlanParser:
                     "height": row["height"],
                 }
 
+            timestamp_filter = ""
+            timestamp_params = ()
+            if np.isfinite(time_range[0]) and np.isfinite(time_range[1]):
+                start_timestamp = int((time_range[0] + self._DATETIME) * 1000)
+                end_timestamp = int((time_range[1] + self._DATETIME) * 1000)
+                timestamp_filter = "WHERE lidar_pc.timestamp BETWEEN ? AND ?"
+                timestamp_params = (start_timestamp, end_timestamp)
+
             cursor.execute(
-                """
+                f"""
                 SELECT
                     lidar_box.track_token AS track_token,
                     lidar_box.x AS x,
@@ -153,8 +161,10 @@ class NuPlanParser:
                     lidar_pc.timestamp AS timestamp
                 FROM lidar_box
                 INNER JOIN lidar_pc ON lidar_pc.token = lidar_box.lidar_pc_token
+                {timestamp_filter}
                 ORDER BY lidar_pc.timestamp
-                """
+                """,
+                timestamp_params,
             )
             for row in cursor.fetchall():
                 time_stamp = int(row["timestamp"] / 1000 - self._DATETIME)

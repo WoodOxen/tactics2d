@@ -39,17 +39,15 @@ class FrenetCandidate:
 class QuinticPolynomial:
     """Quintic polynomial with position, velocity, and acceleration boundary values."""
 
-    def __init__(self, x0: float, dx0: float, ddx0: float, x1: float, dx1: float, ddx1: float, t: float):
+    def __init__(
+        self, x0: float, dx0: float, ddx0: float, x1: float, dx1: float, ddx1: float, t: float
+    ):
         self.coeffs = np.zeros(6)
         self.coeffs[0] = x0
         self.coeffs[1] = dx0
         self.coeffs[2] = 0.5 * ddx0
         matrix = np.array(
-            [
-                [t**3, t**4, t**5],
-                [3 * t**2, 4 * t**3, 5 * t**4],
-                [6 * t, 12 * t**2, 20 * t**3],
-            ],
+            [[t**3, t**4, t**5], [3 * t**2, 4 * t**3, 5 * t**4], [6 * t, 12 * t**2, 20 * t**3]],
             dtype=float,
         )
         vector = np.array(
@@ -84,19 +82,9 @@ class QuarticPolynomial:
         self.coeffs[0] = x0
         self.coeffs[1] = dx0
         self.coeffs[2] = 0.5 * ddx0
-        matrix = np.array(
-            [
-                [3 * t**2, 4 * t**3],
-                [6 * t, 12 * t**2],
-            ],
-            dtype=float,
-        )
+        matrix = np.array([[3 * t**2, 4 * t**3], [6 * t, 12 * t**2]], dtype=float)
         vector = np.array(
-            [
-                dx1 - self.coeffs[1] - 2 * self.coeffs[2] * t,
-                ddx1 - 2 * self.coeffs[2],
-            ],
-            dtype=float,
+            [dx1 - self.coeffs[1] - 2 * self.coeffs[2] * t, ddx1 - 2 * self.coeffs[2]], dtype=float
         )
         self.coeffs[3:] = np.linalg.solve(matrix, vector)
 
@@ -143,7 +131,9 @@ class FrenetTrajectoryPlanner:
         )
         if not candidates:
             return self.fallback.rollout(agent, action, map_)
-        stop_target = self._nearest_required_stop_target(agent, reference_path, map_, time_ms=time_ms)
+        stop_target = self._nearest_required_stop_target(
+            agent, reference_path, map_, time_ms=time_ms
+        )
         if stop_target is not None:
             candidates.append(
                 self._stop_target_candidate(
@@ -158,7 +148,9 @@ class FrenetTrajectoryPlanner:
                 )
             )
         best_candidate = min(candidates, key=lambda candidate: candidate.cost)
-        if obstacle_trajectories and self._has_collision(best_candidate.states, obstacle_trajectories):
+        if obstacle_trajectories and self._has_collision(
+            best_candidate.states, obstacle_trajectories
+        ):
             candidates.append(self._stop_candidate(agent, action, obstacle_trajectories, map_))
         return min(candidates, key=lambda candidate: candidate.cost).states
 
@@ -185,7 +177,9 @@ class FrenetTrajectoryPlanner:
 
         candidates = []
         for speed_offset in self.config.frenet_target_speed_offsets:
-            target_speed = float(np.clip(nominal_speed + speed_offset, self.config.min_speed, self.config.max_speed))
+            target_speed = float(
+                np.clip(nominal_speed + speed_offset, self.config.min_speed, self.config.max_speed)
+            )
             for lateral_offset in self._sample_lateral_offsets(nominal_d, action):
                 states, accel_cost, jerk_cost = self._build_states(
                     agent,
@@ -231,7 +225,9 @@ class FrenetTrajectoryPlanner:
         duration: float,
         map_: Optional[Map],
     ) -> Tuple[List[AgentDecisionState], float, float]:
-        longitudinal = QuarticPolynomial(start.s, agent.speed, action.acceleration, target_speed, 0.0, duration)
+        longitudinal = QuarticPolynomial(
+            start.s, agent.speed, action.acceleration, target_speed, 0.0, duration
+        )
         lateral = QuinticPolynomial(start.d, 0.0, 0.0, target_d, 0.0, 0.0, duration)
 
         raw = []
@@ -301,7 +297,11 @@ class FrenetTrajectoryPlanner:
         if not neighbor_ids:
             return 0.0
         neighbor = map_.lanes.get(sorted(neighbor_ids)[0])
-        neighbor_width = _lane_width(neighbor, self.config.default_lane_width) if neighbor is not None else reference_path.lane_width
+        neighbor_width = (
+            _lane_width(neighbor, self.config.default_lane_width)
+            if neighbor is not None
+            else reference_path.lane_width
+        )
         signed_distance = 0.5 * (reference_path.lane_width + neighbor_width)
         return signed_distance if action == LimSimAction.LCL else -signed_distance
 
@@ -313,11 +313,7 @@ class FrenetTrajectoryPlanner:
         return [float(nominal_d + offset) for offset in self.config.frenet_lateral_offsets]
 
     def _lane_id_for_offset(
-        self,
-        agent: AgentDecisionState,
-        d: float,
-        action: LimSimAction,
-        map_: Optional[Map],
+        self, agent: AgentDecisionState, d: float, action: LimSimAction, map_: Optional[Map]
     ) -> Optional[str]:
         if action not in {LimSimAction.LCL, LimSimAction.LCR}:
             return agent.lane_id
@@ -346,8 +342,12 @@ class FrenetTrajectoryPlanner:
         cost = 0.0
         cost += self.config.frenet_accel_weight * accel_cost
         cost += self.config.frenet_jerk_weight * jerk_cost
-        cost += self.config.frenet_speed_weight * sum((state.speed - target_speed) ** 2 for state in states)
-        cost += self.config.frenet_lateral_weight * sum((state.lateral_offset - nominal_d) ** 2 for state in states)
+        cost += self.config.frenet_speed_weight * sum(
+            (state.speed - target_speed) ** 2 for state in states
+        )
+        cost += self.config.frenet_lateral_weight * sum(
+            (state.lateral_offset - nominal_d) ** 2 for state in states
+        )
 
         for step, state in enumerate(states):
             ego_shape = _footprint(state)
@@ -359,12 +359,15 @@ class FrenetTrajectoryPlanner:
                 if ego_shape.intersects(_footprint(other)):
                     cost += self.config.frenet_collision_penalty
                 elif distance < self.config.frenet_obstacle_buffer:
-                    cost += self.config.frenet_proximity_weight * (
-                        self.config.frenet_obstacle_buffer - distance
-                    ) ** 2
+                    cost += (
+                        self.config.frenet_proximity_weight
+                        * (self.config.frenet_obstacle_buffer - distance) ** 2
+                    )
         if reference_path is not None and map_ is not None:
             cost += self._stop_rule_cost(states, reference_path, map_, time_ms=time_ms)
-            cost += self._junction_conflict_cost(states, reference_path, map_, obstacle_trajectories)
+            cost += self._junction_conflict_cost(
+                states, reference_path, map_, obstacle_trajectories
+            )
         return float(cost)
 
     def _stop_candidate(
@@ -376,8 +379,7 @@ class FrenetTrajectoryPlanner:
         time_ms: Optional[int] = None,
     ) -> FrenetCandidate:
         states = [
-            agent.with_updates(speed=0.0, action=action)
-            for _ in range(self.config.horizon_steps)
+            agent.with_updates(speed=0.0, action=action) for _ in range(self.config.horizon_steps)
         ]
         cost = self._cost(
             states,
@@ -390,10 +392,7 @@ class FrenetTrajectoryPlanner:
             time_ms=time_ms,
         )
         return FrenetCandidate(
-            states=states,
-            cost=cost,
-            target_speed=0.0,
-            target_lateral_offset=agent.lateral_offset,
+            states=states, cost=cost, target_speed=0.0, target_lateral_offset=agent.lateral_offset
         )
 
     def _has_collision(
@@ -412,11 +411,7 @@ class FrenetTrajectoryPlanner:
         return False
 
     def _lane_change_is_allowed(
-        self,
-        agent: AgentDecisionState,
-        action: LimSimAction,
-        map_: Optional[Map],
-        s: float,
+        self, agent: AgentDecisionState, action: LimSimAction, map_: Optional[Map], s: float
     ) -> bool:
         if action not in {LimSimAction.LCL, LimSimAction.LCR}:
             return True
@@ -460,7 +455,9 @@ class FrenetTrajectoryPlanner:
         if target.reason != "traffic_light":
             return False
         state = (target.state or "").upper()
-        return any(stop_state.upper() in state for stop_state in self.config.traffic_light_stop_states)
+        return any(
+            stop_state.upper() in state for stop_state in self.config.traffic_light_stop_states
+        )
 
     def _stop_target_candidate(
         self,
@@ -522,7 +519,9 @@ class FrenetTrajectoryPlanner:
             map_=map_,
             time_ms=time_ms,
         )
-        return FrenetCandidate(states=states, cost=cost, target_speed=0.0, target_lateral_offset=0.0)
+        return FrenetCandidate(
+            states=states, cost=cost, target_speed=0.0, target_lateral_offset=0.0
+        )
 
     def _stop_rule_cost(
         self,
@@ -582,9 +581,14 @@ class FrenetTrajectoryPlanner:
                     )
         return cost
 
-    def _first_step_near_point(self, states: Sequence[AgentDecisionState], point: Point) -> Optional[int]:
+    def _first_step_near_point(
+        self, states: Sequence[AgentDecisionState], point: Point
+    ) -> Optional[int]:
         for step, state in enumerate(states):
-            if euclidean_distance(state.location, (point.x, point.y)) <= self.config.frenet_junction_conflict_distance:
+            if (
+                euclidean_distance(state.location, (point.x, point.y))
+                <= self.config.frenet_junction_conflict_distance
+            ):
                 return step
         return None
 
@@ -629,7 +633,9 @@ def build_reference_path_from_agent(
     )
 
 
-def _align_path_with_heading(path_array: np.ndarray, x: float, y: float, heading: float) -> np.ndarray:
+def _align_path_with_heading(
+    path_array: np.ndarray, x: float, y: float, heading: float
+) -> np.ndarray:
     line = LineString(path_array)
     progress = float(line.project(Point(x, y)))
     point = line.interpolate(progress)

@@ -106,7 +106,11 @@ class LaneFollower:
         if action == LimSimAction.LCR and agent.lateral_offset >= -current_width / 2.0:
             return None
 
-        neighbor_ids = current_lane.left_neighbors if action == LimSimAction.LCL else current_lane.right_neighbors
+        neighbor_ids = (
+            current_lane.left_neighbors
+            if action == LimSimAction.LCL
+            else current_lane.right_neighbors
+        )
         next_lane_id = self._choose_neighbor_lane(agent, neighbor_ids, map_)
         if next_lane_id is None:
             clipped_offset = np.clip(
@@ -142,16 +146,20 @@ class LaneFollower:
             lateral_offset=float(next_offset),
         )
 
-    def _choose_neighbor_lane(self, agent: AgentDecisionState, lane_ids, map_: Map) -> Optional[str]:
+    def _choose_neighbor_lane(
+        self, agent: AgentDecisionState, lane_ids, map_: Map
+    ) -> Optional[str]:
         candidates = [lane_id for lane_id in lane_ids if lane_id in map_.lanes]
         if not candidates:
             return None
         point = Point(agent.x, agent.y)
         return min(
             candidates,
-            key=lambda lane_id: LineString(get_lane_centerline(map_.lanes[lane_id])).distance(point)
-            if get_lane_centerline(map_.lanes[lane_id]) is not None
-            else float("inf"),
+            key=lambda lane_id: (
+                LineString(get_lane_centerline(map_.lanes[lane_id])).distance(point)
+                if get_lane_centerline(map_.lanes[lane_id]) is not None
+                else float("inf")
+            ),
         )
 
     def _lane_width(self, lane) -> float:
@@ -170,9 +178,7 @@ class LaneFollower:
             widths.append(point.distance(left) + point.distance(right))
         return float(np.mean(widths)) if widths else self.config.default_lane_width
 
-    def _next_lateral_offset(
-        self, agent: AgentDecisionState, action: LimSimAction
-    ) -> float:
+    def _next_lateral_offset(self, agent: AgentDecisionState, action: LimSimAction) -> float:
         if action == LimSimAction.LCL:
             return agent.lateral_offset + self.config.lateral_speed * self.config.dt
         if action == LimSimAction.LCR:

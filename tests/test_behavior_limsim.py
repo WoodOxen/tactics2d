@@ -19,7 +19,6 @@ from tactics2d.behavior.limsim.frenet_planner import (
     FrenetTrajectoryPlanner,
     build_reference_path_from_agent,
 )
-from tactics2d.geometry import ReferencePath
 from tactics2d.behavior.limsim.interaction import InteractionGraph, has_trajectory_collision
 from tactics2d.behavior.limsim.planner import LaneFollower
 from tactics2d.behavior.limsim.prediction import LimSimPredictor
@@ -27,6 +26,7 @@ from tactics2d.behavior.limsim.roi import RoISelector
 from tactics2d.behavior.limsim.rolling import LimSimRollingRunner
 from tactics2d.behavior.limsim.scene import SceneBuilder
 from tactics2d.behavior.limsim.schema import states_to_trajectory
+from tactics2d.geometry import ReferencePath
 from tactics2d.map.element import Junction, Lane, LaneRelationship, Map, Regulatory, RoadLine
 from tactics2d.map.query import SemanticMapQuery
 from tactics2d.participant.element import Pedestrian, Vehicle
@@ -668,8 +668,13 @@ def test_limsim_rolling_runner_advances_controlled_and_background_vehicles():
     assert 4 not in result.participants
     assert result.participants[1].trajectory.has_state(300)
     assert result.participants[3].trajectory.has_state(300)
-    assert result.participants[3].trajectory.get_state(300).y > participants[3].trajectory.get_state(0).y
-    assert all(set(step_result.actions).issubset(result.participants) for step_result in result.results)
+    assert (
+        result.participants[3].trajectory.get_state(300).y
+        > participants[3].trajectory.get_state(0).y
+    )
+    assert all(
+        set(step_result.actions).issubset(result.participants) for step_result in result.results
+    )
     assert len(result.predicted_trajectories) == 3
     assert set(result.predicted_trajectories[1]).intersection(result.results[0].trajectories)
 
@@ -677,25 +682,19 @@ def test_limsim_rolling_runner_advances_controlled_and_background_vehicles():
 def test_limsim_rolling_runner_reuses_previous_planned_trajectory():
     config = LimSimConfig(horizon_steps=6, mcts_iterations=20, interaction_distance=12.0)
     map_ = _build_parallel_map()
-    participants = {
-        1: _vehicle(1, 0, 1.0, 5.0, speed=5.0),
-        2: _vehicle(2, 0, 1.0, 14.0, speed=2.0),
-    }
+    participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=5.0), 2: _vehicle(2, 0, 1.0, 14.0, speed=2.0)}
 
     result = LimSimRollingRunner(config).run(
-        participants,
-        map_,
-        start_frame=0,
-        simulation_steps=2,
-        ego_id=1,
-        roi_radius=18.0,
+        participants, map_, start_frame=0, simulation_steps=2, ego_id=1, roi_radius=18.0
     )
 
     agent_id = result.results[0].roi_agent_ids[0]
     reused = result.predicted_trajectories[1][agent_id]
 
     assert reused.first_frame == 200
-    assert reused.last_state.location == result.results[0].trajectories[agent_id].last_state.location
+    assert (
+        reused.last_state.location == result.results[0].trajectories[agent_id].last_state.location
+    )
 
 
 def test_limsim_rolling_runner_commits_lane_change_trajectory():
@@ -715,11 +714,16 @@ def test_limsim_rolling_runner_commits_lane_change_trajectory():
     committed_trajectories = {}
     committed_actions = {}
     runner._update_committed_trajectories(
-        result, frame=0, committed_trajectories=committed_trajectories, committed_actions=committed_actions
+        result,
+        frame=0,
+        committed_trajectories=committed_trajectories,
+        committed_actions=committed_actions,
     )
 
     assert committed_actions[1] == LimSimAction.LCR
-    assert committed_trajectories[1].last_state.location == result.trajectories[1].last_state.location
+    assert (
+        committed_trajectories[1].last_state.location == result.trajectories[1].last_state.location
+    )
 
 
 def test_limsim_rolling_runner_keeps_lane_change_commitment_until_trajectory_end():
@@ -762,18 +766,10 @@ def test_limsim_rolling_runner_keeps_lane_change_commitment_until_trajectory_end
 def test_evaluate_rolling_result_reports_safety_continuity_and_memory_metrics():
     config = LimSimConfig(horizon_steps=6, mcts_iterations=20, interaction_distance=12.0)
     map_ = _build_parallel_map()
-    participants = {
-        1: _vehicle(1, 0, 1.0, 5.0, speed=5.0),
-        2: _vehicle(2, 0, 1.0, 14.0, speed=2.0),
-    }
+    participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=5.0), 2: _vehicle(2, 0, 1.0, 14.0, speed=2.0)}
 
     result = LimSimRollingRunner(config).run(
-        participants,
-        map_,
-        start_frame=0,
-        simulation_steps=3,
-        ego_id=1,
-        roi_radius=18.0,
+        participants, map_, start_frame=0, simulation_steps=3, ego_id=1, roi_radius=18.0
     )
     evaluation = evaluate_rolling_result(result, dimensions_from_participants(result.participants))
 

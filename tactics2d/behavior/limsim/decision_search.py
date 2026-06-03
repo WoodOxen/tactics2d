@@ -34,9 +34,7 @@ class LimSimDecisionSearch:
         """Plan one joint action for a group of interacting agents."""
 
         start_state = JointDecisionState(
-            agents=tuple(agents),
-            depth=0,
-            trajectories=tuple(tuple() for _ in agents),
+            agents=tuple(agents), depth=0, trajectories=tuple(tuple() for _ in agents)
         )
 
         def terminal_fn(state: JointDecisionState) -> bool:
@@ -69,9 +67,7 @@ class LimSimDecisionSearch:
         )
         _, root = mcts.plan(start=start_state, max_try=self.config.mcts_iterations)
         selected = self._best_state_from_root(root) or start_state
-        root_fallback = self._best_one_step_state(
-            start_state, map_, agents, obstacle_trajectories
-        )
+        root_fallback = self._best_one_step_state(start_state, map_, agents, obstacle_trajectories)
         if root_fallback is not None and reward_fn(root_fallback) > reward_fn(selected):
             selected = root_fallback
 
@@ -147,8 +143,6 @@ class LimSimDecisionSearch:
         return max(
             candidates,
             key=lambda candidate: self.reward.evaluate(
-                initial_agents,
-                candidate.trajectory_dict(),
-                obstacle_trajectories,
+                initial_agents, candidate.trajectory_dict(), obstacle_trajectories
             ),
         )

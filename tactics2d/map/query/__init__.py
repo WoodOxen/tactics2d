@@ -5,9 +5,4 @@
 
 from .semantic_query import LaneConflict, SemanticMapQuery, StopLine, StopTarget
 
-__all__ = [
-    "LaneConflict",
-    "SemanticMapQuery",
-    "StopLine",
-    "StopTarget",
-]
+__all__ = ["LaneConflict", "SemanticMapQuery", "StopLine", "StopTarget"]

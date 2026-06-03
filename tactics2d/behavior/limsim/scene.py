@@ -99,7 +99,9 @@ class SceneBuilder:
             distance = lane.geometry.distance(point) if projection is None else projection.distance
             if distance > self.config.lane_match_radius:
                 continue
-            lane_heading = self._lane_heading_at(lane, projection.s if projection is not None else None)
+            lane_heading = self._lane_heading_at(
+                lane, projection.s if projection is not None else None
+            )
             heading_error = 0.0
             if lane_heading is not None:
                 heading_error = abs(normalize_angle(state.heading - lane_heading))

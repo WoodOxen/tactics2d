@@ -163,9 +163,7 @@ class OsmWriter:
             type_: Lanelet2 ``type`` tag value (e.g. ``"line_thin"``).
             subtype: Lanelet2 ``subtype`` tag value (e.g. ``"solid"``).
         """
-        way = ET.SubElement(
-            root, "way", {"id": str(way_id), "action": "modify", "visible": "true"}
-        )
+        way = ET.SubElement(root, "way", {"id": str(way_id), "action": "modify", "visible": "true"})
         for nid in node_ids:
             ET.SubElement(way, "nd", {"ref": str(nid)})
         ET.SubElement(way, "tag", {"k": "type", "v": type_})
@@ -227,9 +225,7 @@ class OsmWriter:
             rel, "tag", {"k": "subtype", "v": self._LANE_TYPE_TO_SUBTYPE.get(subtype, "road")}
         )
         ET.SubElement(
-            rel,
-            "tag",
-            {"k": "location", "v": self._ROAD_TYPE_TO_LOCATION.get(location, "urban")},
+            rel, "tag", {"k": "location", "v": self._ROAD_TYPE_TO_LOCATION.get(location, "urban")}
         )
         return rel_id
 

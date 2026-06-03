@@ -72,7 +72,9 @@ class PlanningResult:
     background_agent_ids: List[object] = field(default_factory=list)
 
 
-def states_to_trajectory(agent_id: object, states: List[AgentDecisionState], start_frame: int, dt: float):
+def states_to_trajectory(
+    agent_id: object, states: List[AgentDecisionState], start_frame: int, dt: float
+):
     """Convert predicted decision states to a Tactics2D trajectory."""
 
     trajectory = Trajectory(id_=agent_id, fps=round(1.0 / dt, 3), stable_freq=True)

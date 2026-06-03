@@ -82,7 +82,7 @@ class LimSimReward:
                     closing_speed = rear.speed - front.speed
                     safe_gap = rear.length + max(rear.speed, 0.0)
                     if closing_speed > 0.0 and gap < safe_gap:
-                        penalty += self.config.closing_speed_penalty * closing_speed * (
-                            safe_gap - gap
+                        penalty += (
+                            self.config.closing_speed_penalty * closing_speed * (safe_gap - gap)
                         )
         return penalty

@@ -25,6 +25,7 @@ nav:
     - nuPlan: "dataset_support/nuplan.ipynb"
     - WOMD: "dataset_support/womd.ipynb"
   - Python API:
+    - tactics2d.behavior: "api/behavior.md"
     - tactics2d.controller: "api/controller.md"
     - tactics2d.dataset_parser: "api/dataset_parser.md"
     - tactics2d.envs: "api/envs.md"
@@ -41,6 +42,7 @@ nav:
     - routing: "tutorial/routing.ipynb"
     - limsim_pdp_tutorial: "tutorial/limsim_pdp_tutorial.ipynb"
     - limsim_pdp_visualization: "tutorial/limsim_pdp_visualization.ipynb"
+    - bits_nuplan_tutorial: "tutorial/bits_nuplan_tutorial.ipynb"
   - Community: "community.md"
   - Publications: "publication.md"
 
