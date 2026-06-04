@@ -17,7 +17,7 @@ from tactics2d.map.element import Map
 from tactics2d.map.generator import ParkingLotGenerator
 from tactics2d.participant.element import Vehicle
 from tactics2d.physics import SingleTrackKinematics
-from tactics2d.sensor import BEVCamera, SingleLineLidar
+from tactics2d.renderer import RenderManager, SingleLineLidar, TopDownCamera
 from tactics2d.traffic import ScenarioManager, ScenarioStatus, TrafficStatus
 from tactics2d.traffic.event_detection import (
     Arrival,

@@ -1,10 +1,10 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: render_manager.py
-# @Description: This file defines the class for managing the rendering of the scenario.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 
+"""Pygame render manager implementation."""
+
+
+import os
 import warnings
 from enum import Enum
 from typing import Tuple
@@ -20,17 +20,7 @@ class LayoutStyle(Enum):
 
 
 class RenderManager:
-    """This class manages the rendering of the scenario.
-
-    By RenderManager, the sensors are registered and can be bound to the participants. The rendering is conducted by the pygame library.
-
-    Attributes:
-        fps (int): The frame rate of the rendering. Defaults to 60.
-        windows_size (Tuple[int, int]): The size of the rendering window. Defaults to (800, 800).
-        layout_style (str): The style of the layout of the rendering window. The available choices are ["hierarchy", "block"]. Defaults to "hierarchy".
-        off_screen (bool): Whether to render the scenario off screen. Defaults to False.
-        graphic_driver (str): The graphic driver used by the pygame library. This attribute is **read-only**.
-    """
+    """Manage pygame rendering for one or more sensor surfaces."""
 
     layout_styles = {"hierarchy", "block"}
 
@@ -41,14 +31,6 @@ class RenderManager:
         layout_style: str = "hierarchy",
         off_screen: bool = False,
     ):
-        """Initialize the render manager.
-
-        Args:
-            fps (int, optional): The frame rate of the rendering.
-            windows_size (Tuple[int, int], optional): The size of the rendering window.
-            layout_style (str, optional): The style of the layout of the rendering window. The available choices are ["hierarchy", "block"].
-            off_screen (bool, optional): Whether to render the scenario off screen.
-        """
         self.fps = fps
         self.windows_size = windows_size
         self.off_screen = off_screen
@@ -58,6 +40,9 @@ class RenderManager:
         self.layout_style = (
             LayoutStyle.HIERARCHY if layout_style == "hierarchy" else LayoutStyle.BLOCK
         )
+
+        if off_screen and "SDL_VIDEODRIVER" not in os.environ and "DISPLAY" not in os.environ:
+            os.environ["SDL_VIDEODRIVER"] = "dummy"
 
         flags = pygame.HIDDEN if self.off_screen else pygame.SHOWN
         pygame.init()
@@ -112,20 +97,10 @@ class RenderManager:
                 self._layouts[sensor.id_] = (scale, coords)
 
     def add_sensor(self, sensor, main_sensor: bool = False):
-        """This function adds a sensor to the render manager.
-
-        Args:
-            sensor (SensorBase): The sensor instance to be added.
-            main_sensor (bool, optional): Whether the sensor is the main sensor for display. This argument only take effect when the the layout style is hierarchical.
-
-        Raises:
-            KeyError: If the sensor has conflicted id with registered sensors.
-        """
-
-        if sensor.id_ not in self._sensors:
-            self._sensors[sensor.id_] = sensor
-        else:
+        if sensor.id_ in self._sensors:
             raise KeyError(f"ID {sensor.id_} is used by the other sensor.")
+
+        self._sensors[sensor.id_] = sensor
 
         if main_sensor:
             self.main_sensor = sensor.id_
@@ -134,11 +109,6 @@ class RenderManager:
             self._rearrange_layout()
 
     def remove_sensor(self, id_: int):
-        """This function removes a sensor from the manager.
-
-        Args:
-            id_ (int): The id of the sensor.
-        """
         try:
             self._sensors.pop(id_)
         except KeyError:
@@ -151,57 +121,25 @@ class RenderManager:
             self._layouts.pop(id_)
 
     def is_bound(self, id_) -> bool:
-        """This function checks whether the sensor is bound to a participant.
-
-        Args:
-            id_ (int): The id of the sensor.
-
-        Returns:
-            If the sensor is bound to a participant, return True. Otherwise, return False.
-        """
         return id_ in self._bound_sensors
 
     def get_bind_id(self, id_) -> int:
-        """This function gets the id of the participant that the sensor is bound to.
-
-        Args:
-            id_ (int): The id of the sensor.
-
-        Returns:
-            The id of the participant that the sensor is bound to. If the sensor is not bound to any participant, return None.
-        """
         return self._bound_sensors.get(id_)
 
     def bind(self, id_: int, participant_id: int):
-        """This function binds a registered sensor with a participant.
-
-        Args:
-            id_ (int): The id of the sensor.
-            participant_id (int): The id of the participant.
-
-        Raises:
-            KeyError: If the sensor is not registered in the manager.
-        """
-
         if id_ not in self._sensors:
             raise KeyError(f"Sensor {id_} is not registered in the render manager.")
 
         if id_ in self._bound_sensors:
             warnings.warn(
-                f"Sensor {id_} was bound with participant \
-                {self._bound_sensors[id_]}. Now it is bound with {participant_id}."
+                f"Sensor {id_} was bound with participant "
+                f"{self._bound_sensors[id_]}. Now it is bound with {participant_id}."
             )
 
         self._sensors[id_].set_bind_id(participant_id)
         self._bound_sensors[id_] = participant_id
 
     def unbind(self, id_):
-        """This function unbinds a registered sensor from its bound participant.
-
-        Args:
-            id_ (int): The id of the sensor.
-        """
-
         try:
             self._bound_sensors.pop(id_)
             self._sensors[id_].set_bind_id(None)
@@ -236,15 +174,13 @@ class RenderManager:
             self.remove_sensor(id_)
 
     def render(self):
-        """Render the observation of all the sensors."""
-
         self._clock.tick(self.fps)
 
-        # Handle pygame events to keep the window responsive
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return
+
         blit_sequence = []
         for id_, layout_info in self._layouts.items():
             surface = pygame.transform.scale_by(self._sensors[id_].surface, layout_info[0])
@@ -255,19 +191,9 @@ class RenderManager:
         pygame.display.flip()
 
     def get_observation(self) -> list:
-        """Get the observation of all the sensors.
-
-        Returns:
-            list: A list of 3d arrays.
-        """
-        observations = []
-        for sensor in self._sensors.values():
-            observations.append(sensor.get_observation())
-
-        return observations
+        return [sensor.get_observation() for sensor in self._sensors.values()]
 
     def reset(self):
-        """Reset the render manager."""
         sensor_ids = list(self._sensors.keys())
         for id_ in sensor_ids:
             self.remove_sensor(id_)
@@ -277,5 +203,4 @@ class RenderManager:
         self._layouts = dict()
 
     def close(self):
-        """Close the render manager."""
         pygame.quit()

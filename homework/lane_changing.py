@@ -18,7 +18,7 @@ from tactics2d.dataset_parser import LevelXParser
 from tactics2d.map.parser import OSMParser
 from tactics2d.participant.trajectory import State
 from tactics2d.physics import SingleTrackKinematics
-from tactics2d.sensor import RenderManager, TopDownCamera
+from tactics2d.renderer import RenderManager, TopDownCamera
 from tactics2d.traffic import ScenarioManager, ScenarioStatus, TrafficStatus
 from tactics2d.utils.common import get_absolute_path
 
@@ -235,6 +235,9 @@ class LaneChangingEnv(gym.Env):
         def _get_centerlines(self):
             centerlines = dict()
 
+            def get_roadline(roadline_id):
+                return self.map_.roadlines.get(roadline_id) or self.map_.roadlines.get(str(roadline_id))
+
             def compute_centerline(roadline1, roadline2):
                 centerline_points = []
                 roadline1_points = roadline1.shape
@@ -248,22 +251,22 @@ class LaneChangingEnv(gym.Env):
                 return centerline_points
 
             centerlines["102000"] = compute_centerline(
-                self.map_.roadlines["101899"], self.map_.roadlines["101900"]
+                get_roadline(101899), get_roadline(101900)
             )
             centerlines["102001"] = compute_centerline(
-                self.map_.roadlines["101900"], self.map_.roadlines["101901"]
+                get_roadline(101900), get_roadline(101901)
             )
             centerlines["102002"] = compute_centerline(
-                self.map_.roadlines["101901"], self.map_.roadlines["101902"]
+                get_roadline(101901), get_roadline(101902)
             )
             centerlines["102003"] = compute_centerline(
-                self.map_.roadlines["101903"], self.map_.roadlines["101904"]
+                get_roadline(101903), get_roadline(101904)
             )
             centerlines["102004"] = compute_centerline(
-                self.map_.roadlines["101904"], self.map_.roadlines["101905"]
+                get_roadline(101904), get_roadline(101905)
             )
             centerlines["102005"] = compute_centerline(
-                self.map_.roadlines["101905"], self.map_.roadlines["101906"]
+                get_roadline(101905), get_roadline(101906)
             )
 
             return centerlines
