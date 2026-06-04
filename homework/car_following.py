@@ -21,7 +21,7 @@ from tactics2d.map.parser import GISParser
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State
 from tactics2d.physics import SingleTrackKinematics
-from tactics2d.sensor import RenderManager, TopDownCamera
+from tactics2d.renderer import RenderManager, TopDownCamera
 from tactics2d.traffic import ScenarioManager, ScenarioStatus, TrafficStatus
 from tactics2d.utils.common import get_absolute_path
 
@@ -260,7 +260,7 @@ class CarFollowingEnv(gym.Env):
             participants, actual_time_stamp = self.trajectory_parser.parse_trajectory(
                 target_vehicle_index["File"],
                 get_absolute_path(target_vehicle_index["Folder"]),
-                stamp_range=(target_vehicle_index["Start_Following"], np.inf),
+                time_range=(target_vehicle_index["Start_Following"], np.inf),
                 ids=[target_vehicle_index["Vehicle_ID"], target_vehicle_index["Following"]],
             )
 

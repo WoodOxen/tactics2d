@@ -1,9 +1,7 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: generate_parking_lot.py
-# @Description: This file defines a class to generate random parking lot scenarios.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Parking lot generator implementation."""
 
 
 import logging
@@ -39,7 +37,7 @@ class ParkingLotGenerator:
     _vehicle_size = (5.3, 2.5)
     _n_parking_lots_bay = 9
     _n_parking_lots_parallel = 7
-    _target_color = (0, 238, 118, 100)
+    _target_color = "#EE766E"
 
     def __init__(
         self, vehicle_size: Tuple[float, float] = (5.3, 2.5), type_proportion: float = 0.5

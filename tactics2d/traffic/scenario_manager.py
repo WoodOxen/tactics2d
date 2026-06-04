@@ -1,9 +1,8 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: scenario_manager.py
-# @Description: This script defines an abstract class for a scenario manager.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Scenario manager implementation."""
+
 
 from abc import ABC, abstractmethod
 from typing import Tuple

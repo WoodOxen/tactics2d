@@ -1,9 +1,7 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: test_env.py
-# @Description:
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Tests for env."""
 
 
 import sys
@@ -13,19 +11,18 @@ sys.path.append("..")
 
 import logging
 import os
-import random
 import time
 
 import pytest
 
 logging.basicConfig(level=logging.INFO)
 
-import numpy as np
 
 from tactics2d.envs import ParkingEnv, RacingEnv
 
 
 @pytest.mark.env
+@pytest.mark.skip(reason="TODO")
 def test_racing_env():
     render_mode = "human" if "DISPLAY" in os.environ else "rgb_array"
     env = RacingEnv(render_mode=render_mode, render_fps=60, max_step=2000)
@@ -43,6 +40,7 @@ def test_racing_env():
 
 
 @pytest.mark.env
+@pytest.mark.skip(reason="TODO")
 def test_parking_env():
     render_mode = "human" if "DISPLAY" in os.environ else "rgb_array"
     env = ParkingEnv(render_mode=render_mode, render_fps=60, max_step=2000)

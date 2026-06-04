@@ -1,28 +1,32 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: parse_nuplan.py
-# @Description: This file implements a parser for NuPlan dataset.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""NuPlan dataset parser implementation."""
 
 import datetime
-import json
-import os
 import sqlite3
-from typing import List, Tuple
+from pathlib import Path
+from typing import Dict, Optional, Tuple
 
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 import pyogrio
-from shapely.geometry import LineString, Point, Polygon
+from shapely.geometry import LinearRing, LineString, Point, Polygon
 
-from tactics2d.map.element import Area, Lane, LaneRelationship, Map, Regulatory, RoadLine
+from tactics2d.map.element import Area, Junction, Lane, LaneRelationship, Map, Regulatory, RoadLine
 from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 
 
 class NuPlanParser:
-    """This class implements a parser for NuPlan dataset.
+    """Parser for the NuPlan dataset.
+
+    The parser converts NuPlan database logs and geopackage maps into Tactics2D
+    participants and map elements. It keeps dataset-specific details in
+    ``custom_tags`` while exposing common map semantics such as lane
+    centerlines, boundaries, successors, neighbors, drivable areas, stop
+    polygons, and traffic lights.
 
     !!! quote "Reference"
         Caesar, Holger, et al. "nuplan: A closed-loop ml-based planning benchmark for autonomous vehicles." arXiv preprint arXiv:2106.11810 (2021).
@@ -38,24 +42,40 @@ class NuPlanParser:
         "generic_object": Other,
     }
 
-    # millisecond-level time stamp at 2021-01-01 00:00:00
+    _TYPE_MAPPING = {
+        "vehicle": "vehicle",
+        "bicycle": "bicycle",
+        "pedestrian": "pedestrian",
+        "traffic_cone": "traffic_cone",
+        "barrier": "barrier",
+        "czone_sign": "czone_sign",
+        "generic_object": "generic_object",
+    }
+
+    _ROADLINE_MAPPING = {
+        0: ("line_thin", "dashed"),
+        1: ("virtual", None),
+        2: ("line_thin", "solid"),
+        3: ("virtual", None),
+    }
+
+    _LANE_TYPE_MAPPING = {0: "road", 1: "bicycle_lane"}
+
+    _STOP_POLYGON_MAPPING = {
+        0: "crosswalk_stop_line",
+        1: "stop_sign",
+        2: "traffic_light",
+        3: "turn_stop",
+        4: "yield",
+    }
+
+    # Millisecond-level timestamp at 2021-01-01 00:00:00.
     _DATETIME = datetime.datetime(2021, 1, 1, 0, 0, 0).timestamp() * 1000
 
-    def __init__(self):
-        self.transform_matrix = np.zeros((6, 1))
-
     def get_location(self, file: str, folder: str) -> str:
-        """This function gets the location of a single trajectory data file.
+        """Get the NuPlan location of a single trajectory database."""
 
-        Args:
-            file (str): The name of the trajectory data file. The file is expected to be a sqlite3 database file (.db).
-            folder (str): The path to the folder containing the trajectory file.
-
-        Returns:
-            location (str): The location of the trajectory data file.
-        """
-        file_path = os.path.join(folder, file)
-
+        file_path = self._resolve_path(file, folder)
         with sqlite3.connect(file_path) as connection:
             cursor = connection.cursor()
             cursor.execute("SELECT location FROM log;")
@@ -64,142 +84,440 @@ class NuPlanParser:
         return location
 
     def parse_trajectory(
-        self, file: str, folder: str, stamp_range: Tuple[float, float] = None
-    ) -> Tuple[dict, List[int]]:
-        """This function parses trajectories from a single NuPlan database file.
+        self, file: str, folder: str, time_range: Tuple[int, int] = None
+    ) -> Tuple[dict, Tuple[int, int]]:
+        """Parse trajectories from a single NuPlan database file.
 
         Args:
-            file (str): The name of the trajectory data file. The file is expected to be a sqlite3 database file (.db).
-            folder (str): The path to the folder containing the trajectory file.
-            stamp_range (Tuple[float, float], optional): The time range of the trajectory data to parse. If the stamp range is not given, the parser will parse the whole trajectory data.
+            file: The name or path of the NuPlan sqlite database file.
+            folder: The folder containing ``file``.
+            time_range: Optional millisecond range relative to 2021-01-01
+                00:00:00. When omitted, the whole database is parsed.
 
         Returns:
-            participants (dict): A dictionary of participants. The keys are the ids of the participants. The values are the participants.
-            stamps (List[int]): The actual time range of the trajectory data. Because NuPlan collects data at an unstable frequency, the parser will return a list of time stamps.
+            ``(participants, actual_time_range)`` where participants are
+            Tactics2D participant objects and the range is in milliseconds.
         """
-        participants = dict()
+
+        track_infos = {}
+        states = {}
         time_stamps = set()
+        file_path = self._resolve_path(file, folder)
 
-        file_path = os.path.join(folder, file)
-
-        if stamp_range is None:
-            stamp_range = (-float("inf"), float("inf"))
+        if time_range is None:
+            time_range = (-float("inf"), float("inf"))
 
         with sqlite3.connect(file_path) as connection:
+            connection.row_factory = sqlite3.Row
             cursor = connection.cursor()
-            cursor.execute("SELECT * FROM track;")
-            rows = cursor.fetchall()
 
-            for row in rows:
-                category_token = row[1]
-                cursor.execute("SELECT * FROM category WHERE token=?;", (category_token,))
-                category_name = cursor.fetchone()[1]
-                participants[row[0]] = self._CLASS_MAPPING[category_name](
-                    id_=row[0],
-                    type_=category_name,
-                    trajectory=Trajectory(id_=row[0], fps=20, stable_freq=False),
-                    length=row[3],
-                    width=row[2],
-                    height=row[4],
-                )
-
-            cursor.execute("SELECT * FROM lidar_box;")
-            rows = cursor.fetchall()
-
-            for row in rows:
-                cursor.execute("SELECT * FROM lidar_pc WHERE token=?;", (row[1],))
-                time_stamp = int(cursor.fetchone()[7] / 1000 - self._DATETIME)
-
-                if time_stamp < stamp_range[0] or time_stamp > stamp_range[1]:
-                    continue
-                time_stamps.add(time_stamp)
-
-                state = State(
-                    frame=time_stamp, x=row[5], y=row[6], heading=row[14], vx=row[11], vy=row[12]
-                )
-                participants[row[2]].trajectory.add_state(state)
-
-        cursor.close()
-        connection.close()
-        stamps = sorted(list(time_stamps))
-
-        return participants, stamps
-
-    def parse_map(self, file: str, folder: str) -> Map:
-        """This function parses a map from a single NuPlan map file. The map file is expected to be a geopackage file (.gpkg).
-
-        TODO: the parsing of lane connectors is not implemented yet.
-
-        A NuPlan map includes the following layers: 'baseline_paths', 'carpark_areas', 'generic_drivable_areas', 'dubins_nodes', 'lane_connectors', 'intersections', 'boundaries', 'crosswalks', 'lanes_polygons', 'lane_group_connectors', 'lane_groups_polygons', 'road_segments', 'stop_polygons', 'traffic_lights', 'walkways', 'gen_lane_connectors_scaled_width_polygons', 'meta'. In this parser, we only parse the following layers: 'boundaries', 'lanes_polygons', 'lane_connectors', 'carpark_areas', 'crosswalks', 'walkways', 'stop_polygons', 'traffic_lights'
-        """
-        map_file = os.path.join(folder, file)
-        map_meta = gpd.read_file(map_file, layer="meta", engine="pyogrio")
-        projection_system = map_meta[map_meta["key"] == "projectedCoordSystem"]["value"].iloc[0]
-
-        def load_utm_coords(layer_name):
-            gdf_in_pixel_coords = pyogrio.read_dataframe(map_file, layer=layer_name)
-            gdf_in_utm_coords = gdf_in_pixel_coords.to_crs(projection_system)
-            return gdf_in_utm_coords
-
-        map_ = Map(name="nuplan_" + file.split(".")[0])
-
-        boundaries = load_utm_coords("boundaries")
-        for _, row in boundaries.iterrows():
-            boundary_ids = [int(s) for s in row["boundary_segment_fids"].split(",") if s.isdigit()]
-            boundary_id = boundary_ids[0] - 1
-            boundary = RoadLine(id_=str(boundary_id), geometry=LineString(row["geometry"]))
-            map_.add_roadline(boundary)
-
-        id_cnt = max(np.array(list(map_.ids.keys()), np.int64)) + 1
-
-        # lane_polygons = gpd.read_file(map_file, layer="lanes_polygons")
-        # for _, row in lane_polygons.iterrows():
-        #     lane_polygon = Lane(
-        #         id_=str(row["lane_fid"]),
-        #         left_side=map_.get_by_id(str(row["left_boundary_fid"])).geometry,
-        #         right_side=map_.get_by_id(str(row["right_boundary_fid"])).geometry,
-        #         line_ids=set([str(row["left_boundary_fid"]), str(row["right_boundary_fid"])]),
-        #         subtype=None,
-        #         speed_limit=row["speed_limit_mps"],
-        #         speed_limit_unit="m/s",
-        #     )
-        #     lane_polygon.add_related_lane(str(row["from_edge_fid"]), LaneRelationship.PREDECESSOR)
-        #     lane_polygon.add_related_lane(str(row["to_edge_fid"]), LaneRelationship.SUCCESSOR)
-        #     map_.add_lane(lane_polygon)
-
-        lane_connectors = load_utm_coords("lane_connectors")
-        for _, row in lane_connectors.iterrows():
-            # TODO: parse the polygon in lane to left and right side
-            pass
-
-        area_dict = {
-            "crosswalks": "crosswalk",
-            "carpark_areas": "parking",
-            "walkways": "walkway",
-            "stop_polygons": "stop",
-        }
-
-        for key, value in area_dict.items():
-            df_areas = load_utm_coords(key)
-            for _, row in df_areas.iterrows():
-                area = Area(
-                    id_=str(id_cnt),
-                    geometry=Polygon(row["geometry"]),
-                    subtype=value,
-                    custom_tags={"heading": row["heading"]} if key == "carpark_areas" else None,
-                )
-                id_cnt += 1
-                map_.add_area(area)
-
-        traffic_lights = load_utm_coords("traffic_lights")
-        for _, row in traffic_lights.iterrows():
-            traffic_light = Regulatory(
-                id_=str(id_cnt),
-                subtype="traffic_light",
-                position=Point(row["geometry"].x, row["geometry"].y),
-                custom_tags={"heading": row["ori_mean_yaw"]},
+            cursor.execute(
+                """
+                SELECT
+                    track.token AS track_token,
+                    category.name AS category_name,
+                    track.width AS width,
+                    track.length AS length,
+                    track.height AS height
+                FROM track
+                INNER JOIN category ON category.token = track.category_token
+                ORDER BY track.token
+                """
             )
-            id_cnt += 1
-            map_.add_regulatory(traffic_light)
+            for id_, row in enumerate(cursor.fetchall()):
+                category_name = row["category_name"]
+                track_infos[row["track_token"]] = {
+                    "id_": id_,
+                    "participant_cls": self._CLASS_MAPPING.get(category_name, Other),
+                    "type_": self._TYPE_MAPPING.get(category_name, category_name),
+                    "length": row["length"],
+                    "width": row["width"],
+                    "height": row["height"],
+                }
+
+            cursor.execute(
+                """
+                SELECT
+                    lidar_box.track_token AS track_token,
+                    lidar_box.x AS x,
+                    lidar_box.y AS y,
+                    lidar_box.z AS z,
+                    lidar_box.width AS width,
+                    lidar_box.length AS length,
+                    lidar_box.height AS height,
+                    lidar_box.yaw AS yaw,
+                    lidar_box.vx AS vx,
+                    lidar_box.vy AS vy,
+                    lidar_box.vz AS vz,
+                    lidar_box.confidence AS confidence,
+                    lidar_pc.timestamp AS timestamp
+                FROM lidar_box
+                INNER JOIN lidar_pc ON lidar_pc.token = lidar_box.lidar_pc_token
+                ORDER BY lidar_pc.timestamp
+                """
+            )
+            for row in cursor.fetchall():
+                time_stamp = int(row["timestamp"] / 1000 - self._DATETIME)
+                if time_stamp < time_range[0] or time_stamp > time_range[1]:
+                    continue
+
+                track_token = row["track_token"]
+                if track_token not in track_infos:
+                    continue
+
+                time_stamps.add(time_stamp)
+                state = State(
+                    frame=time_stamp,
+                    x=row["x"],
+                    y=row["y"],
+                    heading=row["yaw"],
+                    vx=row["vx"],
+                    vy=row["vy"],
+                )
+                state.length = row["length"]
+                state.width = row["width"]
+                state.height = row["height"]
+                state.confidence = row["confidence"]
+                states.setdefault(track_token, []).append(state)
+
+        participants = {}
+        for track_token, track_info in track_infos.items():
+            if track_token not in states:
+                continue
+
+            id_ = track_info["id_"]
+            participant = track_info["participant_cls"](
+                id_=id_,
+                type_=track_info["type_"],
+                trajectory=Trajectory(id_=id_, fps=20, stable_freq=False),
+                length=track_info["length"],
+                width=track_info["width"],
+                height=track_info["height"],
+            )
+            participant.type_ = track_info["type_"]
+            participant.source_id = track_token.hex()
+            for state in states[track_token]:
+                participant.trajectory.add_state(state)
+            participants[participant.id_] = participant
+
+        actual_time_range = (
+            (min(time_stamps), max(time_stamps)) if time_stamps else (np.inf, -np.inf)
+        )
+        return participants, actual_time_range
+
+    def parse_map(self, file: str, folder: Optional[str] = None) -> Map:
+        """Parse a NuPlan geopackage map into a Tactics2D ``Map``.
+
+        Args:
+            file: The path or name of a NuPlan ``map.gpkg`` file.
+            folder: Optional folder containing ``file``.
+
+        Returns:
+            A Tactics2D map populated with common lane-level semantics.
+        """
+
+        file_path = self._resolve_path(file, folder)
+        projection_system = self._load_projection_system(file_path)
+        map_ = Map(name="nuplan_" + Path(file_path).parent.parent.name)
+
+        boundaries = self._load_layer(file_path, "boundaries", projection_system, fid_as_index=True)
+        baseline_paths = self._load_layer(
+            file_path, "baseline_paths", projection_system, fid_as_index=True
+        )
+        lanes = self._load_layer(file_path, "lanes_polygons", projection_system, fid_as_index=True)
+        lane_connectors = self._load_layer(
+            file_path, "lane_connectors", projection_system, fid_as_index=True
+        )
+        connector_polygons = self._load_layer(
+            file_path,
+            "gen_lane_connectors_scaled_width_polygons",
+            projection_system,
+            fid_as_index=True,
+        )
+
+        boundary_geometries = self._load_roadlines(map_, boundaries)
+        self._load_lanes(map_, lanes, baseline_paths, boundary_geometries)
+        self._load_lane_connectors(
+            map_, lane_connectors, connector_polygons, baseline_paths, boundary_geometries
+        )
+        self._load_successor_relationships(map_, lane_connectors)
+        self._load_neighbor_relationships(map_)
+        self._load_areas(file_path, projection_system, map_)
+        self._load_junctions(file_path, projection_system, map_)
+        self._load_stop_polygons(file_path, projection_system, map_)
+        self._load_traffic_lights(file_path, projection_system, map_)
 
         return map_
+
+    @staticmethod
+    def _resolve_path(file: str, folder: Optional[str] = None) -> str:
+        path = Path(file)
+        if folder is not None:
+            path = Path(folder) / path
+        return str(path)
+
+    @staticmethod
+    def _split_ids(value) -> list:
+        if value is None or pd.isna(value):
+            return []
+        return [item.strip() for item in str(value).split(",") if item.strip()]
+
+    @staticmethod
+    def _as_int_str(value) -> str:
+        return str(int(value))
+
+    @staticmethod
+    def _load_projection_system(file_path: str) -> str:
+        map_meta = gpd.read_file(file_path, layer="meta", engine="pyogrio")
+        return map_meta[map_meta["key"] == "projectedCoordSystem"]["value"].iloc[0]
+
+    @staticmethod
+    def _load_layer(file_path: str, layer_name: str, projection_system: str, fid_as_index=False):
+        gdf = pyogrio.read_dataframe(file_path, layer=layer_name, fid_as_index=fid_as_index)
+        return gdf if gdf.empty else gdf.to_crs(projection_system)
+
+    def _load_roadlines(self, map_: Map, boundaries) -> Dict[str, LineString]:
+        boundary_geometries = {}
+        for fid, row in boundaries.iterrows():
+            boundary_id = self._as_int_str(fid)
+            type_, subtype = self._ROADLINE_MAPPING.get(
+                int(row["boundary_type_fid"]), ("virtual", None)
+            )
+            geometry = LineString(row["geometry"])
+            boundary_geometries[boundary_id] = geometry
+            map_.add_roadline(
+                RoadLine(
+                    id_=boundary_id,
+                    type_=type_,
+                    subtype=subtype,
+                    geometry=geometry,
+                    custom_tags={
+                        "nuplan_layer": "boundaries",
+                        "boundary_segment_fids": self._split_ids(row.get("boundary_segment_fids")),
+                        "has_reflectors": bool(row.get("has_reflectors", False)),
+                    },
+                )
+            )
+        return boundary_geometries
+
+    def _centerline_by_lane_id(self, baseline_paths, lane_id: str) -> Optional[np.ndarray]:
+        if baseline_paths.empty:
+            return None
+        lane_fids = baseline_paths["lane_fid"].dropna().astype(int).astype(str)
+        matches = baseline_paths.loc[lane_fids[lane_fids == lane_id].index]
+        if matches.empty:
+            return None
+        return np.asarray(matches.iloc[0]["geometry"].coords, dtype=float)
+
+    def _centerline_by_connector_id(
+        self, baseline_paths, connector_id: str
+    ) -> Optional[np.ndarray]:
+        if baseline_paths.empty:
+            return None
+        connector_fids = baseline_paths["lane_connector_fid"].dropna().astype(int).astype(str)
+        matches = baseline_paths.loc[connector_fids[connector_fids == connector_id].index]
+        if matches.empty:
+            return None
+        return np.asarray(matches.iloc[0]["geometry"].coords, dtype=float)
+
+    def _load_lanes(self, map_: Map, lanes, baseline_paths, boundary_geometries) -> None:
+        for fid, row in lanes.iterrows():
+            lane_id = self._as_int_str(row.get("lane_fid", fid))
+            left_id = self._as_int_str(row["left_boundary_fid"])
+            right_id = self._as_int_str(row["right_boundary_fid"])
+            centerline = self._centerline_by_lane_id(baseline_paths, lane_id)
+
+            custom_tags = {
+                "nuplan_layer": "lanes_polygons",
+                "lane_group_fid": self._as_int_str(row["lane_group_fid"]),
+                "lane_index": int(row["lane_index"]),
+                "from_edge_fid": self._as_int_str(row["from_edge_fid"]),
+                "to_edge_fid": self._as_int_str(row["to_edge_fid"]),
+            }
+            if centerline is not None:
+                custom_tags["centerline"] = centerline
+
+            lane = Lane(
+                id_=lane_id,
+                left_side=boundary_geometries.get(left_id),
+                right_side=boundary_geometries.get(right_id),
+                geometry=LinearRing(row["geometry"].exterior.coords),
+                line_ids={"left": [left_id], "right": [right_id]},
+                subtype=self._LANE_TYPE_MAPPING.get(int(row.get("lane_type_fid", 0)), "road"),
+                location="urban",
+                speed_limit=row.get("speed_limit_mps"),
+                speed_limit_unit="m/s",
+                custom_tags=custom_tags,
+            )
+            map_.add_lane(lane)
+
+    def _load_lane_connectors(
+        self, map_: Map, lane_connectors, connector_polygons, baseline_paths, boundary_geometries
+    ) -> None:
+        connector_polygon_by_id = {
+            self._as_int_str(row["lane_connector_fid"]): row
+            for _, row in connector_polygons.iterrows()
+        }
+        for fid, row in lane_connectors.iterrows():
+            connector_id = self._as_int_str(fid)
+            polygon_row = connector_polygon_by_id.get(connector_id)
+            if polygon_row is None:
+                continue
+
+            left_id = self._as_int_str(polygon_row["left_boundary_fid"])
+            right_id = self._as_int_str(polygon_row["right_boundary_fid"])
+            centerline = self._centerline_by_connector_id(baseline_paths, connector_id)
+            custom_tags = {
+                "nuplan_layer": "lane_connectors",
+                "entry_lane_fid": self._as_int_str(row["entry_lane_fid"]),
+                "exit_lane_fid": self._as_int_str(row["exit_lane_fid"]),
+                "intersection_fid": self._as_int_str(row["intersection_fid"]),
+                "turn_type_fid": int(row["turn_type_fid"]),
+                "from_edge_fid": self._as_int_str(polygon_row["from_edge_fid"]),
+                "to_edge_fid": self._as_int_str(polygon_row["to_edge_fid"]),
+                "traffic_light_stop_line_fids": self._split_ids(
+                    row.get("traffic_light_stop_line_fids")
+                ),
+            }
+            if centerline is not None:
+                custom_tags["centerline"] = centerline
+
+            connector_lane = Lane(
+                id_=connector_id,
+                left_side=boundary_geometries.get(left_id),
+                right_side=boundary_geometries.get(right_id),
+                geometry=LinearRing(polygon_row["geometry"].exterior.coords),
+                line_ids={"left": [left_id], "right": [right_id]},
+                subtype="lane_connector",
+                location="urban",
+                speed_limit=row.get("speed_limit_mps"),
+                speed_limit_unit="m/s",
+                custom_tags=custom_tags,
+            )
+            map_.add_lane(connector_lane)
+
+    def _load_successor_relationships(self, map_: Map, lane_connectors) -> None:
+        for fid, row in lane_connectors.iterrows():
+            connector_id = self._as_int_str(fid)
+            entry_id = self._as_int_str(row["entry_lane_fid"])
+            exit_id = self._as_int_str(row["exit_lane_fid"])
+            if entry_id in map_.lanes and connector_id in map_.lanes:
+                map_.lanes[entry_id].add_related_lane(connector_id, LaneRelationship.SUCCESSOR)
+                map_.lanes[connector_id].add_related_lane(entry_id, LaneRelationship.PREDECESSOR)
+            if connector_id in map_.lanes and exit_id in map_.lanes:
+                map_.lanes[connector_id].add_related_lane(exit_id, LaneRelationship.SUCCESSOR)
+                map_.lanes[exit_id].add_related_lane(connector_id, LaneRelationship.PREDECESSOR)
+
+    def _load_neighbor_relationships(self, map_: Map) -> None:
+        lanes_by_group = {}
+        for lane in map_.lanes.values():
+            if (lane.custom_tags or {}).get("nuplan_layer") != "lanes_polygons":
+                continue
+            lanes_by_group.setdefault(lane.custom_tags["lane_group_fid"], []).append(lane)
+
+        for group_lanes in lanes_by_group.values():
+            group_lanes.sort(key=lambda lane: int(lane.custom_tags["lane_index"]))
+            for index, lane in enumerate(group_lanes):
+                if index > 0:
+                    lane.add_related_lane(
+                        group_lanes[index - 1].id_, LaneRelationship.LEFT_NEIGHBOR
+                    )
+                if index < len(group_lanes) - 1:
+                    lane.add_related_lane(
+                        group_lanes[index + 1].id_, LaneRelationship.RIGHT_NEIGHBOR
+                    )
+
+    def _load_areas(self, file_path: str, projection_system: str, map_: Map) -> None:
+        layer_specs = {
+            "generic_drivable_areas": "drivable_area",
+            "carpark_areas": "parking",
+            "crosswalks": "crosswalk",
+            "walkways": "walkway",
+            "road_segments": "road_segment",
+        }
+        for layer_name, subtype in layer_specs.items():
+            areas = self._load_layer(file_path, layer_name, projection_system, fid_as_index=True)
+            for fid, row in areas.iterrows():
+                custom_tags = {"nuplan_layer": layer_name}
+                if layer_name == "carpark_areas":
+                    custom_tags["heading"] = row.get("heading")
+                if layer_name == "crosswalks":
+                    custom_tags["lane_ids"] = self._split_ids(row.get("lane_fids"))
+                    custom_tags["intersection_ids"] = self._split_ids(row.get("intersection_fids"))
+                    custom_tags["is_marked"] = bool(row.get("is_marked", False))
+                if layer_name == "road_segments":
+                    custom_tags["lane_group_fids"] = self._split_ids(row.get("lane_group_fids"))
+                map_.add_area(
+                    Area(
+                        id_=self._as_int_str(fid),
+                        geometry=Polygon(row["geometry"].exterior),
+                        subtype=subtype,
+                        custom_tags=custom_tags,
+                    )
+                )
+
+    def _load_junctions(self, file_path: str, projection_system: str, map_: Map) -> None:
+        intersections = self._load_layer(
+            file_path, "intersections", projection_system, fid_as_index=True
+        )
+        for fid, row in intersections.iterrows():
+            geometry = Polygon(row["geometry"].exterior)
+            map_.add_junction(
+                Junction(
+                    id_=self._as_int_str(fid),
+                    custom_tags={
+                        "nuplan_layer": "intersections",
+                        "shape": list(geometry.exterior.coords),
+                        "intersection_type_fid": int(row.get("intersection_type_fid", -1)),
+                        "is_mini": bool(row.get("is_mini", False)),
+                    },
+                )
+            )
+
+    def _load_stop_polygons(self, file_path: str, projection_system: str, map_: Map) -> None:
+        stop_polygons = self._load_layer(
+            file_path, "stop_polygons", projection_system, fid_as_index=True
+        )
+        for fid, row in stop_polygons.iterrows():
+            subtype = self._STOP_POLYGON_MAPPING.get(
+                int(row.get("stop_polygon_type_fid", -1)), "stop_line"
+            )
+            lane_ids = self._split_ids(row.get("lane_fids"))
+            lane_connector_ids = self._split_ids(row.get("lane_connector_fids"))
+            applies_to = {lane_id: "refers" for lane_id in lane_ids + lane_connector_ids}
+            centroid = row["geometry"].centroid
+            map_.add_regulatory(
+                Regulatory(
+                    id_=self._as_int_str(fid),
+                    ways=applies_to,
+                    subtype=subtype,
+                    position=Point(centroid.x, centroid.y),
+                    custom_tags={
+                        "nuplan_layer": "stop_polygons",
+                        "lane_ids": lane_ids,
+                        "lane_connector_ids": lane_connector_ids,
+                        "traffic_light_ids": self._split_ids(row.get("traffic_light_fids")),
+                        "crosswalk_ids": self._split_ids(row.get("crosswalk_fids")),
+                        "geometry": row["geometry"],
+                    },
+                )
+            )
+
+    def _load_traffic_lights(self, file_path: str, projection_system: str, map_: Map) -> None:
+        traffic_lights = self._load_layer(
+            file_path, "traffic_lights", projection_system, fid_as_index=True
+        )
+        for fid, row in traffic_lights.iterrows():
+            map_.add_regulatory(
+                Regulatory(
+                    id_=self._as_int_str(fid),
+                    subtype="traffic_light",
+                    dynamic=True,
+                    position=Point(row["geometry"].x, row["geometry"].y),
+                    custom_tags={
+                        "nuplan_layer": "traffic_lights",
+                        "heading": row.get("ori_mean_yaw"),
+                        "light_face_type_fid": int(row.get("light_face_type_fid", -1)),
+                    },
+                )
+            )

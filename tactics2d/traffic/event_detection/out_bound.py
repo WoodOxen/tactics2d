@@ -1,9 +1,7 @@
-##! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: out_bound.py
-# @Description: This script defines the event to check whether the agent is out of the map boundary.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Out bound implementation."""
 
 
 from shapely.geometry import Polygon
@@ -26,7 +24,7 @@ class OutBound(EventBase):
             boundary (tuple): The boundary of the map. The boundary is represented by a tuple of four elements (xmin, xmax, ymin, ymax)
         """
         self.map_boundary = None
-        if not boundary is None:
+        if boundary is not None:
             self.map_boundary = Polygon(
                 [
                     (boundary[0], boundary[2]),
@@ -56,7 +54,7 @@ class OutBound(EventBase):
             boundary (tuple): The boundary of the map. The boundary is represented by a tuple of four elements (xmin, xmax, ymin, ymax)
         """
         self.map_boundary = None
-        if not boundary is None:
+        if boundary is not None:
             self.map_boundary = Polygon(
                 [
                     (boundary[0], boundary[2]),

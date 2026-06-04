@@ -1,9 +1,8 @@
-##! python3
+#! python3
 # Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: test_dataset_parser.py
-# @Description: This file implements the test cases for the dataset parser.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Tests for dataset parser."""
 
 
 import sys
@@ -11,7 +10,6 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 
-import json
 import logging
 import os
 import time
@@ -20,7 +18,8 @@ from zipfile import ZipFile
 import pytest
 
 from tactics2d.dataset_parser import (
-    ArgoverseParser,
+    Argoverse2Parser,
+    CitySimParser,
     DLPParser,
     InteractionParser,
     LevelXParser,
@@ -28,6 +27,8 @@ from tactics2d.dataset_parser import (
     NuPlanParser,
     WOMDParser,
 )
+from tactics2d.dataset_parser.parse_driveinsightd import DriveInsightDParser
+from tactics2d.map.map_config import NUPLAN_MAP_CONFIG
 
 
 @pytest.mark.dataset_parser
@@ -39,10 +40,10 @@ from tactics2d.dataset_parser import (
         ("val/00a0ec58-1fb9-4a2b-bfd7-f4e5da7a9eff", 73),
     ],
 )
-def test_argoverse_parser(sub_folder, expected):
+def test_argoverse2_parser(sub_folder, expected):
     dataset_folder = "./tactics2d/data/trajectory_sample/Argoverse"
     folder = os.path.join(dataset_folder, sub_folder)
-    dataset_parser = ArgoverseParser()
+    dataset_parser = Argoverse2Parser()
     files = os.listdir(folder)
     map_file = [file for file in files if ".json" in file][0]
     trajectory_files = [file for file in files if ".parquet" in file][0]
@@ -52,9 +53,25 @@ def test_argoverse_parser(sub_folder, expected):
     t2 = time.time()
     _ = dataset_parser.parse_map(map_file, folder)
     t3 = time.time()
+
     assert len(participants) == expected
     logging.info(f"The time needed to parse an Argoverse trajectory file: {t2 - t1}s")
     logging.info(f"The time needed to parse an Argoverse map file: {t3 - t2}s")
+
+
+@pytest.mark.dataset_parser
+@pytest.mark.parametrize("ids, expected", [(None, 136), ([1, 2, 3], 3)])
+def test_citysim_parser(ids, expected):
+    folder = "./tactics2d/data/trajectory_sample/CitySim/Intersection B (Non-Signalized Intersection)/Trajectories"
+    file = "IntersectionB-01.csv"
+    dataset_parser = CitySimParser()
+
+    t1 = time.time()
+    participants, _ = dataset_parser.parse_trajectory(file, folder, ids=ids)
+    t2 = time.time()
+
+    assert len(participants) == expected
+    logging.info(f"The time needed to parse a CitySim trajectory file: {t2 - t1}s")
 
 
 @pytest.mark.dataset_parser
@@ -66,7 +83,7 @@ def test_argoverse_parser(sub_folder, expected):
         ("rounD", "00", (-float("inf"), float("inf")), 348),
         ("exiD", "01_tracks.csv", None, 871),
         ("uniD", "00_tracksMeta.csv", None, 362),
-        ("highD", "01_recordkingMeta.csv", (0, 10000), 20),
+        ("highD", "01_recordingMeta.csv", (0, 10000), 20),
         ("inD", 0, (0, 10000), 10),
         ("rounD", 0, (0, 10000), 12),
         ("exiD", 1, (0, 10000), 38),
@@ -144,9 +161,14 @@ def test_dlp_parser(file_id: int, stamp_range: tuple, expected: int):
 def test_ngsim_parser(file, stamp_range, ids):
     folder = "./tactics2d/data/trajectory_sample/NGSIM"
     parser = NGSIMParser()
+
+    t1 = time.time()
     participants, _ = parser.parse_trajectory(file, folder, stamp_range, ids)
+    t2 = time.time()
+
     if ids is not None:
         assert len(ids) == len(participants)
+    logging.info(f"The time needed to parse a NGSIM file: {t2 - t1}s.")
 
     parser.extract_meta_data(file, folder)
 
@@ -155,63 +177,258 @@ def test_ngsim_parser(file, stamp_range, ids):
 @pytest.mark.parametrize(
     "file_name, stamp_range, expected",
     [
-        ("train_boston/2021.08.26.18.24.36_veh-28_00578_00663.db", None, 343),
-        ("train_pittsburgh/2021.09.13.19.54.06_veh-45_00781_00843.db", None, 57),
+        (
+            "train_boston/2021.08.26.18.24.36_veh-28_00578_00663.db",
+            None,
+            {"participants": 343, "location": "us-ma-boston"},
+        ),
+        (
+            "train_pittsburgh/2021.09.13.19.54.06_veh-45_00781_00843.db",
+            None,
+            {"participants": 57, "location": "us-pa-pittsburgh-hazelwood"},
+        ),
         (
             "train_singapore/2021.09.29.01.04.10_veh-49_00808_00872.db",
             (-float("inf"), float("inf")),
-            35,
+            {"participants": 35, "location": "sg-one-north"},
         ),
         (
             "train_vegas_1/2021.05.18.21.31.22_veh-30_00062_00160.db",
             (-float("inf"), float("inf")),
-            285,
+            {"participants": 285, "location": "las_vegas"},
         ),
-        ("val/2021.08.24.12.39.05_veh-42_01860_01929.db", None, 45),
-        ("test/2021.09.16.14.14.03_veh-45_00441_00502.db", None, 48),
+        (
+            "val/2021.08.24.12.39.05_veh-42_01860_01929.db",
+            None,
+            {"participants": 45, "location": "us-pa-pittsburgh-hazelwood"},
+        ),
+        (
+            "test/2021.09.16.14.14.03_veh-45_00441_00502.db",
+            None,
+            {"participants": 48, "location": "us-pa-pittsburgh-hazelwood"},
+        ),
     ],
 )
-def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: int):
+def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: dict):
     folder_path = "./tactics2d/data/trajectory_sample/NuPlan/data/cache"
-    map_folder_path = "./tactics2d/data/map"
-    with open("./tactics2d/dataset_parser/map.config") as f:
-        configs = json.load(f)
+    map_folder_path = "./tactics2d/data/map/NuPlan/maps"
+    if not os.path.exists(map_folder_path):
+        map_folder_path = "./tactics2d/data/map/NuPlan"
 
     dataset_parser = NuPlanParser()
 
     t1 = time.time()
-    participants, _ = dataset_parser.parse_trajectory(file_name, folder_path, stamp_range)
+    participants, time_range = dataset_parser.parse_trajectory(file_name, folder_path, stamp_range)
     t2 = time.time()
     location = dataset_parser.get_location(file_name, folder_path)
-    map_path = configs[location]["gpkg_path"]
-
-    try:
-        _ = dataset_parser.parse_map(map_path, map_folder_path)
-    except:
-        logging.info(f"{map_path}")
+    map_config = NUPLAN_MAP_CONFIG[location]
+    map_path = os.path.join(map_config["folder"], map_config["gpkg_file"])
+    full_map_path = os.path.join(map_folder_path, map_path)
+    map_ = (
+        dataset_parser.parse_map(map_path, map_folder_path)
+        if os.path.exists(full_map_path)
+        else None
+    )
 
     t3 = time.time()
 
-    assert (len(participants)) == expected
+    assert len(participants) == expected["participants"]
+    assert time_range[0] <= time_range[1]
+    assert location == expected["location"]
+    participant_ids = list(participants.keys())
+    participant_render_ids = participant_ids + [
+        participant_id + 0.5 for participant_id in participant_ids
+    ]
+    assert all(isinstance(participant_id, int) for participant_id in participant_ids)
+    assert len(set(participant_render_ids)) == len(participant_render_ids)
+    assert all(hasattr(participant, "source_id") for participant in participants.values())
+    assert any(participant.type_ == "vehicle" for participant in participants.values())
+    assert any(
+        hasattr(state, "confidence") and hasattr(state, "length") and hasattr(state, "width")
+        for participant in participants.values()
+        for state in participant.trajectory.history_states.values()
+    )
+    if map_ is None:
+        logging.info(f"NuPlan map file not found: {full_map_path}")
+    else:
+        assert len(map_.lanes) > 0
+        assert len(map_.roadlines) > 0
+        assert len(map_.areas) > 0
+        assert len(map_.junctions) > 0
+        assert len(map_.regulations) > 0
+
+        assert any(lane.centerline() is not None for lane in map_.lanes.values())
+        assert any(lane.successors for lane in map_.lanes.values())
+        assert any(lane.left_neighbors or lane.right_neighbors for lane in map_.lanes.values())
+        assert any(
+            regulation.subtype == "traffic_light" for regulation in map_.regulations.values()
+        )
+        assert any(area.subtype == "crosswalk" for area in map_.areas.values())
+
     logging.info(f"The time needed to parse a NuPlan scenario: {t2 - t1}s")
     logging.info(f"The time needed to parse the map for a NuPlan scenario: {t3 - t2}s")
 
 
 @pytest.mark.dataset_parser
-@pytest.mark.parametrize("scenario_id", [(None), (0), (10), ("637f20cafde22ff8"), ("not_exist")])
-def test_womd_parser(scenario_id):
+@pytest.mark.parametrize(
+    "file_name, scenario_id, expected",
+    [
+        (
+            "uncompressed_scenario_training_training.tfrecord-00001-of-01000",
+            "610c7fcfe8e7eb4d",
+            {
+                "time_range": (0, 9000),
+                "classes": {"Vehicle": 44, "Pedestrian": 42, "Cyclist": 21},
+                "areas": {"crosswalk": 6, "drivable_area": 10},
+                "regs": {"traffic_light": 11},
+                "lane_count": 79,
+                "roadline_count": 63,
+            },
+        ),
+        (
+            "uncompressed_scenario_validation_interactive_validation_interactive.tfrecord-00000-of-00150",
+            "234dfbe99b740c80",
+            {
+                "time_range": (0, 8997),
+                "classes": {"Vehicle": 52, "Pedestrian": 2, "Cyclist": 1},
+                "areas": {"crosswalk": 32, "speed_bump": 18, "drivable_area": 36},
+                "regs": {"stop_sign": 10, "traffic_light": 6},
+                "lane_count": 664,
+                "roadline_count": 143,
+            },
+        ),
+        (
+            "uncompressed_scenario_validation_validation.tfrecord-00001-of-00150",
+            None,
+            {
+                "time_range": (0, 9002),
+                "classes": {"Vehicle": 202, "Pedestrian": 6},
+                "areas": {"crosswalk": 14, "speed_bump": 7, "drivable_area": 20},
+                "regs": {"stop_sign": 2, "traffic_light": 13},
+                "lane_count": 327,
+                "roadline_count": 111,
+            },
+        ),
+    ],
+)
+def test_womd_parser_official_shards(file_name: str, scenario_id: str, expected: dict):
     folder_path = "./tactics2d/data/trajectory_sample/WOMD"
-    file_name = "motion_data_one_scenario.tfrecord"
 
     dataset_parser = WOMDParser()
 
     t1 = time.time()
-    participants, _ = dataset_parser.parse_trajectory(
+    participants, actual_time_range = dataset_parser.parse_trajectory(
         scenario_id, file=file_name, folder=folder_path
     )
     t2 = time.time()
-    _ = dataset_parser.parse_map(scenario_id, file=file_name, folder=folder_path)
+    map_ = dataset_parser.parse_map(scenario_id, file=file_name, folder=folder_path)
     t3 = time.time()
-    assert len(participants) == 83
-    logging.info(f"The time needed to parse trajectories in a WOMD scenario: {t2 - t1}s")
-    logging.info(f"The time needed to parse the map for a WOMD scenario: {t3 - t2}s")
+
+    class_counts = {}
+    for participant in participants.values():
+        class_name = type(participant).__name__
+        class_counts[class_name] = class_counts.get(class_name, 0) + 1
+
+    area_counts = {}
+    for area in map_.areas.values():
+        area_counts[area.subtype] = area_counts.get(area.subtype, 0) + 1
+
+    reg_counts = {}
+    for regulation in map_.regulations.values():
+        reg_counts[regulation.subtype] = reg_counts.get(regulation.subtype, 0) + 1
+
+    actual = {
+        "time_range": actual_time_range,
+        "classes": class_counts,
+        "areas": area_counts,
+        "regs": reg_counts,
+        "lane_count": len(map_.lanes),
+        "roadline_count": len(map_.roadlines),
+    }
+
+    assert actual == expected
+
+    logging.info(f"The time needed to parse official WOMD shard trajectories: {t2 - t1}s")
+    logging.info(f"The time needed to parse official WOMD shard map: {t3 - t2}s")
+
+
+@pytest.mark.dataset_parser
+@pytest.mark.parametrize(
+    "file_name, scenario_id, expected_light_count",
+    [
+        ("uncompressed_scenario_training_training.tfrecord-00001-of-01000", "610c7fcfe8e7eb4d", 11),
+        (
+            "uncompressed_scenario_validation_interactive_validation_interactive.tfrecord-00000-of-00150",
+            "234dfbe99b740c80",
+            6,
+        ),
+        ("uncompressed_scenario_validation_validation.tfrecord-00001-of-00150", None, 13),
+    ],
+)
+def test_womd_dynamic_traffic_lights(file_name: str, scenario_id: str, expected_light_count: int):
+    folder_path = "./tactics2d/data/trajectory_sample/WOMD"
+
+    dataset_parser = WOMDParser()
+    map_ = dataset_parser.parse_map(scenario_id, file=file_name, folder=folder_path)
+
+    dynamic_lights = [reg for reg in map_.regulations.values() if reg.subtype == "traffic_light"]
+    lane_centerlines_complete = all(
+        "centerline" in lane.custom_tags for lane in map_.lanes.values()
+    )
+    lane_boundaries_complete = all(
+        lane.left_side is not None
+        and len(lane.left_side.coords) >= 2
+        and lane.right_side is not None
+        and len(lane.right_side.coords) >= 2
+        for lane in map_.lanes.values()
+    )
+    signal_metadata_complete = all(
+        reg.dynamic
+        and reg.custom_tags
+        and "states" in reg.custom_tags
+        and len(reg.custom_tags["states"]) > 0
+        and reg.is_traffic_light()
+        and any(reg.applies_to_lane(lane_id) for lane_id in reg.ways)
+        and reg.state_at() is not None
+        and reg.stop_point_at() is not None
+        for reg in dynamic_lights
+    )
+
+    assert len(dynamic_lights) == expected_light_count
+    assert lane_centerlines_complete
+    assert lane_boundaries_complete
+    assert signal_metadata_complete
+
+
+@pytest.mark.dataset_parser
+@pytest.mark.parametrize(
+    "scenario_id, folder, map_name, expected",
+    [
+        ("6", "./tactics2d/data/trajectory_sample/DriveInsightD/jp_taito", "jp_taito.xodr", 13),
+        ("11", "./tactics2d/data/trajectory_sample/DriveInsightD/cz_zlin", "cz_zlin.xodr", None),
+        (
+            "4464",
+            "./tactics2d/data/trajectory_sample/DriveInsightD/us_coldwater",
+            "usa_coldwater.xodr",
+            None,
+        ),
+    ],
+)
+def test_driveinsightd_parser(scenario_id: str, folder: str, map_name: str, expected):
+    if not os.path.isdir(folder):
+        pytest.skip(f"Dataset folder not found: {folder}")
+
+    dataset_parser = DriveInsightDParser()
+
+    t1 = time.time()
+    participants, _ = dataset_parser.parse_trajectory(file=scenario_id, folder=folder)
+    t2 = time.time()
+    _ = dataset_parser.parse(scenario_id=scenario_id, folder=folder, map_name=map_name)
+    t3 = time.time()
+
+    if expected is not None:
+        assert len(participants) == expected
+    else:
+        assert len(participants) > 0
+    logging.info(f"The time needed to parse a DriveInsightD trajectory file: {t2 - t1}s")
+    logging.info(f"The time needed to parse a DriveInsightD map file: {t3 - t2}s")

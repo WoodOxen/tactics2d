@@ -1,9 +1,7 @@
-##! python3
-# Copyright (C) 2024, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: node.py
-# @Description: This file defines a class for a map node.
-# @Author: Yueyuan Li
-# @Version: 1.0.0
+# Copyright (C) 2023, Tactics2D Authors. Released under the GNU GPLv3.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Node implementation."""
 
 
 from shapely.geometry import Point
@@ -26,6 +24,8 @@ class Node:
         y (float): The y coordinate of the node.
         location (Point): The location of the node expressed in geometry format. This attribute is **read-only**.
     """
+
+    __slots__ = ("id_", "x", "y")
 
     def __init__(self, id_: str, x: float, y: float):
         """Initialize an instance of this class.
