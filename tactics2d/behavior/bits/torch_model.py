@@ -587,22 +587,26 @@ class _BitsPositionalEncodingNd(nn.Module):
 
     def __init__(self, dim: int, dropout: float, step_size=(0.1, 0.1)):
         super().__init__()
-        if dim % 2 != 0:
-            raise ValueError("dim must be even.")
+        if dim % 4 != 0:
+            raise ValueError("dim must be divisible by 4.")
         self.dropout = nn.Dropout(p=dropout)
         self.dim = int(dim)
         self.step_size = tuple(float(value) for value in step_size)
-        self.div_term = torch.exp(torch.arange(0, dim, 2) * -(math.log(10000.0) / dim))
+        axis_dim = dim // 2
+        self.div_term = torch.exp(
+            torch.arange(0, axis_dim, 2) * -(math.log(10000.0) / axis_dim)
+        )
 
     def forward(self, inputs: torch.Tensor, position: torch.Tensor) -> torch.Tensor:
-        repeat_shape = [1] * inputs.ndim
-        repeat_shape[-1] = int(self.dim / 2)
         encoded = torch.zeros(*inputs.shape[:-1], self.dim, dtype=inputs.dtype, device=inputs.device)
         div_term = self.div_term.to(device=inputs.device, dtype=inputs.dtype)
+        axis_dim = self.dim // 2
         for axis, step in enumerate(self.step_size):
-            phase = position[..., axis : axis + 1].repeat(*repeat_shape) / step * div_term
-            encoded[..., 0::2] = torch.sin(phase)
-            encoded[..., 1::2] = torch.sin(phase)
+            phase = position[..., axis : axis + 1] / step * div_term
+            start = axis * axis_dim
+            axis_encoded = encoded[..., start : start + axis_dim]
+            axis_encoded[..., 0::2] = torch.sin(phase)
+            axis_encoded[..., 1::2] = torch.cos(phase)
         return self.dropout(encoded)
 
 
@@ -1637,7 +1641,7 @@ def compute_bits_torch_losses(
     losses: Dict[str, torch.Tensor] = {}
     predictions = output["predictions"]
     losses.update(_trajectory_losses(predictions, tensors))
-    if goal_tensors is not None and "plan" in output:
+    if goal_tensors is not None and "plan" in output and _has_spatial_goal_targets(goal_tensors):
         losses.update(_spatial_planner_losses(output["plan"], goal_tensors))
     resolved_weights = _resolve_torch_loss_weights(config, loss_weights)
     losses["total"] = _weighted_torch_loss_sum(losses, resolved_weights)
@@ -2301,6 +2305,18 @@ def _spatial_planner_losses(
         "pixel_res_loss": residual_loss,
         "pixel_yaw_loss": yaw_loss,
     }
+
+
+def _has_spatial_goal_targets(goal_tensors: Dict[str, torch.Tensor]) -> bool:
+    return all(
+        goal_tensors.get(key) is not None
+        for key in (
+            "goal_position_pixel_flat",
+            "goal_position_residual",
+            "goal_spatial_map",
+            "goal_yaw",
+        )
+    )
 
 
 def _resolve_torch_loss_weights(

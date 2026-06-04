@@ -79,6 +79,8 @@ def build_goal_supervision(batch: BitsBatch) -> BitsGoalSupervision:
         goal_position_residual=residual,
         goal_spatial_map=spatial_map,
     )
+
+
 def _transform_point(point, transform: np.ndarray) -> np.ndarray:
     transformed = transform @ np.asarray([point[0], point[1], 1.0], dtype=float)
     return transformed[:2]

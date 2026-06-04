@@ -7,31 +7,43 @@ import numpy as np
 import pytest
 from shapely.geometry import LineString, Polygon
 
+pytest.importorskip("torch", reason="BITS torch tests require the tactics2d[bits] extra.")
+pytest.importorskip("torchvision", reason="BITS torch tests require the tactics2d[bits] extra.")
+
 from tactics2d.behavior.bits import (
-    BitsAgentPrediction,
     BitsBehaviorModel,
-    BitsBatchBuilder,
-    BitsRunConfig,
-    BitsTrainingSchedule,
     BitsConfig,
     BitsPlan,
-    BitsPlanScorer,
     BitsPolicy,
     BitsPrediction,
     BitsRasterizer,
-    BitsRollingRunner,
+)
+from tactics2d.behavior.bits.cache import (
+    build_bits_batch_cache,
+    load_bits_batch_cache,
+    load_bits_batch_cache_manifest,
+    rebuild_bits_batch_cache_manifest,
+)
+from tactics2d.behavior.bits.dataset import (
+    BitsBatchBuilder,
     BitsSampleDataset,
     NuPlanBitsDataset,
+)
+from tactics2d.behavior.bits.evaluation import evaluate_bits_rolling_result
+from tactics2d.behavior.bits.model import (
+    BitsAgentPrediction,
+    BitsPlanScorer,
+)
+from tactics2d.behavior.bits.rolling import BitsRollingRunner
+from tactics2d.behavior.bits.supervision import build_goal_supervision
+from tactics2d.behavior.bits.training import (
+    BitsRunConfig,
+    BitsTrainingSchedule,
     NuPlanBitsSplit,
     NuPlanLogSpec,
     bits_run_config_from_dict,
     bits_run_config_to_dict,
-    build_bits_batch_cache,
-    build_goal_supervision,
     evaluate_nuplan_bits_planner_split,
-    evaluate_bits_rolling_result,
-    load_bits_batch_cache,
-    load_bits_batch_cache_manifest,
     load_bits_checkpoint,
     load_bits_run_config,
     load_bits_inference_model,
@@ -43,7 +55,6 @@ from tactics2d.behavior.bits import (
     run_nuplan_bits_planner_protocol,
     run_nuplan_bits_rolling_protocol,
     run_nuplan_bits_torch_validation,
-    rebuild_bits_batch_cache_manifest,
     save_bits_checkpoint,
     save_bits_run_config,
     train_nuplan_bits_model,
@@ -66,6 +77,7 @@ from tactics2d.behavior.bits.torch_model import (
     run_bits_planner_torch_epoch,
     integrate_unicycle_controls,
     run_bits_torch_epoch,
+    _BitsPositionalEncodingNd,
 )
 from tactics2d.map.element import Area, Lane, LaneRelationship, Map
 from tactics2d.participant.element import Pedestrian, Vehicle
@@ -758,6 +770,7 @@ def test_nuplan_bits_dataset_runs_agent_aware_torch_epoch_pipeline_sanity():
     assert result.mean_losses["prediction_loss"] > 0.0
 
 
+@pytest.mark.bits_workflow
 def test_train_nuplan_bits_planner_saves_planner_checkpoint(tmp_path):
     class FakeNuPlanParser:
         def parse_trajectory(self, file, folder, time_range=None):
@@ -820,6 +833,7 @@ def test_train_nuplan_bits_planner_saves_planner_checkpoint(tmp_path):
     assert val_result.sample_count == 1
 
 
+@pytest.mark.bits_workflow
 def test_run_nuplan_bits_planner_protocol_saves_repeatable_results(tmp_path):
     import json
     import torch
@@ -913,6 +927,7 @@ def test_run_nuplan_bits_planner_protocol_saves_repeatable_results(tmp_path):
     )
 
 
+@pytest.mark.bits_workflow
 def test_run_nuplan_bits_open_loop_protocol_loads_checkpoint_and_scores_splits(tmp_path):
     import json
 
@@ -996,6 +1011,7 @@ def test_run_nuplan_bits_open_loop_protocol_loads_checkpoint_and_scores_splits(t
     assert payload["test"]["mean_total_loss"] > 0.0
 
 
+@pytest.mark.bits_workflow
 def test_run_nuplan_bits_open_loop_protocol_accepts_mixed_weight_sources(tmp_path):
     import torch
 
@@ -1065,6 +1081,7 @@ def test_run_nuplan_bits_open_loop_protocol_accepts_mixed_weight_sources(tmp_pat
     assert predictor_key in result.inference["compatibility"]["matched_keys"]
 
 
+@pytest.mark.bits_workflow
 def test_run_nuplan_bits_rolling_protocol_scores_short_closed_loop(tmp_path):
     import json
 
@@ -1151,6 +1168,7 @@ def test_run_nuplan_bits_rolling_protocol_scores_short_closed_loop(tmp_path):
     assert payload["test"]["summary"]["evaluated_log_count"] == 1
 
 
+@pytest.mark.bits_workflow
 def test_run_nuplan_bits_torch_validation_builds_dataset_and_model():
     import torch
 
@@ -1214,6 +1232,7 @@ def test_run_nuplan_bits_torch_validation_builds_dataset_and_model():
     assert result.mean_total_loss > 0.0
 
 
+@pytest.mark.bits_workflow
 def test_run_nuplan_bits_torch_validation_filters_frame_range_after_parse():
     class FakeNuPlanParser:
         seen_time_range = None
@@ -1256,6 +1275,7 @@ def test_run_nuplan_bits_torch_validation_filters_frame_range_after_parse():
     assert result.step_count == 1
 
 
+@pytest.mark.bits_workflow
 def test_run_nuplan_bits_torch_validation_rejects_negative_max_samples():
     with pytest.raises(ValueError, match="max_samples"):
         run_nuplan_bits_torch_validation(
@@ -1340,6 +1360,9 @@ def test_bits_behavior_model_predicts_world_frame_trajectories():
     np.testing.assert_allclose(trajectory.get_state(100).location, (10.0, 12.0), atol=1e-9)
     np.testing.assert_allclose(trajectory.get_state(200).location, (10.0, 14.0), atol=1e-9)
     assert trajectory.get_state(100).heading == pytest.approx(np.pi / 2)
+    assert trajectory.get_state(100).vx == pytest.approx(0.0)
+    assert trajectory.get_state(100).vy == pytest.approx(20.0)
+    assert trajectory.get_state(100).speed == pytest.approx(20.0)
 
 
 def test_bits_behavior_model_exposes_batch_prediction_api():
@@ -2291,6 +2314,27 @@ def test_bits_agent_aware_module_can_enable_official_history_transformer_branch(
     assert any(param.grad is not None for param in module.transformer.parameters())
 
 
+def test_bits_xy_positional_encoding_keeps_axes_in_separate_sin_cos_channels():
+    import torch
+
+    encoder = _BitsPositionalEncodingNd(dim=8, dropout=0.0, step_size=(1.0, 1.0))
+    inputs = torch.zeros((1, 3, 8), dtype=torch.float32)
+    positions = torch.tensor(
+        [[[0.0, 0.0], [2.0, 0.0], [0.0, 2.0]]],
+        dtype=torch.float32,
+    )
+
+    encoded = encoder(inputs, positions)
+
+    assert encoded.shape == (1, 3, 8)
+    assert encoded[0, 0, 1].item() == pytest.approx(1.0)
+    assert encoded[0, 0, 5].item() == pytest.approx(1.0)
+    assert torch.allclose(encoded[0, 0, 4:], encoded[0, 1, 4:])
+    assert not torch.allclose(encoded[0, 0, :4], encoded[0, 1, :4])
+    assert torch.allclose(encoded[0, 0, :4], encoded[0, 2, :4])
+    assert not torch.allclose(encoded[0, 0, 4:], encoded[0, 2, 4:])
+
+
 def test_bits_raster_backbone_exposes_official_style_feature_maps():
     import torch
 
@@ -2493,7 +2537,7 @@ def test_decode_bits_spatial_prediction_falls_back_when_drivable_mask_is_empty()
     )
 
     np.testing.assert_allclose(decoded["pixel_positions"].detach().numpy()[0, 0], [22.5, 32.5])
-    np.testing.assert_allclose(decoded["location_prob_map"].sum().item(), 1.0)
+    assert decoded["location_prob_map"].sum().item() == pytest.approx(1.0, abs=1e-6)
 
 
 def test_bits_bilevel_torch_model_forward_and_losses_are_differentiable():

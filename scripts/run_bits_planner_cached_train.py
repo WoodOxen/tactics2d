@@ -8,15 +8,17 @@ from pathlib import Path
 
 import torch
 
-from tactics2d.behavior.bits import (
-    bits_run_config_to_dict,
+from tactics2d.behavior.bits.cache import (
     build_bits_batch_cache,
     build_bits_batch_cache_parallel,
     load_bits_batch_cache,
+    rebuild_bits_batch_cache_manifest,
+)
+from tactics2d.behavior.bits.training import (
+    bits_run_config_to_dict,
     load_bits_checkpoint,
     load_bits_inference_model,
     load_bits_run_config,
-    rebuild_bits_batch_cache_manifest,
     save_bits_checkpoint,
     save_bits_run_config,
 )

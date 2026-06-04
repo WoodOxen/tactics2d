@@ -231,7 +231,8 @@ class BitsRasterizer:
         inside = Path(coords).contains_points(points).reshape(
             (max_row - min_row, max_col - min_col)
         )
-        mask[min_row:max_row, min_col:max_col][inside] = value
+        window = mask[min_row:max_row, min_col:max_col]
+        window[inside] = value
 
     def _draw_line(
         self,

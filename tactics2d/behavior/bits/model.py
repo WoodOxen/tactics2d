@@ -357,6 +357,13 @@ class BitsBehaviorModel:
             local_yaw = float(prediction.yaws[best_index, step, 0])
             world_position = self._transform_point(local_position, batch.world_from_agent)
             world_yaw = normalize_angle(batch.yaw + local_yaw)
+            previous_world_position = self._previous_world_position(
+                prediction.positions[best_index],
+                prediction.availabilities[best_index],
+                step,
+                batch,
+            )
+            velocity = (world_position - previous_world_position) / self.config.dt
             state_frame = frame + self.config.step_ms * (step + 1)
             trajectory.add_state(
                 State(
@@ -364,8 +371,8 @@ class BitsBehaviorModel:
                     x=float(world_position[0]),
                     y=float(world_position[1]),
                     heading=world_yaw,
-                    vx=0.0,
-                    vy=0.0,
+                    vx=float(velocity[0]),
+                    vy=float(velocity[1]),
                 )
             )
         return trajectory
@@ -374,3 +381,15 @@ class BitsBehaviorModel:
     def _transform_point(point, transform: np.ndarray) -> np.ndarray:
         transformed = transform @ np.asarray([point[0], point[1], 1.0], dtype=float)
         return transformed[:2]
+
+    def _previous_world_position(
+        self,
+        positions: np.ndarray,
+        availabilities: np.ndarray,
+        step: int,
+        batch: BitsBatch,
+    ) -> np.ndarray:
+        for previous_step in range(step - 1, -1, -1):
+            if bool(availabilities[previous_step]):
+                return self._transform_point(positions[previous_step], batch.world_from_agent)
+        return np.asarray(batch.centroid, dtype=float)

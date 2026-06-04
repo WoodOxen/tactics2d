@@ -5,6 +5,9 @@
 ### Added
 
 - Added a parser and corresponding tests, documentations for DriveInsightD dataset.
+- Added a BITS behavior-model reproduction path for NuPlan, including the core BITS API,
+  torch inference/training utilities, a cached planner training script, tests, and a tutorial
+  that shows how to load a trained planner checkpoint with the official predictor weights.
 
 ---
 
