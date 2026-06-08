@@ -6,13 +6,31 @@
 
 import os
 
+import pytest
+
 # Set environment variables before any imports
 os.environ["MPLBACKEND"] = "Agg"
 os.environ["PYTHON_SKIP_TKINTER"] = "1"
 
 
+def pytest_addoption(parser):
+    """Register optional local test-suite switches."""
+
+    parser.addoption(
+        "--run-bits-workflow",
+        action="store_true",
+        default=False,
+        help="run BITS training/evaluation workflow tests",
+    )
+
+
 def pytest_configure(config):
     """Configure matplotlib backend before any tests run."""
+
+    config.addinivalue_line(
+        "markers",
+        "bits_workflow: mark BITS training/evaluation workflow tests",
+    )
     try:
         import matplotlib
 
@@ -22,3 +40,14 @@ def pytest_configure(config):
         matplotlib.rcParams["backend"] = "Agg"
     except ImportError:
         pass
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip resource-dependent BITS workflow tests unless explicitly requested."""
+
+    if config.getoption("--run-bits-workflow"):
+        return
+    skip_workflow = pytest.mark.skip(reason="BITS workflow tests require --run-bits-workflow")
+    for item in items:
+        if "bits_workflow" in item.keywords:
+            item.add_marker(skip_workflow)

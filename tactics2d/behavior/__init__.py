@@ -3,6 +3,10 @@
 
 """Behavior module."""
 
+from .bits import BitsBehaviorModel
 from .limsim import LimSimBehaviorModel
 
-__all__ = ["LimSimBehaviorModel"]
+__all__ = [
+    "BitsBehaviorModel",
+    "LimSimBehaviorModel",
+]
