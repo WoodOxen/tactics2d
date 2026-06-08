@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tactics2D Frontend</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20260601-ui11">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/static/vendor/three.module.js?v=0.164.1"
+      }
+    }
+  </script>
+  <script type="module" src="/static/app.js?v=20260601-ui11"></script>
+</head>
+<body>
+  <header class="toolbar">
+    <div class="brand">Tactics2D</div>
+    <div class="toolbar-actions">
+      <div class="render-stats" aria-live="polite">
+        <span>FPS <strong id="render-fps">0</strong></span>
+        <span>帧 <strong id="render-frame">-</strong></span>
+        <span>传感器 <strong id="render-sensors">0</strong></span>
+        <span>跳帧 <strong id="render-dropped">0</strong></span>
+      </div>
+      <button class="icon-button is-active" data-layout="grid" title="Grid layout">▦</button>
+      <button class="icon-button" data-layout="master" title="Master layout">◫</button>
+      <span id="connection-status" class="status-dot" title="Disconnected"></span>
+    </div>
+  </header>
+  <div class="workspace">
+    <aside class="control-panel">
+      <div class="source-tabs" role="tablist" aria-label="场景">
+        <button type="button" data-source-tab="dataset" role="tab" aria-selected="false">数据集</button>
+        <button type="button" data-source-tab="map" role="tab" aria-selected="false">地图</button>
+        <button class="is-active" type="button" data-source-tab="live" role="tab" aria-selected="true">实时</button>
+      </div>
+
+      <form id="dataset-form" class="preview-form is-hidden" data-source-panel="dataset" role="tabpanel" hidden>
+        <div class="field">
+          <label for="dataset-select">数据集</label>
+          <select id="dataset-select" name="dataset"></select>
+        </div>
+        <div class="field">
+          <label for="dataset-folder">数据目录</label>
+          <input id="dataset-folder" name="folder" autocomplete="off">
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="dataset-file">文件号</label>
+            <input id="dataset-file" name="file" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="dataset-frames">帧数</label>
+            <input id="dataset-frames" name="frames" type="number" min="1" max="10000">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="dataset-max-fps">FPS</label>
+            <input id="dataset-max-fps" name="max_fps" type="number" min="1" max="100">
+          </div>
+          <div class="field">
+            <label for="dataset-range">范围</label>
+            <input id="dataset-range" name="perception_range" type="number" min="1">
+          </div>
+        </div>
+        <div class="field">
+          <label for="dataset-map-config">地图配置</label>
+          <select id="dataset-map-config" name="map_config"></select>
+        </div>
+        <details class="advanced-options">
+          <summary>更多</summary>
+          <div class="field">
+            <label for="dataset-osm">OSM路径</label>
+            <input id="dataset-osm" name="osm_path" autocomplete="off">
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <label for="dataset-start">起始ms</label>
+              <input id="dataset-start" name="start_time_ms" type="number" min="0">
+            </div>
+            <div class="field">
+              <label for="dataset-follow">跟随ID</label>
+              <input id="dataset-follow" name="follow_id" type="number" min="0">
+            </div>
+          </div>
+          <div class="field">
+            <label for="dataset-ids">对象ID</label>
+            <input id="dataset-ids" name="ids" autocomplete="off">
+          </div>
+          <label class="check-field">
+            <input id="dataset-lanelet2" name="lanelet2" type="checkbox" checked>
+            <span>Lanelet2</span>
+          </label>
+          <label class="check-field">
+            <input id="dataset-loop" name="loop" type="checkbox">
+            <span>循环播放</span>
+          </label>
+        </details>
+        <button class="primary-button" type="submit">加载数据集</button>
+      </form>
+
+      <form id="map-form" class="preview-form is-hidden" data-source-panel="map" role="tabpanel" hidden>
+        <div class="field">
+          <label for="map-osm">OSM路径</label>
+          <input id="map-osm" name="osm_path" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="map-config">地图配置</label>
+          <select id="map-config" name="map_config"></select>
+        </div>
+        <label class="check-field">
+          <input id="map-lanelet2" name="lanelet2" type="checkbox" checked>
+          <span>Lanelet2</span>
+        </label>
+        <button class="primary-button" type="submit">加载地图</button>
+      </form>
+
+      <div id="live-panel" class="preview-form" data-source-panel="live" role="tabpanel"></div>
+
+    </aside>
+    <main class="viewer-shell">
+      <div id="sensor-grid" class="sensor-grid"></div>
+      <div class="player-bar">
+        <div id="preview-status" class="preview-status">就绪</div>
+        <div class="timeline-status">
+          <span id="stream-mode" class="mode-badge">就绪</span>
+          <div id="progress-track" class="progress-track is-hidden" aria-hidden="true">
+            <div id="preview-progress" class="progress-fill"></div>
+          </div>
+        </div>
+        <div class="playback-controls">
+          <button id="pause-preview" class="secondary-button" type="button">暂停</button>
+          <button id="stop-preview" class="secondary-button" type="button">停止</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
