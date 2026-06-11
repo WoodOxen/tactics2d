@@ -7,6 +7,7 @@ from typing import Dict, Iterable, Optional, Sequence
 
 import numpy as np
 
+from tactics2d.behavior.base import BehaviorModelBase
 from tactics2d.geometry import normalize_angle
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
@@ -24,7 +25,7 @@ from .scene import SceneBuilder
 from .schema import AgentDecisionState, PlanningResult, states_to_trajectory
 
 
-class LimSimBehaviorModel:
+class LimSimBehaviorModel(BehaviorModelBase):
     """Reproduce LimSim's MCT-based interactive behavior layer on Tactics2D data.
 
     This implementation focuses on the non-LLM LimSim pipeline: local interaction
@@ -52,7 +53,30 @@ class LimSimBehaviorModel:
         ego_id: Optional[object] = None,
         last_planned_trajectories: Optional[Dict[object, Trajectory]] = None,
     ) -> PlanningResult:
-        """Plan future trajectories for active agents at one frame."""
+        """Plan future trajectories for active agents at one frame.
+
+        Args:
+            participants: Tactics2D traffic participants keyed by agent id.
+            map_: Semantic map used for lane matching, route rollout, and
+                conflict checks. If ``None``, map-dependent planning is skipped.
+            frame: Current frame timestamp in milliseconds.
+            agent_ids: Optional explicit ids to control. If omitted, all active
+                vehicles are considered unless an RoI is requested.
+            roi_center: Center point used with ``roi_radius`` when no ``ego_id``
+                is provided.
+            roi_radius: Inner RoI radius. Vehicles inside this region are
+                controlled by LimSim.
+            roi_outer_radius: Optional outer RoI radius. Vehicles between the
+                inner and outer radii are treated as background obstacles.
+            ego_id: Optional participant id whose current position defines the
+                RoI center.
+            last_planned_trajectories: Previously planned trajectories used by
+                the predictor to reuse committed lane-change plans.
+
+        Returns:
+            PlanningResult containing planned trajectories plus LimSim-specific
+            diagnostics such as actions, interaction groups, and RoI ids.
+        """
 
         selected_ids = list(agent_ids) if agent_ids is not None else None
         background_ids = []
@@ -160,10 +184,26 @@ class LimSimBehaviorModel:
 
         return result
 
+    def predict(
+        self,
+        participants: Dict[object, object],
+        map_: Optional[Map],
+        frame: int,
+        agent_ids: Optional[Iterable[object]] = None,
+    ) -> Dict[object, Trajectory]:
+        """Plan future trajectories for selected agents.
+
+        This method provides the shared behavior-model interface. Use
+        :meth:`plan` when LimSim-specific diagnostics such as actions, groups,
+        and MCTS root nodes are needed.
+        """
+
+        return self.plan(participants, map_, frame, agent_ids=agent_ids).trajectories
+
     def _filter_controlled_vehicle_ids(
         self, participants: Dict[object, object], agent_ids: Optional[Iterable[object]]
     ) -> list:
-        """Keep LimSim PDP controlled agents aligned with vehicle-only semantics."""
+        """Keep LimSim-controlled agents aligned with vehicle-only semantics."""
 
         if agent_ids is None:
             agent_ids = participants.keys()

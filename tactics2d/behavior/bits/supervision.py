@@ -8,6 +8,8 @@ from typing import Dict, Optional
 
 import numpy as np
 
+from tactics2d.geometry import transform_point
+
 from .schema import BitsBatch
 
 
@@ -54,7 +56,7 @@ def build_goal_supervision(batch: BitsBatch) -> BitsGoalSupervision:
         )
 
     height, width = batch.image.shape[-2:]
-    raster_position = _transform_point(goal_position, batch.raster_from_agent)
+    raster_position = transform_point(goal_position, batch.raster_from_agent)
     clipped = np.asarray(
         [
             np.clip(raster_position[0], 0.0, width - 1e-5),
@@ -79,8 +81,3 @@ def build_goal_supervision(batch: BitsBatch) -> BitsGoalSupervision:
         goal_position_residual=residual,
         goal_spatial_map=spatial_map,
     )
-
-
-def _transform_point(point, transform: np.ndarray) -> np.ndarray:
-    transformed = transform @ np.asarray([point[0], point[1], 1.0], dtype=float)
-    return transformed[:2]

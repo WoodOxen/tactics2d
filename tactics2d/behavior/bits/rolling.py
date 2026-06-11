@@ -3,15 +3,14 @@
 
 """Short-horizon closed-loop runner for BITS-style behavior models."""
 
-from copy import copy
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional
 
 import numpy as np
 
 from tactics2d.geometry import normalize_angle
+from tactics2d.behavior._rolling import clone_vehicle_participants_at_frames, copy_state
 from tactics2d.map.element import Map
-from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 
 from .config import BitsConfig
@@ -44,8 +43,8 @@ class BitsRollingRunner:
         self.config = config or BitsConfig()
         if behavior_model is None:
             raise ValueError(
-                "behavior_model is required; construct BitsBehaviorModel with "
-                "TorchBitsPolicy for BITS rolling simulation."
+                "behavior_model is required; pass BitsBehaviorModel() or a custom "
+                "BitsBehaviorModel with an explicit policy."
             )
         self.behavior_model = behavior_model
 
@@ -63,9 +62,11 @@ class BitsRollingRunner:
             raise ValueError("simulation_steps must be non-negative.")
 
         frame = int(start_frame)
-        simulated_participants = self._clone_participants_at_frame(
+        simulated_participants = clone_vehicle_participants_at_frames(
             participants,
-            frame,
+            frames=self._history_frames(frame),
+            required_frame=frame,
+            fps=round(1.0 / self.config.dt, 3),
         )
         controlled_ids = set(simulated_participants) if agent_ids is None else {
             agent_id for agent_id in agent_ids if agent_id in simulated_participants
@@ -99,32 +100,6 @@ class BitsRollingRunner:
             predicted_trajectories=predicted_trajectories,
         )
 
-    def _clone_participants_at_frame(
-        self,
-        participants: Dict[object, object],
-        frame: int,
-        agent_ids: Optional[Iterable[object]] = None,
-    ) -> Dict[object, object]:
-        selected_ids = list(participants) if agent_ids is None else list(agent_ids)
-        clones = {}
-        for agent_id in selected_ids:
-            participant = participants.get(agent_id)
-            if not isinstance(participant, Vehicle) or not participant.trajectory.has_state(frame):
-                continue
-            clone = copy(participant)
-            clone.trajectory = Trajectory(
-                id_=participant.trajectory.id_,
-                fps=round(1.0 / self.config.dt, 3),
-                stable_freq=True,
-            )
-            for state_frame in self._history_frames(frame):
-                if participant.trajectory.has_state(state_frame):
-                    clone.trajectory.add_state(
-                        self._copy_state(participant.trajectory.get_state(state_frame), state_frame)
-                    )
-            clones[agent_id] = clone
-        return clones
-
     def _advance_participants(
         self,
         simulated_participants: Dict[object, object],
@@ -139,7 +114,7 @@ class BitsRollingRunner:
             next_state = None
             planned = predictions.get(agent_id)
             if planned is not None and planned.has_state(next_frame):
-                next_state = self._copy_state(planned.get_state(next_frame), next_frame)
+                next_state = copy_state(planned.get_state(next_frame), next_frame)
             elif agent_id not in controlled_ids:
                 next_state = self._background_next_state(
                     source_participants.get(agent_id),
@@ -162,7 +137,7 @@ class BitsRollingRunner:
             source_participant is not None
             and source_participant.trajectory.has_state(next_frame)
         ):
-            return self._copy_state(source_participant.trajectory.get_state(next_frame), next_frame)
+            return copy_state(source_participant.trajectory.get_state(next_frame), next_frame)
 
         if not simulated_participant.trajectory.has_state(frame):
             return None
@@ -179,18 +154,6 @@ class BitsRollingRunner:
             heading=normalize_angle(state.heading),
             vx=float(vx),
             vy=float(vy),
-        )
-
-    @staticmethod
-    def _copy_state(state: State, frame: int) -> State:
-        velocity = state.velocity or (0.0, 0.0)
-        return State(
-            frame=frame,
-            x=float(state.x),
-            y=float(state.y),
-            heading=normalize_angle(state.heading),
-            vx=float(velocity[0]),
-            vy=float(velocity[1]),
         )
 
     def _next_frame(self, frame: int) -> int:

@@ -3,13 +3,15 @@
 
 """Model-facing interfaces for BITS-style trajectory prediction."""
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, Iterable, Optional
 
 import numpy as np
 from scipy.ndimage import distance_transform_edt
 
-from tactics2d.geometry import normalize_angle, oriented_box
+from tactics2d.behavior.base import BehaviorModelBase
+from tactics2d.geometry import normalize_angle, oriented_box, transform_point
 from tactics2d.map.element import Map
 from tactics2d.participant.trajectory import State, Trajectory
 
@@ -83,11 +85,12 @@ class BitsPlanScoreBreakdown:
         }
 
 
-class BitsPolicy:
+class BitsPolicy(ABC):
     """Base interface for BITS-compatible policies."""
 
+    @abstractmethod
     def predict_batch(self, batch: BitsBatch) -> BitsPrediction:
-        raise NotImplementedError
+        """Predict ego-frame future trajectories for one BITS batch."""
 
 
 class BitsPlanScorer:
@@ -154,9 +157,7 @@ class BitsPlanScorer:
                 continue
             distances = []
             for step in available:
-                raster_point = self._transform_point(
-                    plan.positions[index, step], batch.raster_from_agent
-                )
+                raster_point = transform_point(plan.positions[index, step], batch.raster_from_agent)
                 col = int(np.rint(raster_point[0]))
                 row = int(np.rint(raster_point[1]))
                 if row < 0 or row >= height or col < 0 or col >= width:
@@ -278,13 +279,8 @@ class BitsPlanScorer:
                 return True
         return False
 
-    @staticmethod
-    def _transform_point(point, transform: np.ndarray) -> np.ndarray:
-        transformed = transform @ np.asarray([point[0], point[1], 1.0], dtype=float)
-        return transformed[:2]
 
-
-class BitsBehaviorModel:
+class BitsBehaviorModel(BehaviorModelBase):
     """Public BITS-style behavior model entry point."""
 
     def __init__(
@@ -293,13 +289,22 @@ class BitsBehaviorModel:
         policy: Optional[BitsPolicy] = None,
         builder: Optional[BitsBatchBuilder] = None,
         include_raster: bool = True,
+        device=None,
+        dtype=None,
     ):
-        self.config = config or BitsConfig()
         if policy is None:
-            raise ValueError(
-                "policy is required; use TorchBitsPolicy with BitsBiLevelTorchModel "
-                "for the BITS reproduction path."
+            if config is not None:
+                raise ValueError(
+                    "config is loaded from the default BITS policy artifacts. "
+                    "Pass a policy together with config when using custom weights."
+                )
+            from .defaults import load_default_bits_policy
+
+            config, policy = load_default_bits_policy(
+                device=device,
+                dtype=dtype,
             )
+        self.config = config or BitsConfig()
         self.policy = policy
         self.builder = builder or BitsBatchBuilder(self.config)
         self.include_raster = include_raster
@@ -355,7 +360,7 @@ class BitsBehaviorModel:
                 continue
             local_position = prediction.positions[best_index, step]
             local_yaw = float(prediction.yaws[best_index, step, 0])
-            world_position = self._transform_point(local_position, batch.world_from_agent)
+            world_position = transform_point(local_position, batch.world_from_agent)
             world_yaw = normalize_angle(batch.yaw + local_yaw)
             previous_world_position = self._previous_world_position(
                 prediction.positions[best_index],
@@ -377,11 +382,6 @@ class BitsBehaviorModel:
             )
         return trajectory
 
-    @staticmethod
-    def _transform_point(point, transform: np.ndarray) -> np.ndarray:
-        transformed = transform @ np.asarray([point[0], point[1], 1.0], dtype=float)
-        return transformed[:2]
-
     def _previous_world_position(
         self,
         positions: np.ndarray,
@@ -391,5 +391,5 @@ class BitsBehaviorModel:
     ) -> np.ndarray:
         for previous_step in range(step - 1, -1, -1):
             if bool(availabilities[previous_step]):
-                return self._transform_point(positions[previous_step], batch.world_from_agent)
+                return transform_point(positions[previous_step], batch.world_from_agent)
         return np.asarray(batch.centroid, dtype=float)

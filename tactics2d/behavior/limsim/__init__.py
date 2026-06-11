@@ -3,6 +3,7 @@
 
 """LimSim-style interactive behavior model."""
 
+from .config import LimSimConfig
 from .model import LimSimBehaviorModel
 
-__all__ = ["LimSimBehaviorModel"]
+__all__ = ["LimSimBehaviorModel", "LimSimConfig"]

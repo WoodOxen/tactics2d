@@ -11,7 +11,13 @@ from .action import LimSimAction
 
 @dataclass(frozen=True)
 class LimSimConfig:
-    """Parameters for interaction grouping, rollout, and MCTS scoring."""
+    """Parameters for interaction grouping, rollout, and MCTS scoring.
+
+    ``horizon_steps`` is the LimSim planner-native name for the number of
+    future states returned by ``LimSimBehaviorModel.predict``. Use
+    ``planning_steps`` when code needs the same semantic field across behavior
+    models.
+    """
 
     horizon_steps: int = 30
     dt: float = 0.1
@@ -76,3 +82,15 @@ class LimSimConfig:
             LimSimAction.LCR,
         )
     )
+
+    @property
+    def step_ms(self) -> int:
+        """Return the configured sampling interval in milliseconds."""
+
+        return int(round(self.dt * 1000))
+
+    @property
+    def planning_steps(self) -> int:
+        """Return the number of future planning states."""
+
+        return self.horizon_steps

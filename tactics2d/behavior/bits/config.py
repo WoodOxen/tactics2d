@@ -9,7 +9,13 @@ from typing import Dict
 
 @dataclass(frozen=True)
 class BitsConfig:
-    """Parameters shared by BITS data preparation and models."""
+    """Parameters shared by BITS data preparation and models.
+
+    ``future_steps`` is the BITS checkpoint-compatible name for the number of
+    future states returned by ``BitsBehaviorModel.predict``. Use
+    ``planning_steps`` when code needs the same semantic field across behavior
+    models.
+    """
 
     history_steps: int = 10
     future_steps: int = 20
@@ -44,6 +50,12 @@ class BitsConfig:
         """Return the configured sampling interval in milliseconds."""
 
         return int(round(self.dt * 1000))
+
+    @property
+    def planning_steps(self) -> int:
+        """Return the number of future planning states."""
+
+        return self.future_steps
 
     @property
     def torch_loss_weights(self) -> Dict[str, float]:
