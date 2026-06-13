@@ -4,15 +4,16 @@
 """Tests for map format converters."""
 
 import logging
-import os
 import sys
+from pathlib import Path
 
 sys.path.append(".")
 sys.path.append("..")
 
 import pytest
-from shapely.geometry import Point
 
+from tactics2d.display.renderers import MatplotlibRenderer
+from tactics2d.display.sensor import BEVCamera
 from tactics2d.map.converter import (
     Net2OsmConverter,
     Net2XodrConverter,
@@ -22,8 +23,6 @@ from tactics2d.map.converter import (
     Xodr2OsmConverter,
 )
 from tactics2d.map.parser import NetXMLParser, OSMParser, XODRParser
-from tactics2d.renderer import MatplotlibRenderer
-from tactics2d.sensor import BEVCamera
 from tactics2d.utils.common import get_absolute_path
 
 logging.disable(logging.WARNING)
@@ -41,33 +40,31 @@ def _make_resolution(boundary):
 
 @pytest.mark.map_converter
 @pytest.mark.parametrize(
-    "input_path, output_path, img_path",
+    "input_path, output_name, img_name",
     [
-        (
-            "./tests/cases/NetXMLSamples/net.net.xml",
-            "./tests/runtime/net2xodr_net.xodr",
-            "./tests/runtime/net2xodr_net.png",
-        ),
+        ("./tests/cases/NetXMLSamples/net.net.xml", "net2xodr_net.xodr", "net2xodr_net.png"),
         (
             "./tests/cases/NetXMLSamples/lefthand.net.xml",
-            "./tests/runtime/net2xodr_lefthand.xodr",
-            "./tests/runtime/net2xodr_lefthand.png",
+            "net2xodr_lefthand.xodr",
+            "net2xodr_lefthand.png",
         ),
         (
             "./tests/cases/NetXMLSamples/roundabout.net.xml",
-            "./tests/runtime/net2xodr_roundabout.xodr",
-            "./tests/runtime/net2xodr_roundabout.png",
+            "net2xodr_roundabout.xodr",
+            "net2xodr_roundabout.png",
         ),
     ],
 )
-def test_net2xodr(input_path, output_path, img_path):
+def test_net2xodr(runtime_dir, input_path, output_name, img_name):
     input_path = get_absolute_path(input_path)
+    output_path = str(runtime_dir / output_name)
+    img_path = str(runtime_dir / img_name)
 
     converter = Net2XodrConverter()
     result = converter.convert(input_path, output_path)
 
-    assert os.path.isfile(result)
-    assert os.path.getsize(result) > 0
+    assert Path(result).is_file()
+    assert Path(result).stat().st_size > 0
 
     original = NetXMLParser().parse(input_path)
     converted = XODRParser().parse(result)
@@ -81,7 +78,7 @@ def test_net2xodr(input_path, output_path, img_path):
 
     boundary = converted.boundary
     camera = BEVCamera(1, converted)
-    geometry_data, _, _ = camera.update(0, None, None, None, None, Point(0, 0))
+    geometry_data, _, _ = camera.update(0, None, None, None, None, None)
     renderer = MatplotlibRenderer(
         resolution=_make_resolution(boundary),
         xlim=(boundary[0], boundary[1]),
@@ -94,28 +91,26 @@ def test_net2xodr(input_path, output_path, img_path):
 
 @pytest.mark.map_converter
 @pytest.mark.parametrize(
-    "input_path, output_path, img_path",
+    "input_path, output_name, img_name",
     [
-        (
-            "./tests/cases/XodrSamples/cross.xodr",
-            "./tests/runtime/xodr2net_cross.net.xml",
-            "./tests/runtime/xodr2net_cross.png",
-        ),
+        ("./tests/cases/XodrSamples/cross.xodr", "xodr2net_cross.net.xml", "xodr2net_cross.png"),
         (
             "./tests/cases/XodrSamples/FourWayStop.xodr",
-            "./tests/runtime/xodr2net_FourWayStop.net.xml",
-            "./tests/runtime/xodr2net_FourWayStop.png",
+            "xodr2net_FourWayStop.net.xml",
+            "xodr2net_FourWayStop.png",
         ),
     ],
 )
-def test_xodr2net(input_path, output_path, img_path):
+def test_xodr2net(runtime_dir, input_path, output_name, img_name):
     input_path = get_absolute_path(input_path)
+    output_path = str(runtime_dir / output_name)
+    img_path = str(runtime_dir / img_name)
 
     converter = Xodr2NetConverter()
     result = converter.convert(input_path, output_path)
 
-    assert os.path.isfile(result)
-    assert os.path.getsize(result) > 0
+    assert Path(result).is_file()
+    assert Path(result).stat().st_size > 0
 
     original = XODRParser().parse(input_path)
     converted = NetXMLParser().parse(result)
@@ -127,7 +122,7 @@ def test_xodr2net(input_path, output_path, img_path):
 
     boundary = converted.boundary
     camera = BEVCamera(1, converted)
-    geometry_data, _, _ = camera.update(0, None, None, None, None, Point(0, 0))
+    geometry_data, _, _ = camera.update(0, None, None, None, None, None)
     renderer = MatplotlibRenderer(
         resolution=_make_resolution(boundary),
         xlim=(boundary[0], boundary[1]),
@@ -140,30 +135,28 @@ def test_xodr2net(input_path, output_path, img_path):
 
 @pytest.mark.map_converter
 @pytest.mark.parametrize(
-    "input_path, output_path, img_path",
+    "input_path, output_name, img_name",
     [
-        (
-            "./tests/cases/OsmSamples/cross.osm",
-            "./tests/runtime/osm2xodr_cross.xodr",
-            "./tests/runtime/osm2xodr_cross.png",
-        ),
+        ("./tests/cases/OsmSamples/cross.osm", "osm2xodr_cross.xodr", "osm2xodr_cross.png"),
         (
             "./tests/cases/OsmSamples/FourWayStop.osm",
-            "./tests/runtime/osm2xodr_FourWayStop.xodr",
-            "./tests/runtime/osm2xodr_FourWayStop.png",
+            "osm2xodr_FourWayStop.xodr",
+            "osm2xodr_FourWayStop.png",
         ),
     ],
 )
-def test_osm2xodr(input_path, output_path, img_path):
+def test_osm2xodr(runtime_dir, input_path, output_name, img_name):
     input_path = get_absolute_path(input_path)
+    output_path = str(runtime_dir / output_name)
+    img_path = str(runtime_dir / img_name)
 
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
     converter = Osm2XodrConverter()
     result = converter.convert(input_path, output_path)
 
-    assert os.path.isfile(result)
-    assert os.path.getsize(result) > 0
+    assert Path(result).is_file()
+    assert Path(result).stat().st_size > 0
 
     original = OSMParser(lanelet2=True).parse(input_path)
     converted = XODRParser().parse(result)
@@ -172,7 +165,7 @@ def test_osm2xodr(input_path, output_path, img_path):
 
     boundary = converted.boundary
     camera = BEVCamera(1, converted)
-    geometry_data, _, _ = camera.update(0, None, None, None, None, Point(0, 0))
+    geometry_data, _, _ = camera.update(0, None, None, None, None, None)
     renderer = MatplotlibRenderer(
         resolution=_make_resolution(boundary),
         xlim=(boundary[0], boundary[1]),
@@ -185,30 +178,28 @@ def test_osm2xodr(input_path, output_path, img_path):
 
 @pytest.mark.map_converter
 @pytest.mark.parametrize(
-    "input_path, output_path, img_path",
+    "input_path, output_name, img_name",
     [
-        (
-            "./tests/cases/XodrSamples/cross.xodr",
-            "./tests/runtime/xodr2osm_cross.osm",
-            "./tests/runtime/xodr2osm_cross.png",
-        ),
+        ("./tests/cases/XodrSamples/cross.xodr", "xodr2osm_cross.osm", "xodr2osm_cross.png"),
         (
             "./tests/cases/XodrSamples/FourWayStop.xodr",
-            "./tests/runtime/xodr2osm_FourWayStop.osm",
-            "./tests/runtime/xodr2osm_FourWayStop.png",
+            "xodr2osm_FourWayStop.osm",
+            "xodr2osm_FourWayStop.png",
         ),
     ],
 )
-def test_xodr2osm(input_path, output_path, img_path):
+def test_xodr2osm(runtime_dir, input_path, output_name, img_name):
     input_path = get_absolute_path(input_path)
+    output_path = str(runtime_dir / output_name)
+    img_path = str(runtime_dir / img_name)
 
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
     converter = Xodr2OsmConverter()
     result = converter.convert(input_path, output_path)
 
-    assert os.path.isfile(result)
-    assert os.path.getsize(result) > 0
+    assert Path(result).is_file()
+    assert Path(result).stat().st_size > 0
 
     converted = OSMParser(lanelet2=True).parse(result)
 
@@ -216,7 +207,7 @@ def test_xodr2osm(input_path, output_path, img_path):
 
     boundary = converted.boundary
     camera = BEVCamera(1, converted)
-    geometry_data, _, _ = camera.update(0, None, None, None, None, Point(0, 0))
+    geometry_data, _, _ = camera.update(0, None, None, None, None, None)
     renderer = MatplotlibRenderer(
         resolution=_make_resolution(boundary),
         xlim=(boundary[0], boundary[1]),
@@ -229,35 +220,33 @@ def test_xodr2osm(input_path, output_path, img_path):
 
 @pytest.mark.map_converter
 @pytest.mark.parametrize(
-    "input_path, output_path, img_path",
+    "input_path, output_name, img_name",
     [
-        (
-            "./tests/cases/NetXMLSamples/net.net.xml",
-            "./tests/runtime/net2osm_net.osm",
-            "./tests/runtime/net2osm_net.png",
-        ),
+        ("./tests/cases/NetXMLSamples/net.net.xml", "net2osm_net.osm", "net2osm_net.png"),
         (
             "./tests/cases/NetXMLSamples/lefthand.net.xml",
-            "./tests/runtime/net2osm_lefthand.osm",
-            "./tests/runtime/net2osm_lefthand.png",
+            "net2osm_lefthand.osm",
+            "net2osm_lefthand.png",
         ),
         (
             "./tests/cases/NetXMLSamples/roundabout.net.xml",
-            "./tests/runtime/net2osm_roundabout.osm",
-            "./tests/runtime/net2osm_roundabout.png",
+            "net2osm_roundabout.osm",
+            "net2osm_roundabout.png",
         ),
     ],
 )
-def test_net2osm(input_path, output_path, img_path):
+def test_net2osm(runtime_dir, input_path, output_name, img_name):
     input_path = get_absolute_path(input_path)
+    output_path = str(runtime_dir / output_name)
+    img_path = str(runtime_dir / img_name)
 
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
     converter = Net2OsmConverter()
     result = converter.convert(input_path, output_path)
 
-    assert os.path.isfile(result)
-    assert os.path.getsize(result) > 0
+    assert Path(result).is_file()
+    assert Path(result).stat().st_size > 0
 
     converted = OSMParser(lanelet2=True).parse(result)
 
@@ -265,7 +254,7 @@ def test_net2osm(input_path, output_path, img_path):
 
     boundary = converted.boundary
     camera = BEVCamera(1, converted)
-    geometry_data, _, _ = camera.update(0, None, None, None, None, Point(0, 0))
+    geometry_data, _, _ = camera.update(0, None, None, None, None, None)
     renderer = MatplotlibRenderer(
         resolution=_make_resolution(boundary),
         xlim=(boundary[0], boundary[1]),
@@ -278,30 +267,28 @@ def test_net2osm(input_path, output_path, img_path):
 
 @pytest.mark.map_converter
 @pytest.mark.parametrize(
-    "input_path, output_path, img_path",
+    "input_path, output_name, img_name",
     [
-        (
-            "./tests/cases/OsmSamples/cross.osm",
-            "./tests/runtime/osm2net_cross.net.xml",
-            "./tests/runtime/osm2net_cross.png",
-        ),
+        ("./tests/cases/OsmSamples/cross.osm", "osm2net_cross.net.xml", "osm2net_cross.png"),
         (
             "./tests/cases/OsmSamples/FourWayStop.osm",
-            "./tests/runtime/osm2net_FourWayStop.net.xml",
-            "./tests/runtime/osm2net_FourWayStop.png",
+            "osm2net_FourWayStop.net.xml",
+            "osm2net_FourWayStop.png",
         ),
     ],
 )
-def test_osm2net(input_path, output_path, img_path):
+def test_osm2net(runtime_dir, input_path, output_name, img_name):
     input_path = get_absolute_path(input_path)
+    output_path = str(runtime_dir / output_name)
+    img_path = str(runtime_dir / img_name)
 
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
     converter = Osm2NetConverter()
     result = converter.convert(input_path, output_path)
 
-    assert os.path.isfile(result)
-    assert os.path.getsize(result) > 0
+    assert Path(result).is_file()
+    assert Path(result).stat().st_size > 0
 
     converted = NetXMLParser().parse(result)
 
@@ -309,7 +296,7 @@ def test_osm2net(input_path, output_path, img_path):
 
     boundary = converted.boundary
     camera = BEVCamera(1, converted)
-    geometry_data, _, _ = camera.update(0, None, None, None, None, Point(0, 0))
+    geometry_data, _, _ = camera.update(0, None, None, None, None, None)
     renderer = MatplotlibRenderer(
         resolution=_make_resolution(boundary),
         xlim=(boundary[0], boundary[1]),

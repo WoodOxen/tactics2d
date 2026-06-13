@@ -5,12 +5,27 @@
 
 
 import os
+from pathlib import Path
 
 import pytest
 
 # Set environment variables before any imports
 os.environ["MPLBACKEND"] = "Agg"
 os.environ["PYTHON_SKIP_TKINTER"] = "1"
+
+
+@pytest.fixture
+def runtime_dir(request):
+    """Return a module-scoped output directory under tests/runtime/.
+
+    Each test module gets its own subdirectory named after the module file
+    (e.g. tests/runtime/test_map_generator/). The directory is created if it
+    does not exist.
+    """
+    module_name = Path(request.module.__file__).stem
+    dir_path = Path(__file__).parent / "runtime" / module_name
+    dir_path.mkdir(parents=True, exist_ok=True)
+    return dir_path
 
 
 def pytest_addoption(parser):
@@ -28,8 +43,7 @@ def pytest_configure(config):
     """Configure matplotlib backend before any tests run."""
 
     config.addinivalue_line(
-        "markers",
-        "bits_workflow: mark BITS training/evaluation workflow tests",
+        "markers", "bits_workflow: mark BITS training/evaluation workflow tests"
     )
     try:
         import matplotlib

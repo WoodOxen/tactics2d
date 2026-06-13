@@ -5,7 +5,7 @@
 
 
 import json
-import os
+from pathlib import Path
 from typing import Tuple
 
 import numpy as np
@@ -91,7 +91,7 @@ class Argoverse2Parser:
         participants = dict()
         actual_stamp_range = (np.inf, -np.inf)
 
-        file_path = os.path.join(folder, file)
+        file_path = Path(folder) / file
         df = pd.read_parquet(file_path, engine="fastparquet")
 
         for _, state_info in df.iterrows():
@@ -134,7 +134,7 @@ class Argoverse2Parser:
         Returns:
             map_ (Map): A map object.
         """
-        file_path = os.path.join(folder, file)
+        file_path = Path(folder) / file
 
         with open(file_path) as f:
             map_data = json.load(f)

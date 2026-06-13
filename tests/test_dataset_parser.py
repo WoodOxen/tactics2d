@@ -11,8 +11,8 @@ sys.path.append(".")
 sys.path.append("..")
 
 import logging
-import os
 import time
+from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
@@ -42,9 +42,9 @@ from tactics2d.map.map_config import NUPLAN_MAP_CONFIG
 )
 def test_argoverse2_parser(sub_folder, expected):
     dataset_folder = "./tactics2d/data/trajectory_sample/Argoverse"
-    folder = os.path.join(dataset_folder, sub_folder)
+    folder = Path(dataset_folder) / sub_folder
     dataset_parser = Argoverse2Parser()
-    files = os.listdir(folder)
+    files = [p.name for p in Path(folder).iterdir()]
     map_file = [file for file in files if ".json" in file][0]
     trajectory_files = [file for file in files if ".parquet" in file][0]
 
@@ -212,7 +212,7 @@ def test_ngsim_parser(file, stamp_range, ids):
 def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: dict):
     folder_path = "./tactics2d/data/trajectory_sample/NuPlan/data/cache"
     map_folder_path = "./tactics2d/data/map/NuPlan/maps"
-    if not os.path.exists(map_folder_path):
+    if not Path(map_folder_path).exists():
         map_folder_path = "./tactics2d/data/map/NuPlan"
 
     dataset_parser = NuPlanParser()
@@ -222,11 +222,11 @@ def test_nuplan_parser(file_name: str, stamp_range: tuple, expected: dict):
     t2 = time.time()
     location = dataset_parser.get_location(file_name, folder_path)
     map_config = NUPLAN_MAP_CONFIG[location]
-    map_path = os.path.join(map_config["folder"], map_config["gpkg_file"])
-    full_map_path = os.path.join(map_folder_path, map_path)
+    map_path = Path(map_config["folder"]) / map_config["gpkg_file"]
+    full_map_path = Path(map_folder_path) / map_path
     map_ = (
-        dataset_parser.parse_map(map_path, map_folder_path)
-        if os.path.exists(full_map_path)
+        dataset_parser.parse_map(str(map_path), str(map_folder_path))
+        if full_map_path.exists()
         else None
     )
 
@@ -415,7 +415,7 @@ def test_womd_dynamic_traffic_lights(file_name: str, scenario_id: str, expected_
     ],
 )
 def test_driveinsightd_parser(scenario_id: str, folder: str, map_name: str, expected):
-    if not os.path.isdir(folder):
+    if not Path(folder).is_dir():
         pytest.skip(f"Dataset folder not found: {folder}")
 
     dataset_parser = DriveInsightDParser()

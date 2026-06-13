@@ -4,7 +4,7 @@
 """Waymo Open Motion Dataset parser implementation."""
 
 
-import os
+from pathlib import Path
 from typing import List, Tuple, Union
 
 import numpy as np
@@ -62,7 +62,7 @@ class WOMDParser:
         if "dataset" in kwargs:
             return kwargs["dataset"]
         if "file" in kwargs and "folder" in kwargs:
-            file_path = os.path.join(kwargs["folder"], kwargs["file"])
+            file_path = Path(kwargs["folder"]) / kwargs["file"]
             return tfrecord.tfrecord_iterator(file_path, compression_type=None)
 
         raise KeyError("Either dataset or file and folder should be given as keyword arguments.")

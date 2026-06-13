@@ -4,8 +4,8 @@
 """Common utilities implementation."""
 
 
-import os
 import sys
+from pathlib import Path
 
 sys.path.append(".")
 sys.path.append("..")
@@ -21,7 +21,7 @@ def get_absolute_path(file_path: str) -> str:
         file_path (str): The absolute file path if found within the system paths; otherwise, returns the original file path.
     """
     for folder_path in sys.path:
-        abs_path = os.path.join(folder_path, file_path)
-        if os.path.exists(abs_path):
-            return os.path.abspath(abs_path)
+        abs_path = Path(folder_path) / file_path
+        if abs_path.exists():
+            return str(abs_path.resolve())
     return file_path

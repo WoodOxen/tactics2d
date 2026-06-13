@@ -69,7 +69,7 @@ tactics2d preview dataset \
 如果脚本希望自己管理浏览器服务的生命周期，可以使用 `FrontendServer`：
 
 ```python
-from tactics2d.frontend import FrontendServer
+from tactics2d.display.renderers.web import FrontendServer
 
 
 vehicle_shape = [[-2.0, -1.0], [2.0, -1.0], [2.0, 1.0], [-2.0, 1.0]]
@@ -109,7 +109,7 @@ with FrontendServer(max_fps=30, open_browser=True) as renderer:
 如果前端服务已经启动，可以直接连接：
 
 ```python
-from tactics2d.frontend import FrontendRenderer
+from tactics2d.display.renderers.web import FrontendRenderer
 
 
 renderer = FrontendRenderer(host="127.0.0.1", port=8765, max_fps=30)

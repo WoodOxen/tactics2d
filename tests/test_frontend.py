@@ -13,15 +13,24 @@ from urllib import error as url_error
 
 import pytest
 
+# tactics2d internal module imports (lifted from test function bodies)
+import tactics2d.cli as cli_module
+import tactics2d.dataset_parser as dataset_parser
+import tactics2d.display.renderers.web as frontend
+import tactics2d.display.renderers.web.preview as preview
+import tactics2d.display.renderers.web.renderer as renderer_module
+import tactics2d.display.renderers.web.server as server_module
+import tactics2d.display.sensor as sensor_module
+import tactics2d.map.parser as map_parser
+from tactics2d.cli import parse_args
+
 
 def test_frontend_app_health_endpoint():
     pytest.importorskip("fastapi")
     pytest.importorskip("httpx")
     from fastapi.testclient import TestClient
 
-    from tactics2d.frontend.server import create_app
-
-    client = TestClient(create_app())
+    client = TestClient(server_module.create_app())
     response = client.get("/health")
 
     assert response.status_code == 200
@@ -39,9 +48,7 @@ def test_frontend_frame_drop_when_browser_is_busy():
     pytest.importorskip("httpx")
     from fastapi.testclient import TestClient
 
-    from tactics2d.frontend.server import create_app
-
-    client = TestClient(create_app())
+    client = TestClient(server_module.create_app())
     with client.websocket_connect("/ws") as websocket:
         assert websocket.receive_json()["type"] == "client.count"
 
@@ -69,9 +76,7 @@ def test_frontend_replays_latest_frame_to_new_browser():
     pytest.importorskip("httpx")
     from fastapi.testclient import TestClient
 
-    from tactics2d.frontend.server import create_app
-
-    client = TestClient(create_app())
+    client = TestClient(server_module.create_app())
     response = client.post("/api/frame", json={"frame": 15, "sensors": []})
     assert response.json()["delivered"] == 0
 
@@ -87,8 +92,6 @@ def test_frontend_replays_snapshot_to_new_browser():
     pytest.importorskip("fastapi")
     pytest.importorskip("httpx")
     from fastapi.testclient import TestClient
-
-    from tactics2d.frontend.server import create_app
 
     first_frame = {
         "frame": 1,
@@ -134,7 +137,7 @@ def test_frontend_replays_snapshot_to_new_browser():
         ],
     }
 
-    client = TestClient(create_app())
+    client = TestClient(server_module.create_app())
     client.post("/api/frame", json=first_frame)
     client.post("/api/frame", json=next_frame)
 
@@ -153,9 +156,7 @@ def test_preview_options_endpoint_contains_levelx_defaults():
     pytest.importorskip("httpx")
     from fastapi.testclient import TestClient
 
-    from tactics2d.frontend.server import create_app
-
-    client = TestClient(create_app())
+    client = TestClient(server_module.create_app())
     response = client.get("/api/preview/options")
 
     assert response.status_code == 200
@@ -168,9 +169,7 @@ def test_preview_map_endpoint_publishes_frame():
     pytest.importorskip("httpx")
     from fastapi.testclient import TestClient
 
-    from tactics2d.frontend.server import create_app
-
-    client = TestClient(create_app())
+    client = TestClient(server_module.create_app())
     response = client.post(
         "/api/preview/map", json={"osm_path": "tests/cases/OsmSamples/cross.osm", "lanelet2": True}
     )
@@ -185,9 +184,7 @@ def test_preview_pause_and_resume_endpoints():
     pytest.importorskip("httpx")
     from fastapi.testclient import TestClient
 
-    from tactics2d.frontend.server import create_app
-
-    client = TestClient(create_app())
+    client = TestClient(server_module.create_app())
 
     response = client.post("/api/preview/pause", json={})
     assert response.status_code == 200
@@ -205,9 +202,7 @@ def test_live_preview_endpoint_sets_live_status():
     pytest.importorskip("httpx")
     from fastapi.testclient import TestClient
 
-    from tactics2d.frontend.server import create_app
-
-    client = TestClient(create_app())
+    client = TestClient(server_module.create_app())
     response = client.post("/api/preview/live", json={})
 
     assert response.status_code == 200
@@ -220,8 +215,6 @@ def test_live_preview_endpoint_preserves_existing_live_snapshot():
     pytest.importorskip("fastapi")
     pytest.importorskip("httpx")
     from fastapi.testclient import TestClient
-
-    from tactics2d.frontend.server import create_app
 
     frame = {
         "frame": 7,
@@ -249,7 +242,7 @@ def test_live_preview_endpoint_preserves_existing_live_snapshot():
         ],
     }
 
-    client = TestClient(create_app())
+    client = TestClient(server_module.create_app())
     client.post("/api/frame", json=frame)
     response = client.post("/api/preview/live", json={})
 
@@ -269,9 +262,7 @@ def test_frame_endpoint_marks_programmatic_stream_as_live():
     pytest.importorskip("httpx")
     from fastapi.testclient import TestClient
 
-    from tactics2d.frontend.server import create_app
-
-    client = TestClient(create_app())
+    client = TestClient(server_module.create_app())
     response = client.post("/api/frame", json={"frame": 42, "sensors": [{"id": "camera"}]})
 
     assert response.status_code == 200
@@ -287,9 +278,7 @@ def test_paused_live_preview_drops_programmatic_frames():
     pytest.importorskip("httpx")
     from fastapi.testclient import TestClient
 
-    from tactics2d.frontend.server import create_app
-
-    client = TestClient(create_app())
+    client = TestClient(server_module.create_app())
     client.post("/api/preview/live", json={})
     client.post("/api/preview/pause", json={})
     response = client.post("/api/frame", json={"frame": 43, "sensors": [{"id": "camera"}]})
@@ -300,9 +289,7 @@ def test_paused_live_preview_drops_programmatic_frames():
 
 
 def test_demo_frame_contains_sensor_payloads():
-    from tactics2d.frontend.server import _demo_frame
-
-    frame = _demo_frame(0)
+    frame = server_module._demo_frame(0)
 
     assert frame["frame"] == 0
     assert len(frame["sensors"]) == 2
@@ -311,7 +298,6 @@ def test_demo_frame_contains_sensor_payloads():
 
 
 def test_frontend_programmatic_entrypoints_are_exported():
-    import tactics2d.frontend as frontend
 
     assert frontend.FrontendRenderer
     assert frontend.FrontendServer
@@ -321,7 +307,6 @@ def test_frontend_programmatic_entrypoints_are_exported():
 
 
 def test_cli_preview_map_arguments():
-    from tactics2d.cli import parse_args
 
     args = parse_args(
         [
@@ -341,7 +326,6 @@ def test_cli_preview_map_arguments():
 
 
 def test_cli_preview_dataset_arguments():
-    from tactics2d.cli import parse_args
 
     args = parse_args(
         [
@@ -371,11 +355,6 @@ def test_cli_preview_dataset_arguments():
 
 
 def test_cli_command_handlers_call_frontend(monkeypatch, capsys, tmp_path):
-    import tactics2d.cli as cli_module
-    import tactics2d.frontend as frontend_module
-    import tactics2d.frontend.preview as preview_module
-    import tactics2d.frontend.renderer as renderer_module
-
     calls = []
 
     class FakeRenderer:
@@ -401,22 +380,20 @@ def test_cli_command_handlers_call_frontend(monkeypatch, capsys, tmp_path):
         def preview_dataset(self, **kwargs):
             calls.append(("preview_dataset", kwargs))
 
-    monkeypatch.setattr(frontend_module, "FrontendRenderer", FakeRenderer)
+    monkeypatch.setattr(frontend, "FrontendRenderer", FakeRenderer)
     monkeypatch.setattr(
         renderer_module,
         "start_server_process",
         lambda *args: calls.append(("start_process", args)) or SimpleNamespace(pid=42),
     )
-    monkeypatch.setattr(
-        frontend_module, "run_server", lambda *args: calls.append(("run_server", args))
-    )
+    monkeypatch.setattr(frontend, "run_server", lambda *args: calls.append(("run_server", args)))
     monkeypatch.setattr(
         renderer_module,
         "stop_server_process",
         lambda pid_file: calls.append(("stop", pid_file)) or 42,
     )
     monkeypatch.setattr(
-        preview_module,
+        preview,
         "ensure_frontend_server",
         lambda host, port, max_fps, open_browser: calls.append(
             ("ensure", host, port, max_fps, open_browser)
@@ -503,7 +480,6 @@ def test_cli_command_handlers_call_frontend(monkeypatch, capsys, tmp_path):
 
 
 def test_cli_main_dispatch(monkeypatch):
-    import tactics2d.cli as cli_module
 
     calls = []
     handlers = {
@@ -547,16 +523,13 @@ def test_cli_main_dispatch(monkeypatch):
 
 
 def test_levelx_preview_resolves_map_config_from_recording():
-    from tactics2d.frontend.preview import resolve_levelx_map_config
-
-    name, config = resolve_levelx_map_config("highD", "11")
+    name, config = preview.resolve_levelx_map_config("highD", "11")
 
     assert name == "highD_1"
     assert config["osm_file"] == "highD_1.osm"
 
 
 def test_levelx_preview_option_and_path_helpers(monkeypatch, tmp_path):
-    from tactics2d.frontend import preview
 
     fake_configs = [
         ("ignored", {"name": "no dataset"}),
@@ -622,7 +595,6 @@ def test_levelx_preview_option_and_path_helpers(monkeypatch, tmp_path):
 
 
 def test_levelx_preview_scene_uses_follow_vehicle_pose():
-    from tactics2d.frontend import preview
 
     class FakeTrajectory:
         def __init__(self, states):
@@ -696,10 +668,6 @@ def test_levelx_preview_scene_uses_follow_vehicle_pose():
 
 
 def test_load_levelx_preview_scene_uses_parser_outputs(monkeypatch, tmp_path):
-    import tactics2d.dataset_parser as dataset_parser
-    import tactics2d.map.parser as map_parser
-    import tactics2d.sensor as sensor_module
-    from tactics2d.frontend import preview
 
     calls = {}
 
@@ -760,8 +728,6 @@ def test_load_levelx_preview_scene_uses_parser_outputs(monkeypatch, tmp_path):
 
 
 def test_load_levelx_preview_scene_rejects_empty_recording(monkeypatch, tmp_path):
-    import tactics2d.dataset_parser as dataset_parser
-    from tactics2d.frontend import preview
 
     class EmptyLevelXParser:
         def __init__(self, dataset_name):
@@ -782,7 +748,6 @@ def test_load_levelx_preview_scene_rejects_empty_recording(monkeypatch, tmp_path
 
 
 def test_stream_levelx_preview_reports_sent_and_dropped_frames(monkeypatch, tmp_path):
-    from tactics2d.frontend import preview
 
     class FakeScene:
         sensor_id = "highD-11"
@@ -825,9 +790,8 @@ def test_stream_levelx_preview_reports_sent_and_dropped_frames(monkeypatch, tmp_
 
 
 def test_frontend_renderer_frame_controls_are_sent():
-    from tactics2d.frontend import FrontendRenderer
 
-    renderer = FrontendRenderer(wait_ack=True, drop_if_busy=True, ack_timeout=0.01)
+    renderer = frontend.FrontendRenderer(wait_ack=True, drop_if_busy=True, ack_timeout=0.01)
     payloads = []
 
     def fake_post(path, payload):
@@ -846,9 +810,8 @@ def test_frontend_renderer_frame_controls_are_sent():
 
 
 def test_frontend_renderer_preview_dataset_payload():
-    from tactics2d.frontend import FrontendRenderer
 
-    renderer = FrontendRenderer(max_fps=75)
+    renderer = frontend.FrontendRenderer(max_fps=75)
     payloads = []
 
     def fake_post(path, payload):
@@ -876,9 +839,8 @@ def test_frontend_renderer_preview_dataset_payload():
 
 
 def test_frontend_renderer_preview_controls_call_endpoints():
-    from tactics2d.frontend import FrontendRenderer
 
-    renderer = FrontendRenderer()
+    renderer = frontend.FrontendRenderer()
     calls = []
 
     def fake_get(path):
@@ -914,8 +876,6 @@ def test_frontend_renderer_preview_controls_call_endpoints():
 
 
 def test_frontend_renderer_http_helpers_and_ready_loop(monkeypatch, tmp_path):
-    from tactics2d.frontend import renderer as renderer_module
-    from tactics2d.frontend.renderer import FrontendRenderer
 
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     assert renderer_module._default_pid_file() == tmp_path / "tactics2d" / "frontend.pid"
@@ -958,7 +918,7 @@ def test_frontend_renderer_http_helpers_and_ready_loop(monkeypatch, tmp_path):
         return FakeResponse({"payload": json.loads(http_request.data.decode("utf-8"))})
 
     monkeypatch.setattr(renderer_module.request, "urlopen", fake_urlopen)
-    renderer = FrontendRenderer("localhost", 9999, max_fps=500, timeout=0.2)
+    renderer = frontend.FrontendRenderer("localhost", 9999, max_fps=500, timeout=0.2)
 
     assert renderer.health() == {"status": "running"}
     response = renderer._post(
@@ -969,11 +929,11 @@ def test_frontend_renderer_http_helpers_and_ready_loop(monkeypatch, tmp_path):
     assert response["payload"]["point"] == [1, 2]
     assert requests[0] == ("http://localhost:9999/health", 0.2)
 
-    ready_renderer = FrontendRenderer()
+    ready_renderer = frontend.FrontendRenderer()
     ready_renderer.health = lambda: {"status": "running"}
     assert ready_renderer.wait_until_ready(timeout=0.1) is True
 
-    failing_renderer = FrontendRenderer()
+    failing_renderer = frontend.FrontendRenderer()
 
     def fail_health():
         raise url_error.URLError("offline")
@@ -986,7 +946,6 @@ def test_frontend_renderer_http_helpers_and_ready_loop(monkeypatch, tmp_path):
 
 
 def test_frontend_renderer_process_helpers(monkeypatch, tmp_path):
-    from tactics2d.frontend import renderer as renderer_module
 
     popen_calls = []
 
@@ -1021,7 +980,6 @@ def test_frontend_renderer_process_helpers(monkeypatch, tmp_path):
 
 
 def test_frontend_server_context_manager(monkeypatch, tmp_path):
-    from tactics2d.frontend import renderer as renderer_module
 
     started = []
     stopped = []
@@ -1052,7 +1010,6 @@ def test_frontend_server_context_manager(monkeypatch, tmp_path):
 
 
 def test_connection_manager_stale_clients_and_ack_timeout():
-    from tactics2d.frontend.server import ConnectionManager
 
     class GoodClient:
         def __init__(self):
@@ -1066,7 +1023,7 @@ def test_connection_manager_stale_clients_and_ack_timeout():
             raise RuntimeError("closed")
 
     async def exercise():
-        manager = ConnectionManager()
+        manager = server_module.ConnectionManager()
         good_client = GoodClient()
         manager._clients = [good_client, BrokenClient()]
 
@@ -1085,7 +1042,6 @@ def test_connection_manager_stale_clients_and_ack_timeout():
 
 
 def test_server_helper_parsers_and_map_config_errors(monkeypatch):
-    from tactics2d.frontend import server as server_module
 
     assert server_module._optional_int(None) is None
     assert server_module._optional_int("") is None
@@ -1100,7 +1056,7 @@ def test_server_helper_parsers_and_map_config_errors(monkeypatch):
     assert server_module._parse_ids([3, "4"]) == [3, 4]
 
     monkeypatch.setattr(
-        "tactics2d.frontend.preview.iter_map_configs",
+        "tactics2d.display.renderers.web.preview.iter_map_configs",
         lambda: iter([("highD_1", {"dataset": "highD"})]),
     )
     assert server_module._map_config_from_name(None) is None
@@ -1113,8 +1069,6 @@ def test_server_preview_control_endpoints(monkeypatch):
     pytest.importorskip("fastapi")
     pytest.importorskip("httpx")
     from fastapi.testclient import TestClient
-
-    from tactics2d.frontend import server as server_module
 
     async def fake_run_dataset_preview(manager, status, payload, pause_event):
         status.update({"status": "complete", "source": "dataset", "payload_file": payload["file"]})
@@ -1140,8 +1094,6 @@ def test_server_preview_control_endpoints(monkeypatch):
 def test_server_run_server_and_main(monkeypatch):
     import threading
     import webbrowser
-
-    from tactics2d.frontend import server as server_module
 
     calls = []
 
@@ -1185,8 +1137,6 @@ def test_server_run_server_and_main(monkeypatch):
 
 
 def test_run_levelx_dataset_preview_updates_status(monkeypatch):
-    from tactics2d.frontend import preview as preview_module
-    from tactics2d.frontend import server as server_module
 
     class FakeScene:
         sensor_id = "highD-11"
@@ -1232,7 +1182,7 @@ def test_run_levelx_dataset_preview_updates_status(monkeypatch):
         assert status["dropped_frames"] == 1
         assert len(manager.frames) == 2
 
-    monkeypatch.setattr(preview_module, "load_levelx_preview_scene", lambda **kwargs: FakeScene())
+    monkeypatch.setattr(preview, "load_levelx_preview_scene", lambda **kwargs: FakeScene())
     asyncio.run(exercise_success())
 
     async def exercise_error():
@@ -1249,7 +1199,7 @@ def test_run_levelx_dataset_preview_updates_status(monkeypatch):
         assert "boom" in status["message"]
 
     monkeypatch.setattr(
-        preview_module,
+        preview,
         "load_levelx_preview_scene",
         lambda **kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
     )

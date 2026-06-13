@@ -6,6 +6,7 @@
 
 import logging
 import os
+import pathlib
 from typing import Any, Dict, List, Optional, Tuple
 
 # Set matplotlib backend to Agg before import
@@ -23,7 +24,7 @@ from matplotlib.path import Path
 from numpy.typing import ArrayLike
 from shapely.geometry import Point
 
-from .matplotlib_config import COLOR_PALETTE, DEFAULT_COLOR, DEFAULT_ORDER
+from ..config import COLOR_PALETTE, DEFAULT_COLOR, DEFAULT_ORDER
 
 
 class MatplotlibRenderer:
@@ -88,13 +89,6 @@ class MatplotlibRenderer:
         self.height = max(self.resolution[1] / self.dpi, 1)
         self._auto_scale_enabled = auto_scale
 
-        # aspect_ratio = (self.ylim[1] - self.ylim[0]) / (self.xlim[1] - self.xlim[0])
-        # height = self.width * aspect_ratio
-        # if height < 1:
-        #     self.width = self.height / aspect_ratio
-        # else:
-        #     self.height = height
-
         self.sensor_position = None
         self.camera_yaw = None
         self.road_lines = dict()
@@ -134,10 +128,72 @@ class MatplotlibRenderer:
             pass
         return None
 
+    @staticmethod
+    def _extract_bounds_from_geometry(
+        geometry_data: dict,
+    ) -> Optional[Tuple[Tuple[float, float], Tuple[float, float]]]:
+        """Compute the bounding box of all geometry in the given data.
+
+        Scans road elements, participants, and point clouds in *geometry_data*
+        and returns the axis-aligned bounding box that tightly encloses all of
+        them.  Returns *None* when no geometry is found (e.g. empty map_data).
+
+        Args:
+            geometry_data: Renderer geometry data (see :meth:`update`).
+
+        Returns:
+            ``((min_x, max_x), (min_y, max_y))`` or *None*.
+        """
+        min_x = min_y = float("inf")
+        max_x = max_y = float("-inf")
+        found = False
+
+        def _update(pt) -> None:
+            nonlocal min_x, max_x, min_y, max_y, found
+            try:
+                x, y = float(pt[0]), float(pt[1])
+                if x < min_x:
+                    min_x = x
+                if x > max_x:
+                    max_x = x
+                if y < min_y:
+                    min_y = y
+                if y > max_y:
+                    max_y = y
+                found = True
+            except (TypeError, IndexError, ValueError):
+                pass
+
+        # Road elements
+        for elem in geometry_data.get("map_data", {}).get("road_elements", []):
+            for pt in elem.get("geometry", []):
+                _update(pt)
+
+        # Participants (position + footprint)
+        for participant in geometry_data.get("participant_data", {}).get("participants", []):
+            pos = participant.get("position")
+            if pos is not None:
+                _update(pos)
+            for pt in participant.get("geometry", []):
+                _update(pt)
+
+        # Point clouds
+        for pc in geometry_data.get("participant_data", {}).get("point_clouds", []):
+            for pt in pc.get("points", []):
+                _update(pt)
+
+        return ((min_x, max_x), (min_y, max_y)) if found else None
+
     def _calculate_bounds(
         self, geometry_data: dict, perception_range
     ) -> Tuple[Tuple[float, float], Tuple[float, float]]:
         """Calculate bounds from geometry data in world coordinates.
+
+        The returned bounding box is the **union** of:
+        1. Sensor-position-centric bounds (sensor pos ± perception range).
+        2. The tight bounding box of all actual geometry in *geometry_data*
+           (road elements, participants, point clouds).
+        3. The currently configured *xlim* / *ylim* (as a last resort).
 
         Args:
             geometry_data (dict): Geometry data containing map and participant information.
@@ -145,28 +201,41 @@ class MatplotlibRenderer:
         Returns:
             Tuple[Tuple[float, float], Tuple[float, float]]: Bounds as ((min_x, max_x), (min_y, max_y)).
         """
-        min_x, min_y = float("inf"), float("inf")
-        max_x, max_y = float("-inf"), float("-inf")
+        candidates = []
 
-        # Include sensor's position in bounds if set
+        # 1. Sensor-centric bounds
         if self.sensor_position is not None:
-            # Handle perception_range being a tuple (left, right, front, back) or scalar
             if isinstance(perception_range, (list, tuple)) and len(perception_range) == 4:
-                # Use maximum range for symmetric bounding box
-                min_x = self.sensor_position[0] - perception_range[0]
-                max_x = self.sensor_position[0] + perception_range[1]
-                min_y = self.sensor_position[1] - perception_range[3]
-                max_y = self.sensor_position[1] + perception_range[2]
+                candidates.append(
+                    (
+                        self.sensor_position[0] - perception_range[0],
+                        self.sensor_position[0] + perception_range[1],
+                        self.sensor_position[1] - perception_range[3],
+                        self.sensor_position[1] + perception_range[2],
+                    )
+                )
             elif perception_range is not None:
-                min_x = self.sensor_position[0] - perception_range
-                max_x = self.sensor_position[0] + perception_range
-                min_y = self.sensor_position[1] - perception_range
-                max_y = self.sensor_position[1] + perception_range
-            else:
-                min_x, max_x = self.xlim
-                min_y, max_y = self.ylim
+                candidates.append(
+                    (
+                        self.sensor_position[0] - perception_range,
+                        self.sensor_position[0] + perception_range,
+                        self.sensor_position[1] - perception_range,
+                        self.sensor_position[1] + perception_range,
+                    )
+                )
 
-        # Use map boundary as bounds
+        # 2. Tight bounds from actual geometry data
+        geom_bounds = self._extract_bounds_from_geometry(geometry_data)
+        if geom_bounds is not None:
+            (gx_min, gx_max), (gy_min, gy_max) = geom_bounds
+            candidates.append((gx_min, gx_max, gy_min, gy_max))
+
+        # 3. Fall back to current xlim / ylim
+        if candidates:
+            min_x = min(c[0] for c in candidates)
+            max_x = max(c[1] for c in candidates)
+            min_y = min(c[2] for c in candidates)
+            max_y = max(c[3] for c in candidates)
         else:
             min_x, max_x = self.xlim
             min_y, max_y = self.ylim
@@ -725,9 +794,10 @@ class MatplotlibRenderer:
 
         self.fig.canvas.draw()
         if save_to is not None:
-            dir_name = os.path.dirname(save_to)
-            if dir_name:
-                os.makedirs(dir_name, exist_ok=True)
+            save_path = pathlib.Path(save_to)
+            parent_dir = save_path.parent
+            if parent_dir != pathlib.Path("."):
+                parent_dir.mkdir(parents=True, exist_ok=True)
             self.fig.savefig(save_to, dpi=dpi)
 
         if return_array:

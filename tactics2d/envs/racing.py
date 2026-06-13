@@ -13,12 +13,14 @@ from gymnasium import spaces
 from gymnasium.error import InvalidAction
 from shapely.geometry import Polygon
 
+from tactics2d.display import create_display_backend
+from tactics2d.display.renderers import RenderManager
+from tactics2d.display.sensor import BEVCamera
 from tactics2d.map.element import Map
 from tactics2d.map.generator import RacingTrackGenerator
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State
 from tactics2d.physics import SingleTrackKinematics
-from tactics2d.renderer import RenderManager, TopDownCamera
 from tactics2d.traffic import ScenarioManager, ScenarioStatus, TrafficStatus
 from tactics2d.traffic.event_detection import NoAction, OffLane, OutBound, TimeExceed
 
@@ -63,7 +65,7 @@ class RacingEnv(gym.Env):
     - `scenario_status`: The status of the scenario.
     """
 
-    _metadata = {"render_modes": ["human", "rgb_array"]}
+    _metadata = {"render_modes": ["human", "rgb_array", "browser", "matplotlib", "none"]}
     _max_fps = 200
     _max_steer = MAX_STEER
     _max_accel = MAX_ACCEL
@@ -79,7 +81,7 @@ class RacingEnv(gym.Env):
         """Initialize the racing environment.
 
         Args:
-            render_mode (str, optional): The mode of the rendering. It can be "human" or "rgb_array". Defaults to "human".
+            render_mode (str, optional): The mode of the rendering. It can be "human", "rgb_array", "none" or None. Defaults to "human".
             render_fps (int, optional): The frame rate of the rendering.
             max_step (int, optional): The maximum time step of the scenario. Defaults to 100000.
             continuous (bool, optional): Whether to use continuous action space. Defaults to True.
@@ -88,6 +90,9 @@ class RacingEnv(gym.Env):
             NotImplementedError: If the render mode is not supported.
         """
         super().__init__()
+
+        if render_mode is None:
+            render_mode = "none"
 
         if render_mode not in self._metadata["render_modes"]:
             raise NotImplementedError(f"Render mode {render_mode} is not supported.")
@@ -118,6 +123,9 @@ class RacingEnv(gym.Env):
         self.scenario_manager = self._RacingScenarioManager(
             self.max_step, 100, self.render_fps, off_screen=self.render_mode != "human"
         )
+
+        # Create the unified display backend for browser/matplotlib modes.
+        self._display = create_display_backend(self.render_mode)
 
     def _get_rewards(self, scenario_status: ScenarioStatus, traffic_status: TrafficStatus):
         num_tile = self.scenario_manager.num_tile
@@ -187,10 +195,66 @@ class RacingEnv(gym.Env):
     def render(self):
         if self.render_mode == "human":
             self.scenario_manager.render()
+        elif self.render_mode == "rgb_array":
+            self.scenario_manager.render()
+            return self.scenario_manager.get_observation()[0]
+        elif self.render_mode in ("browser", "matplotlib"):
+            return self._display.render(self._build_snapshot())
+
+    def close(self):
+        """This function closes the environment."""
+        self.scenario_manager.render_manager.close()
+        self._display.close()
+        super().close()
+
+    def _build_snapshot(self) -> "SceneSnapshot":
+        """Build a SceneSnapshot from current scenario state.
+
+        Returns:
+            A :class:`~tactics2d.display.SceneSnapshot` for the current frame.
+        """
+        from tactics2d.display.snapshot import CameraMetadata, ParticipantElement, SceneSnapshot
+
+        agent = self.scenario_manager.agent
+        state = agent.current_state
+        participants = self.scenario_manager.participants
+        pose = agent.get_pose()
+
+        participant_elements = {}
+        for pid, p in participants.items():
+            element = ParticipantElement(
+                id_=pid,
+                shape="polygon",
+                geometry=list(pose.coords) if pid == 0 else [],
+                position=(state.x, state.y),
+                rotation=state.heading,
+                type_="vehicle",
+                velocity=(state.vx, state.vy),
+                length=p.length,
+                width=p.width,
+            )
+            participant_elements[pid] = element
+
+        cameras = [
+            CameraMetadata(
+                id_="ego-camera",
+                position=(state.x, state.y),
+                yaw=state.heading,
+                perception_range=30.0,
+            )
+        ]
+
+        return SceneSnapshot(
+            frame=self.scenario_manager.cnt_step,
+            participants=participant_elements,
+            cameras=cameras,
+            ego_participant_id=0,
+        )
 
     def reset(self, seed: int = None, options: dict = None):
         super().reset(seed=seed, options=options)
         self.scenario_manager.reset()
+        self._display.reset(self._build_snapshot())
         observations = self.scenario_manager.get_observation()
         observation = observations[0]
 
@@ -384,14 +448,10 @@ class RacingEnv(gym.Env):
             self.render_manager.reset()
 
             # reset the sensors
-            camera = TopDownCamera(
-                id_=0,
-                map_=self.map_,
-                perception_range=(30, 30, 50, 10),
-                window_size=self._state_size,
-                off_screen=self.off_screen,
+            camera = BEVCamera(id_=0, map_=self.map_, perception_range=(30, 30, 50, 10))
+            self.render_manager.add_sensor(
+                camera, window_size=self._state_size, off_screen=self.off_screen, main_sensor=True
             )
-            self.render_manager.add_sensor(camera)
             self.render_manager.bind(0, 0)
 
             # reset the status check list

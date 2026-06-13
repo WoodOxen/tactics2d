@@ -12,12 +12,11 @@ sys.path.append("..")
 import logging
 
 import pytest
-from shapely.geometry import Point
 
+from tactics2d.display.renderers import MatplotlibRenderer
+from tactics2d.display.sensor import BEVCamera
 from tactics2d.map.map_config import *
 from tactics2d.map.parser import NetXMLParser, OSMParser, XODRParser
-from tactics2d.renderer import MatplotlibRenderer
-from tactics2d.sensor import BEVCamera
 from tactics2d.utils.common import get_absolute_path
 
 _MAX_IMG_PX = 8000
@@ -41,7 +40,7 @@ def _make_resolution(boundary, default_scale=100.0):
 
 
 @pytest.mark.map_parser
-def test_osm_parser():
+def test_osm_parser(runtime_dir):
     map_path = get_absolute_path("./tactics2d/data/map/SJTU/raw.osm")
     map_parser = OSMParser()
 
@@ -49,7 +48,7 @@ def test_osm_parser():
 
     boundary = map_.boundary
     camera = BEVCamera(1, map_)
-    position = Point(0, 0)
+    position = None
     geometry_data, _, _ = camera.update(0, None, None, None, None, position)
 
     matplotlib_renderer = MatplotlibRenderer(
@@ -58,7 +57,7 @@ def test_osm_parser():
         ylim=(boundary[2], boundary[3]),
     )
     matplotlib_renderer.update(geometry_data)
-    matplotlib_renderer.save_single_frame(save_to="./tests/runtime/raw.png")
+    matplotlib_renderer.save_single_frame(save_to=runtime_dir / "raw.png")
 
 
 @pytest.mark.map_parser
@@ -73,7 +72,7 @@ def test_osm_parser():
         ("./tactics2d/data/map/rounD", ROUND_MAP_CONFIG),
     ],
 )
-def test_lanelet2_parser(map_folder, map_configs):
+def test_lanelet2_parser(runtime_dir, map_folder, map_configs):
     """Test whether the current parser can manage to parse the provided maps.
 
     [TODO] split this test to two part:
@@ -94,7 +93,7 @@ def test_lanelet2_parser(map_folder, map_configs):
 
             boundary = map_.boundary
             camera = BEVCamera(1, map_)
-            position = Point(0, 0)
+            position = None
             geometry_data, _, _ = camera.update(0, None, None, None, None, position)
 
             matplotlib_renderer = MatplotlibRenderer(
@@ -104,7 +103,7 @@ def test_lanelet2_parser(map_folder, map_configs):
             )
 
             matplotlib_renderer.update(geometry_data)
-            matplotlib_renderer.save_single_frame(save_to=f"./tests/runtime/{map_name}.png")
+            matplotlib_renderer.save_single_frame(save_to=runtime_dir / f"{map_name}.png")
 
             matplotlib_renderer.destroy()
 
@@ -118,27 +117,24 @@ def test_lanelet2_parser(map_folder, map_configs):
 
 @pytest.mark.map_parser
 @pytest.mark.parametrize(
-    "map_path, img_path",
+    "map_path, img_name",
     [
-        ("./tests/cases/XodrSamples/cross.xodr", "./tests/runtime/cross.png"),
-        ("./tests/cases/XodrSamples/ring.xodr", "./tests/runtime/ring.png"),
-        ("./tests/cases/XodrSamples/LargeParkingLot.xodr", "./tests/runtime/LargeParkingLot.png"),
-        ("./tests/cases/XodrSamples/FourWayStop.xodr", "./tests/runtime/FourWayStop.png"),
-        ("./tests/cases/XodrSamples/SimpleBankedRoad.xodr", "./tests/runtime/SimpleBankedRoad.png"),
-        (
-            "./tests/cases/XodrSamples/SimpleFreewayRamps.xodr",
-            "./tests/runtime/SimpleFreewayRamps.png",
-        ),
+        ("./tests/cases/XodrSamples/cross.xodr", "cross.png"),
+        ("./tests/cases/XodrSamples/ring.xodr", "ring.png"),
+        ("./tests/cases/XodrSamples/LargeParkingLot.xodr", "LargeParkingLot.png"),
+        ("./tests/cases/XodrSamples/FourWayStop.xodr", "FourWayStop.png"),
+        ("./tests/cases/XodrSamples/SimpleBankedRoad.xodr", "SimpleBankedRoad.png"),
+        ("./tests/cases/XodrSamples/SimpleFreewayRamps.xodr", "SimpleFreewayRamps.png"),
     ],
 )
-def test_xodr_parser(map_path, img_path):
+def test_xodr_parser(runtime_dir, map_path, img_name):
     map_path = get_absolute_path(map_path)
     map_parser = XODRParser()
     map_ = map_parser.parse(map_path)
 
     boundary = map_.boundary
     camera = BEVCamera(1, map_)
-    position = Point(0, 0)
+    position = None
     geometry_data, _, _ = camera.update(0, None, None, None, None, position)
 
     matplotlib_renderer = MatplotlibRenderer(
@@ -148,26 +144,26 @@ def test_xodr_parser(map_path, img_path):
     )
 
     matplotlib_renderer.update(geometry_data)
-    matplotlib_renderer.save_single_frame(save_to=img_path)
+    matplotlib_renderer.save_single_frame(save_to=runtime_dir / img_name)
 
 
 @pytest.mark.map_parser
 @pytest.mark.parametrize(
-    "map_path, img_path",
+    "map_path, img_name",
     [
-        ("./tests/cases/NetXMLSamples/net.net.xml", "./tests/runtime/net.png"),
-        ("./tests/cases/NetXMLSamples/lefthand.net.xml", "./tests/runtime/lefthand.png"),
-        ("./tests/cases/NetXMLSamples/roundabout.net.xml", "./tests/runtime/roundabout.png"),
+        ("./tests/cases/NetXMLSamples/net.net.xml", "net.png"),
+        ("./tests/cases/NetXMLSamples/lefthand.net.xml", "lefthand.png"),
+        ("./tests/cases/NetXMLSamples/roundabout.net.xml", "roundabout.png"),
     ],
 )
-def test_net_xml_parser(map_path, img_path):
+def test_net_xml_parser(runtime_dir, map_path, img_name):
     map_path = get_absolute_path(map_path)
     map_parser = NetXMLParser()
     map_ = map_parser.parse(map_path)
 
     boundary = map_.boundary
     camera = BEVCamera(1, map_)
-    position = Point(0, 0)
+    position = None
     geometry_data, _, _ = camera.update(0, None, None, None, None, position)
 
     matplotlib_renderer = MatplotlibRenderer(
@@ -177,5 +173,5 @@ def test_net_xml_parser(map_path, img_path):
     )
 
     matplotlib_renderer.update(geometry_data)
-    matplotlib_renderer.save_single_frame(save_to=img_path)
+    matplotlib_renderer.save_single_frame(save_to=runtime_dir / img_name)
     matplotlib_renderer.destroy()

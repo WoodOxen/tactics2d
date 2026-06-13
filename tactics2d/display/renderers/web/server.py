@@ -302,7 +302,7 @@ def _map_config_from_name(name: str | None) -> dict | None:
     if not name:
         return None
 
-    from tactics2d.frontend.preview import iter_map_configs
+    from .preview import iter_map_configs
 
     configs = dict(iter_map_configs())
     lower_to_name = {config_name.lower(): config_name for config_name in configs}
@@ -316,7 +316,7 @@ def _map_config_from_name(name: str | None) -> dict | None:
 async def _run_levelx_dataset_preview(
     manager: ConnectionManager, status: dict, payload: dict, pause_event: asyncio.Event
 ):
-    from tactics2d.frontend.preview import load_levelx_preview_scene
+    from .preview import load_levelx_preview_scene
 
     max_fps = max(1, min(int(payload.get("max_fps", 30)), 100))
     interval = 1.0 / max_fps
@@ -627,7 +627,7 @@ def create_app(demo: bool = False, max_fps: int = 30):
 
     @app.get("/api/preview/options")
     async def preview_options():
-        from tactics2d.frontend.preview import list_levelx_preview_options
+        from .preview import list_levelx_preview_options
 
         return list_levelx_preview_options()
 
@@ -696,7 +696,7 @@ def create_app(demo: bool = False, max_fps: int = 30):
 
     @app.post("/api/preview/map")
     async def preview_map(request: Request):
-        from tactics2d.frontend.preview import build_map_preview_sensor
+        from .preview import build_map_preview_sensor
 
         payload = await request.json()
         await _stop_preview_tasks(app)

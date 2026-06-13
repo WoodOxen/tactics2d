@@ -4,7 +4,7 @@
 """Dragon Lake Parking dataset parser implementation."""
 
 
-import os
+from pathlib import Path
 from typing import Tuple
 
 import numpy as np
@@ -112,13 +112,13 @@ class DLPParser:
         # Extract integer id from string (e.g., "DJI_0001_agents.json" -> 1)
         file_id = [int(s) for s in file.split("_") if s.isdigit()][0]
 
-        with open(os.path.join(folder, "DJI_%04d_frames.json" % file_id), "rb") as f_frame:
+        with open(Path(folder) / ("DJI_%04d_frames.json" % file_id), "rb") as f_frame:
             json_frame = orjson.loads(f_frame.read())
-        with open(os.path.join(folder, "DJI_%04d_agents.json" % file_id), "rb") as f_agent:
+        with open(Path(folder) / ("DJI_%04d_agents.json" % file_id), "rb") as f_agent:
             json_agent = orjson.loads(f_agent.read())
-        with open(os.path.join(folder, "DJI_%04d_instances.json" % file_id), "rb") as f_instance:
+        with open(Path(folder) / ("DJI_%04d_instances.json" % file_id), "rb") as f_instance:
             json_instance = orjson.loads(f_instance.read())
-        with open(os.path.join(folder, "DJI_%04d_obstacles.json" % file_id), "rb") as f_obstacle:
+        with open(Path(folder) / ("DJI_%04d_obstacles.json" % file_id), "rb") as f_obstacle:
             json_obstacle = orjson.loads(f_obstacle.read())
 
         df_frame = pd.json_normalize(json_frame.values(), sep=".")

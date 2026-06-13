@@ -5,7 +5,7 @@
 
 
 import logging
-import os
+from pathlib import Path
 from typing import Tuple
 
 import numpy as np
@@ -32,7 +32,7 @@ class CitySimParser:
         Returns:
             actual_time_range (Tuple[int, int]): The time range of the trajectory data. The first element is the start time. The second element is the end time. The unit of time stamp is millisecond.
         """
-        df_track = pl.read_csv(os.path.join(folder, file))
+        df_track = pl.read_csv(Path(folder) / file)
 
         start_frame = min(df_track["frameNum"])
         end_frame = max(df_track["frameNum"])
@@ -58,7 +58,7 @@ class CitySimParser:
         if time_range is None:
             time_range = (-np.inf, np.inf)
 
-        df_track = pl.read_csv(os.path.join(folder, file))
+        df_track = pl.read_csv(Path(folder) / file)
 
         # Frame number to milliseconds (30Hz -> 1000ms/30 = frame duration)
         df_track = df_track.with_columns(

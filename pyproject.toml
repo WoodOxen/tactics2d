@@ -3,7 +3,8 @@ name = "tactics2d"
 version = "0.1.9rc3"
 description = "Tactics2D: A Reinforcement Learning Environment Library with Generative Scenarios for Driving Decision-making"
 readme = { file = "README.md", content-type = "text/markdown" }
-license = { file = "LICENSE" }
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
 requires-python = ">= 3.8"
 keywords = ["reinforcement-learning", "environment", "simulator", "decision-making", "traffic-behavior"]
 authors = [
@@ -14,7 +15,6 @@ maintainers = [
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
@@ -63,12 +63,22 @@ include-package-data = true
 [tool.setuptools.package-data]
 tactics2d = [
     "participant/trajectory_classifier.m",
-    "frontend/static/**",
-    "frontend/templates/*",
+    "display/renderers/web/static/**",
 ]
 
 [tool.setuptools.packages.find]
-exclude = ["test", "tactics2d/data/"]
+exclude = [
+    "test",
+    "test.*",
+    "tests",
+    "tests.*",
+    "*.test",
+    "*.test.*",
+    "*.tests",
+    "*.tests.*",
+    "tactics2d.data",
+    "tactics2d.data.*",
+]
 
 [tool.setuptools.dynamic]
 dependencies = { file = "requirements.txt" }

@@ -179,15 +179,14 @@ class SensorBase(ABC):
             position: Point or None
             heading: float or None
         """
-        self._position = position
-        self._heading = heading
-
-        if None in [self._position, self._heading]:
-            # Set default position to map center
+        if position is None:
             self._position = Point(
                 0.5 * (self.map_.boundary[0] + self.map_.boundary[1]),
                 0.5 * (self.map_.boundary[2] + self.map_.boundary[3]),
             )
-            self._heading = 0
+        else:
+            self._position = position
+
+        self._heading = heading if heading is not None else 0
 
         self._update_transform_matrix()

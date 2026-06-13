@@ -1,7 +1,10 @@
-# Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
+# Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Render configuration implementation."""
+"""Render configuration implementation.
+
+Merged from the previous ``matplotlib_config.py`` and ``render_template.py``.
+"""
 
 
 COLOR_PALETTE = {

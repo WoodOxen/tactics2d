@@ -11,12 +11,13 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from shapely.geometry import Point
 
 logging.basicConfig(level=logging.INFO)
 
 _RENDER_MAPS = os.environ.get("TACTICS2D_RENDER_MAPS", "0") == "1"
 
+from tactics2d.display.renderers import MatplotlibRenderer
+from tactics2d.display.sensor import BEVCamera
 from tactics2d.geometry import heading_unit
 from tactics2d.map.element import Area, Map
 from tactics2d.map.generator import ParkingLotGenerator, RacingTrackGenerator
@@ -33,18 +34,16 @@ from tactics2d.map.generator.road_segment import (
 )
 from tactics2d.map.generator.rules.module_types import RoadModuleResult, RoadPort
 from tactics2d.participant.trajectory import State
-from tactics2d.renderer import MatplotlibRenderer
-from tactics2d.sensor import BEVCamera
 
 
-def _render(map_: Map, save_to: str) -> None:
+def _render(map_: Map, save_to: os.PathLike) -> None:
     """Render a map to a png file (only when TACTICS2D_RENDER_MAPS=1)."""
     if not _RENDER_MAPS:
         return
     Path(save_to).parent.mkdir(parents=True, exist_ok=True)
     boundary = map_.boundary
     camera = BEVCamera(1, map_)
-    geometry_data, _, _ = camera.update(0, None, None, None, None, Point(0, 0))
+    geometry_data, _, _ = camera.update(0, None, None, None, None, None)
     renderer = MatplotlibRenderer(
         resolution=(800, 800), xlim=(boundary[0], boundary[1]), ylim=(boundary[2], boundary[3])
     )
@@ -157,34 +156,34 @@ def _assert_ramp_ports(result: RoadModuleResult) -> None:
 
 
 @pytest.mark.map_generator
-def test_parking_lot_generator():
+def test_parking_lot_generator(runtime_dir):
     map_generator = ParkingLotGenerator()
     map_ = Map(name="parking_lot", scenario_type="parking")
     start_state, target_area, target_heading = map_generator.generate(map_)
-    _render(map_, "./tests/runtime/parking_lot.png")
+    _render(map_, runtime_dir / "parking_lot.png")
     assert isinstance(start_state, State)
     assert isinstance(target_area, Area)
     assert isinstance(target_heading, float)
 
 
 @pytest.mark.map_generator
-def test_racing_track_generator():
+def test_racing_track_generator(runtime_dir):
     map_generator = RacingTrackGenerator()
     map_ = Map(name="racing_track", scenario_type="racing")
     map_generator.generate(map_)
-    _render(map_, "./tests/runtime/racing_track.png")
+    _render(map_, runtime_dir / "racing_track.png")
     assert isinstance(map_.customs["start_state"], State)
 
 
 @pytest.mark.map_generator
-def test_one_way_straight():
+def test_one_way_straight(runtime_dir):
     map_ = Map(name="one_way_straight")
     start_port, end_port = _port_from_start_length(
         start=np.array([0.0, 0.0]), heading=0.0, length=60.0, lane_num=3, speed_limit=50.0
     )
     result = OneWay().build(start_port, end_port, lane_num=3, id_offset=0)
     _add_result(map_, result)
-    _render(map_, "./tests/runtime/one_way_straight.png")
+    _render(map_, runtime_dir / "one_way_straight.png")
     assert len(map_.lanes) == 3
     assert len(map_.roadlines) >= 4
     assert "entry" in result.ports
@@ -193,7 +192,7 @@ def test_one_way_straight():
 
 
 @pytest.mark.map_generator
-def test_one_way_curved():
+def test_one_way_curved(runtime_dir):
     map_ = Map(name="one_way_curved")
     result = OneWay().build(
         _make_port(0.0, 0.0, 0.0, 2, speed_limit=50.0),
@@ -202,7 +201,7 @@ def test_one_way_curved():
         id_offset=0,
     )
     _add_result(map_, result)
-    _render(map_, "./tests/runtime/one_way_curved.png")
+    _render(map_, runtime_dir / "one_way_curved.png")
     assert len(map_.lanes) == 2
     assert result.ports["exit"].lane_num == 2
     assert result.ports["exit"].heading == pytest.approx(0.65)
@@ -210,7 +209,7 @@ def test_one_way_curved():
 
 
 @pytest.mark.map_generator
-def test_two_way_straight():
+def test_two_way_straight(runtime_dir):
     map_ = Map(name="two_way_straight")
     start_port, end_port = _port_from_start_length(
         start=np.array([0.0, 0.0]), heading=0.0, length=60.0, lane_num=2, speed_limit=50.0
@@ -219,7 +218,7 @@ def test_two_way_straight():
         start_port, end_port, forward_lane_num=2, backward_lane_num=2, id_offset=0
     )
     _add_result(map_, result)
-    _render(map_, "./tests/runtime/two_way_straight.png")
+    _render(map_, runtime_dir / "two_way_straight.png")
     assert len(map_.lanes) == 4
     assert "forward_in" in result.ports
     assert "forward_out" in result.ports
@@ -228,7 +227,7 @@ def test_two_way_straight():
 
 
 @pytest.mark.map_generator
-def test_two_way_curved():
+def test_two_way_curved(runtime_dir):
     map_ = Map(name="two_way_curved")
     result = TwoWay().build(
         _make_port(0.0, 0.0, 0.0, 2, speed_limit=50.0),
@@ -238,7 +237,7 @@ def test_two_way_curved():
         id_offset=0,
     )
     _add_result(map_, result)
-    _render(map_, "./tests/runtime/two_way_curved.png")
+    _render(map_, runtime_dir / "two_way_curved.png")
     assert len(map_.lanes) == 4
 
 
@@ -248,7 +247,7 @@ def test_two_way_curved():
     [(2, 3, "right"), (3, 2, "right"), (2, 3, "left"), (3, 2, "left"), (2, 2, "right")],
     ids=["expand_right", "reduce_right", "expand_left", "reduce_left", "no_change"],
 )
-def test_lane_adapter(start_n: int, end_n: int, change_side: str) -> None:
+def test_lane_adapter(runtime_dir, start_n: int, end_n: int, change_side: str) -> None:
     map_ = Map(name=f"lane_adapter_{start_n}to{end_n}_{change_side}")
     result = LaneAdapter(change_side=change_side).build(
         _make_port(0.0, 0.0, 0.0, start_n, speed_limit=50.0),
@@ -256,7 +255,7 @@ def test_lane_adapter(start_n: int, end_n: int, change_side: str) -> None:
         id_offset=0,
     )
     _add_result(map_, result)
-    _render(map_, f"./tests/runtime/lane_adapter_{start_n}to{end_n}_{change_side}.png")
+    _render(map_, runtime_dir / f"lane_adapter_{start_n}to{end_n}_{change_side}.png")
     max_n = max(start_n, end_n)
     assert "entry" in result.ports
     assert "exit" in result.ports
@@ -277,6 +276,7 @@ def test_lane_adapter(start_n: int, end_n: int, change_side: str) -> None:
     ids=["right_1lane", "left_1lane", "right_2lane"],
 )
 def test_fork(
+    runtime_dir,
     fork_side: str,
     main_n: int,
     branch_n: int,
@@ -298,7 +298,7 @@ def test_fork(
         id_offset=0,
     )
     _add_result(map_, result)
-    _render(map_, f"./tests/runtime/fork_{fork_side}_{main_n}m_{branch_n}b.png")
+    _render(map_, runtime_dir / f"fork_{fork_side}_{main_n}m_{branch_n}b.png")
     assert "main_in" in result.ports
     assert "main_out" in result.ports
     assert "branch_out" in result.ports
@@ -320,6 +320,7 @@ def test_fork(
     ids=["right_1lane", "left_1lane", "right_2lane"],
 )
 def test_merge(
+    runtime_dir,
     merge_side: str,
     main_n: int,
     branch_n: int,
@@ -341,7 +342,7 @@ def test_merge(
         id_offset=0,
     )
     _add_result(map_, result)
-    _render(map_, f"./tests/runtime/merge_{merge_side}_{main_n}m_{branch_n}b.png")
+    _render(map_, runtime_dir / f"merge_{merge_side}_{main_n}m_{branch_n}b.png")
     assert "main_in" in result.ports
     assert "branch_in" in result.ports
     assert "main_out" in result.ports
@@ -353,7 +354,7 @@ def test_merge(
 
 
 @pytest.mark.map_generator
-def test_merge_tail() -> None:
+def test_merge_tail(runtime_dir) -> None:
     """Late-merge variant: merge_s_ratio near 1 forces branch join close to main_out."""
     map_ = Map(name="merge_tail")
     result = Merge(merge_side="right", taper_length=20.0, branch_length=50.0).build(
@@ -364,7 +365,7 @@ def test_merge_tail() -> None:
         id_offset=0,
     )
     _add_result(map_, result)
-    _render(map_, "./tests/runtime/merge_tail.png")
+    _render(map_, runtime_dir / "merge_tail.png")
     assert "main_in" in result.ports
     assert "branch_in" in result.ports
     assert "main_out" in result.ports
@@ -372,7 +373,7 @@ def test_merge_tail() -> None:
 
 
 @pytest.mark.map_generator
-def test_intersection_cross():
+def test_intersection_cross(runtime_dir):
     map_ = Map(name="intersection_cross")
     arms = [{"heading": h, "lane_num": 2} for h in [0.0, np.pi / 2, np.pi, 3 * np.pi / 2]]
     result = Intersection(radius=10.0).build(center=np.array([0.0, 0.0]), arms=arms, id_offset=0)
@@ -383,13 +384,13 @@ def test_intersection_cross():
             road_result = _two_way_from_port(port, length=30.0, id_offset=id_off)
             id_off = road_result.id_counter
             _add_result(map_, road_result)
-    _render(map_, "./tests/runtime/intersection_cross.png")
+    _render(map_, runtime_dir / "intersection_cross.png")
     assert sum(1 for k in result.ports if k.endswith("_out")) == 4
     assert len(map_.junctions) == 1
 
 
 @pytest.mark.map_generator
-def test_intersection_t():
+def test_intersection_t(runtime_dir):
     map_ = Map(name="intersection_t")
     arms = [{"heading": h, "lane_num": 2} for h in [0.0, np.pi / 2, np.pi]]
     result = Intersection(radius=10.0).build(center=np.array([0.0, 0.0]), arms=arms, id_offset=0)
@@ -400,13 +401,13 @@ def test_intersection_t():
             road_result = _two_way_from_port(port, length=30.0, id_offset=id_off)
             id_off = road_result.id_counter
             _add_result(map_, road_result)
-    _render(map_, "./tests/runtime/intersection_t.png")
+    _render(map_, runtime_dir / "intersection_t.png")
     assert sum(1 for k in result.ports if k.endswith("_out")) == 3
     assert len(map_.junctions) == 1
 
 
 @pytest.mark.map_generator
-def test_intersection_cross_curved():
+def test_intersection_cross_curved(runtime_dir):
     map_ = Map(name="intersection_cross_curved")
     arms = [
         {"heading": np.pi / 2, "lane_num": 2, "curvature": 0.0, "radius": 12.0},
@@ -422,7 +423,7 @@ def test_intersection_cross_curved():
             road_result = _two_way_from_port(port, length=30.0, id_offset=id_off)
             id_off = road_result.id_counter
             _add_result(map_, road_result)
-    _render(map_, "./tests/runtime/intersection_cross_curved.png")
+    _render(map_, runtime_dir / "intersection_cross_curved.png")
     assert sum(1 for k in result.ports if k.endswith("_out")) == 4
     assert len(map_.junctions) == 1
 
@@ -433,7 +434,7 @@ def test_intersection_cross_curved():
     [([0.0, np.pi / 2, np.pi, 3 * np.pi / 2], 4), ([0.0, 2 * np.pi / 3, 4 * np.pi / 3], 3)],
     ids=["4arm", "3arm"],
 )
-def test_roundabout(arm_headings: list, arm_num: int) -> None:
+def test_roundabout(runtime_dir, arm_headings: list, arm_num: int) -> None:
     map_ = Map(name=f"roundabout_{arm_num}arm")
     arms = [{"heading": h, "lane_num": 2} for h in arm_headings]
     result = Roundabout(ring_radius=12.0, ring_lane_num=2).build(
@@ -446,13 +447,13 @@ def test_roundabout(arm_headings: list, arm_num: int) -> None:
             road_result = _two_way_from_port(port, length=30.0, id_offset=id_off)
             id_off = road_result.id_counter
             _add_result(map_, road_result)
-    _render(map_, f"./tests/runtime/roundabout_{arm_num}arm.png")
+    _render(map_, runtime_dir / f"roundabout_{arm_num}arm.png")
     assert sum(1 for k in result.ports if k.endswith("_out")) == arm_num
     assert len(result.junctions) == 1
 
 
 @pytest.mark.map_generator
-def test_roundabout_curved_approach():
+def test_roundabout_curved_approach(runtime_dir):
     map_ = Map(name="roundabout_curved_approach")
     arms = [
         {"heading": 0.0, "lane_num": 2, "curvature": 0.03},
@@ -490,7 +491,7 @@ def test_roundabout_curved_approach():
         id_off = road_result.id_counter
         _add_result(map_, road_result)
 
-    _render(map_, "./tests/runtime/roundabout_curved_approach.png")
+    _render(map_, runtime_dir / "roundabout_curved_approach.png")
     assert sum(1 for k in result.ports if k.endswith("_out")) == 4
     assert len(result.junctions) == 1
 
@@ -506,7 +507,7 @@ def test_roundabout_curved_approach():
     ],
     ids=["exit_right", "exit_left", "entrance_right", "entrance_left"],
 )
-def test_freeway_ramp(kind: str, ramp_side: str, ramp_y: float, ramp_h: float) -> None:
+def test_freeway_ramp(runtime_dir, kind: str, ramp_side: str, ramp_y: float, ramp_h: float) -> None:
     ramp_x = 330.0 if kind == "exit" else 90.0
     main_in = _make_port(0.0, 0.0, 0.0, 3, speed_limit=100.0)
     main_out = _make_port(420.0, 0.0, 0.0, 3, speed_limit=100.0)
@@ -523,7 +524,7 @@ def test_freeway_ramp(kind: str, ramp_side: str, ramp_y: float, ramp_h: float) -
 
     map_ = Map(name=f"freeway_{kind}_{ramp_side}")
     _add_result(map_, result)
-    _render(map_, f"./tests/runtime/freeway_{kind}_{ramp_side}.png")
+    _render(map_, runtime_dir / f"freeway_{kind}_{ramp_side}.png")
 
     _assert_ramp_ports(result)
     assert "backward_in" not in result.ports
@@ -538,7 +539,7 @@ def test_freeway_ramp(kind: str, ramp_side: str, ramp_y: float, ramp_h: float) -
     [("exit", 255.0, -75.0, -0.90), ("entrance", 65.0, -75.0, 0.90)],
     ids=["exit", "entrance"],
 )
-def test_urban_ramp(kind: str, ramp_x: float, ramp_y: float, ramp_h: float) -> None:
+def test_urban_ramp(runtime_dir, kind: str, ramp_x: float, ramp_y: float, ramp_h: float) -> None:
     main_in = _make_port(0.0, 0.0, 0.0, 2, speed_limit=80.0)
     main_out = _make_port(320.0, 16.0, 0.04, 2, speed_limit=80.0)
     ramp_port = _make_port(ramp_x, ramp_y, ramp_h, 1, speed_limit=40.0)
@@ -554,7 +555,7 @@ def test_urban_ramp(kind: str, ramp_x: float, ramp_y: float, ramp_h: float) -> N
 
     map_ = Map(name=f"urban_{kind}")
     _add_result(map_, result)
-    _render(map_, f"./tests/runtime/urban_{kind}.png")
+    _render(map_, runtime_dir / f"urban_{kind}.png")
 
     _assert_ramp_ports(result)
     assert "backward_in" in result.ports
