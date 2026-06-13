@@ -1,4 +1,4 @@
-# Copyright (C) 2025, Tactics2D Authors. Released under the GNU GPLv3.
+# Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """Geometry module."""
@@ -22,7 +22,14 @@ from .polyline import (
     resample_polyline,
     sample_by_s,
 )
-from .utils import as_point, euclidean_distance, heading_unit, normalize_angle, oriented_box
+from .utils import (
+    as_point,
+    euclidean_distance,
+    heading_unit,
+    normalize_angle,
+    oriented_box,
+    transform_point,
+)
 
 __all__ = [
     "cut_polyline",
@@ -48,4 +55,5 @@ __all__ = [
     "oriented_box",
     "as_point",
     "heading_unit",
+    "transform_point",
 ]
