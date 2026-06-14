@@ -11,7 +11,7 @@ from tactics2d.map.generator.rules.lane_marking_rules import (
     one_way_boundary_token,
     roadline_render_kwargs,
 )
-from tactics2d.map.generator.rules.module_types import RoadModuleResult, RoadPort, make_port
+from tactics2d.map.generator.rules.module_types import RoadModuleResult, RoadPort, build_port
 
 from .element_builder import (
     add_ordered_lane_neighbors,
@@ -126,8 +126,8 @@ class OneWay(RoadSegment):
 
         ids = lane_ids(lanes)
         ports = {
-            "entry": make_port(start_port, kind="entry", name="entry", lane_ids=ids),
-            "exit": make_port(end_port, kind="exit", name="exit", lane_ids=ids),
+            "entry": build_port(start_port, kind="entry", name="entry", lane_ids=ids),
+            "exit": build_port(end_port, kind="exit", name="exit", lane_ids=ids),
         }
 
         return RoadModuleResult(

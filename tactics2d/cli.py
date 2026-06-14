@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 
 import tactics2d
-from tactics2d.display.renderers.web.preview import LEVELX_DATASETS
+from tactics2d.dataset_parser import LEVELX_DATASETS
 
 LOGGER = logging.getLogger(__name__)
 

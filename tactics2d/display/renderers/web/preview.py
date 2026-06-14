@@ -13,9 +13,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
+from tactics2d.dataset_parser import LEVELX_DATASETS
+
 LOGGER = logging.getLogger(__name__)
 
-LEVELX_DATASETS = ("highD", "inD", "rounD", "exiD", "uniD")
 LEVELX_FRAME_STEP_MS = 40
 
 _LEVELX_CANONICAL = {name.lower(): name for name in LEVELX_DATASETS}

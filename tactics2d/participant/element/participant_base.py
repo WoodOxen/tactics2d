@@ -233,14 +233,14 @@ class ParticipantBase(ABC):
             frames = sorted(frames)
             return [self.trajectory.get_state(frame) for frame in frames]
 
-    def reset(self, state: State = None, keep_trajectory: bool = False):
+    def reset(self, state: State = None, keep_history: bool = False):
         """Reset the object to a requested state. If the initial state is not specified, the object will be reset to the same initial state as previous.
 
         Args:
             state (State, optional): The initial state of the object.
-            keep_trajectory (bool, optional): Whether to keep the record of history trajectory.
+            keep_history (bool, optional): Whether to keep the record of history trajectory.
                 This argument only works when the state is not specified. When the state is
                 not `None`, the trajectory will be reset to the new state.
                 Defaults to False.
         """
-        self.trajectory.reset(state, keep_trajectory)
+        self.trajectory.reset(state, keep_history)

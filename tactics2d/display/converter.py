@@ -32,7 +32,7 @@ class SceneSnapshotConverter:
     Usage::
 
         converter = SceneSnapshotConverter()
-        snapshot = converter.convert(participants, ids, map_, frame)
+        snapshot = converter.convert_from_simulator(participants, ids, map_, frame)
         snapshot = converter.convert_from_camera(camera, ...)
     """
 
@@ -47,7 +47,7 @@ class SceneSnapshotConverter:
     # Public high-level converters
     # ------------------------------------------------------------------
 
-    def convert(
+    def convert_from_simulator(
         self,
         participants: dict[int, Any],
         participant_ids: list[int],

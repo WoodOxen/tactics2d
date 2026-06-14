@@ -15,7 +15,7 @@ from tactics2d.map.generator.rules.lane_marking_rules import (
     two_way_centerline,
     two_way_forward,
 )
-from tactics2d.map.generator.rules.module_types import RoadModuleResult, RoadPort, make_port
+from tactics2d.map.generator.rules.module_types import RoadModuleResult, RoadPort, build_port
 
 from .element_builder import (
     add_ordered_lane_neighbors,
@@ -204,16 +204,16 @@ class TwoWay(RoadSegment):
         )
 
         ports = {
-            "forward_in": make_port(
+            "forward_in": build_port(
                 start_port, kind="forward_in", name="forward_in", lane_ids=forward_ids
             ),
-            "forward_out": make_port(
+            "forward_out": build_port(
                 end_port, kind="forward_out", name="forward_out", lane_ids=forward_ids
             ),
-            "backward_in": make_port(
+            "backward_in": build_port(
                 reverse_start, kind="backward_in", name="backward_in", lane_ids=backward_ids
             ),
-            "backward_out": make_port(
+            "backward_out": build_port(
                 reverse_end, kind="backward_out", name="backward_out", lane_ids=backward_ids
             ),
         }

@@ -14,7 +14,7 @@ from .lane_marking_rules import (
     two_way_centerline,
     two_way_forward,
 )
-from .module_types import MainRoadType, RampKind, RampSide, RoadModuleResult, RoadPort, make_port
+from .module_types import MainRoadType, RampKind, RampSide, RoadModuleResult, RoadPort, build_port
 
 __all__ = [
     "MarkingSpec",
@@ -27,7 +27,7 @@ __all__ = [
     "RampSide",
     "RoadModuleResult",
     "RoadPort",
-    "make_port",
+    "build_port",
     "get_standard",
     "set_standard",
     "roadline_render_kwargs",

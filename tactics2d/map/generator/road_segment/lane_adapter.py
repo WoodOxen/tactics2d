@@ -13,7 +13,7 @@ from tactics2d.map.generator.rules.lane_marking_rules import (
     one_way_boundary_token,
     roadline_render_kwargs,
 )
-from tactics2d.map.generator.rules.module_types import RoadModuleResult, RoadPort, make_port
+from tactics2d.map.generator.rules.module_types import RoadModuleResult, RoadPort, build_port
 
 from .element_builder import (
     add_ordered_lane_neighbors,
@@ -309,7 +309,7 @@ class LaneAdapter(RoadSegment):
         )
 
         ports = {
-            "entry": make_port(
+            "entry": build_port(
                 entry_base,
                 kind="adapter_in",
                 name="entry",
@@ -320,7 +320,7 @@ class LaneAdapter(RoadSegment):
                     "lane_num": start_n,
                 },
             ),
-            "exit": make_port(
+            "exit": build_port(
                 exit_base,
                 kind="adapter_out",
                 name="exit",

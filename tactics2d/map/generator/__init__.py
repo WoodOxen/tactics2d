@@ -18,7 +18,7 @@ from .road_segment import (
     Roundabout,
     TwoWay,
 )
-from .rules import RoadModuleResult, RoadPort, get_standard, make_port, set_standard
+from .rules import RoadModuleResult, RoadPort, build_port, get_standard, set_standard
 
 __all__ = [
     "RacingTrackGenerator",
@@ -36,7 +36,7 @@ __all__ = [
     "Roundabout",
     "RoadPort",
     "RoadModuleResult",
-    "make_port",
+    "build_port",
     "set_standard",
     "get_standard",
 ]
