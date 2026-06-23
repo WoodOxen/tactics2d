@@ -25,4 +25,5 @@ __all__ = [
     "NuPlanParser",
     "WOMDParser",
     "DriveInsightDParser",
+    "LEVELX_DATASETS",
 ]

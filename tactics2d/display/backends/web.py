@@ -222,12 +222,6 @@ class BrowserBackend(DisplayBackend):
             metadata["sensor_yaw"] = cam.yaw
             metadata["perception_range"] = cam.perception_range
 
-        geometry_data = {
-            "metadata": metadata,
-            "map_data": map_data,
-            "participant_data": participant_data,
-        }
-
         sensor_entry = {
             "id": "camera_0",
             "perception_range": metadata["perception_range"] or 80,

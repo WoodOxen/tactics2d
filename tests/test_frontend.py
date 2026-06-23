@@ -22,7 +22,6 @@ import tactics2d.display.renderers.web.renderer as renderer_module
 import tactics2d.display.renderers.web.server as server_module
 import tactics2d.display.sensor as sensor_module
 import tactics2d.map.parser as map_parser
-from tactics2d.cli import parse_args
 
 
 def test_frontend_app_health_endpoint():
@@ -308,7 +307,7 @@ def test_frontend_programmatic_entrypoints_are_exported():
 
 def test_cli_preview_map_arguments():
 
-    args = parse_args(
+    args = cli_module.parse_args(
         [
             "preview",
             "map",
@@ -327,7 +326,7 @@ def test_cli_preview_map_arguments():
 
 def test_cli_preview_dataset_arguments():
 
-    args = parse_args(
+    args = cli_module.parse_args(
         [
             "preview",
             "dataset",

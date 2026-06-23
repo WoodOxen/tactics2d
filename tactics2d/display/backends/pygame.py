@@ -8,7 +8,6 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
-from shapely.geometry import Point
 
 from tactics2d.display.renderers import RenderManager
 from tactics2d.display.sensor import BEVCamera, SingleLineLidar
@@ -130,14 +129,6 @@ class PygameBackend(DisplayBackend):
         # (this is only used for bound sensor position tracking)
         participants = self._snapshot_to_participants(snapshot)
         participant_ids = list(participants.keys())
-
-        # Determine camera position from snapshot
-        camera_position = None
-        camera_heading = 0.0
-        if snapshot.cameras:
-            cam = snapshot.cameras[0]
-            camera_position = Point(cam.position)
-            camera_heading = cam.yaw
 
         # We need to work around the fact that the sensor needs a map_ reference.
         # Currently snapshot doesn't include a map_ object, so we render via the

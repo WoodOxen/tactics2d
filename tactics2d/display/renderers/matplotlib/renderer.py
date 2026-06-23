@@ -125,7 +125,7 @@ class MatplotlibRenderer:
                 y = float(point_data[1])
                 return x, y
         except (TypeError, IndexError, ValueError):
-            pass
+            pass  # unsupported point_data type; caller handles None
         return None
 
     @staticmethod
@@ -162,7 +162,7 @@ class MatplotlibRenderer:
                     max_y = y
                 found = True
             except (TypeError, IndexError, ValueError):
-                pass
+                pass  # non-coordinate data; skip silently
 
         # Road elements
         for elem in geometry_data.get("map_data", {}).get("road_elements", []):
