@@ -10,14 +10,8 @@ from shapely.geometry import LineString, Polygon
 pytest.importorskip("torch", reason="BITS torch tests require the tactics2d[bits] extra.")
 pytest.importorskip("torchvision", reason="BITS torch tests require the tactics2d[bits] extra.")
 
-from tactics2d.behavior.bits import (
-    BitsBehaviorModel,
-    BitsConfig,
-    BitsPlan,
-    BitsPolicy,
-    BitsPrediction,
-    BitsRasterizer,
-)
+from tactics2d.behavior import BehaviorModelBase
+from tactics2d.behavior.bits import BitsBehaviorModel, BitsConfig
 from tactics2d.behavior.bits.cache import (
     build_bits_batch_cache,
     load_bits_batch_cache,
@@ -32,8 +26,12 @@ from tactics2d.behavior.bits.dataset import (
 from tactics2d.behavior.bits.evaluation import evaluate_bits_rolling_result
 from tactics2d.behavior.bits.model import (
     BitsAgentPrediction,
+    BitsPlan,
     BitsPlanScorer,
+    BitsPolicy,
+    BitsPrediction,
 )
+from tactics2d.behavior.bits.rasterizer import BitsRasterizer
 from tactics2d.behavior.bits.rolling import BitsRollingRunner
 from tactics2d.behavior.bits.supervision import build_goal_supervision
 from tactics2d.behavior.bits.training import (
@@ -190,12 +188,16 @@ def _map_with_crosswalk():
 
 def test_bits_config_exposes_tbsim_style_cost_weights():
     config = BitsConfig(
+        future_steps=7,
+        dt=0.2,
         likelihood_weight=0.5,
         progress_weight=1.5,
         lane_weight=2.5,
         collision_weight=3.5,
     )
 
+    assert config.planning_steps == 7
+    assert config.step_ms == 200
     assert config.cost_weights == {
         "likelihood_weight": 0.5,
         "progress_weight": 1.5,
@@ -1365,6 +1367,16 @@ def test_bits_behavior_model_predicts_world_frame_trajectories():
     assert trajectory.get_state(100).speed == pytest.approx(20.0)
 
 
+def test_bits_behavior_model_implements_shared_behavior_interface():
+    model = BitsBehaviorModel(
+        BitsConfig(history_steps=0, future_steps=1),
+        policy=_FixedBitsPolicy([[1.0, 0.0]]),
+        include_raster=False,
+    )
+
+    assert isinstance(model, BehaviorModelBase)
+
+
 def test_bits_behavior_model_exposes_batch_prediction_api():
     config = BitsConfig(history_steps=0, future_steps=1)
     participants = {1: _vehicle(1, [_state(0, 0.0, 0.0, speed=3.0)])}
@@ -1380,8 +1392,29 @@ def test_bits_behavior_model_exposes_batch_prediction_api():
     np.testing.assert_allclose(prediction.positions[0, 0], [0.3, 0.0])
 
 
-def test_bits_behavior_model_requires_explicit_policy():
-    with pytest.raises(ValueError, match="policy"):
+def test_bits_behavior_model_loads_default_policy_when_policy_is_omitted(monkeypatch):
+    import tactics2d.behavior.bits.defaults as defaults_module
+
+    default_config = BitsConfig(history_steps=0, future_steps=1)
+
+    def fake_load_default_bits_policy(**kwargs):
+        assert kwargs["device"] == "cpu"
+        assert kwargs["dtype"] is None
+        return default_config, _FixedBitsPolicy([[1.0, 0.0]])
+
+    monkeypatch.setattr(defaults_module, "load_default_bits_policy", fake_load_default_bits_policy)
+
+    model = BitsBehaviorModel(
+        include_raster=False,
+        device="cpu",
+    )
+
+    assert model.config == default_config
+    assert isinstance(model.policy, _FixedBitsPolicy)
+
+
+def test_bits_behavior_model_rejects_config_without_custom_policy():
+    with pytest.raises(ValueError, match="config is loaded from the default BITS policy"):
         BitsBehaviorModel(BitsConfig(history_steps=0, future_steps=1), include_raster=False)
 
 

@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from shapely.geometry import LineString, Point, Polygon
 
-from tactics2d.behavior import LimSimBehaviorModel
+from tactics2d.behavior import BehaviorModelBase, LimSimBehaviorModel
 from tactics2d.behavior.limsim.action import LimSimAction
 from tactics2d.behavior.limsim.config import LimSimConfig
 from tactics2d.behavior.limsim.evaluation import (
@@ -557,16 +557,36 @@ def test_frenet_planner_stop_fallback_avoids_collision_candidate():
 
 
 def test_limsim_behavior_model_outputs_trajectories_for_group():
-    config = LimSimConfig(horizon_steps=6, mcts_iterations=20, interaction_distance=15.0)
+    config = LimSimConfig(
+        horizon_steps=6,
+        dt=0.2,
+        mcts_iterations=20,
+        interaction_distance=15.0,
+    )
     map_ = _build_parallel_map()
     participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=5.0), 2: _vehicle(2, 0, 1.0, 10.0, speed=2.0)}
 
     result = LimSimBehaviorModel(config).plan(participants, map_, frame=0)
 
+    assert config.planning_steps == 6
+    assert config.step_ms == 200
     assert sorted(result.groups[0]) == [1, 2]
     assert set(result.actions) == {1, 2}
     assert set(result.trajectories) == {1, 2}
     assert len(result.trajectories[1].frames) == config.horizon_steps
+
+
+def test_limsim_behavior_model_predict_returns_shared_trajectory_dict():
+    config = LimSimConfig(horizon_steps=4, mcts_iterations=10, interaction_distance=15.0)
+    map_ = _build_parallel_map()
+    participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=5.0)}
+    model = LimSimBehaviorModel(config)
+
+    trajectories = model.predict(participants, map_, frame=0)
+
+    assert isinstance(model, BehaviorModelBase)
+    assert set(trajectories) == {1}
+    assert len(trajectories[1].frames) == config.horizon_steps
 
 
 def test_limsim_behavior_model_can_select_roi_around_ego():

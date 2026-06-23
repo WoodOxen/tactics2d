@@ -4,22 +4,9 @@
 """BITS-style bi-level imitation behavior model."""
 
 from .config import BitsConfig
-from .model import (
-    BitsBehaviorModel,
-    BitsPlan,
-    BitsPolicy,
-    BitsPrediction,
-)
-from .rasterizer import BitsRasterizer
-from .schema import BitsBatch, BitsRaster
+from .model import BitsBehaviorModel
 
 __all__ = [
-    "BitsBatch",
     "BitsBehaviorModel",
     "BitsConfig",
-    "BitsPlan",
-    "BitsPolicy",
-    "BitsPrediction",
-    "BitsRaster",
-    "BitsRasterizer",
 ]

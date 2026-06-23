@@ -68,6 +68,23 @@ def euclidean_distance(a, b) -> float:
     return float(np.linalg.norm(np.asarray(a, dtype=float)[:2] - np.asarray(b, dtype=float)[:2]))
 
 
+def transform_point(point, transform: np.ndarray) -> np.ndarray:
+    """Apply a 3x3 homogeneous transform to a 2D point.
+
+    Args:
+        point: Array-like point with at least two coordinates.
+        transform: Homogeneous transform matrix with shape ``(3, 3)``.
+
+    Returns:
+        Transformed 2D point with shape ``(2,)``.
+    """
+
+    transformed = np.asarray(transform, dtype=float) @ np.asarray(
+        [point[0], point[1], 1.0], dtype=float
+    )
+    return transformed[:2]
+
+
 def oriented_box(x: float, y: float, heading: float, length: float, width: float) -> Polygon:
     """Build an oriented rectangular polygon from a centre pose and dimensions.
 

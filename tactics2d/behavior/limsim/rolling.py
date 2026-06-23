@@ -1,17 +1,16 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Lightweight rolling PDP runner for LimSim-style behavior planning."""
+"""Lightweight rolling runner for LimSim-style behavior planning."""
 
-from copy import copy
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Sequence
 
 import numpy as np
 
 from tactics2d.geometry import normalize_angle
+from tactics2d.behavior._rolling import clone_vehicle_participants_at_frames, copy_state
 from tactics2d.map.element import Map
-from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 
 from .action import LimSimAction
@@ -34,7 +33,7 @@ class RollingSimulationResult:
 
 
 class LimSimRollingRunner:
-    """Run repeated single-step PDP updates over a short simulation horizon.
+    """Run repeated single-step behavior-planning updates over a short horizon.
 
     This runner keeps the behavior model itself single-frame and wraps it in a
     receding-horizon loop. Controlled RoI vehicles execute the first state of
@@ -60,7 +59,7 @@ class LimSimRollingRunner:
         roi_outer_radius: Optional[float] = None,
         ego_id: Optional[object] = None,
     ) -> RollingSimulationResult:
-        """Run rolling PDP for ``simulation_steps`` control updates."""
+        """Run rolling behavior planning for ``simulation_steps`` control updates."""
 
         frame = int(start_frame)
         simulation_agent_ids = self._simulation_agent_ids(
@@ -72,10 +71,12 @@ class LimSimRollingRunner:
             roi_outer_radius=roi_outer_radius,
             ego_id=ego_id,
         )
-        simulated_participants = self._clone_participants_at_frame(
+        simulated_participants = clone_vehicle_participants_at_frames(
             participants,
-            frame,
-            simulation_agent_ids,
+            frames=[frame],
+            agent_ids=simulation_agent_ids,
+            required_frame=frame,
+            fps=round(1.0 / self.config.dt, 3),
         )
         frames = [frame]
         results = []
@@ -170,38 +171,6 @@ class LimSimRollingRunner:
             return None
         return [*selection.agent_ids, *selection.background_agent_ids]
 
-    def _clone_participants_at_frame(
-        self,
-        participants: Dict[object, object],
-        frame: int,
-        agent_ids: Optional[Iterable[object]] = None,
-    ):
-        clones = {}
-        selected_ids = list(participants.keys()) if agent_ids is None else list(agent_ids)
-        for agent_id in selected_ids:
-            participant = participants.get(agent_id)
-            if not isinstance(participant, Vehicle) or not participant.trajectory.has_state(frame):
-                continue
-            initial_state = participant.trajectory.get_state(frame)
-            clone = copy(participant)
-            clone.trajectory = Trajectory(
-                id_=participant.trajectory.id_,
-                fps=round(1.0 / self.config.dt, 3),
-                stable_freq=True,
-            )
-            clone.trajectory.add_state(
-                State(
-                    frame=frame,
-                    x=initial_state.x,
-                    y=initial_state.y,
-                    heading=normalize_angle(initial_state.heading),
-                    vx=initial_state.vx,
-                    vy=initial_state.vy,
-                )
-            )
-            clones[agent_id] = clone
-        return clones
-
     def _advance_participants(
         self,
         participants: Dict[object, object],
@@ -231,15 +200,7 @@ class LimSimRollingRunner:
             if planned_trajectory is None:
                 planned_trajectory = result.trajectories.get(agent_id)
             if planned_trajectory is not None and planned_trajectory.has_state(next_frame):
-                planned_state = planned_trajectory.get_state(next_frame)
-                next_state = State(
-                    frame=next_frame,
-                    x=planned_state.x,
-                    y=planned_state.y,
-                    heading=normalize_angle(planned_state.heading),
-                    vx=planned_state.vx,
-                    vy=planned_state.vy,
-                )
+                next_state = copy_state(planned_trajectory.get_state(next_frame), next_frame)
             elif agent_id in background_next_states:
                 next_state = self._state_from_decision_state(background_next_states[agent_id], next_frame)
 
@@ -295,4 +256,4 @@ class LimSimRollingRunner:
         )
 
     def _next_frame(self, frame: int) -> int:
-        return int(round(frame + self.config.dt * 1000))
+        return int(round(frame + self.config.step_ms))

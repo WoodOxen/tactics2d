@@ -8,7 +8,7 @@ from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from tactics2d.geometry import euclidean_distance, normalize_angle
+from tactics2d.geometry import euclidean_distance, normalize_angle, transform_point
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State
@@ -210,7 +210,7 @@ class BitsBatchBuilder:
             if not participant.trajectory.has_state(frame):
                 continue
             state = participant.trajectory.get_state(frame)
-            positions[index] = self._transform_point(state.location, agent_from_world)
+            positions[index] = transform_point(state.location, agent_from_world)
             yaws[index, 0] = normalize_angle(state.heading - ego_heading)
             availabilities[index] = True
         return positions, yaws, availabilities
@@ -228,11 +228,6 @@ class BitsBatchBuilder:
             ],
             dtype=float,
         )
-
-    @staticmethod
-    def _transform_point(point, transform: np.ndarray) -> np.ndarray:
-        transformed = transform @ np.asarray([point[0], point[1], 1.0], dtype=float)
-        return transformed[:2]
 
     def _participant_extent(self, participant) -> np.ndarray:
         length = getattr(participant, "length", None) or self.config.default_vehicle_length
