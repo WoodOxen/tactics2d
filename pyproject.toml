@@ -3,8 +3,7 @@ name = "tactics2d"
 version = "0.1.9rc3"
 description = "Tactics2D: A Reinforcement Learning Environment Library with Generative Scenarios for Driving Decision-making"
 readme = { file = "README.md", content-type = "text/markdown" }
-license = { text = "GPL-3.0-only" }
-license-files = ["LICENSE"]
+license = { file = "LICENSE" }
 requires-python = ">= 3.8"
 keywords = ["reinforcement-learning", "environment", "simulator", "decision-making", "traffic-behavior"]
 authors = [
@@ -15,6 +14,7 @@ maintainers = [
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
