@@ -17,47 +17,66 @@ import pytest
 
 logging.basicConfig(level=logging.INFO)
 
+_HAS_DISPLAY = bool(os.getenv("DISPLAY"))
+
 
 from tactics2d.envs import ParkingEnv, RacingEnv
 
 
-@pytest.mark.env
-@pytest.mark.skip(reason="TODO")
-def test_racing_env():
-    render_mode = "human" if "DISPLAY" in os.environ else "rgb_array"
-    env = RacingEnv(render_mode=render_mode, render_fps=60, max_step=2000)
+def _simulate(env_type, render_mode, n_iter=600):
+    env = env_type(render_mode=render_mode, render_fps=60, max_step=2000)
     env.reset(42)
 
-    n_iter = 600
     t1 = time.time()
-    for _ in range(n_iter):
+    for i in range(n_iter):
         _ = env.step(action=env.action_space.sample())
         if render_mode == "human":
             env.render()
     t2 = time.time()
-    logging.info(f"Simulation took {t2 - t1:.2f} seconds.")
-    logging.info(f"The average fps is {n_iter / (t2 - t1): .2f} Hz.")
+    env.close()
+
+    name = env_type.__name__
+    logging.info(f"{name}[{render_mode}] simulation took {t2 - t1:.2f} seconds.")
+    logging.info(f"{name}[{render_mode}] average fps is {n_iter / (t2 - t1): .2f} Hz.")
 
 
 @pytest.mark.env
-@pytest.mark.skip(reason="TODO")
-def test_parking_env():
-    render_mode = "human" if "DISPLAY" in os.environ else "rgb_array"
-    env = ParkingEnv(render_mode=render_mode, render_fps=60, max_step=2000)
-    env.reset(42)
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    "render_mode",
+    [
+        "rgb_array",
+        pytest.param(
+            "human",
+            marks=pytest.mark.skipif(
+                not _HAS_DISPLAY, reason="DISPLAY not available, cannot open window."
+            ),
+        ),
+    ],
+)
+def test_racing_env(render_mode):
+    _simulate(RacingEnv, render_mode)
 
-    n_iter = 600
-    t1 = time.time()
-    for _ in range(n_iter):
-        _ = env.step(action=env.action_space.sample())
-        if render_mode == "human":
-            env.render()
-    t2 = time.time()
-    logging.info(f"Simulation took {t2 - t1:.2f} seconds.")
-    logging.info(f"The average fps is {n_iter / (t2 - t1): .2f} Hz.")
+
+@pytest.mark.env
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    "render_mode",
+    [
+        "rgb_array",
+        pytest.param(
+            "human",
+            marks=pytest.mark.skipif(
+                not _HAS_DISPLAY, reason="DISPLAY not available, cannot open window."
+            ),
+        ),
+    ],
+)
+def test_parking_env(render_mode):
+    _simulate(ParkingEnv, render_mode)
 
 
 @pytest.mark.env
 @pytest.mark.skip(reason="Terminal only")
-def test_manual_control(env):
+def test_manual_control():
     pass

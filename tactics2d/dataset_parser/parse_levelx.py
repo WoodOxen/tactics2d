@@ -4,8 +4,8 @@
 """Levelx datasets parser implementation."""
 
 
-import os
 import re
+from pathlib import Path
 from typing import Tuple, Union
 
 import numpy as np
@@ -152,7 +152,7 @@ class LevelXParser:
         if isinstance(file, int):
             file = str(file)
         file_id = self._get_file_id(file)
-        df_meta = pd.read_csv(os.path.join(folder, "%02d_recordingMeta.csv" % file_id))
+        df_meta = pd.read_csv(Path(folder) / ("%02d_recordingMeta.csv" % file_id))
 
         return df_meta.iloc[0]["locationId"]
 
@@ -170,7 +170,7 @@ class LevelXParser:
         if isinstance(file, int):
             file = str(file)
         file_id = self._get_file_id(file)
-        df_track_meta = pd.read_csv(os.path.join(folder, "%02d_tracksMeta.csv" % file_id))
+        df_track_meta = pd.read_csv(Path(folder) / ("%02d_tracksMeta.csv" % file_id))
         start_frame = int(min(df_track_meta["initialFrame"]) * 40)
         end_frame = int(max(df_track_meta["finalFrame"]) * 40)
 
@@ -212,10 +212,10 @@ class LevelXParser:
             else {name: pl.String for name in self._EXID_SPECIAL_COLS}
         )
         df_track = pl.read_csv(
-            os.path.join(folder, "%02d_tracks.csv" % file_id), schema_overrides=schema_overrides
+            Path(folder) / ("%02d_tracks.csv" % file_id), schema_overrides=schema_overrides
         )
-        df_track_meta = pd.read_csv(os.path.join(folder, "%02d_tracksMeta.csv" % file_id))
-        df_meta = pd.read_csv(os.path.join(folder, "%02d_recordingMeta.csv" % file_id))
+        df_track_meta = pd.read_csv(Path(folder) / ("%02d_tracksMeta.csv" % file_id))
+        df_meta = pd.read_csv(Path(folder) / ("%02d_recordingMeta.csv" % file_id))
 
         # highD is record in a special way and needs to be calibrated
         # first get the calibration parameters

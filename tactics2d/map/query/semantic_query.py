@@ -53,10 +53,7 @@ class SemanticMapQuery:
         self.map = map_
 
     def get_reference_path(
-        self,
-        lane_id: str,
-        route_lane_ids: Optional[Sequence[str]] = None,
-        lookahead_lanes: int = 3,
+        self, lane_id: str, route_lane_ids: Optional[Sequence[str]] = None, lookahead_lanes: int = 3
     ) -> Optional[ReferencePath]:
         """Build a reference path by concatenating lane centerlines."""
 
@@ -85,10 +82,12 @@ class SemanticMapQuery:
         width = self.map.lanes[lane_id].get_width()
         return ReferencePath(path=path, lane_ids=tuple(lane_ids), lane_width=width)
 
-    def query_lanes_in_region(self, region: Union[Tuple[float, float, float, float], Polygon]):
+    def get_lanes_in_region(self, region: Union[Tuple[float, float, float, float], Polygon]):
         """Return lane ids whose geometry intersects a region."""
 
-        geometry = box(region[0], region[2], region[1], region[3]) if isinstance(region, tuple) else region
+        geometry = (
+            box(region[0], region[2], region[1], region[3]) if isinstance(region, tuple) else region
+        )
         lane_ids = []
         for lane_id, lane in self.map.lanes.items():
             if lane.geometry is not None and lane.geometry.intersects(geometry):
@@ -116,7 +115,9 @@ class SemanticMapQuery:
 
         stop_signs = []
         for regulation in self.map.regulations.values():
-            if regulation.is_stop_sign() and (lane_id is None or regulation.applies_to_lane(lane_id)):
+            if regulation.is_stop_sign() and (
+                lane_id is None or regulation.applies_to_lane(lane_id)
+            ):
                 stop_signs.append(regulation)
         return stop_signs
 
@@ -160,10 +161,7 @@ class SemanticMapQuery:
         return targets
 
     def get_lane_change_permission(
-        self,
-        lane_id: str,
-        direction: str,
-        s: Optional[float] = None,
+        self, lane_id: str, direction: str, s: Optional[float] = None
     ) -> bool:
         """Return whether a lane change is allowed at a lane position."""
 
@@ -283,10 +281,7 @@ class SemanticMapQuery:
         return conflicts
 
     def has_conflict(
-        self,
-        lane_id_a: str,
-        lane_id_b: str,
-        angle_threshold: float = np.deg2rad(20.0),
+        self, lane_id_a: str, lane_id_b: str, angle_threshold: float = np.deg2rad(20.0)
     ) -> bool:
         """Return whether two lanes have crossing or overlapping drive paths."""
 
@@ -302,7 +297,12 @@ class SemanticMapQuery:
         if intersection.is_empty:
             lane_a = self.map.lanes.get(lane_id_a)
             lane_b = self.map.lanes.get(lane_id_b)
-            if lane_a is None or lane_b is None or lane_a.geometry is None or lane_b.geometry is None:
+            if (
+                lane_a is None
+                or lane_b is None
+                or lane_a.geometry is None
+                or lane_b.geometry is None
+            ):
                 return False
             intersection = lane_a.geometry.intersection(lane_b.geometry)
             if intersection.is_empty:
@@ -380,10 +380,7 @@ class SemanticMapQuery:
         """Build a virtual stop-line geometry perpendicular to a lane centerline."""
 
         stop_line = self.get_stop_line(
-            lane_id=lane_id,
-            stop_target=stop_target,
-            point=point,
-            width=width,
+            lane_id=lane_id, stop_target=stop_target, point=point, width=width
         )
         return stop_line.geometry if stop_line is not None else None
 
@@ -412,7 +409,9 @@ class SemanticMapQuery:
             matched = [
                 segment["roadline_id"]
                 for segment in segments
-                if float(segment.get("start_s", -np.inf)) <= s <= float(segment.get("end_s", np.inf))
+                if float(segment.get("start_s", -np.inf))
+                <= s
+                <= float(segment.get("end_s", np.inf))
             ]
             if matched:
                 return matched

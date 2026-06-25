@@ -33,7 +33,7 @@ from tactics2d.map.generator.rules.module_types import (
     RampSide,
     RoadModuleResult,
     RoadPort,
-    make_port,
+    build_port,
 )
 
 from .element_builder import (
@@ -861,9 +861,9 @@ def _build_ramp(
     ramp_ids = (connector_lane.id_,)
 
     ports = {
-        "main_in": make_port(main_in, kind="main_in", name="main_in", lane_ids=forward_ids),
-        "main_out": make_port(main_out, kind="main_out", name="main_out", lane_ids=forward_ids),
-        "ramp": make_port(
+        "main_in": build_port(main_in, kind="main_in", name="main_in", lane_ids=forward_ids),
+        "main_out": build_port(main_out, kind="main_out", name="main_out", lane_ids=forward_ids),
+        "ramp": build_port(
             ramp_port, kind=aux_geom.ramp_port_kind, name=aux_geom.ramp_port_kind, lane_ids=ramp_ids
         ),
     }
@@ -883,10 +883,10 @@ def _build_ramp(
             lane_width=lane_w,
             speed_limit=main_speed,
         )
-        ports["backward_in"] = make_port(
+        ports["backward_in"] = build_port(
             reverse_main_in, kind="backward_in", name="backward_in", lane_ids=backward_ids
         )
-        ports["backward_out"] = make_port(
+        ports["backward_out"] = build_port(
             reverse_main_out, kind="backward_out", name="backward_out", lane_ids=backward_ids
         )
 

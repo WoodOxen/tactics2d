@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 
 import tactics2d
-from tactics2d.frontend.preview import LEVELX_DATASETS
+from tactics2d.dataset_parser import LEVELX_DATASETS
 
 LOGGER = logging.getLogger(__name__)
 
@@ -80,8 +80,8 @@ def parse_args(argv=None):
 
 
 def _start(args):
-    from tactics2d.frontend import FrontendRenderer, run_server
-    from tactics2d.frontend.renderer import start_server_process
+    from tactics2d.display.renderers.web import FrontendRenderer, run_server
+    from tactics2d.display.renderers.web.renderer import start_server_process
 
     if args.background:
         process = start_server_process(
@@ -98,21 +98,21 @@ def _start(args):
 
 
 def _stop(args):
-    from tactics2d.frontend.renderer import stop_server_process
+    from tactics2d.display.renderers.web.renderer import stop_server_process
 
     pid = stop_server_process(args.pid_file)
     LOGGER.info("Stopped Tactics2D frontend process %s.", pid)
 
 
 def _status(args):
-    from tactics2d.frontend import FrontendRenderer
+    from tactics2d.display.renderers.web import FrontendRenderer
 
     renderer = FrontendRenderer(args.host, args.port)
     print(json.dumps(renderer.health(), indent=2, sort_keys=True))
 
 
 def _preview(args):
-    from tactics2d.frontend.preview import ensure_frontend_server
+    from tactics2d.display.renderers.web.preview import ensure_frontend_server
 
     if args.preview_command == "demo":
         renderer = ensure_frontend_server(

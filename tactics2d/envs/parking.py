@@ -13,11 +13,13 @@ from gymnasium import spaces
 from gymnasium.error import InvalidAction
 from shapely.geometry import Polygon
 
+from tactics2d.display import create_display_backend
+from tactics2d.display.renderers import RenderManager
+from tactics2d.display.sensor import BEVCamera, SingleLineLidar
 from tactics2d.map.element import Map
 from tactics2d.map.generator import ParkingLotGenerator
 from tactics2d.participant.element import Vehicle
 from tactics2d.physics import SingleTrackKinematics
-from tactics2d.renderer import RenderManager, SingleLineLidar, TopDownCamera
 from tactics2d.traffic import ScenarioManager, ScenarioStatus, TrafficStatus
 from tactics2d.traffic.event_detection import (
     Arrival,
@@ -88,7 +90,7 @@ class ParkingEnv(gym.Env):
     - `scenario_status`: The status of the scenario.
     """
 
-    _metadata = {"render_modes": ["human", "rgb_array"]}
+    _metadata = {"render_modes": ["human", "rgb_array", "browser", "matplotlib", "none"]}
     _max_fps = 200
     _max_steer = MAX_STEER
     _max_accel = MAX_ACCEL
@@ -106,7 +108,7 @@ class ParkingEnv(gym.Env):
 
         Args:
             type_proportion (float, optional): The proportion of "bay" parking scenario in all generated scenarios. It should be in the range of [0, 1]. If the input is out of the range, it will be clipped to the range. When it is 0, the generator only generates "parallel" parking scenarios. When it is 1, the generator only generates "bay" parking scenarios.
-            render_mode (str, optional): The mode of the rendering. It can be "human" or "rgb_array".
+            render_mode (str, optional): The mode of the rendering. It can be "human", "rgb_array", "none" or None.
             render_fps (int, optional): The frame rate of the rendering.
             max_step (int, optional): The maximum time step of the scenario.
             continuous (bool, optional): Whether to use continuous action space.
@@ -115,6 +117,9 @@ class ParkingEnv(gym.Env):
             NotImplementedError: If the render mode is not supported.
         """
         super().__init__()
+
+        if render_mode is None:
+            render_mode = "none"
 
         if render_mode not in self._metadata["render_modes"]:
             raise NotImplementedError(f"Render mode {render_mode} is not supported.")
@@ -144,6 +149,10 @@ class ParkingEnv(gym.Env):
         self.scenario_manager = self._ParkingScenarioManager(
             type_proportion, self.max_step, 100, self.render_fps, self.render_mode != "human"
         )
+
+        # Create the unified display backend for browser/matplotlib modes.
+        # For human/rgb_array the scenario_manager's built-in renderer is used.
+        self._display = create_display_backend(self.render_mode)
 
     def _get_reward(
         self, scenario_status: ScenarioStatus, traffic_status: TrafficStatus, iou: float
@@ -258,6 +267,11 @@ class ParkingEnv(gym.Env):
     def render(self):
         if self.render_mode == "human":
             self.scenario_manager.render()
+        elif self.render_mode == "rgb_array":
+            self.scenario_manager.render()
+            return self.scenario_manager.get_observation()[0]
+        elif self.render_mode in ("browser", "matplotlib"):
+            return self._display.render(self._build_snapshot())
 
     def reset(self, seed: int = None, options: dict = None):
         """This function resets the environment.
@@ -272,6 +286,8 @@ class ParkingEnv(gym.Env):
         super().reset(seed=seed, options=options)
         self._max_iou = -np.inf
         self.scenario_manager.reset()
+
+        self._display.reset(self._build_snapshot())
 
         observations = self.scenario_manager.get_observation()
         infos = self._get_infos(
@@ -409,14 +425,10 @@ class ParkingEnv(gym.Env):
             # reset the sensors
             self.render_manager.reset()
 
-            camera = TopDownCamera(
-                id_=0,
-                map_=self.map_,
-                perception_range=(20, 20, 20, 20),
-                window_size=self._state_size,
-                off_screen=self.off_screen,
+            camera = BEVCamera(id_=0, map_=self.map_, perception_range=(20, 20, 20, 20))
+            self.render_manager.add_sensor(
+                camera, window_size=self._state_size, off_screen=self.off_screen, main_sensor=True
             )
-            self.render_manager.add_sensor(camera)
             self.render_manager.bind(0, 0)
 
             lidar = SingleLineLidar(
@@ -424,10 +436,10 @@ class ParkingEnv(gym.Env):
                 map_=self.map_,
                 perception_range=self._lidar_range,
                 freq_detect=self._lidar_line * 10,
-                window_size=self._state_size,
-                off_screen=self.off_screen,
             )
-            self.render_manager.add_sensor(lidar)
+            self.render_manager.add_sensor(
+                lidar, window_size=self._state_size, off_screen=self.off_screen
+            )
             self.render_manager.bind(1, 0)
             self.render_manager.update(self.participants, [0], self.agent.current_state.frame)
 
@@ -443,4 +455,50 @@ class ParkingEnv(gym.Env):
     def close(self):
         """This function closes the environment."""
         self.scenario_manager.render_manager.close()
+        self._display.close()
         super().close()
+
+    def _build_snapshot(self) -> "SceneSnapshot":
+        """Build a SceneSnapshot from current scenario state.
+
+        Returns:
+            A :class:`~tactics2d.display.SceneSnapshot` for the current frame.
+        """
+        from tactics2d.display.snapshot import CameraMetadata, ParticipantElement, SceneSnapshot
+
+        agent = self.scenario_manager.agent
+        state = agent.current_state
+        participants = self.scenario_manager.participants
+
+        # Build participant element
+        pose = agent.get_pose()
+        participant_elements = {}
+        for pid, p in participants.items():
+            element = ParticipantElement(
+                id_=pid,
+                shape="polygon",
+                geometry=list(pose.coords) if pid == 0 else [],
+                position=(state.x, state.y),
+                rotation=state.heading,
+                type_="vehicle",
+                velocity=(state.vx, state.vy),
+                length=p.length,
+                width=p.width,
+            )
+            participant_elements[pid] = element
+
+        cameras = [
+            CameraMetadata(
+                id_="ego-camera",
+                position=(state.x, state.y),
+                yaw=state.heading,
+                perception_range=20.0,
+            )
+        ]
+
+        return SceneSnapshot(
+            frame=self.scenario_manager.cnt_step,
+            participants=participant_elements,
+            cameras=cameras,
+            ego_participant_id=0,
+        )

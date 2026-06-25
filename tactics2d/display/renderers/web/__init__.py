@@ -1,7 +1,7 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Browser-based frontend utilities for Tactics2D."""
+"""Web (browser) renderer module."""
 
 from .preview import build_map_preview_sensor, ensure_frontend_server, stream_levelx_preview
 from .renderer import FrontendRenderer, FrontendServer, start_server_process, stop_server_process

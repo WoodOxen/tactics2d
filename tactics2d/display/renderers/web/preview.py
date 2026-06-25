@@ -13,9 +13,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
+from tactics2d.dataset_parser import LEVELX_DATASETS
+
 LOGGER = logging.getLogger(__name__)
 
-LEVELX_DATASETS = ("highD", "inD", "rounD", "exiD", "uniD")
 LEVELX_FRAME_STEP_MS = 40
 
 _LEVELX_CANONICAL = {name.lower(): name for name in LEVELX_DATASETS}
@@ -220,8 +221,7 @@ def resolve_levelx_osm_path(
 def ensure_frontend_server(host: str, port: int, max_fps: int, open_browser: bool = False):
     """Return a renderer and start a background frontend server if needed."""
 
-    from tactics2d.frontend import FrontendRenderer
-    from tactics2d.frontend.renderer import start_server_process
+    from .renderer import FrontendRenderer, start_server_process
 
     renderer = FrontendRenderer(host, port, max_fps=max_fps)
     if renderer.wait_until_ready(timeout=0.5):
@@ -243,8 +243,8 @@ def build_map_preview_sensor(
 
     from shapely.geometry import Point
 
+    from tactics2d.display.sensor import BEVCamera
     from tactics2d.map.parser import OSMParser
-    from tactics2d.sensor import BEVCamera
 
     map_ = OSMParser(lanelet2=lanelet2).parse(str(osm_path), configs)
     camera = BEVCamera(id_=0, map_=map_)
@@ -345,8 +345,8 @@ def load_levelx_preview_scene(
     """Load a LevelX scene and return a frame payload source."""
 
     from tactics2d.dataset_parser import LevelXParser
+    from tactics2d.display.sensor import BEVCamera
     from tactics2d.map.parser import OSMParser
-    from tactics2d.sensor import BEVCamera
 
     dataset_name = canonical_levelx_dataset(dataset)
     file_id = extract_levelx_file_id(file)

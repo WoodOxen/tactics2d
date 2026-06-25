@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 import math
-import os
+from pathlib import Path
 
 import defusedxml.ElementTree as ET
 from shapely.geometry import LineString, MultiPoint
@@ -65,7 +65,7 @@ class NetXMLParser:
         self._id_counter = 0
 
         xml_root = ET.parse(file_path).getroot()
-        map_name = os.path.splitext(os.path.basename(file_path))[0]
+        map_name = Path(file_path).stem
         map_ = Map(name=map_name)
 
         self._parse_location(xml_root, map_)

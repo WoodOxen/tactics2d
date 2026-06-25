@@ -15,9 +15,9 @@ sys.path.append(".")
 sys.path.append("..")
 
 from tactics2d.dataset_parser.parse_argoverse2 import Argoverse2Parser
-from tactics2d.renderer.matplotlib_renderer import MatplotlibRenderer
-from tactics2d.sensor.camera import BEVCamera
-from tactics2d.sensor.lidar import SingleLineLidar
+from tactics2d.display.renderers import MatplotlibRenderer
+from tactics2d.display.sensor.camera import BEVCamera
+from tactics2d.display.sensor.lidar import SingleLineLidar
 
 # ------------------------------------------------------------------------------
 # Shared Fixtures
@@ -177,10 +177,6 @@ def sensor_test_data(argoverse_data):
             )
             self.fixed_heading = 0.0
 
-            # Ensure runtime directory exists
-            self.runtime_dir = Path(__file__).parent / "runtime"
-            self.runtime_dir.mkdir(exist_ok=True)
-
     return SensorTestData(argoverse_data)
 
 
@@ -323,7 +319,7 @@ class TestBEVCamera:
     """BEVCamera-specific tests."""
 
     @pytest.mark.parametrize("mode", ["fixed", "bound"])
-    def test_camera_modes(self, mode, sensor_test_data):
+    def test_camera_modes(self, runtime_dir, mode, sensor_test_data):
         """Test camera in different modes (fixed position vs bound to participant)."""
         # Create camera
         if mode == "fixed":
@@ -383,7 +379,7 @@ class TestBEVCamera:
         assert "participants" in participant_data
 
         # Render and save
-        output_path = sensor_test_data.runtime_dir / output_filename
+        output_path = runtime_dir / output_filename
         saved_path = render_sensor_output(
             map_=sensor_test_data.map_obj,
             geometry_data=geometry_data,
@@ -428,7 +424,7 @@ class TestSingleLineLidar:
     """SingleLineLidar-specific tests."""
 
     @pytest.mark.parametrize("mode", ["fixed", "bound"])
-    def test_lidar_modes(self, mode, sensor_test_data):
+    def test_lidar_modes(self, runtime_dir, mode, sensor_test_data):
         """Test lidar in different modes (fixed position vs bound to participant)."""
         if mode == "fixed":
             lidar = SingleLineLidar(
@@ -483,7 +479,7 @@ class TestSingleLineLidar:
         point_clouds = participant_data["point_clouds"]
 
         # Render and save
-        output_path = sensor_test_data.runtime_dir / output_filename
+        output_path = runtime_dir / output_filename
         saved_path = render_sensor_output(
             map_=sensor_test_data.map_obj,
             geometry_data=geometry_data,

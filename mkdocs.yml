@@ -27,6 +27,7 @@ nav:
   - Python API:
     - tactics2d.behavior: "api/behavior.md"
     - tactics2d.controller: "api/controller.md"
+    - tactics2d.display: "api/display.md"
     - tactics2d.dataset_parser: "api/dataset_parser.md"
     - tactics2d.envs: "api/envs.md"
     - tactics2d.geometry: "api/geometry.md"
@@ -34,7 +35,8 @@ nav:
     - tactics2d.map: "api/map.md"
     - tactics2d.participant: "api/participant.md"
     - tactics2d.physics: "api/physics.md"
-    - tactics2d.sensor: "api/sensor.md"
+    - tactics2d.routing: "api/routing.md"
+    - tactics2d.search: "api/search.md"
     - tactics2d.traffic: "api/traffic.md"
   - Tutorial:
     - browser_frontend: "tutorial/browser_frontend.md"

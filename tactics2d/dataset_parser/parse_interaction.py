@@ -4,8 +4,8 @@
 """INTERACTION dataset parser implementation."""
 
 
-import os
 import re
+from pathlib import Path
 from typing import Tuple, Union
 
 import numpy as np
@@ -49,14 +49,14 @@ class InteractionParser:
         if isinstance(file, int):
             file = str(file)
         file_id = self._get_file_id(file)
-        vehicle_file_path = os.path.join(folder, "vehicle_tracks_%03d.csv" % file_id)
+        vehicle_file_path = Path(folder) / ("vehicle_tracks_%03d.csv" % file_id)
 
         df_vehicle = pl.read_csv(vehicle_file_path)
         start_frame = int(df_vehicle["timestamp_ms"].min())
         end_frame = int(df_vehicle["timestamp_ms"].max())
 
-        pedestrian_file_path = os.path.join(folder, "pedestrian_tracks_%03d.csv" % file_id)
-        if os.path.exists(pedestrian_file_path):
+        pedestrian_file_path = Path(folder) / ("pedestrian_tracks_%03d.csv" % file_id)
+        if Path(pedestrian_file_path).exists():
             df_pedestrian = pl.read_csv(pedestrian_file_path)
             ped_start = int(df_pedestrian["timestamp_ms"].min())
             ped_end = int(df_pedestrian["timestamp_ms"].max())
@@ -231,11 +231,11 @@ class InteractionParser:
             file = str(file)
         file_id = self._get_file_id(file)
 
-        vehicle_file_path = os.path.join(folder, "vehicle_tracks_%03d.csv" % file_id)
+        vehicle_file_path = Path(folder) / ("vehicle_tracks_%03d.csv" % file_id)
         participants, actual_time_range = self.parse_vehicle(vehicle_file_path, time_range)
 
-        pedestrian_file_path = os.path.join(folder, "pedestrian_tracks_%03d.csv" % file_id)
-        if os.path.exists(pedestrian_file_path):
+        pedestrian_file_path = Path(folder) / ("pedestrian_tracks_%03d.csv" % file_id)
+        if Path(pedestrian_file_path).exists():
             participants, actual_time_range_ = self.parse_pedestrians(
                 participants, pedestrian_file_path, time_range
             )

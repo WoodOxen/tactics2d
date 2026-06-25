@@ -3,6 +3,7 @@
 
 """Dataset parser module."""
 
+LEVELX_DATASETS = ("highD", "inD", "rounD", "exiD", "uniD")
 
 from .parse_argoverse2 import Argoverse2Parser
 from .parse_citysim import CitySimParser
@@ -24,4 +25,5 @@ __all__ = [
     "NuPlanParser",
     "WOMDParser",
     "DriveInsightDParser",
+    "LEVELX_DATASETS",
 ]

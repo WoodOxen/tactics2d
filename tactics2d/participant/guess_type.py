@@ -4,7 +4,7 @@
 """Guess type implementation."""
 
 
-import os
+from pathlib import Path
 
 import joblib
 import numpy as np
@@ -19,8 +19,8 @@ class GuessType:
     """
 
     def __init__(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.trajectory_clf = joblib.load(os.path.join(current_dir, "trajectory_classifier.m"))
+        model_path = Path(__file__).resolve().parent / "trajectory_classifier.m"
+        self.trajectory_clf = joblib.load(model_path)
 
     def guess_by_size(self, size_info: tuple, hint_type: str):
         """Guess the type of the participant by the size information with SVM model.

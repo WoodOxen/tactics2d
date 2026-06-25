@@ -233,7 +233,7 @@ def start_server_process(
     command = [
         sys.executable,
         "-m",
-        "tactics2d.frontend.server",
+        "tactics2d.display.renderers.web.server",
         "--host",
         host,
         "--port",

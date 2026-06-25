@@ -111,7 +111,7 @@ class RoadModuleResult:
     areas: list[Area] = field(default_factory=list)
 
 
-def make_port(
+def build_port(
     base_port: RoadPort,
     *,
     kind: str | None = None,

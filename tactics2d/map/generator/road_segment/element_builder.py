@@ -13,7 +13,7 @@ from shapely.geometry import LineString
 
 from tactics2d.geometry import polyline_length, sample_by_s
 from tactics2d.map.element import Junction, Lane, LaneRelationship, RoadLine
-from tactics2d.map.generator.rules.module_types import RoadPort, make_port
+from tactics2d.map.generator.rules.module_types import RoadPort, build_port
 
 
 def boundary_offset(boundary_index: int, lane_num: int, lane_width: float) -> float:
@@ -418,7 +418,7 @@ def build_junction_arm_ports(
             speed_limit=float(arm["speed_limit"]),
         )
 
-        ports[f"arm_{arm_idx}_in"] = make_port(
+        ports[f"arm_{arm_idx}_in"] = build_port(
             inward_port,
             kind=f"{module_name}_in",
             name=f"arm_{arm_idx}_in",
@@ -429,7 +429,7 @@ def build_junction_arm_ports(
                 "direction": f"into_{module_name}",
             },
         )
-        ports[f"arm_{arm_idx}_out"] = make_port(
+        ports[f"arm_{arm_idx}_out"] = build_port(
             outward_port,
             kind=f"{module_name}_out",
             name=f"arm_{arm_idx}_out",

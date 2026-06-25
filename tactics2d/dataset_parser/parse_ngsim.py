@@ -4,7 +4,7 @@
 """NGSIM dataset parser implementation."""
 
 
-import os
+from pathlib import Path
 from typing import Tuple
 
 import numpy as np
@@ -20,7 +20,7 @@ class NGSIMParser:
     """
 
     def extract_meta_data(self, file: str, folder: str):
-        df_track_chunk = pd.read_csv(os.path.join(folder, file), iterator=True, chunksize=10000)
+        df_track_chunk = pd.read_csv(Path(folder) / file, iterator=True, chunksize=10000)
 
         meta_data_dict = dict()
 
@@ -70,7 +70,7 @@ class NGSIMParser:
         meta_data_df.index = meta_data_df.index.astype(int)
 
         file_meta = file.split(".")[0] + "-meta" + "." + file.split(".")[1]
-        meta_data_df.to_csv(os.path.join(folder, file_meta))
+        meta_data_df.to_csv(Path(folder) / file_meta)
 
     def parse_trajectory(
         self, file: str, folder: str, time_range: Tuple[int, int] = None, ids: list = None
@@ -97,7 +97,7 @@ class NGSIMParser:
         if ids is not None:
             ids = {int(x) for x in ids}
 
-        df_track_chunk = pd.read_csv(os.path.join(folder, file), iterator=True, chunksize=10000)
+        df_track_chunk = pd.read_csv(Path(folder) / file, iterator=True, chunksize=10000)
 
         for chunk in df_track_chunk:
             for idx, info in chunk.iterrows():

@@ -325,3 +325,12 @@ class SingleLineLidar(SensorBase):
         participant_id_set = set()
 
         return geometry_data, road_id_set, participant_id_set
+
+    def get_observation(self) -> np.ndarray:
+        """Return the raw lidar scan result.
+
+        Returns:
+            numpy.ndarray: 1D array of distances for each lidar beam.
+                ``inf`` values indicate no detection within range.
+        """
+        return self.scan_result.copy()

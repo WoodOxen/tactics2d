@@ -63,12 +63,22 @@ include-package-data = true
 [tool.setuptools.package-data]
 tactics2d = [
     "participant/trajectory_classifier.m",
-    "frontend/static/**",
-    "frontend/templates/*",
+    "display/renderers/web/static/**",
 ]
 
 [tool.setuptools.packages.find]
-exclude = ["test", "tactics2d/data/"]
+exclude = [
+    "test",
+    "test.*",
+    "tests",
+    "tests.*",
+    "*.test",
+    "*.test.*",
+    "*.tests",
+    "*.tests.*",
+    "tactics2d.data",
+    "tactics2d.data.*",
+]
 
 [tool.setuptools.dynamic]
 dependencies = { file = "requirements.txt" }

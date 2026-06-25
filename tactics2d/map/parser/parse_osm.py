@@ -141,7 +141,7 @@ class OSMParser:
 
         return tags
 
-    def _load_area(self, xml_node: ET.Element, map_: Map) -> Area:
+    def _parse_area(self, xml_node: ET.Element, map_: Map) -> Area:
         """Parse an OSM area element from an XML node.
 
         Args:
@@ -212,8 +212,8 @@ class OSMParser:
 
         return Area(area_id, polygon, line_ids, set(regulatory_ids), **area_tags)
 
-    def _load_bounds_no_proj(self, xml_node: ET.Element) -> tuple:
-        """Load the map boundary without coordinate projection.
+    def _parse_bounds_no_proj(self, xml_node: ET.Element) -> tuple:
+        """Parse the map boundary without coordinate projection.
 
         Args:
             xml_node (ET.Element): The XML node of the boundary.
@@ -232,8 +232,8 @@ class OSMParser:
 
         return None
 
-    def _load_bounds(self, xml_node: ET.Element, projector: Proj, origin: tuple) -> tuple:
-        """Load the map boundary with coordinate projection.
+    def _parse_bounds(self, xml_node: ET.Element, projector: Proj, origin: tuple) -> tuple:
+        """Parse the map boundary with coordinate projection.
 
         Args:
             xml_node (ET.Element): The XML node of the boundary.
@@ -256,8 +256,8 @@ class OSMParser:
 
         return None
 
-    def _load_nodes_no_proj(self, xml_node: ET.Element, lat0: float, lon0: float) -> Node:
-        """Load a node using equirectangular projection from the given origin.
+    def _parse_nodes_no_proj(self, xml_node: ET.Element, lat0: float, lon0: float) -> Node:
+        """Parse a node using equirectangular projection from the given origin.
 
         Converts geographic coordinates (lon, lat) to local metric coordinates
         (x, y) in metres using a simple equirectangular approximation.
@@ -277,8 +277,8 @@ class OSMParser:
         y = (lat - lat0) * 110540.0
         return Node(id_=node_id, x=x, y=y)
 
-    def _load_nodes(self, xml_node: ET.Element, projector: Proj, origin: tuple) -> Node:
-        """Load a node with coordinate projection.
+    def _parse_nodes(self, xml_node: ET.Element, projector: Proj, origin: tuple) -> Node:
+        """Parse a node with coordinate projection.
 
         Args:
             xml_node (ET.Element): The XML node of the node.
@@ -293,8 +293,8 @@ class OSMParser:
 
         return Node(id_=node_id, x=x - origin[0], y=y - origin[1])
 
-    def _load_way(self, xml_node: ET.Element, map_: Map) -> Area | RoadLine:
-        """Load an OSM way element as either an Area or a RoadLine.
+    def _parse_way(self, xml_node: ET.Element, map_: Map) -> Area | RoadLine:
+        """Parse an OSM way element as either an Area or a RoadLine.
 
         Args:
             xml_node (ET.Element): The XML node of the way.
@@ -323,8 +323,8 @@ class OSMParser:
 
         return road_element
 
-    def _load_relation(self, xml_node: ET.Element, map_: Map) -> Area | RoadLine | Regulatory:
-        """Load an OSM relation element as an Area, RoadLine, or Regulatory.
+    def _parse_relation(self, xml_node: ET.Element, map_: Map) -> Area | RoadLine | Regulatory:
+        """Parse an OSM relation element as an Area, RoadLine, or Regulatory.
 
         Args:
             xml_node (ET.Element): The XML node of the relation.
@@ -339,7 +339,7 @@ class OSMParser:
         road_element = None
 
         if type_ == "multipolygon":
-            road_element = self._load_area(xml_node, map_)
+            road_element = self._parse_area(xml_node, map_)
 
         elif type_ == "route":
             point_list = []
@@ -381,8 +381,8 @@ class OSMParser:
 
         return road_element
 
-    def _load_roadline_lanelet2(self, xml_node: ET.Element, map_: Map) -> RoadLine:
-        """Load a Lanelet2 roadline from an XML node.
+    def _parse_roadline_lanelet2(self, xml_node: ET.Element, map_: Map) -> RoadLine:
+        """Parse a Lanelet2 roadline from an XML node.
 
         Args:
             xml_node (ET.Element): The XML node of the roadline.
@@ -402,8 +402,8 @@ class OSMParser:
 
         return RoadLine(id_=line_id, geometry=linestring, **tags)
 
-    def _load_lane_lanelet2(self, xml_node: ET.Element, map_: Map) -> Lane:
-        """Load a Lanelet2 lane from an XML relation node.
+    def _parse_lane_lanelet2(self, xml_node: ET.Element, map_: Map) -> Lane:
+        """Parse a Lanelet2 lane from an XML relation node.
 
         Args:
             xml_node (ET.Element): The XML node of the lanelet relation.
@@ -458,8 +458,8 @@ class OSMParser:
             **lane_tags,
         )
 
-    def _load_area_lanelet2(self, xml_node: ET.Element, map_: Map) -> Area:
-        """Load a Lanelet2 area from an XML node.
+    def _parse_area_lanelet2(self, xml_node: ET.Element, map_: Map) -> Area:
+        """Parse a Lanelet2 area from an XML node.
 
         Args:
             xml_node (ET.Element): The XML node of the area.
@@ -509,8 +509,8 @@ class OSMParser:
 
         return Area(area_id, polygon, line_ids, set(regulatory_ids), **area_tags)
 
-    def _load_regulatory_lanelet2(self, xml_node: ET.Element) -> Regulatory:
-        """Load a Lanelet2 regulatory element from an XML node.
+    def _parse_regulatory_lanelet2(self, xml_node: ET.Element) -> Regulatory:
+        """Parse a Lanelet2 regulatory element from an XML node.
 
         Args:
             xml_node (ET.Element): The XML node of the regulatory element.
@@ -575,16 +575,16 @@ class OSMParser:
         node_boundary = xml_root.find("bounds")
         if node_boundary is not None:
             map_.set_boundary(
-                self._load_bounds(node_boundary, projector, origin)
+                self._parse_bounds(node_boundary, projector, origin)
                 if to_project
-                else self._load_bounds_no_proj(node_boundary)
+                else self._parse_bounds_no_proj(node_boundary)
             )
 
         if to_project:
             for xml_node in xml_root.findall("node"):
                 if xml_node.get("action") == "delete":
                     continue
-                map_.add_node(self._load_nodes(xml_node, projector, origin))
+                map_.add_node(self._parse_nodes(xml_node, projector, origin))
         else:
             all_nodes = [n for n in xml_root.findall("node") if n.get("action") != "delete"]
             if all_nodes:
@@ -594,35 +594,35 @@ class OSMParser:
                 lat0, lon0 = 0.0, 0.0
 
             for xml_node in all_nodes:
-                map_.add_node(self._load_nodes_no_proj(xml_node, lat0, lon0))
+                map_.add_node(self._parse_nodes_no_proj(xml_node, lat0, lon0))
 
         if self.lanelet2:
             for xml_node in xml_root.findall("way"):
                 if xml_node.get("action") == "delete":
                     continue
-                map_.add_roadline(self._load_roadline_lanelet2(xml_node, map_))
+                map_.add_roadline(self._parse_roadline_lanelet2(xml_node, map_))
 
             for xml_node in xml_root.findall("relation"):
                 if xml_node.get("action") == "delete":
                     continue
                 for tag in xml_node.findall("tag"):
                     if tag.attrib["v"] == "lanelet":
-                        map_.add_lane(self._load_lane_lanelet2(xml_node, map_))
+                        map_.add_lane(self._parse_lane_lanelet2(xml_node, map_))
                     elif tag.attrib["v"] in ["multipolygon", "area"]:
-                        map_.add_area(self._load_area_lanelet2(xml_node, map_))
+                        map_.add_area(self._parse_area_lanelet2(xml_node, map_))
 
             for xml_node in xml_root.findall("relation"):
                 if xml_node.get("action") == "delete":
                     continue
                 for tag in xml_node.findall("tag"):
                     if tag.attrib["v"] == "regulatory_element":
-                        map_.add_regulatory(self._load_regulatory_lanelet2(xml_node))
+                        map_.add_regulatory(self._parse_regulatory_lanelet2(xml_node))
 
         else:
             for xml_node in xml_root.findall("way"):
                 if xml_node.get("action") == "delete":
                     continue
-                road_element = self._load_way(xml_node, map_)
+                road_element = self._parse_way(xml_node, map_)
 
                 if isinstance(road_element, RoadLine):
                     map_.add_roadline(road_element)
@@ -632,7 +632,7 @@ class OSMParser:
             for xml_node in xml_root.findall("relation"):
                 if xml_node.get("action") == "delete":
                     continue
-                road_element = self._load_relation(xml_node, map_)
+                road_element = self._parse_relation(xml_node, map_)
 
                 if isinstance(road_element, RoadLine):
                     map_.add_roadline(road_element)

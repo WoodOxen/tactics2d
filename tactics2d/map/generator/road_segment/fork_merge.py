@@ -27,7 +27,7 @@ from tactics2d.map.generator.rules.lane_marking_rules import (
     ramp_mark,
     roadline_render_kwargs,
 )
-from tactics2d.map.generator.rules.module_types import RoadModuleResult, RoadPort, make_port
+from tactics2d.map.generator.rules.module_types import RoadModuleResult, RoadPort, build_port
 
 from .element_builder import (
     add_ordered_lane_neighbors,
@@ -650,21 +650,21 @@ def _build_branch_segment(
     _meta = {"module": bk.name, bk.side_key: side}
 
     ports = {
-        "main_in": make_port(
+        "main_in": build_port(
             RoadPort(main_in.point, main_in.heading, main_n, lane_w, speed),
             kind=bk.port_kind_main_in,
             name="main_in",
             lane_ids=main_lane_ids,
             metadata=_meta,
         ),
-        "main_out": make_port(
+        "main_out": build_port(
             RoadPort(main_out.point, main_out.heading, main_n, lane_w, speed),
             kind=bk.port_kind_main_out,
             name="main_out",
             lane_ids=main_lane_ids,
             metadata=_meta,
         ),
-        bk.port_name_branch: make_port(
+        bk.port_name_branch: build_port(
             RoadPort(
                 branch_port.point, branch_port.heading, branch_n, lane_w, branch_port.speed_limit
             ),
