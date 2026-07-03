@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 from typing import Optional
 
-
 DEFAULT_BITS_RUN_NAME = "nuplan_mini_all_unet_v1"
 DEFAULT_BITS_TRAIN_RUN = "train_valid57_4sample_clean_decoder_e120"
 DEFAULT_BITS_PLANNER_SUBDIR = "planner_frozen_predictor"
@@ -68,35 +67,44 @@ def load_default_bits_policy(
     if missing:
         raise FileNotFoundError(
             "Missing default BITS artifacts. Set TACTICS2D_BITS_CHECKPOINT_ROOT "
-            "to the checkpoint root or install the default BITS artifacts: "
-            + str(missing)
+            "to the checkpoint root or install the default BITS artifacts: " + str(missing)
         )
 
     try:
+        from .inference import load_bits_inference_model
         from .model import BitsPlanScorer
         from .torch_model import TorchBitsPolicy
-        from .training import load_bits_inference_model, load_bits_run_config
     except ImportError as exc:
         raise ImportError(
             "The default BITS policy requires the optional BITS dependencies. "
             "Install them with tactics2d[bits]."
         ) from exc
 
-    run_config = load_bits_run_config(paths["run_config"])
+    # The run config JSON is read directly to avoid importing the training
+    # BitsRunConfig dataclass into the inference-only module.
+    import json
+
+    config_path = paths["run_config"]
+    with open(config_path, encoding="utf-8") as _f:
+        run_config_payload = json.load(_f)
+    from .config import BitsConfig
+
+    run_config_config = BitsConfig(**run_config_payload.get("config", {}))
+    schedule_payload = run_config_payload.get("schedule", {})
     resolved_map_location = map_location if map_location is not None else device
     inference = load_bits_inference_model(
         tactics2d_planner_checkpoint=paths["planner_checkpoint"],
         predictor_checkpoint=paths["predictor_checkpoint"],
-        image_channels=int(run_config.config.history_steps + 4),
-        future_steps=run_config.config.future_steps,
-        hidden_dim=run_config.schedule.hidden_dim,
-        model_arch=run_config.schedule.model_arch,
-        context_size=run_config.schedule.context_size,
-        roi_feature_size=run_config.schedule.roi_feature_size,
-        roi_layer_key=run_config.schedule.roi_layer_key,
-        history_conditioning=run_config.schedule.history_conditioning,
-        use_transformer=run_config.schedule.use_transformer,
-        config=run_config.config,
+        image_channels=int(run_config_config.history_steps + 4),
+        future_steps=run_config_config.future_steps,
+        hidden_dim=int(schedule_payload.get("hidden_dim", 128)),
+        model_arch=str(schedule_payload.get("model_arch", "resnet18")),
+        context_size=int(schedule_payload.get("context_size", 30)),
+        roi_feature_size=int(schedule_payload.get("roi_feature_size", 7)),
+        roi_layer_key=str(schedule_payload.get("roi_layer_key", "layer2")),
+        history_conditioning=bool(schedule_payload.get("history_conditioning", False)),
+        use_transformer=bool(schedule_payload.get("use_transformer", False)),
+        config=run_config_config,
         map_location=resolved_map_location,
         strict=True,
     )
@@ -110,14 +118,14 @@ def load_default_bits_policy(
         module,
         device=device,
         dtype=dtype,
-        plan_scorer=BitsPlanScorer(run_config.config),
+        plan_scorer=BitsPlanScorer(run_config_config),
         module_kwargs={
             "use_ground_truth_goal": False,
             "num_samples": num_samples,
             "mask_drivable": mask_drivable,
         },
     )
-    return run_config.config, policy
+    return run_config_config, policy
 
 
 __all__ = [
