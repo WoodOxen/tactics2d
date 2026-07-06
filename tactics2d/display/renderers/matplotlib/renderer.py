@@ -98,6 +98,8 @@ class MatplotlibRenderer:
         self.participants = dict()
         self.point_collections = dict()  # Stores PathCollection objects for point clouds
         self.point_collection_geometry = dict()  # Stores point geometry data
+        self._trajectory_gradient_enabled = False
+        self._trajectory_lines = []
 
         self.fig, self.ax = plt.subplots()
         self.fig.set_size_inches(self.width, self.height)
@@ -299,6 +301,75 @@ class MatplotlibRenderer:
         # Update attributes
         self.xlim = (new_x_min, new_x_max)
         self.ylim = (new_y_min, new_y_max)
+
+    def enable_trajectory_gradient(self):
+        """Enable persistent gradient-trajectory overlay mode.
+
+        When enabled, :meth:`draw_gradient_trace` can be called from the
+        animation- or render-loop to draw colormapped trajectory segments
+        at *zorder=5* (above road boundaries, below vehicles).
+
+        Every call to :meth:`reset` or :meth:`destroy` clears all active
+        trajectory lines.
+        """
+        self._trajectory_gradient_enabled = True
+
+    def disable_trajectory_gradient(self):
+        """Disable gradient-trajectory overlay and remove any active lines."""
+        self._trajectory_gradient_enabled = False
+        self._remove_trajectory_lines()
+
+    @property
+    def trajectory_gradient_enabled(self) -> bool:
+        return self._trajectory_gradient_enabled
+
+    def draw_gradient_trace(self, positions, colormap="GnBu", linewidth=3.0, alpha=0.85):
+        """Draw a gradient-coloured trajectory trace at zorder=5.
+
+        The segment *closest* to the first point is rendered with the dark
+        end of *colormap*; the farthest segment is rendered with the light
+        end.  This matches typical "near = confident = saturated" display.
+
+        Args:
+            positions (list of (x, y)): Waypoints ordered from nearest to farthest.
+            colormap (str or Colormap): Matplotlib colormap name or instance (e.g. ``"GnBu"``, ``"BuPu"``).
+            linewidth (float): Width of the trajectory line.
+            alpha (float): Transparency of the line.
+        """
+        if not self._trajectory_gradient_enabled:
+            return
+
+        n_seg = len(positions) - 1
+        if n_seg < 1:
+            return
+
+        if isinstance(colormap, str):
+            colormap = matplotlib.colormaps[colormap]
+
+        for i in range(n_seg):
+            # t = 0 → 1 from nearest segment to farthest segment
+            t = i / max(n_seg - 1, 1) if n_seg > 1 else 0.5
+            # invert: nearest (i=0) gets dark end (v=1), farthest gets light end (v=0)
+            color = colormap(1.0 - t)
+            line = self.ax.plot(
+                [positions[i][0], positions[i + 1][0]],
+                [positions[i][1], positions[i + 1][1]],
+                color=color,
+                linewidth=linewidth,
+                solid_joinstyle="round",
+                alpha=alpha,
+                zorder=5,
+            )[0]
+            self._trajectory_lines.append(line)
+
+    def _remove_trajectory_lines(self):
+        """Remove all trajectory lines drawn by :meth:`draw_gradient_trace`."""
+        for line in self._trajectory_lines:
+            try:
+                line.remove()
+            except Exception:
+                pass
+        self._trajectory_lines.clear()
 
     def _resolve_style(self, color_key: str, type_key) -> tuple:
         if isinstance(color_key, str) and color_key.lower() in ("none", "transparent"):
@@ -859,6 +930,8 @@ class MatplotlibRenderer:
             artist.remove()
         for collection in list(self.ax.collections):
             collection.remove()
+
+        self._trajectory_lines.clear()
 
         # Do NOT use ax.clear(), instead reapply axis limits and settings
         self.ax.set_xlim(*self.xlim)

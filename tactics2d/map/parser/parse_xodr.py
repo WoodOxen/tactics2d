@@ -1,6 +1,9 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+"""OpenDRIVE (.xodr) map parser implementation."""
+
+
 from __future__ import annotations
 
 import logging

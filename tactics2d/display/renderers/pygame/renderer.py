@@ -20,18 +20,14 @@ from ..config import COLOR_PALETTE, DEFAULT_COLOR
 class PygameRenderer:
     """Renders *geometry_data* (produced by a sensor) onto a pygame surface.
 
-    Parameters
-    ----------
-    window_size : Tuple[int, int]
-        (width, height) of the pygame surface in pixels.
-    scale : float
-        Pixels-per-meter factor for the global-to-pixel transform.
-    perception_range : Tuple[float, float, float, float]
-        (left, right, front, back) perception range in meters.
-    map_boundary : Tuple[float, float, float, float] | None
-        (xmin, xmax, ymin, ymax) of the map, needed for the static
-        (non-tracking) transform.  *None* is safe but may misplace
-        geometry when no position is available.
+    Args:
+        window_size (Tuple[int, int]): (width, height) of the pygame surface in pixels.
+        scale (float): Pixels-per-meter factor for the global-to-pixel transform.
+        perception_range (Tuple[float, float, float, float]): (left, right, front, back)
+            perception range in meters.
+        map_boundary (Tuple[float, float, float, float] | None): (xmin, xmax, ymin, ymax)
+            of the map, needed for the static (non-tracking) transform. *None* is safe
+            but may misplace geometry when no position is available.
     """
 
     def __init__(
@@ -60,18 +56,13 @@ class PygameRenderer:
     ):
         """Draw *geometry_data* onto the internal pygame surface.
 
-        Parameters
-        ----------
-        geometry_data : dict
-            The structured dict produced by a sensor ``update()`` call.
-        position : Point | None
-            Sensor position in global coordinates.  *None* triggers the
-            static (full-map) transform.
-        heading : float | None
-            Sensor yaw angle in radians.
-        background_color : Tuple[int, int, int] | None
-            Optional (R, G, B) fill colour.  Defaults to
-            ``COLOR_PALETTE["white"]``.
+        Args:
+            geometry_data (dict): The structured dict produced by a sensor ``update()`` call.
+            position (Point | None): Sensor position in global coordinates. *None* triggers the
+                static (full-map) transform.
+            heading (float | None): Sensor yaw angle in radians.
+            background_color (Tuple[int, int, int] | None): Optional (R, G, B) fill colour.
+                Defaults to ``COLOR_PALETTE["white"]``.
         """
         if background_color is not None:
             self._surface.fill(background_color)

@@ -1,9 +1,8 @@
-#! python3
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: param_poly3.py
-# @Description: This file implements a parametric cubic polynomial curve interpolation.
-# @Author: Zexi Chen
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Parametric cubic polynomial curve interpolation implementation."""
+
 
 from __future__ import annotations
 

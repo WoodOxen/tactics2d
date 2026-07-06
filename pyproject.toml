@@ -44,7 +44,7 @@ dev = [
     "isort",
     "clang-format",
 ]
-bits = [
+behavior = [
     "torch>=2.8.0, <2.9.0; python_version >= '3.9'",
     "torchvision>=0.23.0, <0.28.0; python_version >= '3.9'",
 ]
