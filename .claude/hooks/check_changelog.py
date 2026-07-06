@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
 CHANGELOG.md checker for Tactics2D project.
-This hook checks CHANGELOG.md format compliance and extracts changes for PR descriptions.
+
+Reads formatting rules from .claude/rules/changelog_check.json and
+validates CHANGELOG.md format after Write/Edit operations, and
+extracts PR descriptions when detecting ``gh pr create``.
 """
 
 import json
@@ -10,141 +13,153 @@ import re
 import sys
 from typing import Dict, List, Tuple
 
+from rule_loader import get_project_dir, load_rule
+
+# --------------------------------------------------------------------------
+# ChangelogParser
+# --------------------------------------------------------------------------
+
 
 class ChangelogParser:
-    """Parser for CHANGELOG.md following 'Keep a Changelog' format."""
+    """Parse and validate CHANGELOG.md driven by a rule definition."""
 
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str, rule: dict):
         self.file_path = file_path
+        self.rule = rule
         self.content = ""
         self.sections: Dict[str, Dict[str, List[str]]] = {}
-        self.current_version = ""
-        self.current_section = ""
-        self.has_unreleased = False
         self.unreleased_changes: Dict[str, List[str]] = {}
+        self._current_version = ""
+        self._current_section = ""
 
     def parse(self) -> bool:
-        """Parse the CHANGELOG.md file."""
+        """Parse the CHANGELOG.md file.
+
+        Returns True on success (even if the file is empty).
+        """
         if not os.path.exists(self.file_path):
             return False
 
         try:
             with open(self.file_path, encoding="utf-8") as f:
                 self.content = f.read()
-        except Exception:
+        except OSError:
             return False
 
-        lines = self.content.split("\n")
         self.sections = {}
         self.unreleased_changes = {}
-
+        lines = self.content.split("\n")
         i = 0
+
         while i < len(lines):
             line = lines[i].strip()
 
-            # Check for version header
+            # Version header: ## [version] or ## [version] - YYYY-MM-DD
             version_match = re.match(r"^##\s+\[([^\]]+)\](?:\s+-\s+(\d{4}-\d{2}-\d{2}))?", line)
             if version_match:
-                version = version_match.group(1)
-                self.current_version = version
-                self.sections[version] = {}
-                self.has_unreleased = version == "Unreleased"
+                self._current_version = version_match.group(1)
+                self.sections[self._current_version] = {}
                 i += 1
                 continue
 
-            # Check for section header within a version
+            # Section header: ### Added | Changed | Fixed | Removed
             section_match = re.match(r"^###\s+(Added|Changed|Fixed|Removed)", line, re.IGNORECASE)
-            if section_match and self.current_version:
-                section = section_match.group(1).lower()
-                self.current_section = section
-                self.sections[self.current_version][section] = []
+            if section_match and self._current_version:
+                self._current_section = section_match.group(1).lower()
+                self.sections.setdefault(self._current_version, {})[self._current_section] = []
                 i += 1
                 continue
 
-            # Check for change entry
-            if self.current_version and self.current_section:
+            # Entry: - description
+            if self._current_version and self._current_section:
                 entry_match = re.match(r"^-\s+(.+)", line)
                 if entry_match:
                     entry = entry_match.group(1).strip()
-                    if entry:  # Skip empty entries
-                        self.sections[self.current_version][self.current_section].append(entry)
-
-                        # Store unreleased changes separately
-                        if self.current_version == "Unreleased":
-                            if section not in self.unreleased_changes:
-                                self.unreleased_changes[section] = []
-                            self.unreleased_changes[section].append(entry)
-
+                    if entry:
+                        self.sections[self._current_version][self._current_section].append(entry)
+                        if self._current_version == "Unreleased":
+                            self.unreleased_changes.setdefault(self._current_section, []).append(
+                                entry
+                            )
             i += 1
 
         return True
 
+    # ------------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------------
+
     def validate_format(self) -> List[str]:
-        """Validate CHANGELOG.md format and return warnings."""
-        warnings = []
+        """Validate CHANGELOG.md format against the rule definition."""
+        warnings: List[str] = []
+        fmt = self.rule.get("format", {})
+        required_sections = fmt.get("requiredSections", ["[Unreleased]"])
+        allowed_headers = fmt.get("sectionHeaders", [])
+        entry_fmt = fmt.get("entryFormat", "- Item description")
 
         if not self.content:
             warnings.append("CHANGELOG.md is empty")
             return warnings
 
-        # Check for [Unreleased] section
-        if "## [Unreleased]" not in self.content:
-            warnings.append("Missing [Unreleased] section. Add '## [Unreleased]' header.")
-        else:
-            # Check if [Unreleased] has content
-            if not self.unreleased_changes:
+        # Required sections
+        for req in required_sections:
+            header = f"## [{req}]"
+            if header not in self.content:
+                warnings.append(f"Missing required section '{header}'. " f"Add '{header}' header.")
+            elif req == "Unreleased" and not self.unreleased_changes:
                 warnings.append("[Unreleased] section appears empty. Consider adding changes.")
 
-        # Check for proper version headers
+        # Version dates
         version_headers = re.findall(
             r"^##\s+\[([^\]]+)\](?:\s+-\s+(\d{4}-\d{2}-\d{2}))?", self.content, re.MULTILINE
         )
         for version, date in version_headers:
             if version != "Unreleased" and not date:
                 warnings.append(
-                    f"Version '{version}' missing date. Format: '[{version}] - YYYY-MM-DD'"
+                    f"Version '{version}' missing date. " f"Format: '[{version}] - YYYY-MM-DD'"
                 )
 
-        # Check section headers
+        # Invalid section headers
         lines = self.content.split("\n")
         for i, line in enumerate(lines):
             stripped = line.strip()
-            # Check for malformed section headers
-            if stripped.startswith("###") and not re.match(
-                r"^###\s+(Added|Changed|Fixed|Removed)", stripped, re.IGNORECASE
-            ):
-                warnings.append(
-                    f"Invalid section header: '{stripped}'. Use ### Added/Changed/Fixed/Removed"
-                )
+            if stripped.startswith("###"):
+                # Check it matches an allowed header.
+                allowed = False
+                for hdr in allowed_headers:
+                    if stripped.lower() == hdr.lower():
+                        allowed = True
+                        break
+                if not allowed:
+                    allowed_str = ", ".join(allowed_headers)
+                    warnings.append(
+                        f"Invalid section header: '{stripped}'. " f"Use one of: {allowed_str}"
+                    )
 
         return warnings
 
+    # ------------------------------------------------------------------
+    # PR description helpers
+    # ------------------------------------------------------------------
+
     def has_unreleased_changes(self) -> bool:
-        """Check if [Unreleased] section has changes."""
-        if not self.unreleased_changes:
-            return False
-        # Check if any section has entries
-        for section_entries in self.unreleased_changes.values():
-            if section_entries:
-                return True
-        return False
+        """Return True if [Unreleased] has at least one entry."""
+        return any(bool(entries) for entries in self.unreleased_changes.values())
 
     def format_changes_for_pr(self) -> str:
-        """Format [Unreleased] changes for PR description."""
+        """Format [Unreleased] changes as a PR description body."""
         if not self.has_unreleased_changes():
             return "No changes found in [Unreleased] section."
 
         sections_order = ["added", "changed", "fixed", "removed"]
         output_lines = []
-
         for section in sections_order:
-            if section in self.unreleased_changes and self.unreleased_changes[section]:
-                # Capitalize section name
-                section_title = section.capitalize()
-                output_lines.append(f"### {section_title}")
-                for entry in self.unreleased_changes[section]:
+            entries = self.unreleased_changes.get(section, [])
+            if entries:
+                output_lines.append(f"### {section.capitalize()}")
+                for entry in entries:
                     output_lines.append(f"- {entry}")
-                output_lines.append("")  # Add blank line
+                output_lines.append("")
 
         # Remove trailing blank line
         if output_lines and output_lines[-1] == "":
@@ -153,62 +168,57 @@ class ChangelogParser:
         return "\n".join(output_lines)
 
     def get_pr_description_summary(self) -> str:
-        """Generate a summary of changes for PR title/description."""
+        """Generate a one-line summary of the unreleased changes."""
         if not self.has_unreleased_changes():
             return "Update CHANGELOG.md"
 
-        # Count changes by type
-        counts = {}
-        for section, entries in self.unreleased_changes.items():
-            if entries:
-                counts[section] = len(entries)
-
-        # Build summary
+        counts = {
+            section: len(entries) for section, entries in self.unreleased_changes.items() if entries
+        }
         parts = []
-        if "added" in counts:
-            parts.append(f"{counts['added']} addition(s)")
-        if "changed" in counts:
-            parts.append(f"{counts['changed']} change(s)")
-        if "fixed" in counts:
-            parts.append(f"{counts['fixed']} fix(es)")
-        if "removed" in counts:
-            parts.append(f"{counts['removed']} removal(s)")
+        labels = {
+            "added": "addition(s)",
+            "changed": "change(s)",
+            "fixed": "fix(es)",
+            "removed": "removal(s)",
+        }
+        for section, count in counts.items():
+            label = labels.get(section, section)
+            parts.append(f"{count} {label}")
 
-        if parts:
-            return f"Update: {', '.join(parts)}"
-        return "Update CHANGELOG.md"
+        return f"Update: {', '.join(parts)}" if parts else "Update CHANGELOG.md"
 
 
-def check_changelog_format(file_path: str) -> List[str]:
+# --------------------------------------------------------------------------
+# Convenience wrappers
+# --------------------------------------------------------------------------
+
+
+def check_changelog_format(file_path: str, rule: dict) -> List[str]:
     """Check CHANGELOG.md file for format compliance."""
-    parser = ChangelogParser(file_path)
+    parser = ChangelogParser(file_path, rule)
     if not parser.parse():
         return ["Failed to parse CHANGELOG.md"]
-
     return parser.validate_format()
 
 
-def extract_pr_description(file_path: str) -> Tuple[str, str]:
-    """Extract PR description from CHANGELOG.md [Unreleased] section."""
-    parser = ChangelogParser(file_path)
+def extract_pr_description(file_path: str, rule: dict) -> Tuple[str, str]:
+    """Extract PR description from [Unreleased] section.
+
+    Returns (summary, body).
+    """
+    parser = ChangelogParser(file_path, rule)
     if not parser.parse():
         return "Update CHANGELOG.md", "Failed to parse CHANGELOG.md"
-
-    summary = parser.get_pr_description_summary()
-    changes = parser.format_changes_for_pr()
-
-    return summary, changes
+    return parser.get_pr_description_summary(), parser.format_changes_for_pr()
 
 
-def check_pr_command(tool_input: Dict) -> bool:
-    """Check if the bash command is a PR creation command."""
-    command = tool_input.get("command", "")
-    return "gh pr create" in command or "git push" in command and "origin" in command
+# --------------------------------------------------------------------------
+# Entry point
+# --------------------------------------------------------------------------
 
 
 def main():
-    """Main hook function."""
-    # Read hook input from stdin
     try:
         input_data = sys.stdin.read()
         if not input_data:
@@ -218,52 +228,60 @@ def main():
         tool_name = data.get("tool_name", "")
         tool_input = data.get("tool_input", {})
 
-        # Get project directory
-        project_dir = os.environ.get("CLAUDE_PROJECT_DIR", ".")
+        rule = load_rule("changelog_check")
+        if rule is None:
+            print(
+                "Warning: changelog_check.json not found; " "skipping CHANGELOG validation.",
+                file=sys.stderr,
+            )
+            return
+
+        project_dir = get_project_dir()
         changelog_path = os.path.join(project_dir, "CHANGELOG.md")
 
-        # Handle Write/Edit operations on CHANGELOG.md
+        # --- Write/Edit on CHANGELOG.md ---
         if tool_name in ("Write", "Edit"):
             file_path = tool_input.get("file_path", "")
             if file_path and os.path.basename(file_path) == "CHANGELOG.md":
-                warnings = check_changelog_format(file_path)
+                warnings = check_changelog_format(file_path, rule)
                 if warnings:
                     print(f"CHANGELOG format suggestions for {file_path}:", file=sys.stderr)
-                    for warning in warnings:
-                        print(f"  - {warning}", file=sys.stderr)
-                    print("Please follow 'Keep a Changelog' format.", file=sys.stderr)
+                    for w in warnings:
+                        print(f"  - {w}", file=sys.stderr)
 
-        # Handle Bash commands for PR creation
-        elif tool_name == "Bash" and check_pr_command(tool_input):
+        # --- Bash: PR creation commands ---
+        elif tool_name == "Bash":
+            command = tool_input.get("command", "")
+            is_pr_cmd = "gh pr create" in command or ("git push" in command and "origin" in command)
+            if not is_pr_cmd:
+                return
+
             if not os.path.exists(changelog_path):
                 print("Warning: CHANGELOG.md file not found.", file=sys.stderr)
                 return
 
-            parser = ChangelogParser(changelog_path)
-            if not parser.parse():
-                print("Warning: Failed to parse CHANGELOG.md.", file=sys.stderr)
+            summary, body = extract_pr_description(changelog_path, rule)
+            if not body or body.startswith("No changes"):
+                print(
+                    "Warning: CHANGELOG.md [Unreleased] section "
+                    "appears empty. Consider adding changes before "
+                    "creating PR.",
+                    file=sys.stderr,
+                )
                 return
 
-            # Check for unreleased changes
-            if parser.has_unreleased_changes():
-                summary = parser.get_pr_description_summary()
-                changes = parser.format_changes_for_pr()
-
-                print("\n" + "=" * 80, file=sys.stderr)
-                print("CHANGELOG.md [Unreleased] changes detected:", file=sys.stderr)
-                print("=" * 80, file=sys.stderr)
-                print(f"\nSuggested PR summary: {summary}\n", file=sys.stderr)
-                print("Suggested PR description (copy and paste):", file=sys.stderr)
-                print("-" * 80, file=sys.stderr)
-                print(changes, file=sys.stderr)
-                print("-" * 80, file=sys.stderr)
-                print("\nTo use this in PR creation, add: --body \"$(cat <<'EOF'", file=sys.stderr)
-                print(changes, file=sys.stderr)
-                print('EOF\n)"', file=sys.stderr)
-                print("=" * 80 + "\n", file=sys.stderr)
-            else:
-                print("Warning: CHANGELOG.md [Unreleased] section appears empty.", file=sys.stderr)
-                print("Consider adding changes before creating PR.", file=sys.stderr)
+            print("\n" + "=" * 80, file=sys.stderr)
+            print("CHANGELOG.md [Unreleased] changes detected:", file=sys.stderr)
+            print("=" * 80, file=sys.stderr)
+            print(f"\nSuggested PR summary: {summary}\n", file=sys.stderr)
+            print("Suggested PR description (copy and paste):", file=sys.stderr)
+            print("-" * 80, file=sys.stderr)
+            print(body, file=sys.stderr)
+            print("-" * 80, file=sys.stderr)
+            print("\nTo use this in PR creation, add: " "--body \"$(cat <<'EOF'", file=sys.stderr)
+            print(body, file=sys.stderr)
+            print("EOF\n)", file=sys.stderr)
+            print("=" * 80 + "\n", file=sys.stderr)
 
     except json.JSONDecodeError:
         pass
