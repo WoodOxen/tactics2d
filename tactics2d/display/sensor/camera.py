@@ -217,7 +217,7 @@ class BEVCamera(SensorBase):
             elif "thick" in roadline.type_:
                 line_width = 2
 
-            line_color = white if roadline.color is None else roadline.color
+            line_color = roadline.color or self._get_type(roadline)
             roadline_id = int(1e6 + int(roadline.id_))
 
             road_element_list.append(

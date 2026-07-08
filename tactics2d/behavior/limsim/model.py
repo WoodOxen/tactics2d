@@ -32,8 +32,9 @@ class LimSimBehaviorModel(BehaviorModelBase):
     grouping, discrete joint behavior decisions, and trajectory rollout.
     """
 
-    def __init__(self, config: Optional[LimSimConfig] = None):
+    def __init__(self, config: Optional[LimSimConfig] = None, parallel_workers: int = 0):
         self.config = config or LimSimConfig()
+        self.parallel_workers = parallel_workers
         self.scene_builder = SceneBuilder(self.config)
         self.interaction_graph = InteractionGraph(self.config)
         self.decision_search = LimSimDecisionSearch(self.config)
@@ -106,12 +107,10 @@ class LimSimBehaviorModel(BehaviorModelBase):
         background_ids = self._filter_controlled_vehicle_ids(participants, background_ids)
 
         scene_states = self._filter_lane_matched_states(
-            self.scene_builder.build(participants, map_, frame, selected_ids),
-            map_,
+            self.scene_builder.build(participants, map_, frame, selected_ids), map_
         )
         background_states = self._filter_lane_matched_states(
-            self.scene_builder.build(participants, map_, frame, background_ids),
-            map_,
+            self.scene_builder.build(participants, map_, frame, background_ids), map_
         )
         background_ids = [agent_id for agent_id in background_ids if agent_id in background_states]
         background_trajectories = self._predict_obstacle_trajectories(
@@ -212,9 +211,7 @@ class LimSimBehaviorModel(BehaviorModelBase):
         ]
 
     def _filter_lane_matched_states(
-        self,
-        states: Dict[object, AgentDecisionState],
-        map_: Optional[Map],
+        self, states: Dict[object, AgentDecisionState], map_: Optional[Map]
     ) -> Dict[object, AgentDecisionState]:
         """Keep map-based planning on lane-matched vehicles only."""
 
@@ -240,19 +237,18 @@ class LimSimBehaviorModel(BehaviorModelBase):
         trajectories = {}
         for agent_id, background_state in background_states.items():
             predicted_states = self._trajectory_to_decision_states(
-                predictions.get(agent_id),
-                background_state,
+                predictions.get(agent_id), background_state
             )
             if predicted_states:
                 trajectories[agent_id] = predicted_states
             else:
-                trajectories[agent_id] = self.follower.rollout(background_state, LimSimAction.KS, map_)
+                trajectories[agent_id] = self.follower.rollout(
+                    background_state, LimSimAction.KS, map_
+                )
         return trajectories
 
     def _trajectory_to_decision_states(
-        self,
-        trajectory: Optional[Trajectory],
-        reference_state: AgentDecisionState,
+        self, trajectory: Optional[Trajectory], reference_state: AgentDecisionState
     ):
         if trajectory is None:
             return []
@@ -262,9 +258,11 @@ class LimSimBehaviorModel(BehaviorModelBase):
             raw_state = trajectory.get_state(frame)
             dx = raw_state.x - reference_state.x
             dy = raw_state.y - reference_state.y
-            projected_progress = reference_state.route_progress + dx * np.cos(
-                reference_state.heading
-            ) + dy * np.sin(reference_state.heading)
+            projected_progress = (
+                reference_state.route_progress
+                + dx * np.cos(reference_state.heading)
+                + dy * np.sin(reference_state.heading)
+            )
             previous_progress = max(previous_progress, projected_progress)
             states.append(
                 reference_state.with_updates(

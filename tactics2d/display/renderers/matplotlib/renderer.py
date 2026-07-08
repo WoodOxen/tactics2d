@@ -477,6 +477,9 @@ class MatplotlibRenderer:
             TODO: Handle "solid_solid", "solid_dashed", "dashed_solid", and "dashed_dashed".
         """
         line_shape = np.array(element["geometry"])
+        if line_shape.ndim < 2 or len(line_shape) < 2:
+            logging.warning("Line element %s has less than 2 points, skipping.", element.get("id"))
+            return []
         lines = []
 
         # Resolve color and z-order from style keys

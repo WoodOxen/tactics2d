@@ -315,11 +315,29 @@ class OSMParser:
 
         tags = self._get_tags(xml_node)
         is_area = tags.pop("area", False)
+        is_closed = point_ids[0] == point_ids[-1]
 
-        if is_area or point_ids[0] == point_ids[-1]:
-            road_element = Area(id_, Polygon(point_list), custom_tags=tags)
+        # Extract the most relevant OSM tag as type_ for color resolution
+        type_ = tags.pop("highway", None)
+
+        if is_area or is_closed:
+            # For closed ways, prefer area-specific tags over highway.
+            # Map building to a canonical type_ for color resolution.
+            if "building" in tags:
+                type_ = "building"
+                tags.pop("building")
+            else:
+                for osm_key in ("landuse", "natural", "leisure", "amenity", "waterway"):
+                    if osm_key in tags:
+                        type_ = tags.pop(osm_key)
+                        break
+            if type_ is None:
+                type_ = "area"
+            road_element = Area(id_, Polygon(point_list), type_=type_, custom_tags=tags)
         else:
-            road_element = RoadLine(id_, LineString(point_list), custom_tags=tags)
+            if type_ is None:
+                type_ = "road"
+            road_element = RoadLine(id_, LineString(point_list), type_=type_, custom_tags=tags)
 
         return road_element
 

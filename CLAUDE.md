@@ -35,6 +35,14 @@ Use the **first year** the file was created (not the year of latest edit).
 
 ## Docstring Checklist
 
+### Notebooks (`.ipynb`) — no docstrings in code cells
+
+Notebooks are tutorial/demonstration documents, not library code. All explanation
+belongs in **markdown cells**. Code cells should contain only runnable code —
+no `Args:`, `Returns:`, `"""` docstrings, or other API documentation that
+belongs in `.py` files. The one exception is a single-line `#` comment for
+clarity when the code itself is non-obvious.
+
 ### 1. Use Google-style, not NumPy/reST
 
 | Style | Hit count | Verdict |

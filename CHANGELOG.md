@@ -3,6 +3,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- CitySim OSM data now renders correctly instead of appearing blank. Added standard OSM highway type mappings (tertiary, primary, residential, service, etc.) to the renderer's `DEFAULT_COLOR` config.
+
 ### Added
 
 - Refined structured road-segment generators, including fork/merge, ramp, intersection, two-way road, and related test coverage.
