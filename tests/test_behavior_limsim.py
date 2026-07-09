@@ -10,11 +10,6 @@ from shapely.geometry import LineString, Point, Polygon
 from tactics2d.behavior import BehaviorModelBase, LimSimBehaviorModel
 from tactics2d.behavior.limsim.action import LimSimAction
 from tactics2d.behavior.limsim.config import LimSimConfig
-from tactics2d.behavior.limsim.evaluation import (
-    dimensions_from_participants,
-    evaluate_planning_result,
-    evaluate_rolling_result,
-)
 from tactics2d.behavior.limsim.frenet_planner import (
     FrenetTrajectoryPlanner,
     build_reference_path_from_agent,
@@ -23,9 +18,9 @@ from tactics2d.behavior.limsim.interaction import InteractionGraph, has_trajecto
 from tactics2d.behavior.limsim.planner import LaneFollower
 from tactics2d.behavior.limsim.prediction import LimSimPredictor
 from tactics2d.behavior.limsim.roi import RoISelector
-from tactics2d.behavior.limsim.rolling import LimSimRollingRunner
 from tactics2d.behavior.limsim.scene import SceneBuilder
-from tactics2d.behavior.limsim.schema import states_to_trajectory
+from tactics2d.behavior.limsim.schema import evaluate_planning_result, states_to_trajectory
+from tactics2d.behavior.trajectory_evaluation import dimensions_from_participants
 from tactics2d.geometry import ReferencePath
 from tactics2d.map.element import Junction, Lane, LaneRelationship, Map, Regulatory, RoadLine
 from tactics2d.map.query import SemanticMapQuery
@@ -557,16 +552,11 @@ def test_frenet_planner_stop_fallback_avoids_collision_candidate():
 
 
 def test_limsim_behavior_model_outputs_trajectories_for_group():
-    config = LimSimConfig(
-        horizon_steps=6,
-        dt=0.2,
-        mcts_iterations=20,
-        interaction_distance=15.0,
-    )
+    config = LimSimConfig(horizon_steps=6, dt=0.2, mcts_iterations=20, interaction_distance=15.0)
     map_ = _build_parallel_map()
     participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=5.0), 2: _vehicle(2, 0, 1.0, 10.0, speed=2.0)}
 
-    result = LimSimBehaviorModel(config).plan(participants, map_, frame=0)
+    result = LimSimBehaviorModel(config).plan(participants, map_, route_map={}, frame=0)
 
     assert config.planning_steps == 6
     assert config.step_ms == 200
@@ -600,7 +590,7 @@ def test_limsim_behavior_model_can_select_roi_around_ego():
     }
 
     result = LimSimBehaviorModel(config).plan(
-        participants, map_, frame=0, ego_id=1, roi_radius=12.0
+        participants, map_, route_map={}, frame=0, ego_id=1, roi_radius=12.0
     )
 
     assert result.roi_agent_ids == [1, 2]
@@ -619,7 +609,7 @@ def test_limsim_behavior_model_controls_vehicles_only_in_roi():
     }
 
     result = LimSimBehaviorModel(config).plan(
-        participants, map_, frame=0, ego_id=1, roi_radius=5.0, roi_outer_radius=20.0
+        participants, map_, route_map={}, frame=0, ego_id=1, roi_radius=5.0, roi_outer_radius=20.0
     )
 
     assert result.roi_agent_ids == [1]
@@ -636,7 +626,9 @@ def test_limsim_behavior_model_filters_explicit_non_vehicle_agents():
         2: _pedestrian(2, 0, 1.0, 6.0, speed=1.0),
     }
 
-    result = LimSimBehaviorModel(config).plan(participants, map_, frame=0, agent_ids=[1, 2])
+    result = LimSimBehaviorModel(config).plan(
+        participants, map_, route_map={}, frame=0, agent_ids=[1, 2]
+    )
 
     assert result.roi_agent_ids == [1]
     assert result.background_agent_ids == []
@@ -653,7 +645,7 @@ def test_limsim_behavior_model_filters_non_vehicle_ego_from_controlled_agents():
     }
 
     result = LimSimBehaviorModel(config).plan(
-        participants, map_, frame=0, ego_id=1, roi_radius=5.0, roi_outer_radius=20.0
+        participants, map_, route_map={}, frame=0, ego_id=1, roi_radius=5.0, roi_outer_radius=20.0
     )
 
     assert result.roi_agent_ids == []
@@ -662,155 +654,13 @@ def test_limsim_behavior_model_filters_non_vehicle_ego_from_controlled_agents():
     assert result.trajectories == {}
 
 
-def test_limsim_rolling_runner_advances_controlled_and_background_vehicles():
-    config = LimSimConfig(horizon_steps=6, mcts_iterations=20, interaction_distance=12.0)
-    map_ = _build_parallel_map()
-    participants = {
-        1: _vehicle(1, 0, 1.0, 5.0, speed=5.0),
-        2: _vehicle(2, 0, 1.0, 20.0, speed=3.0),
-        3: _vehicle(3, 0, 3.0, 30.0, speed=4.0),
-        4: _pedestrian(4, 0, 1.0, 7.0, speed=1.0),
-    }
-
-    rolling = LimSimRollingRunner(config)
-    result = rolling.run(
-        participants,
-        map_,
-        start_frame=0,
-        simulation_steps=3,
-        ego_id=1,
-        roi_radius=18.0,
-        roi_outer_radius=35.0,
-    )
-
-    assert result.frames == [0, 100, 200, 300]
-    assert len(result.results) == 3
-    assert 4 not in result.participants
-    assert result.participants[1].trajectory.has_state(300)
-    assert result.participants[3].trajectory.has_state(300)
-    assert (
-        result.participants[3].trajectory.get_state(300).y
-        > participants[3].trajectory.get_state(0).y
-    )
-    assert all(
-        set(step_result.actions).issubset(result.participants) for step_result in result.results
-    )
-    assert len(result.predicted_trajectories) == 3
-    assert set(result.predicted_trajectories[1]).intersection(result.results[0].trajectories)
-
-
-def test_limsim_rolling_runner_reuses_previous_planned_trajectory():
-    config = LimSimConfig(horizon_steps=6, mcts_iterations=20, interaction_distance=12.0)
-    map_ = _build_parallel_map()
-    participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=5.0), 2: _vehicle(2, 0, 1.0, 14.0, speed=2.0)}
-
-    result = LimSimRollingRunner(config).run(
-        participants, map_, start_frame=0, simulation_steps=2, ego_id=1, roi_radius=18.0
-    )
-
-    agent_id = result.results[0].roi_agent_ids[0]
-    reused = result.predicted_trajectories[1][agent_id]
-
-    assert reused.first_frame == 200
-    assert (
-        reused.last_state.location == result.results[0].trajectories[agent_id].last_state.location
-    )
-
-
-def test_limsim_rolling_runner_commits_lane_change_trajectory():
-    config = LimSimConfig(horizon_steps=12, mcts_iterations=20, interaction_distance=12.0)
-    map_ = _build_parallel_map()
-    participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=5.0)}
-
-    result = LimSimBehaviorModel(config).plan(participants, map_, frame=0, agent_ids=[1])
-    result.actions[1] = LimSimAction.LCR
-    state = SceneBuilder(config).build(participants, map_, frame=0)[1]
-    planned_states = LimSimBehaviorModel(config).trajectory_planner.plan(
-        state, LimSimAction.LCR, map_
-    )
-    result.trajectories[1] = states_to_trajectory(1, planned_states, 0, config.dt)
-
-    runner = LimSimRollingRunner(config)
-    committed_trajectories = {}
-    committed_actions = {}
-    runner._update_committed_trajectories(
-        result,
-        frame=0,
-        committed_trajectories=committed_trajectories,
-        committed_actions=committed_actions,
-    )
-
-    assert committed_actions[1] == LimSimAction.LCR
-    assert (
-        committed_trajectories[1].last_state.location == result.trajectories[1].last_state.location
-    )
-
-
-def test_limsim_rolling_runner_keeps_lane_change_commitment_until_trajectory_end():
-    config = LimSimConfig(horizon_steps=12, mcts_iterations=20, interaction_distance=12.0)
-    map_ = _build_parallel_map()
-    participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=5.0)}
-    runner = LimSimRollingRunner(config)
-    state = SceneBuilder(config).build(participants, map_, frame=0)[1]
-    planned_states = LimSimBehaviorModel(config).trajectory_planner.plan(
-        state, LimSimAction.LCR, map_
-    )
-    trajectory = states_to_trajectory(1, planned_states, 0, config.dt)
-    first_result = LimSimBehaviorModel(config).plan(participants, map_, frame=0, agent_ids=[1])
-    first_result.actions[1] = LimSimAction.LCR
-    first_result.trajectories[1] = trajectory
-    committed_trajectories = {}
-    committed_actions = {}
-
-    runner._update_committed_trajectories(
-        first_result,
-        frame=0,
-        committed_trajectories=committed_trajectories,
-        committed_actions=committed_actions,
-    )
-    second_result = LimSimBehaviorModel(config).plan(participants, map_, frame=100, agent_ids=[1])
-    second_result.actions[1] = LimSimAction.KS
-    second_result.trajectories[1] = trajectory
-
-    runner._update_committed_trajectories(
-        second_result,
-        frame=100,
-        committed_trajectories=committed_trajectories,
-        committed_actions=committed_actions,
-    )
-
-    assert second_result.actions[1] == LimSimAction.LCR
-    assert committed_trajectories[1] is trajectory
-
-
-def test_evaluate_rolling_result_reports_safety_continuity_and_memory_metrics():
-    config = LimSimConfig(horizon_steps=6, mcts_iterations=20, interaction_distance=12.0)
-    map_ = _build_parallel_map()
-    participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=5.0), 2: _vehicle(2, 0, 1.0, 14.0, speed=2.0)}
-
-    result = LimSimRollingRunner(config).run(
-        participants, map_, start_frame=0, simulation_steps=3, ego_id=1, roi_radius=18.0
-    )
-    evaluation = evaluate_rolling_result(result, dimensions_from_participants(result.participants))
-
-    assert evaluation.action_counts
-    assert evaluation.min_distance > 0.0
-    assert evaluation.collision_count == 0
-    assert evaluation.first_collision is None
-    assert evaluation.memory_hit_count > 0
-    assert evaluation.roi_sizes == tuple(len(step.roi_agent_ids) for step in result.results)
-    assert evaluation.background_sizes == tuple(
-        len(step.background_agent_ids) for step in result.results
-    )
-
-
 def test_background_roi_vehicle_influences_single_agent_action():
     config = LimSimConfig(horizon_steps=20, mcts_iterations=30, interaction_distance=10.0)
     map_ = _build_parallel_map()
     participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=8.0), 2: _vehicle(2, 0, 1.0, 22.0, speed=0.0)}
 
     result = LimSimBehaviorModel(config).plan(
-        participants, map_, frame=0, ego_id=1, roi_radius=10.0
+        participants, map_, route_map={}, frame=0, ego_id=1, roi_radius=10.0
     )
 
     assert result.roi_agent_ids == [1]
@@ -828,7 +678,7 @@ def test_background_roi_vehicle_influences_decision_search_group_action():
     }
 
     result = LimSimBehaviorModel(config).plan(
-        participants, map_, frame=0, ego_id=1, roi_radius=10.0
+        participants, map_, route_map={}, frame=0, ego_id=1, roi_radius=10.0
     )
 
     assert set(result.roi_agent_ids) == {1, 2}
@@ -840,7 +690,7 @@ def test_evaluate_planning_result_reports_actions_and_reference_error():
     config = LimSimConfig(horizon_steps=6, mcts_iterations=20, interaction_distance=15.0)
     map_ = _build_parallel_map()
     participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=5.0), 2: _vehicle(2, 0, 1.0, 20.0, speed=5.0)}
-    result = LimSimBehaviorModel(config).plan(participants, map_, frame=0)
+    result = LimSimBehaviorModel(config).plan(participants, map_, route_map={}, frame=0)
 
     evaluation = evaluate_planning_result(
         result,
@@ -872,7 +722,9 @@ def test_limsim_predictor_reuses_remaining_planned_trajectory():
     config = LimSimConfig(horizon_steps=4)
     map_ = _build_parallel_map()
     participants = {1: _vehicle(1, 0, 1.0, 5.0)}
-    previous = LimSimBehaviorModel(config).plan(participants, map_, frame=0).trajectories
+    previous = (
+        LimSimBehaviorModel(config).plan(participants, map_, route_map={}, frame=0).trajectories
+    )
 
     prediction = LimSimPredictor(config).predict(
         participants, map_, frame=100, last_planned_trajectories=previous
@@ -890,7 +742,7 @@ def test_mcts_selects_deceleration_for_rear_end_risk():
         2: _vehicle(2, 0, 1.0, 24.0, speed=1.0),
     }
 
-    result = LimSimBehaviorModel(config).plan(participants, map_, frame=0)
+    result = LimSimBehaviorModel(config).plan(participants, map_, route_map={}, frame=0)
 
     assert result.actions[1] == LimSimAction.DC
 
@@ -903,7 +755,7 @@ def test_mcts_prefers_braking_when_collision_is_hard_to_avoid():
         2: _vehicle(2, 0, 1.0, 16.0, speed=1.0),
     }
 
-    result = LimSimBehaviorModel(config).plan(participants, map_, frame=0)
+    result = LimSimBehaviorModel(config).plan(participants, map_, route_map={}, frame=0)
 
     assert result.actions[1] == LimSimAction.DC
 

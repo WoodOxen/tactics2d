@@ -106,7 +106,11 @@ class LaneFollower:
         if action == LimSimAction.LCR and agent.lateral_offset >= -current_width / 2.0:
             return None
 
-        neighbor_ids = current_lane.left_neighbors if action == LimSimAction.LCL else current_lane.right_neighbors
+        neighbor_ids = (
+            current_lane.left_neighbors
+            if action == LimSimAction.LCL
+            else current_lane.right_neighbors
+        )
         next_lane_id = self._choose_neighbor_lane(agent, neighbor_ids, map_)
         if next_lane_id is None:
             clipped_offset = np.clip(
@@ -142,16 +146,20 @@ class LaneFollower:
             lateral_offset=float(next_offset),
         )
 
-    def _choose_neighbor_lane(self, agent: AgentDecisionState, lane_ids, map_: Map) -> Optional[str]:
+    def _choose_neighbor_lane(
+        self, agent: AgentDecisionState, lane_ids, map_: Map
+    ) -> Optional[str]:
         candidates = [lane_id for lane_id in lane_ids if lane_id in map_.lanes]
         if not candidates:
             return None
         point = Point(agent.x, agent.y)
         return min(
             candidates,
-            key=lambda lane_id: LineString(get_lane_centerline(map_.lanes[lane_id])).distance(point)
-            if get_lane_centerline(map_.lanes[lane_id]) is not None
-            else float("inf"),
+            key=lambda lane_id: (
+                LineString(get_lane_centerline(map_.lanes[lane_id])).distance(point)
+                if get_lane_centerline(map_.lanes[lane_id]) is not None
+                else float("inf")
+            ),
         )
 
     def _lane_width(self, lane) -> float:
@@ -170,9 +178,7 @@ class LaneFollower:
             widths.append(point.distance(left) + point.distance(right))
         return float(np.mean(widths)) if widths else self.config.default_lane_width
 
-    def _next_lateral_offset(
-        self, agent: AgentDecisionState, action: LimSimAction
-    ) -> float:
+    def _next_lateral_offset(self, agent: AgentDecisionState, action: LimSimAction) -> float:
         if action == LimSimAction.LCL:
             return agent.lateral_offset + self.config.lateral_speed * self.config.dt
         if action == LimSimAction.LCR:
@@ -187,18 +193,47 @@ class LaneFollower:
         if abs(agent.lateral_offset) > self.config.max_lateral_offset_for_lane_rollout:
             return None, agent.route_lane_ids, agent.route_progress
 
-        route_lanes = [agent.lane_id]
-
-        current_lane_id = route_lanes[0]
-        while len(route_lanes) < self.config.max_routes_per_agent:
-            current_lane = map_.lanes.get(current_lane_id)
-            if current_lane is None or not current_lane.successors:
-                break
-            next_lane_id = sorted(current_lane.successors)[0]
-            if next_lane_id in route_lanes or next_lane_id not in map_.lanes:
-                break
-            route_lanes.append(next_lane_id)
-            current_lane_id = next_lane_id
+        # --- use pre-extracted route when available ---
+        if len(agent.route_lane_ids) > 1:
+            try:
+                idx = agent.route_lane_ids.index(agent.lane_id)
+            except ValueError:
+                idx = -1
+            if idx >= 0:
+                route_lanes = list(
+                    agent.route_lane_ids[idx : idx + self.config.max_routes_per_agent]
+                )
+            else:
+                # current lane not in route – fall back to topology
+                route_lanes = [agent.lane_id]
+                current_lane_id = route_lanes[0]
+                while len(route_lanes) < self.config.max_routes_per_agent:
+                    current_lane = map_.lanes.get(current_lane_id)
+                    if current_lane is None or not current_lane.successors:
+                        break
+                    # prefer a successor that is in the route sequence
+                    candidates = sorted(current_lane.successors)
+                    picked = candidates[0]
+                    for c in candidates:
+                        if c in agent.route_lane_ids:
+                            picked = c
+                            break
+                    if picked in route_lanes or picked not in map_.lanes:
+                        break
+                    route_lanes.append(picked)
+                    current_lane_id = picked
+        else:
+            route_lanes = [agent.lane_id]
+            current_lane_id = route_lanes[0]
+            while len(route_lanes) < self.config.max_routes_per_agent:
+                current_lane = map_.lanes.get(current_lane_id)
+                if current_lane is None or not current_lane.successors:
+                    break
+                next_lane_id = sorted(current_lane.successors)[0]
+                if next_lane_id in route_lanes or next_lane_id not in map_.lanes:
+                    break
+                route_lanes.append(next_lane_id)
+                current_lane_id = next_lane_id
 
         centerlines = [get_lane_centerline(map_.lanes[lane_id]) for lane_id in route_lanes]
         path_array = concatenate_centerlines(centerlines)

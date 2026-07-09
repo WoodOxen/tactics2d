@@ -20,11 +20,8 @@ class LimSimAction(str, Enum):
     LCL = "LCL"
     LCR = "LCR"
 
+    #: Semantic alias — prefer ``KS`` for new code.
     KEEP = "KS"
-    SPEED_UP = "AC"
-    SLOW_DOWN = "DC"
-    LANE_LEFT = "LCL"
-    LANE_RIGHT = "LCR"
 
     @property
     def acceleration(self) -> float:

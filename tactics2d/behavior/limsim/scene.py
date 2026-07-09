@@ -3,15 +3,16 @@
 
 """Scene extraction from Tactics2D participants and maps."""
 
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 from shapely.geometry import LineString, Point
+from shapely.strtree import STRtree
 
 from tactics2d.geometry import normalize_angle
 from tactics2d.map.element import Map
 from tactics2d.participant.trajectory import State
-from tactics2d.routing.utils import find_nearest_lane, get_lane_centerline
+from tactics2d.routing.utils import get_lane_centerline
 
 from .config import LimSimConfig
 from .schema import AgentDecisionState
@@ -22,6 +23,7 @@ class SceneBuilder:
 
     def __init__(self, config: LimSimConfig):
         self.config = config
+        self._lane_index_cache = {}  # {id(map_): (strtree, lane_ids, centerlines)}
 
     def build(
         self,
@@ -29,8 +31,16 @@ class SceneBuilder:
         map_: Optional[Map],
         frame: int,
         agent_ids: Optional[Iterable[object]] = None,
+        route_map: Optional[Dict[object, Tuple[str, ...]]] = None,
     ) -> Dict[object, AgentDecisionState]:
-        """Extract active participants at a frame as decision states."""
+        """Extract active participants at a frame as decision states.
+
+        Args:
+            route_map: Optional ``{agent_id: (lane_id_0, lane_id_1, ...)}``
+                providing ground-truth lane sequences.  When set, the agent's
+                ``route_lane_ids`` is populated from this map instead of being
+                inferred from the current lane alone.
+        """
 
         selected_ids = list(participants.keys()) if agent_ids is None else list(agent_ids)
         states = {}
@@ -47,7 +57,10 @@ class SceneBuilder:
             route_progress, lateral_offset = self._project_on_lane(
                 map_, lane_id, raw_state.location
             )
-            route_lane_ids = tuple([lane_id]) if lane_id is not None else tuple()
+            if route_map and agent_id in route_map:
+                route_lane_ids = route_map[agent_id]
+            else:
+                route_lane_ids = tuple([lane_id]) if lane_id is not None else tuple()
             states[agent_id] = AgentDecisionState(
                 agent_id=agent_id,
                 x=raw_state.x,
@@ -83,23 +96,31 @@ class SceneBuilder:
         return lane_id
 
     def _find_heading_consistent_lane(self, map_: Map, state: State) -> Optional[str]:
-        nearby_lane_id = find_nearest_lane(map_, state.location)
-        if nearby_lane_id is None:
+        point = Point(state.location)
+
+        # find candidate lanes via STRtree — no brute-force scan
+        strtree, indexed_lane_ids, indexed_centerlines = self._get_lane_index(map_)
+        if strtree is None:
             return None
 
-        point = Point(state.location)
-        best_lane_id = nearby_lane_id
+        search_region = point.buffer(self.config.lane_match_radius)
+        hit_indices = strtree.query(search_region)
+        if len(hit_indices) == 0:
+            return None
+
+        best_lane_id = indexed_lane_ids[hit_indices[0]]
         best_score = np.inf
-        lane_ids = self._candidate_lane_ids(map_, nearby_lane_id, state.location)
-        for lane_id in lane_ids:
+        for idx in hit_indices:
+            lane_id = indexed_lane_ids[idx]
             lane = map_.lanes.get(lane_id)
             if lane is None:
                 continue
-            projection = lane.project_point(state.location)
-            distance = lane.geometry.distance(point) if projection is None else projection.distance
+            distance = indexed_centerlines[idx].distance(point)
             if distance > self.config.lane_match_radius:
                 continue
-            lane_heading = self._lane_heading_at(lane, projection.s if projection is not None else None)
+            projection = lane.project_point(state.location)
+            s = projection.s if projection is not None else None
+            lane_heading = self._lane_heading_at(lane, s)
             heading_error = 0.0
             if lane_heading is not None:
                 heading_error = abs(normalize_angle(state.heading - lane_heading))
@@ -108,34 +129,39 @@ class SceneBuilder:
             if score < best_score:
                 best_score = score
                 best_lane_id = lane_id
+
         return best_lane_id
 
-    def _candidate_lane_ids(self, map_: Map, lane_id: str, point_xy):
-        lane = map_.lanes.get(lane_id)
-        point = Point(point_xy)
-        lane_ids = set()
+    def _get_lane_index(self, map_: Map):
+        """Build or retrieve a cached STRtree of lane centerlines.
+
+        Returns:
+            ``(strtree, lane_ids, centerlines)`` where all three lists are
+            aligned by index.  Returns ``(None, [], [])`` when no indexable
+            lanes exist.
+        """
+        map_key = id(map_)
+        if map_key in self._lane_index_cache:
+            return self._lane_index_cache[map_key]
+
+        indexed_lane_ids: List[str] = []
+        indexed_centerlines: List[LineString] = []
         for candidate_id, candidate_lane in map_.lanes.items():
             if candidate_lane.geometry is None:
                 continue
             centerline = get_lane_centerline(candidate_lane)
-            if centerline is not None:
-                distance = LineString(centerline).distance(point)
-            else:
-                distance = candidate_lane.geometry.distance(point)
-            if distance <= self.config.lane_match_radius:
-                lane_ids.add(candidate_id)
-        if lane is None:
-            return list(lane_ids or {lane_id})
-        lane_ids.update(
-            {
-                lane_id,
-                *lane.left_neighbors,
-                *lane.right_neighbors,
-                *lane.predecessors,
-                *lane.successors,
-            }
-        )
-        return list(lane_ids)
+            if centerline is not None and len(centerline) >= 2:
+                indexed_lane_ids.append(candidate_id)
+                indexed_centerlines.append(LineString(centerline))
+
+        if indexed_centerlines:
+            strtree = STRtree(indexed_centerlines)
+        else:
+            strtree = None
+
+        result = (strtree, indexed_lane_ids, indexed_centerlines)
+        self._lane_index_cache[map_key] = result
+        return result
 
     def _lane_heading_at(self, lane, s: Optional[float]) -> Optional[float]:
         centerline = get_lane_centerline(lane)

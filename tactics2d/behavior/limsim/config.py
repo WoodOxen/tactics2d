@@ -73,6 +73,7 @@ class LimSimConfig:
     same_lane_time_headway: float = 3.5
     junction_interaction_distance: float = 20.0
     terminal_depth: int = 3
+    use_frenet_refinement: bool = False
     candidate_actions: Tuple[LimSimAction, ...] = field(
         default_factory=lambda: (
             LimSimAction.KS,

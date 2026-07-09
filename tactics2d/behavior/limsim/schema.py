@@ -3,11 +3,17 @@
 
 """Shared data schemas for LimSim-style interaction planning."""
 
-from dataclasses import dataclass, field, replace
+from collections import Counter
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+from tactics2d.behavior.trajectory_evaluation import (
+    TrajectoryError,
+    displacement_errors,
+    find_first_collision,
+)
 from tactics2d.geometry import normalize_angle
 from tactics2d.participant.trajectory import State, Trajectory
 
@@ -36,7 +42,26 @@ class AgentDecisionState:
         return (self.x, self.y)
 
     def with_updates(self, **kwargs) -> "AgentDecisionState":
-        return replace(self, **kwargs)
+        """Return a new instance with the given fields replaced.
+
+        Uses direct construction instead of :func:`dataclasses.replace` to
+        avoid the intermediate dict allocation on every call (thousands per
+        planning cycle).
+        """
+        return AgentDecisionState(
+            agent_id=kwargs.pop("agent_id", self.agent_id),
+            x=kwargs.pop("x", self.x),
+            y=kwargs.pop("y", self.y),
+            heading=kwargs.pop("heading", self.heading),
+            speed=kwargs.pop("speed", self.speed),
+            lane_id=kwargs.pop("lane_id", self.lane_id),
+            lateral_offset=kwargs.pop("lateral_offset", self.lateral_offset),
+            route_lane_ids=kwargs.pop("route_lane_ids", self.route_lane_ids),
+            route_progress=kwargs.pop("route_progress", self.route_progress),
+            length=kwargs.pop("length", self.length),
+            width=kwargs.pop("width", self.width),
+            action=kwargs.pop("action", self.action),
+        )
 
 
 @dataclass(frozen=True)
@@ -72,7 +97,9 @@ class PlanningResult:
     background_agent_ids: List[object] = field(default_factory=list)
 
 
-def states_to_trajectory(agent_id: object, states: List[AgentDecisionState], start_frame: int, dt: float):
+def states_to_trajectory(
+    agent_id: object, states: List[AgentDecisionState], start_frame: int, dt: float
+):
     """Convert predicted decision states to a Tactics2D trajectory."""
 
     trajectory = Trajectory(id_=agent_id, fps=round(1.0 / dt, 3), stable_freq=True)
@@ -85,3 +112,44 @@ def states_to_trajectory(agent_id: object, states: List[AgentDecisionState], sta
             State(frame=frame, x=state.x, y=state.y, heading=heading, vx=vx, vy=vy)
         )
     return trajectory
+
+
+@dataclass
+class LimSimEvaluation:
+    """Compact metrics for one behavior planning result."""
+
+    action_counts: Dict[str, int] = field(default_factory=dict)
+    has_collision: bool = False
+    first_collision: Optional[Tuple[int, object, object]] = None
+    mean_ade: Optional[float] = None
+    mean_fde: Optional[float] = None
+    trajectory_errors: Dict[object, TrajectoryError] = field(default_factory=dict)
+
+
+def evaluate_planning_result(
+    result: PlanningResult,
+    reference_trajectories: Optional[Dict[object, Trajectory]] = None,
+    dimensions: Optional[Dict[object, Tuple[float, float]]] = None,
+) -> LimSimEvaluation:
+    """Evaluate actions, collisions, and optional displacement error."""
+
+    action_counts = Counter(action.value for action in result.actions.values())
+    first_collision = find_first_collision(result.trajectories, dimensions)
+    trajectory_errors = {}
+    if reference_trajectories is not None:
+        trajectory_errors = displacement_errors(result.trajectories, reference_trajectories)
+
+    mean_ade = None
+    mean_fde = None
+    if trajectory_errors:
+        mean_ade = float(np.mean([error.ade for error in trajectory_errors.values()]))
+        mean_fde = float(np.mean([error.fde for error in trajectory_errors.values()]))
+
+    return LimSimEvaluation(
+        action_counts=dict(action_counts),
+        has_collision=first_collision is not None,
+        first_collision=first_collision,
+        mean_ade=mean_ade,
+        mean_fde=mean_fde,
+        trajectory_errors=trajectory_errors,
+    )

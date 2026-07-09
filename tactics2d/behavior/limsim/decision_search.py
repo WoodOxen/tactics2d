@@ -24,6 +24,7 @@ class LimSimDecisionSearch:
         self.config = config
         self.follower = LaneFollower(config)
         self.reward = LimSimReward(config)
+        self._expand_cache = {}
 
     def plan(
         self,
@@ -33,10 +34,10 @@ class LimSimDecisionSearch:
     ) -> Tuple[Dict[object, LimSimAction], Dict[object, List[AgentDecisionState]], object]:
         """Plan one joint action for a group of interacting agents."""
 
+        self._expand_cache.clear()
+
         start_state = JointDecisionState(
-            agents=tuple(agents),
-            depth=0,
-            trajectories=tuple(tuple() for _ in agents),
+            agents=tuple(agents), depth=0, trajectories=tuple(tuple() for _ in agents)
         )
 
         def terminal_fn(state: JointDecisionState) -> bool:
@@ -69,9 +70,7 @@ class LimSimDecisionSearch:
         )
         _, root = mcts.plan(start=start_state, max_try=self.config.mcts_iterations)
         selected = self._best_state_from_root(root) or start_state
-        root_fallback = self._best_one_step_state(
-            start_state, map_, agents, obstacle_trajectories
-        )
+        root_fallback = self._best_one_step_state(start_state, map_, agents, obstacle_trajectories)
         if root_fallback is not None and reward_fn(root_fallback) > reward_fn(selected):
             selected = root_fallback
 
@@ -94,6 +93,10 @@ class LimSimDecisionSearch:
         return actions, trajectories, root
 
     def _expand(self, state: JointDecisionState, map_: Optional[Map]) -> List[JointDecisionState]:
+        cache_key = id(state)
+        if cache_key in self._expand_cache:
+            return self._expand_cache[cache_key]
+
         action_sets = []
         for agent in state.agents:
             actions = [
@@ -101,16 +104,30 @@ class LimSimDecisionSearch:
                 for action in self.config.candidate_actions
                 if action_is_valid(agent, action, map_)
             ]
+            actions = self._prune_actions(agent, actions)
             action_sets.append(actions or [LimSimAction.KS])
 
-        expanded = []
         steps_per_decision = max(1, int(round(self.config.decision_resolution / self.config.dt)))
+
+        # --- pre-compute individual agent rollouts (key optimization) ---
+        # Without this, each expand call does 5^N × N rollouts.
+        # With caching, we do N × len(actions) rollouts and then assemble
+        # joint states via cheap list operations.
+        agent_rollouts = {}
+        for idx, agent in enumerate(state.agents):
+            per_action = {}
+            for action in action_sets[idx]:
+                segment = self.follower.rollout(agent, action, map_, steps=steps_per_decision)
+                next_agent = segment[-1] if segment else agent.with_updates(action=action)
+                per_action[action] = (segment, next_agent)
+            agent_rollouts[idx] = per_action
+
+        expanded = []
         for joint_actions in itertools.product(*action_sets):
             next_agents = []
             next_trajectories = []
             for index, (agent, action) in enumerate(zip(state.agents, joint_actions)):
-                segment = self.follower.rollout(agent, action, map_, steps=steps_per_decision)
-                next_agent = segment[-1] if segment else agent.with_updates(action=action)
+                segment, next_agent = agent_rollouts[index][action]
                 next_agents.append(next_agent)
                 history = list(state.trajectories[index]) if state.trajectories else []
                 history.extend(segment)
@@ -122,7 +139,36 @@ class LimSimDecisionSearch:
                     trajectories=tuple(next_trajectories),
                 )
             )
+
+        self._expand_cache[cache_key] = expanded
         return expanded
+
+    def _prune_actions(
+        self, agent: AgentDecisionState, actions: List[LimSimAction]
+    ) -> List[LimSimAction]:
+        """Drop context-irrelevant actions to reduce the MCTS branching factor.
+
+        Heuristics:
+        - Drop AC at near-max speed (acceleration has no effect).
+        - Drop DC at near-min speed (already stopped or crawling).
+        - Always keep at least KS as a safe fallback.
+        """
+        if len(actions) <= 2:
+            return actions  # already minimal
+
+        keep = set(actions)
+        speed_ratio = agent.speed / max(self.config.max_speed, 1.0)
+
+        if speed_ratio >= 0.95:
+            keep.discard(LimSimAction.AC)
+        if speed_ratio <= 0.02:
+            keep.discard(LimSimAction.DC)
+
+        result = [a for a in actions if a in keep]
+        # ensure KS is always available as the safe option
+        if LimSimAction.KS not in result:
+            result.append(LimSimAction.KS)
+        return result
 
     def _best_state_from_root(self, root) -> Optional[JointDecisionState]:
         if root is None or not root.children:
@@ -147,8 +193,6 @@ class LimSimDecisionSearch:
         return max(
             candidates,
             key=lambda candidate: self.reward.evaluate(
-                initial_agents,
-                candidate.trajectory_dict(),
-                obstacle_trajectories,
+                initial_agents, candidate.trajectory_dict(), obstacle_trajectories
             ),
         )

@@ -3,7 +3,7 @@
 
 """Public LimSim-style behavior model entry point."""
 
-from typing import Dict, Iterable, Optional, Sequence
+from typing import Dict, Iterable, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -17,7 +17,7 @@ from .action import LimSimAction
 from .config import LimSimConfig
 from .decision_search import LimSimDecisionSearch
 from .frenet_planner import FrenetTrajectoryPlanner
-from .interaction import InteractionGraph
+from .interaction import InteractionGraph, first_collision_info
 from .planner import LaneFollower
 from .prediction import LimSimPredictor
 from .roi import RoISelector
@@ -47,6 +47,7 @@ class LimSimBehaviorModel(BehaviorModelBase):
         participants: Dict[object, object],
         map_: Optional[Map],
         frame: int,
+        route_map: Dict[object, Tuple[str, ...]],
         agent_ids: Optional[Iterable[object]] = None,
         roi_center: Optional[Sequence[float]] = None,
         roi_radius: Optional[float] = None,
@@ -61,6 +62,10 @@ class LimSimBehaviorModel(BehaviorModelBase):
             map_: Semantic map used for lane matching, route rollout, and
                 conflict checks. If ``None``, map-dependent planning is skipped.
             frame: Current frame timestamp in milliseconds.
+            route_map: ``{agent_id: (lane_id_0, lane_id_1, ...)}`` mapping
+                each vehicle to its ordered lane sequence.  Pass an empty
+                dict to fall back to pure lane-topology routing (successors
+                are chosen arbitrarily — not recommended).
             agent_ids: Optional explicit ids to control. If omitted, all active
                 vehicles are considered unless an RoI is requested.
             roi_center: Center point used with ``roi_radius`` when no ``ego_id``
@@ -107,10 +112,14 @@ class LimSimBehaviorModel(BehaviorModelBase):
         background_ids = self._filter_controlled_vehicle_ids(participants, background_ids)
 
         scene_states = self._filter_lane_matched_states(
-            self.scene_builder.build(participants, map_, frame, selected_ids), map_
+            self.scene_builder.build(participants, map_, frame, selected_ids, route_map=route_map),
+            map_,
         )
         background_states = self._filter_lane_matched_states(
-            self.scene_builder.build(participants, map_, frame, background_ids), map_
+            self.scene_builder.build(
+                participants, map_, frame, background_ids, route_map=route_map
+            ),
+            map_,
         )
         background_ids = [agent_id for agent_id in background_ids if agent_id in background_states]
         background_trajectories = self._predict_obstacle_trajectories(
@@ -162,6 +171,19 @@ class LimSimBehaviorModel(BehaviorModelBase):
 
         final_state_trajectories = {}
         for agent in scene_states.values():
+            action = result.actions[agent.agent_id]
+            rough = rough_trajectories.get(agent.agent_id, [])
+
+            if not self.config.use_frenet_refinement:
+                # --- pure LimSim mode: use MCTS rough trajectories directly ---
+                # This matches the original LimSim paper's trajectory generation
+                # (kinematic lane-following from MCTS-selected actions).
+                final_state_trajectories[agent.agent_id] = rough
+                result.trajectories[agent.agent_id] = states_to_trajectory(
+                    agent.agent_id, rough, frame, self.config.dt
+                )
+                continue
+
             planning_obstacles = list(background_trajectories.values())
             planning_obstacles.extend(
                 trajectory
@@ -173,8 +195,23 @@ class LimSimBehaviorModel(BehaviorModelBase):
                 for other_id, trajectory in rough_trajectories.items()
                 if other_id != agent.agent_id and other_id not in final_state_trajectories
             )
+
+            # --- skip expensive Frenet refinement when the MCTS rough trajectory
+            #     is already collision-free and not a lane change ---
+            obstacles = [obs for obs in planning_obstacles if obs]
+            if (
+                action not in {LimSimAction.LCL, LimSimAction.LCR}
+                and rough
+                and not any(first_collision_info([rough, obs]) is not None for obs in obstacles)
+            ):
+                final_state_trajectories[agent.agent_id] = rough
+                result.trajectories[agent.agent_id] = states_to_trajectory(
+                    agent.agent_id, rough, frame, self.config.dt
+                )
+                continue
+
             planned_states = self.trajectory_planner.plan(
-                agent, result.actions[agent.agent_id], map_, planning_obstacles, time_ms=frame
+                agent, action, map_, planning_obstacles, time_ms=frame
             )
             final_state_trajectories[agent.agent_id] = planned_states
             result.trajectories[agent.agent_id] = states_to_trajectory(
@@ -189,15 +226,30 @@ class LimSimBehaviorModel(BehaviorModelBase):
         map_: Optional[Map],
         frame: int,
         agent_ids: Optional[Iterable[object]] = None,
+        route_map: Optional[Dict[object, Tuple[str, ...]]] = None,
     ) -> Dict[object, Trajectory]:
         """Plan future trajectories for selected agents.
 
         This method provides the shared behavior-model interface. Use
         :meth:`plan` when LimSim-specific diagnostics such as actions, groups,
         and MCTS root nodes are needed.
+
+        .. note::
+
+            **route_map should always be provided.**  Without it LimSim relies
+            on pure lane-topology inference (blindly following the first
+            successor lane), which produces incorrect routing at intersections
+            and dead-ends.  Call :func:`~tactics2d.dataset_parser.route_extractor.extract_all_lane_sequences`
+            or provide your own mapping.
         """
 
-        return self.plan(participants, map_, frame, agent_ids=agent_ids).trajectories
+        return self.plan(
+            participants,
+            map_,
+            frame,
+            route_map=route_map if route_map is not None else {},
+            agent_ids=agent_ids,
+        ).trajectories
 
     def _filter_controlled_vehicle_ids(
         self, participants: Dict[object, object], agent_ids: Optional[Iterable[object]]
@@ -227,24 +279,34 @@ class LimSimBehaviorModel(BehaviorModelBase):
         background_states: Dict[object, AgentDecisionState],
         last_planned_trajectories: Optional[Dict[object, Trajectory]] = None,
     ):
-        predictions = self.predictor.predict(
-            participants,
-            map_,
-            frame,
-            agent_ids=background_states.keys(),
-            last_planned_trajectories=last_planned_trajectories,
-        )
+        """Predict obstacle trajectories reusing pre-built states.
+
+        Avoids redundant scene building by using *background_states* directly
+        and only consulting the predictor for trajectory-reuse lookups.
+        """
+        last_planned = last_planned_trajectories or {}
         trajectories = {}
         for agent_id, background_state in background_states.items():
-            predicted_states = self._trajectory_to_decision_states(
-                predictions.get(agent_id), background_state
-            )
-            if predicted_states:
-                trajectories[agent_id] = predicted_states
-            else:
-                trajectories[agent_id] = self.follower.rollout(
-                    background_state, LimSimAction.KS, map_
-                )
+            # try to reuse a previously planned trajectory segment
+            remaining = None
+            cached_traj = last_planned.get(agent_id)
+            if cached_traj is not None:
+                remaining_frames = [f for f in cached_traj.frames if f > frame]
+                if remaining_frames:
+                    remaining = Trajectory(
+                        id_=agent_id, fps=cached_traj.fps, stable_freq=cached_traj.stable_freq
+                    )
+                    for sf in remaining_frames:
+                        remaining.add_state(cached_traj.get_state(sf))
+
+            if remaining is not None:
+                predicted_states = self._trajectory_to_decision_states(remaining, background_state)
+                if predicted_states:
+                    trajectories[agent_id] = predicted_states
+                    continue
+
+            # fallback: lane-following rollout from pre-built state
+            trajectories[agent_id] = self.follower.rollout(background_state, LimSimAction.KS, map_)
         return trajectories
 
     def _trajectory_to_decision_states(
@@ -289,9 +351,12 @@ class LimSimBehaviorModel(BehaviorModelBase):
         best_action = LimSimAction.KS
         best_reward = float("-inf")
         for action in candidates:
-            trajectory = self.trajectory_planner.plan(
-                agent, action, map_, background_trajectories, time_ms=time_ms
-            )
+            if self.config.use_frenet_refinement:
+                trajectory = self.trajectory_planner.plan(
+                    agent, action, map_, background_trajectories, time_ms=time_ms
+                )
+            else:
+                trajectory = self.follower.rollout(agent, action, map_)
             reward = self.decision_search.reward.evaluate(
                 [agent], {agent.agent_id: trajectory}, background_trajectories
             )

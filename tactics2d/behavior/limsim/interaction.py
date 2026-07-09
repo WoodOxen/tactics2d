@@ -130,10 +130,19 @@ def has_trajectory_collision(trajectories: Sequence[Sequence[AgentDecisionState]
         return False
     steps = min(len(trajectory) for trajectory in trajectories)
     for step in range(steps):
-        footprints = [_footprint(trajectory[step]) for trajectory in trajectories]
-        for i, source in enumerate(footprints):
-            for target in footprints[i + 1 :]:
-                if source.intersects(target):
+        states = [trajectory[step] for trajectory in trajectories]
+        for i, source in enumerate(states):
+            source_shape = _footprint(source)  # hoisted: compute once per source
+            source_radius = 0.5 * (source.length**2 + source.width**2) ** 0.5
+            for j in range(i + 1, len(states)):
+                target = states[j]
+                target_radius = 0.5 * (target.length**2 + target.width**2) ** 0.5
+                if (
+                    euclidean_distance(source.location, target.location)
+                    > source_radius + target_radius
+                ):
+                    continue
+                if source_shape.intersects(_footprint(target)):
                     return True
     return False
 
@@ -147,11 +156,20 @@ def first_collision_info(
         return None
     steps = min(len(trajectory) for trajectory in trajectories)
     for step in range(steps):
-        footprints = [_footprint(trajectory[step]) for trajectory in trajectories]
-        for i, source in enumerate(footprints):
-            for j, target in enumerate(footprints[i + 1 :], start=i + 1):
-                if source.intersects(target):
-                    return step, trajectories[i][step], trajectories[j][step]
+        states = [trajectory[step] for trajectory in trajectories]
+        for i, source in enumerate(states):
+            source_shape = _footprint(source)  # hoisted: compute once per source
+            source_radius = 0.5 * (source.length**2 + source.width**2) ** 0.5
+            for j in range(i + 1, len(states)):
+                target = states[j]
+                target_radius = 0.5 * (target.length**2 + target.width**2) ** 0.5
+                if (
+                    euclidean_distance(source.location, target.location)
+                    > source_radius + target_radius
+                ):
+                    continue
+                if source_shape.intersects(_footprint(target)):
+                    return step, source, target
     return None
 
 
