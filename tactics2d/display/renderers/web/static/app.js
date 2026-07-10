@@ -889,8 +889,10 @@ class ScreenRecorder {
     if (!mimeType || !rect.width || !rect.height) return;
 
     this.canvas = document.createElement("canvas");
-    this.canvas.width = Math.round(rect.width);
-    this.canvas.height = Math.round(rect.height);
+    // Multiple-of-4 dimensions: hardware H.264 decoders (e.g. GStreamer
+    // VA-API) corrupt memory on chroma planes of other widths.
+    this.canvas.width = Math.max(4, Math.round(rect.width / 4) * 4);
+    this.canvas.height = Math.max(4, Math.round(rect.height / 4) * 4);
     this.context = this.canvas.getContext("2d");
     this.chunks = [];
     this.stream = this.canvas.captureStream(30);
@@ -940,6 +942,7 @@ class ScreenRecorder {
     let output = blob;
     let extension = this.recorder.mimeType.includes("mp4") ? "mp4" : "webm";
     if (document.getElementById("record-compat").checked) {
+      let failure = null;
       try {
         // Server-side ffmpeg finalize: raw MediaRecorder files have a variable
         // frame rate that strict players (e.g. GNOME Videos) refuse to play.
@@ -951,9 +954,16 @@ class ScreenRecorder {
         if (response.ok) {
           output = await response.blob();
           extension = "mp4";
+        } else {
+          failure = `${response.status}`;
         }
       } catch (error) {
-        // ffmpeg unavailable or request failed; download the raw recording instead.
+        failure = error.message;
+      }
+      if (failure !== null) {
+        // Fall back to the raw recording, but say so instead of failing silently.
+        console.warn("record export failed:", failure);
+        window.tactics2dPreviewControls?.setStatus?.("兼容转码失败，已下载原始录制", "error");
       }
     }
     const link = document.createElement("a");

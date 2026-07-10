@@ -158,9 +158,11 @@ Three complementary recording options are available:
 
 The 录屏 button records the rendered sensor windows via the browser's
 MediaRecorder API. With compatibility mode enabled (the default), the capture
-is finalized server-side with ffmpeg into a constant-frame-rate H.264 MP4 —
-raw MediaRecorder files declare a variable frame rate (0/1) that strict
-players such as GNOME Videos refuse to play. Untick 兼容模式 to skip the
+is finalized server-side with ffmpeg into a constant-frame-rate H.264 MP4
+with 4-pixel-aligned dimensions — raw MediaRecorder files declare a variable
+frame rate (0/1) that strict players such as GNOME Videos refuse to play,
+and misaligned frame widths crash some hardware-accelerated decoders
+(e.g. GStreamer VA-API). Untick 兼容模式 to skip the
 transcode and download the raw recording directly (faster; MP4 on
 Chrome/Edge/Safari, WebM on Firefox). ffmpeg needs no extra installation: it is
 resolved from `PATH` or from the bundled `imageio-ffmpeg` core dependency, and

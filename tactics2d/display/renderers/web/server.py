@@ -373,7 +373,10 @@ def _transcode_to_mp4(ffmpeg: str, data: bytes, suffix: str) -> bytes:
     """Re-encode a MediaRecorder capture into a constant-frame-rate H.264 MP4.
 
     Raw MediaRecorder output has a variable frame rate (declared as 0/1),
-    which strict players such as GNOME Videos refuse to play.
+    which strict players such as GNOME Videos refuse to play. The output is
+    padded to 4-pixel-aligned dimensions: hardware-accelerated H.264 decoders
+    (e.g. GStreamer VA-API) mishandle chroma strides of odd-width planes,
+    and yuv420p requires even dimensions anyway.
     """
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -388,6 +391,8 @@ def _transcode_to_mp4(ffmpeg: str, data: bytes, suffix: str) -> bytes:
                 "error",
                 "-i",
                 str(src),
+                "-vf",
+                "pad=ceil(iw/4)*4:ceil(ih/4)*4",
                 "-r",
                 "30",
                 "-c:v",

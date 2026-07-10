@@ -5,6 +5,7 @@
 
 import asyncio
 import json
+import re
 import signal
 import subprocess
 import sys
@@ -295,6 +296,52 @@ def test_record_export_transcodes_to_mp4(tmp_path):
     assert response.status_code == 200
     assert response.headers["content-type"] == "video/mp4"
     assert response.content[4:8] == b"ftyp"
+
+
+def test_record_export_pads_to_aligned_dimensions(tmp_path):
+    """Widths that are not a multiple of 4 crash buggy hardware H.264 decoders."""
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    ffmpeg = server_module._find_ffmpeg()
+    if ffmpeg is None:
+        pytest.skip("ffmpeg is not available")
+
+    source = tmp_path / "input.mp4"
+    subprocess.run(
+        [
+            ffmpeg,
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=0.4:size=62x30:rate=10",
+            str(source),
+        ],
+        check=True,
+    )
+
+    client = TestClient(server_module.create_app())
+    response = client.post(
+        "/api/record/export",
+        content=source.read_bytes(),
+        headers={"Content-Type": "video/mp4"},
+    )
+    assert response.status_code == 200
+
+    output = tmp_path / "output.mp4"
+    output.write_bytes(response.content)
+    probe = subprocess.run(
+        [ffmpeg, "-hide_banner", "-i", str(output)], capture_output=True, text=True
+    )
+    match = re.search(r" (\d{2,5})x(\d{2,5})[ ,]", probe.stderr)
+    assert match is not None, probe.stderr
+    width, height = int(match.group(1)), int(match.group(2))
+    assert width % 4 == 0 and height % 4 == 0
+    assert (width, height) == (64, 32)
 
 
 def test_record_export_rejects_invalid_video():

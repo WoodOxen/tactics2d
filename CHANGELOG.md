@@ -30,6 +30,7 @@
 ### Fixed
 
 - Fixed screen recordings failing to play in strict players (e.g. GNOME Videos): with the compatibility-mode toggle enabled (default), captures are finalized server-side via ffmpeg (`POST /api/record/export`) into constant-frame-rate H.264 MP4, since raw MediaRecorder output declares a variable (0/1) frame rate; unticking the toggle (or a server without ffmpeg) downloads the raw recording unchanged.
+- Fixed compatibility-mode recordings crashing hardware-accelerated players (GStreamer VA-API heap corruption, observed in GNOME Videos) when the capture width is not a multiple of 4: the ffmpeg finalize now pads output to 4-pixel-aligned dimensions, the capture canvas is aligned client-side, and a failed transcode surfaces a status message instead of silently downloading the raw file.
 - Fixed browser frontend layout selection being overridden on every frame during demo/dataset/live streaming; a manual layout choice (toolbar button or `POST /api/layout`) now takes precedence over the per-frame payload default.
 - Fixed `POST /api/preview/map` raising an unhandled HTTP 500 with no UI feedback when the OSM path is missing or invalid; it now returns HTTP 400 with an error message that persists in the status bar.
 - Fixed browser frontend favicon 404 console error by adding an inline SVG favicon.

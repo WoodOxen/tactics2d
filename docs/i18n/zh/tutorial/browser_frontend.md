@@ -148,8 +148,9 @@ renderer.send_frame([sensor], frame=frame)
 ### 浏览器录屏
 
 "录屏"按钮通过浏览器 MediaRecorder API 录制渲染画面。勾选"兼容模式"（默认开启）时，
-停止后录制会上传到服务端，由 ffmpeg 整理为恒定帧率的 H.264 MP4 再下载——MediaRecorder
-的原始输出是可变帧率（声明为 0/1），GNOME Videos 等严格的播放器会拒绝播放。取消勾选
+停止后录制会上传到服务端，由 ffmpeg 整理为恒定帧率、尺寸按 4 像素对齐的 H.264 MP4
+再下载——MediaRecorder 的原始输出是可变帧率（声明为 0/1），GNOME Videos 等严格的
+播放器会拒绝播放；非对齐的画面宽度还会让部分硬件解码器（如 GStreamer VA-API）崩溃。取消勾选
 则跳过转码直接下载原始录制（更快；Chrome/Edge/Safari 为 MP4，Firefox 为 WebM）。
 ffmpeg 无需额外安装：从 `PATH` 或核心依赖 `imageio-ffmpeg` 自带的二进制解析，两者都
 缺失时自动回退为原始录制。它录制
