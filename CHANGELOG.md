@@ -26,6 +26,9 @@
 
 ### Fixed
 
+- Fixed browser frontend tutorial incorrectly stating `fastapi`/`uvicorn` are optional dependencies (they are core dependencies installed with the package), and added missing `ParticipantElement`/`CameraMetadata` imports in the display backend example.
+- Fixed `render_mode` docstrings in `ParkingEnv` and `RacingEnv` missing the supported `browser` and `matplotlib` modes.
+- Synchronized the Chinese browser frontend tutorial with the English version by adding the missing "Unified Display Backend" section (factory usage, environment integration, render mode table, recording output).
 - Fixed `NetXMLParser._get_lane_subtype` incorrectly declared as `@staticmethod` with a `self` parameter, causing all lane parsing to fail silently.
 - Fixed `NetXMLParser._offset_line` referencing undefined normal vector variables when consecutive points have zero distance.
 - Fixed `NetXMLParser` not reading the lane element's `width` attribute, falling back to inaccurate heuristic estimation.
