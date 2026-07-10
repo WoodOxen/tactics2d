@@ -64,6 +64,27 @@ tactics2d preview dataset \
 如果该数据集录像有已注册的地图配置，前端会自动解析对应的 OSM 文件。否则需要显式传入
 `--osm path/to/map.osm`。
 
+## 数据集自动发现
+
+服务端会扫描可配置的数据根目录，查找按官方结构存放的 LevelX 数据集
+（`<dataset>/data/<id>_tracks.csv`，或录像文件直接位于数据集目录下）以及可用的
+OSM 地图。检测到的数据集、录像和地图会以两级下拉的形式出现在浏览器表单中，加载
+场景无需手动输入任何路径。录像按其注册的地图位置分组显示，地图先选数据集再选
+具体地图，对应地图自动解析。每个表单的"更多"折叠区仍保留手动路径输入作为兜底。
+
+数据根目录按以下优先级解析：
+
+1. `tactics2d start --data-root /path/to/datasets`
+2. 环境变量 `TACTICS2D_DATA_ROOT`（多个根目录可用系统路径分隔符分隔）
+3. 工作目录下的 `./data`（仓库约定）
+
+```bash
+tactics2d start --data-root /mnt/datasets
+# 或
+export TACTICS2D_DATA_ROOT=/mnt/datasets
+tactics2d start
+```
+
 ## 从 Python 实时发送帧
 
 如果脚本希望自己管理浏览器服务的生命周期，可以使用 `FrontendServer`：
@@ -119,6 +140,55 @@ renderer.send_frame([sensor], frame=frame)
 
 自定义仿真通常会先通过 `BEVCamera.update` 得到 `map_data` 和 `participant_data`，再把
 这些字典传给 `FrontendRenderer.send_frame`。
+
+## 录像
+
+提供三种互补的录像方式：
+
+### 浏览器录屏
+
+底部栏的"录屏"按钮通过浏览器 MediaRecorder API 把渲染画面录制为 `.webm` 视频，
+停止时自动下载。它录制的是你实际看到的内容——当前布局下所有传感器小窗的合成
+画面——实时推流、demo 和数据集预览都可以录。录制帧率受浏览器渲染速度限制。
+
+### 帧数据录制与回放（服务端）
+
+实时面板的"帧录制"控件把服务端发布的每一帧 payload 逐行写入 JSONL 文件。录制
+开始时会先写入当前场景快照，保证回放能还原完整场景；录制不受浏览器丢帧影响。
+保存的录制会出现在"回放录制"下拉框中，通过与数据集预览相同的管线回放（暂停、
+停止和进度条的行为一致）。
+
+录制默认保存在 `~/.cache/tactics2d/recordings/`，可用 `TACTICS2D_RECORD_DIR`
+环境变量覆盖。HTTP 接口：
+
+| 接口 | 用途 |
+|---|---|
+| `POST /api/record/start` | 开始录制（可选 `{"name": ...}`） |
+| `POST /api/record/stop` | 停止并保存录制 |
+| `GET /api/recordings` | 列出已保存的录制 |
+| `POST /api/preview/replay` | 回放：`{"name": ..., "max_fps": 30, "loop": false}` |
+
+### Python 端离线渲染
+
+需要像素级精确的 GIF 或 PNG 输出时，把同一个 `SceneSnapshot` 并行渲染到包装了
+录制器的 matplotlib 后端：
+
+```python
+from tactics2d.display import create_display_backend
+from tactics2d.display.recorder import GifRecorder
+
+browser = create_display_backend("browser")
+recorder = GifRecorder(create_display_backend("matplotlib"), "output.gif", fps=10)
+
+for frame in range(300):
+    snapshot = build_snapshot(frame)
+    browser.render(snapshot)   # 浏览器实时查看
+    recorder.render(snapshot)  # 离线渲染 GIF
+
+recorder.save()
+recorder.close()
+browser.close()
+```
 
 ## 使用提示
 

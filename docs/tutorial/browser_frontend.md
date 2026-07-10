@@ -68,6 +68,31 @@ tactics2d preview dataset \
 If the dataset recording has a registered map configuration, the frontend resolves
 the matching OSM file automatically. Otherwise pass `--osm path/to/map.osm`.
 
+## Dataset Discovery
+
+The server scans a configurable data root for LevelX datasets stored in their
+official layout (`<dataset>/data/<id>_tracks.csv`, or the recordings directly in
+the dataset directory) and for available OSM maps. Detected datasets, recordings,
+and maps appear as dropdowns in the browser forms, so scenes can be loaded without
+typing any path. Recordings are grouped by their registered map location, maps are
+selected per dataset, and the matching map is resolved automatically. Manual path
+fields remain available under the advanced ("更多") section of each form as a
+fallback.
+
+The data root is resolved in this order:
+
+1. `tactics2d start --data-root /path/to/datasets`
+2. The `TACTICS2D_DATA_ROOT` environment variable (multiple roots can be
+   separated by the OS path separator)
+3. `./data` relative to the working directory (repository convention)
+
+```bash
+tactics2d start --data-root /mnt/datasets
+# or
+export TACTICS2D_DATA_ROOT=/mnt/datasets
+tactics2d start
+```
+
 ## Send Live Frames from Python
 
 Use `FrontendServer` when your script should own the browser server lifecycle:
@@ -124,6 +149,59 @@ renderer.send_frame([sensor], frame=frame)
 Custom simulations usually build the `map_data` and `participant_data` dictionaries
 from a `BEVCamera` update result, then pass those dictionaries through
 `FrontendRenderer.send_frame`.
+
+## Recording
+
+Three complementary recording options are available:
+
+### Screen recording (browser)
+
+The 录屏 button in the bottom bar records the rendered sensor windows into a
+`.webm` video via the browser's MediaRecorder API and downloads it when stopped.
+It captures exactly what you see — all sensor tiles composited in the current
+layout — and works for live streams, demos, and dataset previews alike. The
+capture frame rate is bounded by the browser's rendering speed.
+
+### Frame recording and replay (server)
+
+The 帧录制 controls on the live panel capture every frame payload published by
+the server into a JSONL file, one line per frame. Recording starts with the
+current scene snapshot so a replay reproduces the full scene, and it is not
+thinned when the browser drops frames. Saved recordings appear in the 回放
+dropdown and stream back through the same pipeline as dataset previews
+(pause, stop, and the progress bar work the same way).
+
+Recordings are stored in `~/.cache/tactics2d/recordings/` by default; set
+`TACTICS2D_RECORD_DIR` to override. The HTTP API:
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/record/start` | Start recording (optional `{"name": ...}`) |
+| `POST /api/record/stop` | Stop and save the recording |
+| `GET /api/recordings` | List saved recordings |
+| `POST /api/preview/replay` | Replay: `{"name": ..., "max_fps": 30, "loop": false}` |
+
+### Offline rendering (Python)
+
+For pixel-perfect GIF or PNG output, render the same `SceneSnapshot` to a
+matplotlib backend wrapped in a recorder, in parallel with the browser view:
+
+```python
+from tactics2d.display import create_display_backend
+from tactics2d.display.recorder import GifRecorder
+
+browser = create_display_backend("browser")
+recorder = GifRecorder(create_display_backend("matplotlib"), "output.gif", fps=10)
+
+for frame in range(300):
+    snapshot = build_snapshot(frame)
+    browser.render(snapshot)   # live view in the browser
+    recorder.render(snapshot)  # offline GIF rendering
+
+recorder.save()
+recorder.close()
+browser.close()
+```
 
 ## Practical Notes
 

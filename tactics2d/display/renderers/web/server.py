@@ -9,6 +9,9 @@ import argparse
 import asyncio
 import logging
 import math
+import os
+import re
+import time
 from contextlib import asynccontextmanager
 from functools import partial
 from pathlib import Path
@@ -18,7 +21,7 @@ import orjson
 
 try:
     from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-    from fastapi.responses import FileResponse
+    from fastapi.responses import FileResponse, JSONResponse
     from fastapi.staticfiles import StaticFiles
 except ImportError:
     FastAPI = None
@@ -26,6 +29,7 @@ except ImportError:
     WebSocket = None
     WebSocketDisconnect = None
     FileResponse = None
+    JSONResponse = None
     StaticFiles = None
 
 LOGGER = logging.getLogger(__name__)
@@ -48,6 +52,9 @@ class ConnectionManager:
         self._last_snapshot_message = None
         self._last_frame_id = None
         self._sensor_snapshots = {}
+        self._recording_file = None
+        self._recording_path: Path | None = None
+        self._recording_frames = 0
 
     @property
     def client_count(self) -> int:
@@ -107,6 +114,10 @@ class ConnectionManager:
         ack_timeout: float = 0.05,
         drop_if_busy: bool = False,
     ) -> dict:
+        # Record before the busy check so the recording is not thinned by browser speed.
+        if self._recording_file is not None:
+            self._write_recording_line(frame_id, payload)
+
         if drop_if_busy and self.is_render_busy:
             self._dropped_frames += 1
             return {
@@ -142,6 +153,42 @@ class ConnectionManager:
             "frame_id": frame_id,
             "dropped_frames": self._dropped_frames,
         }
+
+    @property
+    def is_recording(self) -> bool:
+        return self._recording_file is not None
+
+    @property
+    def recording_name(self) -> str | None:
+        return self._recording_path.stem if self._recording_path is not None else None
+
+    def start_recording(self, path: Path) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self._recording_file = path.open("wb")
+        self._recording_path = path
+        self._recording_frames = 0
+        # Seed with the merged snapshot so a replay starts with the complete scene.
+        if self._last_snapshot_message is not None:
+            self._write_recording_line(
+                self._last_snapshot_message["frame_id"], self._last_snapshot_message["payload"]
+            )
+
+    def stop_recording(self) -> dict:
+        info = {
+            "name": self.recording_name,
+            "path": str(self._recording_path),
+            "frames": self._recording_frames,
+        }
+        self._recording_file.close()
+        self._recording_file = None
+        self._recording_path = None
+        self._recording_frames = 0
+        return info
+
+    def _write_recording_line(self, frame_id: Any, payload: dict) -> None:
+        record = {"frame_id": frame_id, "time": time.time(), "payload": payload}
+        self._recording_file.write(orjson.dumps(record) + b"\n")
+        self._recording_frames += 1
 
     def record_ack(self, frame_id: Any) -> None:
         self._last_ack = frame_id
@@ -296,6 +343,117 @@ async def _stop_preview_tasks(app) -> None:
     await _cancel_task(getattr(app.state, "preview_task", None))
     app.state.demo_task = None
     app.state.preview_task = None
+
+
+def _recordings_dir() -> Path:
+    env = os.environ.get("TACTICS2D_RECORD_DIR")
+    if env:
+        return Path(env).expanduser()
+    cache_home = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
+    return cache_home / "tactics2d" / "recordings"
+
+
+def _load_recording(path: Path) -> list[dict]:
+    if not path.is_file():
+        raise FileNotFoundError(f"Recording not found: {path}")
+
+    frames = []
+    with path.open("rb") as handle:
+        for line in handle:
+            line = line.strip()
+            if line:
+                frames.append(orjson.loads(line))
+    return frames
+
+
+async def _run_recording_replay(
+    manager: ConnectionManager, status: dict, payload: dict, pause_event: asyncio.Event
+):
+    max_fps = max(1, min(int(payload.get("max_fps", 30)), 100))
+    interval = 1.0 / max_fps
+    loop = bool(payload.get("loop", False))
+    sent_frames = 0
+    dropped_frames = 0
+    loop_count = 0
+
+    try:
+        name = str(payload["name"])
+        frames = await _to_thread(_load_recording, _recordings_dir() / f"{name}.jsonl")
+        total_frames = len(frames)
+        if not total_frames:
+            raise ValueError(f"Recording {name} is empty.")
+
+        status.update(
+            {
+                "status": "running",
+                "source": "replay",
+                "recording": name,
+                "total_frames": total_frames,
+                "frame_index": 0,
+                "progress": 0,
+                "paused": False,
+                "loop": loop,
+                "loop_count": loop_count,
+                "sent_frames": 0,
+                "dropped_frames": 0,
+                "message": "replaying",
+            }
+        )
+
+        while True:
+            for frame_index, record in enumerate(frames, start=1):
+                if not pause_event.is_set():
+                    status.update({"status": "paused", "paused": True, "message": "paused"})
+                await pause_event.wait()
+                status.update({"status": "running", "paused": False, "message": "replaying"})
+
+                started = asyncio.get_running_loop().time()
+                result = await manager.publish_frame(
+                    record.get("payload", {}),
+                    frame_id=record.get("frame_id"),
+                    wait_ack=True,
+                    ack_timeout=interval,
+                    drop_if_busy=True,
+                )
+                dropped_frames = int(result.get("dropped_frames", dropped_frames))
+                if result.get("status") != "dropped":
+                    sent_frames += 1
+
+                status.update(
+                    {
+                        "frame": record.get("frame_id"),
+                        "frame_index": frame_index,
+                        "total_frames": total_frames,
+                        "progress": frame_index / total_frames if total_frames else 0,
+                        "sent_frames": sent_frames,
+                        "dropped_frames": dropped_frames,
+                        "loop_count": loop_count,
+                    }
+                )
+                elapsed = asyncio.get_running_loop().time() - started
+                if elapsed < interval:
+                    await asyncio.sleep(interval - elapsed)
+
+            if not loop:
+                break
+
+            loop_count += 1
+
+        status.update(
+            {
+                "status": "complete",
+                "message": "complete",
+                "paused": False,
+                "progress": 1,
+                "sent_frames": sent_frames,
+                "dropped_frames": dropped_frames,
+            }
+        )
+    except asyncio.CancelledError:
+        status.update({"status": "stopped", "message": "stopped"})
+    except Exception as exc:
+        LOGGER.exception("Recording replay failed.")
+        status.update({"status": "error", "message": str(exc)})
 
 
 def _map_config_from_name(name: str | None) -> dict | None:
@@ -700,13 +858,25 @@ def create_app(demo: bool = False, max_fps: int = 30):
 
         payload = await request.json()
         await _stop_preview_tasks(app)
-        configs = _map_config_from_name(payload.get("map_config"))
-        sensor = await _to_thread(
-            build_map_preview_sensor,
-            Path(payload["osm_path"]),
-            bool(payload.get("lanelet2", True)),
-            configs,
-        )
+        try:
+            osm_path = payload.get("osm_path")
+            if not osm_path:
+                raise ValueError("osm_path is required")
+            configs = _map_config_from_name(payload.get("map_config"))
+            sensor = await _to_thread(
+                build_map_preview_sensor,
+                Path(osm_path),
+                bool(payload.get("lanelet2", True)),
+                configs,
+            )
+        except Exception as exc:
+            LOGGER.warning("Map preview failed: %s", exc)
+            app.state.preview_status = {
+                "status": "error",
+                "source": "map",
+                "message": str(exc),
+            }
+            return JSONResponse(status_code=400, content=app.state.preview_status)
         result = await manager.publish_frame(
             {"frame": 0, "layout": "grid", "sensors": [sensor], "remove_missing_sensors": True},
             frame_id=0,
@@ -735,6 +905,71 @@ def create_app(demo: bool = False, max_fps: int = 30):
         app.state.preview_pause_event.set()
         app.state.preview_task = asyncio.create_task(
             _run_levelx_dataset_preview(
+                manager, app.state.preview_status, payload, app.state.preview_pause_event
+            )
+        )
+        return app.state.preview_status
+
+    async def _request_json(request: Request) -> dict:
+        try:
+            return await request.json()
+        except Exception:
+            return {}
+
+    @app.post("/api/record/start")
+    async def record_start(request: Request):
+        payload = await _request_json(request)
+        if manager.is_recording:
+            return JSONResponse(
+                status_code=409,
+                content={
+                    "status": "recording",
+                    "name": manager.recording_name,
+                    "message": "already recording",
+                },
+            )
+        raw_name = str(payload.get("name") or time.strftime("record-%Y%m%d-%H%M%S"))
+        name = re.sub(r"[^A-Za-z0-9_\-一-鿿]", "-", raw_name)
+        manager.start_recording(_recordings_dir() / f"{name}.jsonl")
+        return {"status": "recording", "name": name, "message": "recording"}
+
+    @app.post("/api/record/stop")
+    async def record_stop():
+        if not manager.is_recording:
+            return {"status": "idle", "message": "not recording"}
+        info = manager.stop_recording()
+        return {"status": "saved", "message": f"saved {info['frames']} frames", **info}
+
+    @app.get("/api/recordings")
+    async def list_recordings():
+        directory = _recordings_dir()
+        recordings = []
+        if directory.is_dir():
+            for item in directory.glob("*.jsonl"):
+                stat = item.stat()
+                recordings.append(
+                    {"name": item.stem, "size": stat.st_size, "modified": stat.st_mtime}
+                )
+        recordings.sort(key=lambda item: item["modified"], reverse=True)
+        return {"recordings": recordings, "recording": manager.recording_name}
+
+    @app.post("/api/preview/replay")
+    async def preview_replay(request: Request):
+        payload = await _request_json(request)
+        if not payload.get("name"):
+            return JSONResponse(
+                status_code=400, content={"status": "error", "message": "name is required"}
+            )
+        await _stop_preview_tasks(app)
+        app.state.preview_status = {
+            "status": "loading",
+            "source": "replay",
+            "message": "loading recording",
+        }
+        app.state.preview_pause_event = asyncio.Event()
+        app.state.preview_pause_event.set()
+        app.state.preview_task = asyncio.create_task(
+            _run_recording_replay(
                 manager, app.state.preview_status, payload, app.state.preview_pause_event
             )
         )
@@ -795,11 +1030,14 @@ def _parse_args(argv: list[str] | None = None):
     parser.add_argument("--demo", action="store_true")
     parser.add_argument("--max-fps", type=int, default=30)
     parser.add_argument("--open", action="store_true", dest="open_browser")
+    parser.add_argument("--data-root", default=None)
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
+    if args.data_root:
+        os.environ["TACTICS2D_DATA_ROOT"] = args.data_root
     run_server(args.host, args.port, args.demo, args.max_fps, args.open_browser)
 
 

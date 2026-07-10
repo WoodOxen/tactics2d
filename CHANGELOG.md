@@ -5,6 +5,8 @@
 
 ### Added
 
+- Added recording capabilities to the browser frontend: a screen-recording button that captures the composited sensor views into a downloadable `.webm` via MediaRecorder, and server-side frame recording/replay (`POST /api/record/start|stop`, `GET /api/recordings`, `POST /api/preview/replay`) that stores published frame payloads as JSONL (seeded with the current scene snapshot) under `~/.cache/tactics2d/recordings/` (`TACTICS2D_RECORD_DIR` to override) and replays them through the preview pipeline; documented the parallel Python-side `GifRecorder` offline rendering pattern.
+- Added dataset and map discovery to the browser frontend: a configurable data root (`tactics2d start --data-root`, the `TACTICS2D_DATA_ROOT` environment variable, or the `./data` repository convention) is scanned for LevelX recordings in the official layout and for available OSM maps, and the browser forms now use two-level selection-based interaction (dataset → recording with recordings grouped by registered map location, and dataset → map) with automatic folder and map resolution instead of manual path input; manual path fields remain available under the advanced section.
 - Refined structured road-segment generators, including fork/merge, ramp, intersection, two-way road, and related test coverage.
 - Updated generator rules and geometry helpers to improve roadline metadata handling, reference-line construction, and module connection consistency.
 - Added shared geometry and RoadLine utilities for road-segment map generation, including polyline sampling, cutting, offsetting, intersection extraction, curvature checks, and marking metadata support.
@@ -26,6 +28,10 @@
 
 ### Fixed
 
+- Fixed browser frontend layout selection being overridden on every frame during demo/dataset/live streaming; a manual layout choice (toolbar button or `POST /api/layout`) now takes precedence over the per-frame payload default.
+- Fixed `POST /api/preview/map` raising an unhandled HTTP 500 with no UI feedback when the OSM path is missing or invalid; it now returns HTTP 400 with an error message that persists in the status bar.
+- Fixed browser frontend favicon 404 console error by adding an inline SVG favicon.
+- Removed a machine-specific hardcoded dataset folder from the browser frontend preview defaults; defaults are now derived from data-root discovery.
 - Fixed `NetXMLParser._get_lane_subtype` incorrectly declared as `@staticmethod` with a `self` parameter, causing all lane parsing to fail silently.
 - Fixed `NetXMLParser._offset_line` referencing undefined normal vector variables when consecutive points have zero distance.
 - Fixed `NetXMLParser` not reading the lane element's `width` attribute, falling back to inaccurate heuristic estimation.

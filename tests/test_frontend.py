@@ -150,17 +150,163 @@ def test_frontend_replays_snapshot_to_new_browser():
     assert sensor["participant_data"]["participants"][0]["position"] == [1, 0]
 
 
-def test_preview_options_endpoint_contains_levelx_defaults():
+def test_preview_options_endpoint_derives_defaults_from_discovery(monkeypatch, tmp_path):
     pytest.importorskip("fastapi")
     pytest.importorskip("httpx")
     from fastapi.testclient import TestClient
+
+    folder = tmp_path / "rounD" / "data"
+    folder.mkdir(parents=True)
+    (folder / "00_tracks.csv").touch()
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(tmp_path))
 
     client = TestClient(server_module.create_app())
     response = client.get("/api/preview/options")
 
     assert response.status_code == 200
-    assert "highD" in response.json()["levelx_datasets"]
-    assert response.json()["defaults"]["folder"] == "/mnt/server_data/Datasets/highD/data"
+    payload = response.json()
+    assert "highD" in payload["levelx_datasets"]
+    assert str(tmp_path.resolve()) in payload["data_roots"]
+    assert payload["defaults"]["dataset"] == "rounD"
+    assert payload["defaults"]["folder"] == str(folder)
+    assert payload["defaults"]["file"] == "0"
+
+
+def test_get_data_roots_reads_environment(monkeypatch, tmp_path):
+    root = tmp_path / "roots"
+    root.mkdir()
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(root))
+
+    assert preview.get_data_roots()[0] == root.resolve()
+
+
+def test_get_data_roots_skips_missing_directories(monkeypatch, tmp_path):
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(tmp_path / "missing"))
+
+    assert (tmp_path / "missing").resolve() not in preview.get_data_roots()
+
+
+def test_discover_levelx_datasets_finds_official_layout(monkeypatch, tmp_path):
+    folder = tmp_path / "highD" / "data"
+    folder.mkdir(parents=True)
+    (folder / "07_tracks.csv").touch()
+    (folder / "12_tracks.csv").touch()
+    (folder / "12_tracksMeta.csv").touch()
+    (folder / "notes.txt").touch()
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(tmp_path))
+
+    discovered = preview.discover_levelx_datasets()
+
+    entry = next(item for item in discovered if item["dataset"] == "highD")
+    assert entry["folder"] == str(folder)
+    assert entry["files"] == [7, 12]
+
+
+def test_discover_levelx_datasets_supports_flat_layout(monkeypatch, tmp_path):
+    folder = tmp_path / "uniD"
+    folder.mkdir(parents=True)
+    (folder / "03_tracks.csv").touch()
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(tmp_path))
+
+    discovered = preview.discover_levelx_datasets()
+
+    entry = next(item for item in discovered if item["dataset"] == "uniD")
+    assert entry["folder"] == str(folder)
+    assert entry["files"] == [3]
+
+
+def test_record_endpoints_write_jsonl(monkeypatch, tmp_path):
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("TACTICS2D_RECORD_DIR", str(tmp_path))
+    client = TestClient(server_module.create_app())
+
+    response = client.post("/api/record/start", json={"name": "test-rec"})
+    assert response.status_code == 200
+    assert response.json()["status"] == "recording"
+
+    client.post("/api/frame", json={"frame": 1, "sensors": []})
+    client.post("/api/frame", json={"frame": 2, "sensors": []})
+
+    response = client.post("/api/record/stop")
+    assert response.status_code == 200
+    assert response.json()["status"] == "saved"
+    assert response.json()["frames"] == 2
+
+    recording_file = tmp_path / "test-rec.jsonl"
+    assert recording_file.is_file()
+    lines = [line for line in recording_file.read_text().splitlines() if line.strip()]
+    assert len(lines) == 2
+    assert json.loads(lines[0])["frame_id"] == 1
+
+    response = client.get("/api/recordings")
+    assert any(item["name"] == "test-rec" for item in response.json()["recordings"])
+
+
+def test_record_start_twice_returns_conflict(monkeypatch, tmp_path):
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("TACTICS2D_RECORD_DIR", str(tmp_path))
+    client = TestClient(server_module.create_app())
+
+    assert client.post("/api/record/start", json={"name": "first"}).status_code == 200
+    response = client.post("/api/record/start", json={"name": "second"})
+    assert response.status_code == 409
+    assert response.json()["name"] == "first"
+
+
+def test_replay_endpoint_requires_name(monkeypatch, tmp_path):
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("TACTICS2D_RECORD_DIR", str(tmp_path))
+    client = TestClient(server_module.create_app())
+
+    response = client.post("/api/preview/replay", json={})
+    assert response.status_code == 400
+
+
+def test_replay_task_streams_recording(monkeypatch, tmp_path):
+    monkeypatch.setenv("TACTICS2D_RECORD_DIR", str(tmp_path))
+    recording_file = tmp_path / "clip.jsonl"
+    frames = [
+        {"frame_id": index, "time": 0.0, "payload": {"frame": index, "sensors": []}}
+        for index in range(3)
+    ]
+    recording_file.write_text("\n".join(json.dumps(frame) for frame in frames) + "\n")
+
+    manager = server_module.ConnectionManager()
+    status = {}
+    pause_event = asyncio.Event()
+    pause_event.set()
+
+    asyncio.run(
+        server_module._run_recording_replay(
+            manager, status, {"name": "clip", "max_fps": 100}, pause_event
+        )
+    )
+
+    assert status["status"] == "complete"
+    assert status["total_frames"] == 3
+    assert status["sent_frames"] == 3
+
+
+def test_discover_maps_includes_scanned_osm_files(monkeypatch, tmp_path):
+    osm = tmp_path / "custom" / "my_map.osm"
+    osm.parent.mkdir(parents=True)
+    osm.touch()
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(tmp_path))
+
+    maps = preview.discover_maps()
+
+    entry = next(item for item in maps if item["osm_path"] == str(osm.resolve()))
+    assert entry["dataset"] is None
+    assert entry["name"] == str(Path("custom") / "my_map.osm")
 
 
 def test_preview_map_endpoint_publishes_frame():

@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import time
 import webbrowser
@@ -18,6 +19,11 @@ from tactics2d.dataset_parser import LEVELX_DATASETS
 LOGGER = logging.getLogger(__name__)
 
 LEVELX_FRAME_STEP_MS = 40
+
+DATA_ROOT_ENV = "TACTICS2D_DATA_ROOT"
+
+_TRACKS_FILE_PATTERN = re.compile(r"^(\d+)_tracks\.csv$")
+_MAX_DISCOVERED_MAPS = 200
 
 _LEVELX_CANONICAL = {name.lower(): name for name in LEVELX_DATASETS}
 _MAP_CONFIG_NAMES = (
@@ -125,6 +131,127 @@ def iter_map_configs() -> Iterable[tuple[str, dict[str, Any]]]:
         yield from configs.items()
 
 
+def get_data_roots() -> list[Path]:
+    """Return the existing dataset root directories.
+
+    Roots are taken from the ``TACTICS2D_DATA_ROOT`` environment variable
+    (multiple paths may be separated by ``os.pathsep``), followed by the
+    repository convention ``./data`` relative to the working directory.
+    Only directories that exist are returned.
+    """
+
+    roots: list[Path] = []
+    for token in os.environ.get(DATA_ROOT_ENV, "").split(os.pathsep):
+        token = token.strip()
+        if token:
+            roots.append(Path(token).expanduser())
+    roots.append(Path.cwd() / "data")
+
+    seen: set[Path] = set()
+    unique: list[Path] = []
+    for root in roots:
+        if not root.is_dir():
+            continue
+        resolved = root.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            unique.append(resolved)
+    return unique
+
+
+def _list_recording_ids(folder: Path) -> list[int]:
+    """Return recording ids found as ``<id>_tracks.csv`` files in a folder."""
+
+    ids = set()
+    try:
+        for entry in folder.iterdir():
+            match = _TRACKS_FILE_PATTERN.match(entry.name)
+            if match:
+                ids.add(int(match.group(1)))
+    except OSError:
+        return []
+    return sorted(ids)
+
+
+def discover_levelx_datasets() -> list[dict[str, Any]]:
+    """Scan the data roots for LevelX datasets stored in the official layout.
+
+    A dataset is detected when a directory named after it (case variants
+    allowed) contains ``<id>_tracks.csv`` recordings either directly or in a
+    ``data/`` subdirectory. The first data root containing a dataset wins.
+    """
+
+    discovered = []
+    seen_datasets = set()
+    for root in get_data_roots():
+        for dataset in LEVELX_DATASETS:
+            if dataset in seen_datasets:
+                continue
+            for candidate in (root / dataset, root / dataset.lower()):
+                if not candidate.is_dir():
+                    continue
+                for folder in (candidate / "data", candidate):
+                    ids = _list_recording_ids(folder)
+                    if ids:
+                        discovered.append({"dataset": dataset, "folder": str(folder), "files": ids})
+                        seen_datasets.add(dataset)
+                        break
+                if dataset in seen_datasets:
+                    break
+    return discovered
+
+
+def discover_maps(dataset_catalog: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    """Return maps that are actually available on disk.
+
+    Registered map configs are probed through :func:`resolve_levelx_osm_path`;
+    unregistered ``.osm`` files found up to three levels below the data roots
+    are appended after them.
+    """
+
+    folders = {entry["dataset"]: Path(entry["folder"]) for entry in (dataset_catalog or [])}
+    maps: list[dict[str, Any]] = []
+    known_paths: set[Path] = set()
+
+    for name, config in iter_map_configs():
+        dataset = config.get("dataset")
+        if not dataset or not config.get("osm_file"):
+            continue
+        folder = folders.get(dataset, Path.cwd() / "data" / dataset)
+        try:
+            path = resolve_levelx_osm_path(dataset, folder, config)
+        except (FileNotFoundError, ValueError):
+            continue
+        known_paths.add(path)
+        maps.append(
+            {
+                "name": name,
+                "dataset": dataset,
+                "osm_path": str(path),
+                "description": config.get("name", name),
+            }
+        )
+
+    for root in get_data_roots():
+        for pattern in ("*.osm", "*/*.osm", "*/*/*.osm"):
+            for osm in sorted(root.glob(pattern)):
+                resolved = osm.resolve()
+                if resolved in known_paths:
+                    continue
+                known_paths.add(resolved)
+                maps.append(
+                    {
+                        "name": str(osm.relative_to(root)),
+                        "dataset": None,
+                        "osm_path": str(resolved),
+                        "description": "",
+                    }
+                )
+                if len(maps) >= _MAX_DISCOVERED_MAPS:
+                    return maps
+    return maps
+
+
 def list_levelx_preview_options() -> dict[str, Any]:
     """Return lightweight option metadata for the browser controls."""
 
@@ -144,13 +271,20 @@ def list_levelx_preview_options() -> dict[str, Any]:
             }
         )
 
+    datasets = discover_levelx_datasets()
+    maps = discover_maps(datasets)
+    first = datasets[0] if datasets else None
+
     return {
         "levelx_datasets": LEVELX_DATASETS,
         "map_configs": map_configs,
+        "datasets": datasets,
+        "maps": maps,
+        "data_roots": [str(root) for root in get_data_roots()],
         "defaults": {
-            "dataset": "highD",
-            "folder": "/mnt/server_data/Datasets/highD/data",
-            "file": "11",
+            "dataset": first["dataset"] if first else "highD",
+            "folder": first["folder"] if first else "",
+            "file": str(first["files"][0]) if first else "",
             "frames": 300,
             "max_fps": 30,
             "perception_range": 80,

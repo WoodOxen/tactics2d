@@ -83,7 +83,8 @@ class SensorView {
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(COLORS.hole);
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    // preserveDrawingBuffer keeps the frame readable for screen recording drawImage().
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.domElement.addEventListener("webglcontextrestored", () => this.resize());
 
@@ -261,13 +262,18 @@ class PreviewControls {
     this.datasetSelect = document.getElementById("dataset-select");
     this.datasetMapConfig = document.getElementById("dataset-map-config");
     this.mapConfig = document.getElementById("map-config");
+    this.mapSelect = document.getElementById("map-select");
+    this.mapDataset = document.getElementById("map-dataset");
     this.status = document.getElementById("preview-status");
     this.progress = document.getElementById("preview-progress");
     this.progressTrack = document.getElementById("progress-track");
     this.streamMode = document.getElementById("stream-mode");
     this.pauseButton = document.getElementById("pause-preview");
+    this.recordButton = document.getElementById("record-frames");
+    this.replaySelect = document.getElementById("replay-select");
     this.isPaused = false;
-    this.options = { levelx_datasets: [], map_configs: [], defaults: {} };
+    this.isRecordingFrames = false;
+    this.options = { levelx_datasets: [], map_configs: [], datasets: [], maps: [], defaults: {} };
 
     this.bind();
     this.loadOptions();
@@ -278,10 +284,12 @@ class PreviewControls {
     this.sourceButtons.forEach((button) => {
       button.addEventListener("click", () => this.showSource(button.dataset.sourceTab));
     });
-    this.datasetSelect.addEventListener("change", () => this.updateDatasetMapConfigs());
+    this.datasetSelect.addEventListener("change", () => this.updateDatasetFiles());
     document
       .getElementById("dataset-file")
       .addEventListener("change", () => this.updateDatasetMapConfigs());
+    this.mapDataset.addEventListener("change", () => this.populateMapSelect());
+    this.mapSelect.addEventListener("change", () => this.applyMapSelection());
     this.datasetForm.addEventListener("submit", (event) => {
       event.preventDefault();
       this.startDatasetPreview();
@@ -292,6 +300,8 @@ class PreviewControls {
     });
     this.pauseButton.addEventListener("click", () => this.togglePause());
     document.getElementById("stop-preview").addEventListener("click", () => this.stopPreview());
+    this.recordButton.addEventListener("click", () => this.toggleFrameRecording());
+    document.getElementById("replay-start").addEventListener("click", () => this.startReplay());
   }
 
   async request(path, payload = null) {
@@ -315,17 +325,26 @@ class PreviewControls {
       this.options = await this.request("/api/preview/options");
       this.populateDatasetSelect();
       this.populateDefaults();
-      this.updateDatasetMapConfigs();
+      this.updateDatasetFiles();
       this.updateMapConfigSelect();
+      this.populateMapGroups();
+      this.loadRecordings();
       this.showSource(this.source);
     } catch (error) {
       this.setStatus(error.message, "error");
     }
   }
 
+  catalogEntry(dataset) {
+    return (this.options.datasets || []).find((entry) => entry.dataset === dataset) || null;
+  }
+
   populateDatasetSelect() {
+    // Detected datasets first; fall back to the full list when nothing was found.
+    const detected = (this.options.datasets || []).map((entry) => entry.dataset);
+    const datasets = detected.length ? detected : this.options.levelx_datasets;
     this.datasetSelect.replaceChildren();
-    this.options.levelx_datasets.forEach((dataset) => {
+    datasets.forEach((dataset) => {
       const option = document.createElement("option");
       option.value = dataset;
       option.textContent = dataset;
@@ -335,13 +354,101 @@ class PreviewControls {
 
   populateDefaults() {
     const defaults = this.options.defaults || {};
-    this.datasetSelect.value = defaults.dataset || "highD";
-    document.getElementById("dataset-folder").value = defaults.folder || "";
-    document.getElementById("dataset-file").value = defaults.file || "";
+    if (defaults.dataset) this.datasetSelect.value = defaults.dataset;
     document.getElementById("dataset-frames").value = defaults.frames || 300;
     document.getElementById("dataset-max-fps").value = defaults.max_fps || 30;
     document.getElementById("dataset-range").value = defaults.perception_range || 80;
-    document.getElementById("map-osm").value = "data/highD_map/highD_1.osm";
+  }
+
+  updateDatasetFiles() {
+    const dataset = this.datasetSelect.value;
+    const entry = this.catalogEntry(dataset);
+    const fileSelect = document.getElementById("dataset-file");
+
+    // Detected recordings win; otherwise offer the ids registered in map configs.
+    const configs = this.options.map_configs.filter((config) => config.dataset === dataset);
+    let files = entry ? entry.files : [];
+    if (!files.length) {
+      files = [...new Set(configs.flatMap((config) => config.trajectory_files || []))].sort(
+        (a, b) => a - b
+      );
+    }
+
+    // Group recordings by their registered map location.
+    fileSelect.replaceChildren();
+    const remaining = new Set(files);
+    configs.forEach((config) => {
+      const members = files.filter((fileId) =>
+        (config.trajectory_files || []).includes(fileId)
+      );
+      if (!members.length) return;
+      const group = document.createElement("optgroup");
+      group.label = config.description || config.name;
+      members.forEach((fileId) => {
+        group.appendChild(this.fileOption(fileId));
+        remaining.delete(fileId);
+      });
+      fileSelect.appendChild(group);
+    });
+    if (remaining.size) {
+      const group = document.createElement("optgroup");
+      group.label = "未注册位置";
+      [...remaining].sort((a, b) => a - b).forEach((fileId) => {
+        group.appendChild(this.fileOption(fileId));
+      });
+      fileSelect.appendChild(group);
+    }
+
+    document.getElementById("dataset-folder").value = entry ? entry.folder : "";
+    this.updateDatasetMapConfigs();
+  }
+
+  fileOption(fileId) {
+    const option = document.createElement("option");
+    option.value = String(fileId);
+    option.textContent = String(fileId);
+    return option;
+  }
+
+  populateMapGroups() {
+    const maps = this.options.maps || [];
+    const groups = [...new Set(maps.map((map) => map.dataset || "其他"))];
+    this.mapDataset.replaceChildren();
+    groups.forEach((group) => {
+      const option = document.createElement("option");
+      option.value = group;
+      option.textContent = group;
+      this.mapDataset.appendChild(option);
+    });
+    this.populateMapSelect();
+  }
+
+  populateMapSelect() {
+    const group = this.mapDataset.value;
+    const maps = (this.options.maps || []).filter(
+      (map) => (map.dataset || "其他") === group
+    );
+    this.mapSelect.replaceChildren(this.blankOption("手动输入路径"));
+    maps.forEach((map) => {
+      const option = document.createElement("option");
+      option.value = map.osm_path;
+      option.textContent = map.dataset
+        ? `${map.name} ${map.description || ""}`.trim()
+        : map.name;
+      if (map.dataset) option.dataset.configName = map.name;
+      this.mapSelect.appendChild(option);
+    });
+    if (maps.length) {
+      this.mapSelect.value = maps[0].osm_path;
+      this.applyMapSelection();
+    }
+  }
+
+  applyMapSelection() {
+    const selected = this.mapSelect.selectedOptions[0];
+    if (!selected || !selected.value) return;
+    document.getElementById("map-osm").value = selected.value;
+    this.mapConfig.value = selected.dataset.configName || "";
   }
 
   updateDatasetMapConfigs() {
@@ -439,6 +546,63 @@ class PreviewControls {
     try {
       this.setStatus("等待实时帧", "running");
       await this.request("/api/preview/live", {});
+      await this.refreshStatus();
+    } catch (error) {
+      this.setStatus(error.message, "error");
+    }
+  }
+
+  async loadRecordings() {
+    try {
+      const data = await this.request("/api/recordings");
+      this.replaySelect.replaceChildren();
+      (data.recordings || []).forEach((recording) => {
+        const option = document.createElement("option");
+        option.value = recording.name;
+        option.textContent = recording.name;
+        this.replaySelect.appendChild(option);
+      });
+      if (!this.replaySelect.options.length) {
+        this.replaySelect.appendChild(this.blankOption("暂无录制"));
+      }
+      if (data.recording) {
+        this.isRecordingFrames = true;
+        this.recordButton.textContent = `停止录制（${data.recording}）`;
+        this.recordButton.classList.add("is-recording");
+      }
+    } catch (error) {
+      // Recording list is non-critical; leave the placeholder option.
+    }
+  }
+
+  async toggleFrameRecording() {
+    try {
+      if (this.isRecordingFrames) {
+        const result = await this.request("/api/record/stop", {});
+        this.isRecordingFrames = false;
+        this.recordButton.textContent = "开始录制";
+        this.recordButton.classList.remove("is-recording");
+        this.setStatus(result.message || "已保存", "complete");
+        await this.loadRecordings();
+      } else {
+        const name = parseOptionalText(document.getElementById("record-name").value);
+        const result = await this.request("/api/record/start", name ? { name } : {});
+        this.isRecordingFrames = true;
+        this.recordButton.textContent = `停止录制（${result.name}）`;
+        this.recordButton.classList.add("is-recording");
+        this.setStatus("录制中", "running");
+      }
+    } catch (error) {
+      this.setStatus(error.message, "error");
+    }
+  }
+
+  async startReplay() {
+    const name = this.replaySelect.value;
+    if (!name) return;
+    try {
+      this.setStatus("加载录制", "running");
+      await this.request("/api/preview/replay", { name, max_fps: 30 });
       await this.refreshStatus();
     } catch (error) {
       this.setStatus(error.message, "error");
@@ -558,6 +722,7 @@ class RenderManager {
     this.droppedElement = document.getElementById("render-dropped");
     this.sensors = new Map();
     this.layout = "grid";
+    this.userLayout = null;
     this.pendingFrame = null;
     this.frameScheduled = false;
     this.renderedFrames = 0;
@@ -572,6 +737,7 @@ class RenderManager {
   bindLayoutButtons() {
     document.querySelectorAll("[data-layout]").forEach((button) => {
       button.addEventListener("click", () => {
+        this.userLayout = button.dataset.layout;
         this.setLayout(button.dataset.layout);
         if (this.socket?.readyState === WebSocket.OPEN) {
           this.socket.send(JSON.stringify({ type: "layout.set", layout: this.layout }));
@@ -607,7 +773,10 @@ class RenderManager {
 
   handleMessage(event) {
     const message = JSON.parse(event.data);
-    if (message.type === "layout.set") this.setLayout(message.layout);
+    if (message.type === "layout.set") {
+      this.userLayout = message.layout;
+      this.setLayout(message.layout);
+    }
     if (message.type === "frame.update") this.queueFrame(message);
   }
 
@@ -631,7 +800,8 @@ class RenderManager {
   }
 
   updateFrame(payload, frameId) {
-    if (payload.layout) this.setLayout(payload.layout);
+    // Frame payloads carry a default layout; an explicit user/API choice wins over it.
+    if (payload.layout && !this.userLayout) this.setLayout(payload.layout);
     (payload.sensor_id_to_remove || []).forEach((sensorId) => this.removeSensor(sensorId));
 
     const activeSensorIds = new Set();
@@ -688,7 +858,88 @@ class RenderManager {
   }
 }
 
+class ScreenRecorder {
+  constructor(renderManager) {
+    this.renderManager = renderManager;
+    this.button = document.getElementById("record-screen");
+    this.recording = false;
+    if (!window.MediaRecorder) {
+      this.button.disabled = true;
+      this.button.title = "当前浏览器不支持 MediaRecorder";
+      return;
+    }
+    this.button.addEventListener("click", () => (this.recording ? this.stop() : this.start()));
+  }
+
+  supportedMimeType() {
+    const types = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+    return types.find((type) => MediaRecorder.isTypeSupported(type)) || null;
+  }
+
+  start() {
+    const rect = this.renderManager.container.getBoundingClientRect();
+    const mimeType = this.supportedMimeType();
+    if (!mimeType || !rect.width || !rect.height) return;
+
+    this.canvas = document.createElement("canvas");
+    this.canvas.width = Math.round(rect.width);
+    this.canvas.height = Math.round(rect.height);
+    this.context = this.canvas.getContext("2d");
+    this.chunks = [];
+    this.stream = this.canvas.captureStream(30);
+    this.recorder = new MediaRecorder(this.stream, { mimeType });
+    this.recorder.addEventListener("dataavailable", (event) => {
+      if (event.data.size) this.chunks.push(event.data);
+    });
+    this.recorder.addEventListener("stop", () => this.download());
+    this.recorder.start(1000);
+    this.recording = true;
+    this.button.textContent = "停止录屏";
+    this.button.classList.add("is-recording");
+    this.compose();
+  }
+
+  compose() {
+    if (!this.recording) return;
+    const gridRect = this.renderManager.container.getBoundingClientRect();
+    this.context.fillStyle = "#05070a";
+    this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.renderManager.sensors.forEach((sensorView) => {
+      const canvas = sensorView.renderer.domElement;
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      this.context.drawImage(
+        canvas,
+        rect.left - gridRect.left,
+        rect.top - gridRect.top,
+        rect.width,
+        rect.height
+      );
+    });
+    window.requestAnimationFrame(() => this.compose());
+  }
+
+  stop() {
+    this.recording = false;
+    this.button.textContent = "开始录屏";
+    this.button.classList.remove("is-recording");
+    this.recorder.stop();
+    this.stream.getTracks().forEach((track) => track.stop());
+  }
+
+  download() {
+    const blob = new Blob(this.chunks, { type: this.recorder.mimeType });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `tactics2d-${stamp}.webm`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+  }
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   window.tactics2dFrontend = new RenderManager();
   window.tactics2dPreviewControls = new PreviewControls();
+  window.tactics2dScreenRecorder = new ScreenRecorder(window.tactics2dFrontend);
 });
