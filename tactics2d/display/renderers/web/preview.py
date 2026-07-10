@@ -342,11 +342,23 @@ def resolve_levelx_osm_path(
         folder / osm_file,
         folder.parent / osm_file,
         folder.parent / "map" / osm_file,
+        folder.parent / "maps" / "lanelet2" / osm_file,
     )
 
     for candidate in candidates:
         if candidate.exists():
             return candidate.resolve()
+
+    # Official levelXdata layout names maps <location>_<site>.osm under
+    # maps/lanelet2/ (e.g. exiD's 0_cologne_butzweiler.osm), while registered
+    # configs reference <dataset>_<location>.osm. Match by location number.
+    maps_dir = folder.parent / "maps" / "lanelet2"
+    location = re.search(r"(\d+)$", Path(osm_file).stem)
+    if maps_dir.is_dir() and location is not None:
+        prefix = f"{int(location.group(1))}_"
+        for candidate in sorted(maps_dir.glob("*.osm")):
+            if candidate.name.startswith(prefix):
+                return candidate.resolve()
 
     checked = ", ".join(str(candidate) for candidate in candidates)
     raise FileNotFoundError(f"Could not find {osm_file}. Checked: {checked}")
@@ -408,7 +420,7 @@ def build_map_preview_sensor(
         "id": f"map-{osm_path.stem}",
         "perception_range": float(preview_range),
         "viewport_aspect": float(max(1.0, x_span / (2 * preview_range))),
-        "position": [x_center, y_center],
+        "position": [float(x_center), float(y_center)],
         "yaw": 0,
         "frame": 0,
         "map_data": geometry_data["map_data"],

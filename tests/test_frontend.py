@@ -310,9 +310,7 @@ def test_publish_frame_serializes_numpy_payload(tmp_path):
             {
                 "id": "cam",
                 "position": [np.float64(1.5), np.float64(-2.5)],
-                "participant_data": {
-                    "participants": [{"id": 9, "position": np.array([1.0, 2.0])}]
-                },
+                "participant_data": {"participants": [{"id": 9, "position": np.array([1.0, 2.0])}]},
             }
         ],
     }
@@ -803,6 +801,20 @@ def test_levelx_preview_resolves_map_config_from_recording():
 
     assert name == "highD_1"
     assert config["osm_file"] == "highD_1.osm"
+
+
+def test_resolve_osm_path_official_levelx_maps_layout(tmp_path):
+    """levelXdata ships maps as <dataset>/maps/lanelet2/<location>_<site>.osm."""
+    maps_dir = tmp_path / "exiD" / "maps" / "lanelet2"
+    maps_dir.mkdir(parents=True)
+    osm = maps_dir / "0_cologne_butzweiler.osm"
+    osm.write_text("<osm/>")
+    folder = tmp_path / "exiD" / "data"
+    folder.mkdir()
+
+    resolved = preview.resolve_levelx_osm_path("exiD", folder, {"osm_file": "exiD_0.osm"})
+
+    assert resolved == osm.resolve()
 
 
 def test_levelx_preview_option_and_path_helpers(monkeypatch, tmp_path):
