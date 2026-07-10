@@ -939,20 +939,22 @@ class ScreenRecorder {
     const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     let output = blob;
     let extension = this.recorder.mimeType.includes("mp4") ? "mp4" : "webm";
-    try {
-      // Server-side ffmpeg finalize: raw MediaRecorder files have a variable
-      // frame rate that strict players (e.g. GNOME Videos) refuse to play.
-      const response = await fetch("/api/record/export", {
-        method: "POST",
-        headers: { "Content-Type": this.recorder.mimeType },
-        body: blob,
-      });
-      if (response.ok) {
-        output = await response.blob();
-        extension = "mp4";
+    if (document.getElementById("record-compat").checked) {
+      try {
+        // Server-side ffmpeg finalize: raw MediaRecorder files have a variable
+        // frame rate that strict players (e.g. GNOME Videos) refuse to play.
+        const response = await fetch("/api/record/export", {
+          method: "POST",
+          headers: { "Content-Type": this.recorder.mimeType },
+          body: blob,
+        });
+        if (response.ok) {
+          output = await response.blob();
+          extension = "mp4";
+        }
+      } catch (error) {
+        // ffmpeg unavailable or request failed; download the raw recording instead.
       }
-    } catch (error) {
-      // ffmpeg unavailable or request failed; download the raw recording instead.
     }
     const link = document.createElement("a");
     link.href = URL.createObjectURL(output);

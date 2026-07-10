@@ -147,10 +147,11 @@ renderer.send_frame([sensor], frame=frame)
 
 ### 浏览器录屏
 
-"录屏"按钮通过浏览器 MediaRecorder API 录制渲染画面。停止时录制会先上传到服务端，
-由 ffmpeg 整理为恒定帧率的 H.264 MP4 再下载——MediaRecorder 的原始输出是可变帧率
-（声明为 0/1），GNOME Videos 等严格的播放器会拒绝播放。服务端没有 ffmpeg 时，直接
-下载原始录制（Chrome/Edge/Safari 为 MP4，Firefox 为 WebM）。它录制
+"录屏"按钮通过浏览器 MediaRecorder API 录制渲染画面。勾选"兼容模式"（默认开启）时，
+停止后录制会上传到服务端，由 ffmpeg 整理为恒定帧率的 H.264 MP4 再下载——MediaRecorder
+的原始输出是可变帧率（声明为 0/1），GNOME Videos 等严格的播放器会拒绝播放。取消勾选
+则跳过转码直接下载原始录制（更快；Chrome/Edge/Safari 为 MP4，Firefox 为 WebM）。服务
+端没有 ffmpeg 时也会自动回退为原始录制。它录制
 的是你实际看到的内容——当前布局下所有传感器小窗的合成画面——实时推流、demo 和
 数据集预览都可以录。录制帧率受浏览器渲染速度限制。
 
