@@ -6,6 +6,7 @@
 import asyncio
 import json
 import signal
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -257,6 +258,61 @@ def test_record_start_twice_returns_conflict(monkeypatch, tmp_path):
     response = client.post("/api/record/start", json={"name": "second"})
     assert response.status_code == 409
     assert response.json()["name"] == "first"
+
+
+def test_record_export_transcodes_to_mp4(tmp_path):
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    ffmpeg = server_module._find_ffmpeg()
+    if ffmpeg is None:
+        pytest.skip("ffmpeg is not available")
+
+    source = tmp_path / "input.mp4"
+    subprocess.run(
+        [
+            ffmpeg,
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=0.4:size=64x64:rate=10",
+            str(source),
+        ],
+        check=True,
+    )
+
+    client = TestClient(server_module.create_app())
+    response = client.post(
+        "/api/record/export",
+        content=source.read_bytes(),
+        headers={"Content-Type": "video/mp4"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "video/mp4"
+    assert response.content[4:8] == b"ftyp"
+
+
+def test_record_export_rejects_invalid_video():
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    if server_module._find_ffmpeg() is None:
+        pytest.skip("ffmpeg is not available")
+
+    client = TestClient(server_module.create_app())
+    response = client.post(
+        "/api/record/export",
+        content=b"not a video",
+        headers={"Content-Type": "video/mp4"},
+    )
+
+    assert response.status_code == 400
 
 
 def test_replay_endpoint_requires_name(monkeypatch, tmp_path):

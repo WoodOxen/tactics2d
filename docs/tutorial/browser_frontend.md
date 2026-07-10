@@ -157,9 +157,11 @@ Three complementary recording options are available:
 ### Screen recording (browser)
 
 The 录屏 button records the rendered sensor windows via the browser's
-MediaRecorder API and downloads the result when stopped. The video is saved as
-MP4 (H.264) when the browser supports it (Chrome, Edge, Safari) and falls back
-to WebM otherwise (e.g. Firefox).
+MediaRecorder API. When stopped, the capture is finalized server-side with
+ffmpeg into a constant-frame-rate H.264 MP4 — raw MediaRecorder files declare
+a variable frame rate (0/1) that strict players such as GNOME Videos refuse to
+play. If ffmpeg is not available on the server, the raw recording (MP4 on
+Chrome/Edge/Safari, WebM on Firefox) is downloaded unchanged.
 It captures exactly what you see — all sensor tiles composited in the current
 layout — and works for live streams, demos, and dataset previews alike. The
 capture frame rate is bounded by the browser's rendering speed.

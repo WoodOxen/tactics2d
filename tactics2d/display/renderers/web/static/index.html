@@ -13,7 +13,7 @@
       }
     }
   </script>
-  <script type="module" src="/static/app.js?v=20260710-ui17"></script>
+  <script type="module" src="/static/app.js?v=20260710-ui18"></script>
 </head>
 <body>
   <header class="toolbar">
@@ -139,7 +139,7 @@
         <div class="recording-group">
           <div class="field">
             <label>录屏 · 视频下载</label>
-            <p class="panel-hint">把当前画面录制为视频并自动下载（优先 MP4，浏览器不支持时为 WebM）。</p>
+            <p class="panel-hint">把当前画面录制为视频，停止后自动整理为通用 MP4 下载（需服务端 ffmpeg，缺失时下载原始格式）。</p>
           </div>
           <button id="record-screen" class="secondary-button" type="button">开始录屏</button>
         </div>

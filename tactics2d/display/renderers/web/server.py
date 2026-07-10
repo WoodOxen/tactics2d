@@ -11,6 +11,9 @@ import logging
 import math
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 import time
 from contextlib import asynccontextmanager
 from functools import partial
@@ -20,12 +23,13 @@ from typing import Any
 import orjson
 
 try:
-    from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+    from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect
     from fastapi.responses import FileResponse, JSONResponse
     from fastapi.staticfiles import StaticFiles
 except ImportError:
     FastAPI = None
     Request = None
+    Response = None
     WebSocket = None
     WebSocketDisconnect = None
     FileResponse = None
@@ -351,6 +355,59 @@ def _recordings_dir() -> Path:
         return Path(env).expanduser()
     cache_home = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
     return cache_home / "tactics2d" / "recordings"
+
+
+def _find_ffmpeg() -> str | None:
+    exe = shutil.which("ffmpeg")
+    if exe:
+        return exe
+    try:
+        import imageio_ffmpeg
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return None
+
+
+def _transcode_to_mp4(ffmpeg: str, data: bytes, suffix: str) -> bytes:
+    """Re-encode a MediaRecorder capture into a constant-frame-rate H.264 MP4.
+
+    Raw MediaRecorder output has a variable frame rate (declared as 0/1),
+    which strict players such as GNOME Videos refuse to play.
+    """
+
+    with tempfile.TemporaryDirectory() as tmp:
+        src = Path(tmp) / f"input{suffix}"
+        dst = Path(tmp) / "output.mp4"
+        src.write_bytes(data)
+        result = subprocess.run(
+            [
+                ffmpeg,
+                "-y",
+                "-v",
+                "error",
+                "-i",
+                str(src),
+                "-r",
+                "30",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "20",
+                "-pix_fmt",
+                "yuv420p",
+                "-movflags",
+                "+faststart",
+                str(dst),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise ValueError(result.stderr.strip()[-500:] or "ffmpeg failed")
+        return dst.read_bytes()
 
 
 def _load_recording(path: Path) -> list[dict]:
@@ -939,6 +996,28 @@ def create_app(demo: bool = False, max_fps: int = 30):
             return {"status": "idle", "message": "not recording"}
         info = manager.stop_recording()
         return {"status": "saved", "message": f"saved {info['frames']} frames", **info}
+
+    @app.post("/api/record/export")
+    async def record_export(request: Request):
+        ffmpeg = _find_ffmpeg()
+        if ffmpeg is None:
+            return JSONResponse(
+                status_code=501,
+                content={"status": "error", "message": "ffmpeg is not available on the server"},
+            )
+        data = await request.body()
+        if not data:
+            return JSONResponse(
+                status_code=400, content={"status": "error", "message": "empty body"}
+            )
+        content_type = request.headers.get("content-type") or ""
+        suffix = ".webm" if "webm" in content_type else ".mp4"
+        try:
+            output = await _to_thread(_transcode_to_mp4, ffmpeg, data, suffix)
+        except Exception as exc:
+            LOGGER.warning("Screen recording export failed: %s", exc)
+            return JSONResponse(status_code=400, content={"status": "error", "message": str(exc)})
+        return Response(content=output, media_type="video/mp4")
 
     @app.get("/api/recordings")
     async def list_recordings():
