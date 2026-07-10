@@ -872,12 +872,14 @@ class ScreenRecorder {
   }
 
   supportedMimeType() {
-    // Prefer MP4 (H.264) for out-of-the-box player compatibility; fall back to WebM.
+    // Prefer VP9: the browser's realtime H.264 encoder leaves ghost trails of
+    // uncorrected residual blocks behind moving vehicles on flat scenes. The
+    // compatibility-mode transcode turns the capture into H.264 MP4 anyway.
     const types = [
-      "video/mp4;codecs=avc1.42E01E",
-      "video/mp4",
       "video/webm;codecs=vp9",
       "video/webm;codecs=vp8",
+      "video/mp4;codecs=avc1.42E01E",
+      "video/mp4",
       "video/webm",
     ];
     return types.find((type) => MediaRecorder.isTypeSupported(type)) || null;
@@ -896,7 +898,13 @@ class ScreenRecorder {
     this.context = this.canvas.getContext("2d");
     this.chunks = [];
     this.stream = this.canvas.captureStream(30);
-    this.recorder = new MediaRecorder(this.stream, { mimeType });
+    // Explicit bitrate: the browser default (~2.5 Mbps realtime baseline) starves
+    // flat dark scenes, leaving ghost trails of residual blocks behind moving cars.
+    const videoBitsPerSecond = Math.min(
+      30e6,
+      Math.max(6e6, Math.round(this.canvas.width * this.canvas.height * 30 * 0.4))
+    );
+    this.recorder = new MediaRecorder(this.stream, { mimeType, videoBitsPerSecond });
     this.recorder.addEventListener("dataavailable", (event) => {
       if (event.data.size) this.chunks.push(event.data);
     });

@@ -162,9 +162,11 @@ is finalized server-side with ffmpeg into a constant-frame-rate H.264 MP4
 with 4-pixel-aligned dimensions — raw MediaRecorder files declare a variable
 frame rate (0/1) that strict players such as GNOME Videos refuse to play,
 and misaligned frame widths crash some hardware-accelerated decoders
-(e.g. GStreamer VA-API). Untick 兼容模式 to skip the
-transcode and download the raw recording directly (faster; MP4 on
-Chrome/Edge/Safari, WebM on Firefox). ffmpeg needs no extra installation: it is
+(e.g. GStreamer VA-API). The capture itself
+prefers VP9, whose realtime encoder — unlike the browser's H.264 one —
+leaves no ghost trails behind moving vehicles. Untick 兼容模式 to skip the
+transcode and download the raw recording directly (faster; WebM on most
+browsers, MP4 on Safari). ffmpeg needs no extra installation: it is
 resolved from `PATH` or from the bundled `imageio-ffmpeg` core dependency, and
 the raw file is used automatically when neither is available.
 It captures exactly what you see — all sensor tiles composited in the current

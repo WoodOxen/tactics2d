@@ -400,7 +400,7 @@ def _transcode_to_mp4(ffmpeg: str, data: bytes, suffix: str) -> bytes:
                 "-preset",
                 "veryfast",
                 "-crf",
-                "20",
+                "18",
                 "-pix_fmt",
                 "yuv420p",
                 "-movflags",
