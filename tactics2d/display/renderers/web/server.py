@@ -39,6 +39,21 @@ except ImportError:
 LOGGER = logging.getLogger(__name__)
 
 
+def _json_default(value):
+    if isinstance(value, Path):
+        return str(value)
+    if hasattr(value, "tolist"):
+        return value.tolist()
+    if isinstance(value, set):
+        return list(value)
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable.")
+
+
+def _json_dumps(obj: Any) -> bytes:
+    """Serialize frontend messages whose payloads may carry numpy scalars or arrays."""
+    return orjson.dumps(obj, default=_json_default, option=orjson.OPT_SERIALIZE_NUMPY)
+
+
 async def _to_thread(func, /, *args, **kwargs):
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, partial(func, *args, **kwargs))
@@ -92,7 +107,7 @@ class ConnectionManager:
         self._clients = [client for client in self._clients if client is not websocket]
 
     async def broadcast(self, message: dict) -> int:
-        payload = orjson.dumps(message).decode("utf-8")
+        payload = _json_dumps(message).decode("utf-8")
         clients = tuple(self._clients)
 
         delivered = 0
@@ -191,7 +206,7 @@ class ConnectionManager:
 
     def _write_recording_line(self, frame_id: Any, payload: dict) -> None:
         record = {"frame_id": frame_id, "time": time.time(), "payload": payload}
-        self._recording_file.write(orjson.dumps(record) + b"\n")
+        self._recording_file.write(_json_dumps(record) + b"\n")
         self._recording_frames += 1
 
     def record_ack(self, frame_id: Any) -> None:
@@ -1066,7 +1081,7 @@ def create_app(demo: bool = False, max_fps: int = 30):
             orjson.dumps({"type": "client.count", "clients": manager.client_count}).decode("utf-8")
         )
         if manager._last_snapshot_message is not None:
-            await websocket.send_text(orjson.dumps(manager._last_snapshot_message).decode("utf-8"))
+            await websocket.send_text(_json_dumps(manager._last_snapshot_message).decode("utf-8"))
         try:
             while True:
                 raw_message = await websocket.receive_text()

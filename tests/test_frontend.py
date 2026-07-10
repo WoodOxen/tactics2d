@@ -298,6 +298,34 @@ def test_record_export_transcodes_to_mp4(tmp_path):
     assert response.content[4:8] == b"ftyp"
 
 
+def test_publish_frame_serializes_numpy_payload(tmp_path):
+    """Parser-built payloads (e.g. inD pedestrians) may carry numpy scalars."""
+    np = pytest.importorskip("numpy")
+
+    manager = server_module.ConnectionManager()
+    manager.start_recording(tmp_path / "numpy.jsonl")
+    payload = {
+        "frame": np.int64(1600),
+        "sensors": [
+            {
+                "id": "cam",
+                "position": [np.float64(1.5), np.float64(-2.5)],
+                "participant_data": {
+                    "participants": [{"id": 9, "position": np.array([1.0, 2.0])}]
+                },
+            }
+        ],
+    }
+    asyncio.run(manager.publish_frame(payload, frame_id=np.int64(1600)))
+    manager.stop_recording()
+
+    lines = [json.loads(line) for line in (tmp_path / "numpy.jsonl").read_text().splitlines()]
+    sensor = lines[-1]["payload"]["sensors"][0]
+    assert lines[-1]["frame_id"] == 1600
+    assert sensor["position"] == [1.5, -2.5]
+    assert sensor["participant_data"]["participants"][0]["position"] == [1.0, 2.0]
+
+
 def test_record_export_pads_to_aligned_dimensions(tmp_path):
     """Widths that are not a multiple of 4 crash buggy hardware H.264 decoders."""
     pytest.importorskip("fastapi")

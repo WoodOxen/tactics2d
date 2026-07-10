@@ -3,7 +3,6 @@
 
 """Camera implementation."""
 
-
 import time
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -329,8 +328,8 @@ class BEVCamera(SensorBase):
                     {
                         "id": id_,
                         "shape": "circle",
-                        "position": [participant_geometry.x, participant_geometry.y],
-                        "radius": participant_radius,
+                        "position": [float(participant_geometry.x), float(participant_geometry.y)],
+                        "radius": float(participant_radius),
                         "color": participant.color,
                         "type": self._get_type(participant),
                         "line_width": 1,
