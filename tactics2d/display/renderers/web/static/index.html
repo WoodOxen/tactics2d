@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tactics2D Frontend</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2357b6a8'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/static/styles.css?v=20260601-ui11">
+  <link rel="stylesheet" href="/static/styles.css?v=20260710-ui20">
   <script type="importmap">
     {
       "imports": {
@@ -138,7 +138,7 @@
         <h3>录制</h3>
         <div class="recording-group">
           <div class="field">
-            <label>录屏 · 视频下载</label>
+            <label class="group-title">录屏 · 视频下载</label>
             <p class="panel-hint">把当前画面录制为视频并自动下载。兼容模式经服务端 ffmpeg 转为恒帧率 MP4，通用播放器可直接播放；关闭则直接下载原始录制（更快，部分播放器不支持）。</p>
           </div>
           <label class="check-field">
@@ -149,7 +149,7 @@
         </div>
         <div class="recording-group">
           <div class="field">
-            <label for="record-name">帧录制 · 服务端可回放</label>
+            <label class="group-title" for="record-name">帧录制 · 服务端可回放</label>
             <p class="panel-hint">在服务端记录帧数据，可随时在下方选择回放。</p>
             <input id="record-name" placeholder="录制名（可留空）" autocomplete="off">
           </div>

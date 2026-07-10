@@ -162,8 +162,9 @@ is finalized server-side with ffmpeg into a constant-frame-rate H.264 MP4 —
 raw MediaRecorder files declare a variable frame rate (0/1) that strict
 players such as GNOME Videos refuse to play. Untick 兼容模式 to skip the
 transcode and download the raw recording directly (faster; MP4 on
-Chrome/Edge/Safari, WebM on Firefox). The raw file is also used automatically
-when ffmpeg is not available on the server.
+Chrome/Edge/Safari, WebM on Firefox). ffmpeg needs no extra installation: it is
+resolved from `PATH` or from the bundled `imageio-ffmpeg` core dependency, and
+the raw file is used automatically when neither is available.
 It captures exactly what you see — all sensor tiles composited in the current
 layout — and works for live streams, demos, and dataset previews alike. The
 capture frame rate is bounded by the browser's rendering speed.

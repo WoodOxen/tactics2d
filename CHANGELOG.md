@@ -5,6 +5,7 @@
 
 ### Added
 
+- Added `imageio-ffmpeg` as a core dependency so the screen-recording compatibility mode works out of the box without a system ffmpeg.
 - Added recording capabilities to the browser frontend: a screen-recording button that captures the composited sensor views into a downloadable video via MediaRecorder (MP4/H.264 when the browser supports it, WebM fallback), and server-side frame recording/replay (`POST /api/record/start|stop`, `GET /api/recordings`, `POST /api/preview/replay`) that stores published frame payloads as JSONL (seeded with the current scene snapshot) under `~/.cache/tactics2d/recordings/` (`TACTICS2D_RECORD_DIR` to override) and replays them through the preview pipeline; documented the parallel Python-side `GifRecorder` offline rendering pattern.
 - Added dataset and map discovery to the browser frontend: a configurable data root (`tactics2d start --data-root`, the `TACTICS2D_DATA_ROOT` environment variable, or the `./data` repository convention) is scanned for LevelX recordings in the official layout and for available OSM maps, and the browser forms now use two-level selection-based interaction (dataset → recording with recordings grouped by registered map location, and dataset → map) with automatic folder and map resolution instead of manual path input; manual path fields remain available under the advanced section.
 - Refined structured road-segment generators, including fork/merge, ramp, intersection, two-way road, and related test coverage.
