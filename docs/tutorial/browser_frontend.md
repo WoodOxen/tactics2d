@@ -156,16 +156,18 @@ Three complementary recording options are available:
 
 ### Screen recording (browser)
 
-The 录屏 button in the bottom bar records the rendered sensor windows into a
-`.webm` video via the browser's MediaRecorder API and downloads it when stopped.
+The 录屏 button records the rendered sensor windows via the browser's
+MediaRecorder API and downloads the result when stopped. The video is saved as
+MP4 (H.264) when the browser supports it (Chrome, Edge, Safari) and falls back
+to WebM otherwise (e.g. Firefox).
 It captures exactly what you see — all sensor tiles composited in the current
 layout — and works for live streams, demos, and dataset previews alike. The
 capture frame rate is bounded by the browser's rendering speed.
 
 ### Frame recording and replay (server)
 
-The 帧录制 controls on the live panel capture every frame payload published by
-the server into a JSONL file, one line per frame. Recording starts with the
+The 帧录制 controls in the sidebar 录制 section capture every frame payload
+published by the server into a JSONL file, one line per frame. Recording starts with the
 current scene snapshot so a replay reproduces the full scene, and it is not
 thinned when the browser drops frames. Saved recordings appear in the 回放
 dropdown and stream back through the same pipeline as dataset previews

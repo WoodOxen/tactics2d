@@ -872,7 +872,14 @@ class ScreenRecorder {
   }
 
   supportedMimeType() {
-    const types = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+    // Prefer MP4 (H.264) for out-of-the-box player compatibility; fall back to WebM.
+    const types = [
+      "video/mp4;codecs=avc1.42E01E",
+      "video/mp4",
+      "video/webm;codecs=vp9",
+      "video/webm;codecs=vp8",
+      "video/webm",
+    ];
     return types.find((type) => MediaRecorder.isTypeSupported(type)) || null;
   }
 
@@ -929,10 +936,11 @@ class ScreenRecorder {
 
   download() {
     const blob = new Blob(this.chunks, { type: this.recorder.mimeType });
+    const extension = this.recorder.mimeType.includes("mp4") ? "mp4" : "webm";
     const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `tactics2d-${stamp}.webm`;
+    link.download = `tactics2d-${stamp}.${extension}`;
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(link.href), 10000);
   }
