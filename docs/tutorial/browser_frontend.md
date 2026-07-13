@@ -108,7 +108,8 @@ DriveInsightD's scenario vertices) are previewed on their observed timestamps;
 the camera follows the longest-lived vehicle unless `--follow-id` is given;
 global UTM/state-plane coordinates (NuPlan, NGSIM) are shifted to a local
 origin before rendering to stay within float32 resolution; cones, barriers,
-and other static objects are parsed but not yet rendered. Standalone NuPlan map
+and other static objects render as small color-coded markers (rectangles when
+the dataset provides dimensions, dots otherwise). Standalone NuPlan map
 previews (`.gpkg` in the map form) show a capped window around the city center
 to keep the payload browser-friendly.
 

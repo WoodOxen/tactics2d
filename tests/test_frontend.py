@@ -837,6 +837,8 @@ def _write_nuplan_db(path, location="sg-one-north", stamps_ms=(0, 50, 99)):
     connection.execute("INSERT INTO log VALUES (?)", (location,))
     connection.execute("INSERT INTO category VALUES (?, ?)", (b"cat0", "vehicle"))
     connection.execute("INSERT INTO track VALUES (?, ?, 2.0, 4.5, 1.6)", (b"trk0", b"cat0"))
+    connection.execute("INSERT INTO category VALUES (?, ?)", (b"cat1", "traffic_cone"))
+    connection.execute("INSERT INTO track VALUES (?, ?, 0.4, 0.4, 0.8)", (b"trk1", b"cat1"))
     for index, stamp in enumerate(stamps_ms):
         pc_token = f"pc{index}".encode()
         connection.execute(
@@ -845,6 +847,10 @@ def _write_nuplan_db(path, location="sg-one-north", stamps_ms=(0, 50, 99)):
         connection.execute(
             "INSERT INTO lidar_box VALUES (?, ?, ?, ?, 0, 2.0, 4.5, 1.6, 0.1, 1.0, 0.0, 0.0, 0.9)",
             (b"trk0", pc_token, 365000.0 + index, 143000.0),
+        )
+        connection.execute(
+            "INSERT INTO lidar_box VALUES (?, ?, ?, ?, 0, 0.4, 0.4, 0.8, 0.0, 0.0, 0.0, 0.0, 0.9)",
+            (b"trk1", pc_token, 365005.0, 143005.0),
         )
     connection.commit()
     connection.close()
@@ -936,6 +942,41 @@ def test_shift_map_origin_translates_map_and_participants():
     assert vehicle.trajectory.get_state(0).location == (10.0, 20.0)
 
 
+def test_bev_camera_renders_other_participants():
+    from shapely.geometry import Point
+
+    from tactics2d.participant.element import Other
+    from tactics2d.participant.trajectory import State, Trajectory
+
+    cone = Other(id_=1, type_="traffic_cone", trajectory=Trajectory(id_=1), length=0.4, width=0.4)
+    # The constructor drops type_ (ParticipantBase overwrites it with the kwargs default);
+    # parsers such as NuPlanParser assign it after construction, mirrored here.
+    cone.type_ = "traffic_cone"
+    cone.trajectory.add_state(State(frame=0, x=5.0, y=6.0, heading=0.3))
+    # No dimensions and no type_: the pose degenerates to a point rendered as a small circle.
+    marker = Other(id_=2, trajectory=Trajectory(id_=2))
+    marker.trajectory.add_state(State(frame=0, x=-3.0, y=4.0, heading=0.0))
+
+    camera = sensor_module.BEVCamera(0, preview._blank_map("blank"), perception_range=30)
+    geometry_data, _, participant_id_set = camera.update(
+        frame=0,
+        participants={1: cone, 2: marker},
+        participant_ids=[1, 2],
+        position=Point(0, 0),
+    )
+
+    payloads = {p["id"]: p for p in geometry_data["participant_data"]["participants"]}
+    assert participant_id_set == {1, 2}
+    assert payloads[1]["shape"] == "polygon"
+    assert payloads[1]["type"] == "traffic_cone"
+    assert payloads[1]["position"] == [5.0, 6.0]
+    assert payloads[1]["rotation"] == 0.3
+    assert payloads[2]["shape"] == "circle"
+    assert payloads[2]["type"] == "other"
+    assert payloads[2]["position"] == [-3.0, 4.0]
+    assert payloads[2]["radius"] == 0.5
+
+
 def test_load_nuplan_preview_scene_synthetic(monkeypatch, tmp_path):
     import orjson
 
@@ -967,6 +1008,10 @@ def test_load_nuplan_preview_scene_synthetic(monkeypatch, tmp_path):
     assert abs(sensor["position"][1]) <= 200
     road_types = {element["type"] for element in sensor["map_data"]["road_elements"]}
     assert "drivable_area" in road_types
+    participant_types = {
+        element["type"] for element in sensor["participant_data"]["participants"]
+    }
+    assert "traffic_cone" in participant_types
 
 
 def test_load_preview_scene_dispatches_stamped_datasets(monkeypatch, tmp_path):
