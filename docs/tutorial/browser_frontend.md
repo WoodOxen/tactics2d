@@ -184,6 +184,29 @@ Custom simulations usually build the `map_data` and `participant_data` dictionar
 from a `BEVCamera` update result, then pass those dictionaries through
 `FrontendRenderer.send_frame`.
 
+### Multiple environments on one server
+
+Several environments (separate processes included) can stream to the same
+server at once, each rendering into its own view. Give each publisher a unique
+sensor id and pass `remove_missing_sensors=False` so one environment's frames
+do not remove the other's view:
+
+```python
+# Environment A                          # Environment B
+renderer.send_frame(                     renderer.send_frame(
+    [{"id": "env-a", ...}],                  [{"id": "env-b", ...}],
+    frame=frame,                             frame=frame,
+    remove_missing_sensors=False,            remove_missing_sensors=False,
+)                                        )
+```
+
+With `BrowserBackend`, the same is expressed through the constructor:
+`BrowserBackend(sensor_id="env-a", exclusive=False)`. A non-exclusive backend
+also removes only its own view on `close()`. Frame acknowledgements are
+tracked per published frame server-side, so concurrent streams that number
+their frames independently do not interfere with each other's
+`wait_ack`/`drop_if_busy` backpressure.
+
 ## Recording
 
 Three complementary recording options are available:

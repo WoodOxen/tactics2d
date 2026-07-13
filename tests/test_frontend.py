@@ -72,6 +72,52 @@ def test_frontend_frame_drop_when_browser_is_busy():
     assert health["render_busy"] is False
 
 
+def test_concurrent_streams_ack_by_sequence_and_merge_snapshots():
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    def stream_frame(sensor_id, frame):
+        return {
+            "frame": frame,
+            "sensors": [{"id": sensor_id, "perception_range": 50, "position": [0, 0]}],
+            "remove_missing_sensors": False,
+        }
+
+    client = TestClient(server_module.create_app())
+    with client.websocket_connect("/ws") as websocket:
+        assert websocket.receive_json()["type"] == "client.count"
+
+        # Two environments both number their frames from zero.
+        client.post("/api/frame", json=stream_frame("env-a", 0))
+        client.post("/api/frame", json=stream_frame("env-b", 0))
+        message_a = websocket.receive_json()
+        message_b = websocket.receive_json()
+        assert message_a["frame_id"] == message_b["frame_id"] == 0
+        assert message_a["seq"] != message_b["seq"]
+
+        # Acking env-a's frame must not clear env-b's in-flight frame.
+        websocket.send_json({"type": "render.ack", "frame_id": 0, "seq": message_a["seq"]})
+        response = client.post(
+            "/api/frame", json={**stream_frame("env-a", 1), "drop_if_busy": True}
+        )
+        assert response.json()["status"] == "dropped"
+
+        websocket.send_json({"type": "render.ack", "frame_id": 0, "seq": message_b["seq"]})
+        for _ in range(100):
+            if not client.get("/health").json()["render_busy"]:
+                break
+        assert client.get("/health").json()["render_busy"] is False
+
+    # A new browser receives the merged snapshot with both environments.
+    with client.websocket_connect("/ws") as websocket:
+        assert websocket.receive_json()["type"] == "client.count"
+        snapshot = websocket.receive_json()
+
+    sensor_ids = {sensor["id"] for sensor in snapshot["payload"]["sensors"]}
+    assert sensor_ids == {"env-a", "env-b"}
+
+
 def test_frontend_replays_latest_frame_to_new_browser():
     pytest.importorskip("fastapi")
     pytest.importorskip("httpx")
@@ -1841,11 +1887,11 @@ def test_connection_manager_stale_clients_and_ack_timeout():
         assert delivered == 1
         assert manager.client_count == 1
         assert good_client.messages
-        assert await manager.wait_for_ack("late-frame", 0) is False
+        assert await manager.wait_for_ack(99, 0) is False
 
-        wait_task = asyncio.create_task(manager.wait_for_ack("frame", 0.1))
+        wait_task = asyncio.create_task(manager.wait_for_ack(7, 0.1))
         await asyncio.sleep(0)
-        manager.record_ack("frame")
+        manager.record_ack("frame", 7)
         assert await wait_task is True
 
     asyncio.run(exercise())

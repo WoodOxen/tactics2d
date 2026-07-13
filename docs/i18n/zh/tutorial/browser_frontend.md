@@ -172,6 +172,21 @@ renderer.send_frame([sensor], frame=frame)
 自定义仿真通常会先通过 `BEVCamera.update` 得到 `map_data` 和 `participant_data`，再把
 这些字典传给 `FrontendRenderer.send_frame`。
 
+### 多环境共用一个服务器
+
+多个环境（包括不同进程）可以同时向同一个服务器推流，各自渲染到独立视图。
+每个发布端使用唯一的传感器 id，并传 `remove_missing_sensors=False`，避免一个
+环境的帧把另一个环境的视图从浏览器删除：
+
+```python
+renderer.send_frame([{"id": "env-a", ...}], frame=frame, remove_missing_sensors=False)
+```
+
+使用 `BrowserBackend` 时通过构造参数表达同样的语义：
+`BrowserBackend(sensor_id="env-a", exclusive=False)`；非独占的 backend 在
+`close()` 时也只移除自己的视图。帧确认在服务端按发布序号跟踪，因此各自独立
+编号帧的并发流不会干扰彼此的 `wait_ack`/`drop_if_busy` 背压。
+
 ## 录像
 
 提供三种互补的录像方式：

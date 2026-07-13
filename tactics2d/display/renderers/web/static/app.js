@@ -779,7 +779,7 @@ class RenderManager {
     this.sensors = new Map();
     this.layout = "grid";
     this.userLayout = null;
-    this.pendingFrame = null;
+    this.pendingFrames = new Map();
     this.frameScheduled = false;
     this.renderedFrames = 0;
     this.fpsFrames = 0;
@@ -837,25 +837,29 @@ class RenderManager {
   }
 
   queueFrame(message) {
-    if (this.pendingFrame) this.browserDroppedFrames += 1;
-    this.pendingFrame = message;
+    // Concurrent publishers (multiple environments) interleave their frames;
+    // coalescing per stream keeps one publisher from starving another.
+    const streamKey = message.payload?.sensors?.[0]?.id ?? "__global__";
+    if (this.pendingFrames.has(streamKey)) this.browserDroppedFrames += 1;
+    this.pendingFrames.set(streamKey, message);
     if (this.frameScheduled) return;
 
     this.frameScheduled = true;
-    window.requestAnimationFrame(() => this.renderPendingFrame());
+    window.requestAnimationFrame(() => this.renderPendingFrames());
   }
 
-  renderPendingFrame() {
+  renderPendingFrames() {
     this.frameScheduled = false;
-    const message = this.pendingFrame;
-    this.pendingFrame = null;
-    if (!message) return;
+    const pending = this.pendingFrames;
+    this.pendingFrames = new Map();
 
-    this.updateFrame(message.payload, message.frame_id);
-    this.recordRenderedFrame(message.frame_id);
+    pending.forEach((message) => {
+      this.updateFrame(message.payload, message.frame_id, message.seq);
+      this.recordRenderedFrame(message.frame_id);
+    });
   }
 
-  updateFrame(payload, frameId) {
+  updateFrame(payload, frameId, seq) {
     // Frame payloads carry a default layout; an explicit user/API choice wins over it.
     if (payload.layout && !this.userLayout) this.setLayout(payload.layout);
     (payload.sensor_id_to_remove || []).forEach((sensorId) => this.removeSensor(sensorId));
@@ -880,7 +884,7 @@ class RenderManager {
     }
 
     if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify({ type: "render.ack", frame_id: frameId }));
+      this.socket.send(JSON.stringify({ type: "render.ack", frame_id: frameId, seq }));
     }
   }
 

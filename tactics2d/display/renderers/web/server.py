@@ -67,9 +67,15 @@ class ConnectionManager:
         self._ack_events = {}
         self._dropped_frames = 0
         self._last_ack = None
+        self._last_ack_seq = None
         self._last_frame_message = None
         self._last_snapshot_message = None
         self._last_frame_id = None
+        self._last_frame_seq = None
+        # Publisher frame ids are not unique across concurrent streams (two
+        # environments both number their frames 0, 1, 2, ...), so ack
+        # bookkeeping is keyed by a server-wide publish sequence instead.
+        self._publish_seq = 0
         self._sensor_snapshots = {}
         self._recording_file = None
         self._recording_path: Path | None = None
@@ -95,8 +101,8 @@ class ConnectionManager:
     def is_render_busy(self) -> bool:
         return (
             self.client_count > 0
-            and self._last_frame_id is not None
-            and self._last_ack != self._last_frame_id
+            and self._last_frame_seq is not None
+            and self._last_ack_seq != self._last_frame_seq
         )
 
     async def connect(self, websocket):
@@ -147,23 +153,28 @@ class ConnectionManager:
                 "dropped_frames": self._dropped_frames,
             }
 
+        self._publish_seq += 1
+        seq = self._publish_seq
         self._last_frame_id = frame_id
+        self._last_frame_seq = seq
         self._last_frame_message = {
             "type": "frame.update",
             "frame_id": frame_id,
+            "seq": seq,
             "payload": payload,
         }
         self._last_snapshot_message = {
             "type": "frame.update",
             "frame_id": frame_id,
+            "seq": seq,
             "payload": self._snapshot_payload(payload),
         }
         delivered = await self.broadcast(self._last_frame_message)
         acked = delivered == 0
         if acked:
-            self.record_ack(frame_id)
+            self.record_ack(frame_id, seq)
         if wait_ack and delivered > 0:
-            acked = await self.wait_for_ack(frame_id, ack_timeout)
+            acked = await self.wait_for_ack(seq, ack_timeout)
 
         return {
             "status": "ok",
@@ -209,17 +220,29 @@ class ConnectionManager:
         self._recording_file.write(_json_dumps(record) + b"\n")
         self._recording_frames += 1
 
-    def record_ack(self, frame_id: Any) -> None:
+    def record_ack(self, frame_id: Any, seq: Any = None) -> None:
         self._last_ack = frame_id
-        event = self._ack_events.pop(frame_id, None)
+        if seq is None and frame_id is not None and frame_id == self._last_frame_id:
+            # Legacy clients echo only the frame id; map it onto the latest
+            # published frame (correct for the single-stream case they serve).
+            seq = self._last_frame_seq
+        if seq is None:
+            return
+        # Only advance: a slow second browser acking an older frame must not
+        # flip the stream back to busy.
+        if self._last_ack_seq is None or seq > self._last_ack_seq:
+            self._last_ack_seq = seq
+        event = self._ack_events.pop(seq, None)
         if event is not None:
             event.set()
 
-    async def wait_for_ack(self, frame_id: Any, timeout: float) -> bool:
-        if self.client_count == 0 or self._last_ack == frame_id:
+    async def wait_for_ack(self, seq: int, timeout: float) -> bool:
+        # Sequences are monotonic, so an ack at or beyond seq covers it even
+        # when the ack landed before this wait started.
+        if self.client_count == 0 or (self._last_ack_seq is not None and self._last_ack_seq >= seq):
             return True
 
-        event = self._ack_events.setdefault(frame_id, asyncio.Event())
+        event = self._ack_events.setdefault(seq, asyncio.Event())
         try:
             await asyncio.wait_for(event.wait(), timeout=max(timeout, 0))
             return True
@@ -1106,7 +1129,7 @@ def create_app(demo: bool = False, max_fps: int = 30):
                 raw_message = await websocket.receive_text()
                 message = orjson.loads(raw_message)
                 if message.get("type") == "render.ack":
-                    manager.record_ack(message.get("frame_id"))
+                    manager.record_ack(message.get("frame_id"), message.get("seq"))
         except WebSocketDisconnect:
             await manager.disconnect(websocket)
             await manager.broadcast({"type": "client.count", "clients": manager.client_count})
