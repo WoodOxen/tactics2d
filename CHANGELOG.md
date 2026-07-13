@@ -26,6 +26,7 @@
 
 ### Fixed
 
+- Fixed `OSMParser` failing on official levelXdata lanelet2 maps (issue #291): OSM keeps node/way/relation ids in independent namespaces while `Map` enforces one, so colliding way/relation ids (6 of 7 official exiD maps) are now pre-scanned and remapped into a free id range with every member reference resolved through the same tables; lanelet relation members that are not listed head-to-tail are stitched by matching endpoints in any order (bridging the nearest gap with a warning), and malformed elements (missing node references, empty member lists) degrade to a skip-with-warning instead of aborting the whole map. All 13 previously failing official maps (exiD lanelet2, raw inD/rounD lanelets) parse now.
 - Fixed `NetXMLParser._get_lane_subtype` incorrectly declared as `@staticmethod` with a `self` parameter, causing all lane parsing to fail silently.
 - Fixed `NetXMLParser._offset_line` referencing undefined normal vector variables when consecutive points have zero distance.
 - Fixed `NetXMLParser` not reading the lane element's `width` attribute, falling back to inaccurate heuristic estimation.
