@@ -817,6 +817,178 @@ def test_resolve_osm_path_official_levelx_maps_layout(tmp_path):
     assert resolved == osm.resolve()
 
 
+def _write_nuplan_db(path, location="sg-one-north", stamps_ms=(0, 50, 99)):
+    """Create a minimal NuPlan sqlite log covering the tables the parser reads."""
+    import sqlite3
+
+    epoch_us = int(dataset_parser.NuPlanParser._DATETIME * 1000)
+    connection = sqlite3.connect(path)
+    connection.executescript("""
+        CREATE TABLE log (location TEXT);
+        CREATE TABLE category (token BLOB, name TEXT);
+        CREATE TABLE track (token BLOB, category_token BLOB, width REAL, length REAL, height REAL);
+        CREATE TABLE lidar_pc (token BLOB, timestamp INTEGER);
+        CREATE TABLE lidar_box (
+            track_token BLOB, lidar_pc_token BLOB, x REAL, y REAL, z REAL,
+            width REAL, length REAL, height REAL, yaw REAL,
+            vx REAL, vy REAL, vz REAL, confidence REAL
+        );
+        """)
+    connection.execute("INSERT INTO log VALUES (?)", (location,))
+    connection.execute("INSERT INTO category VALUES (?, ?)", (b"cat0", "vehicle"))
+    connection.execute("INSERT INTO track VALUES (?, ?, 2.0, 4.5, 1.6)", (b"trk0", b"cat0"))
+    for index, stamp in enumerate(stamps_ms):
+        pc_token = f"pc{index}".encode()
+        connection.execute(
+            "INSERT INTO lidar_pc VALUES (?, ?)", (pc_token, epoch_us + stamp * 1000)
+        )
+        connection.execute(
+            "INSERT INTO lidar_box VALUES (?, ?, ?, ?, 0, 2.0, 4.5, 1.6, 0.1, 1.0, 0.0, 0.0, 0.9)",
+            (b"trk0", pc_token, 365000.0 + index, 143000.0),
+        )
+    connection.commit()
+    connection.close()
+
+
+def _fake_nuplan_map():
+    """Build a small map in UTM-scale coordinates like a NuPlan geopackage."""
+    from shapely.geometry import LineString, Polygon
+
+    from tactics2d.map.element import Area, Junction, Map, RoadLine
+
+    map_ = Map(name="fake-nuplan")
+    map_.add_area(
+        Area(
+            id_="2",
+            geometry=Polygon(
+                [(364900, 142900), (365100, 142900), (365100, 143100), (364900, 143100)]
+            ),
+            subtype="drivable_area",
+        )
+    )
+    map_.add_roadline(
+        RoadLine(
+            id_="1",
+            geometry=LineString([(364900, 142950), (365100, 142950)]),
+            type_="line_thin",
+            subtype="solid",
+        )
+    )
+    map_.add_junction(
+        Junction(
+            id_="3", custom_tags={"shape": [(364950, 142950), (365050, 142950), (365000, 143050)]}
+        )
+    )
+    return map_
+
+
+def test_discover_nuplan_datasets_official_layout(monkeypatch, tmp_path):
+    cache = tmp_path / "nuPlan" / "data" / "cache" / "mini"
+    cache.mkdir(parents=True)
+    (cache / "b.db").write_bytes(b"")
+    (cache / "a.db").write_bytes(b"")
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(tmp_path))
+
+    catalog = preview.discover_nuplan_datasets()
+
+    assert catalog == [
+        {
+            "dataset": "NuPlan",
+            "folder": str((tmp_path / "nuPlan" / "data" / "cache").resolve()),
+            "files": ["mini/a.db", "mini/b.db"],
+        }
+    ]
+
+
+def test_resolve_nuplan_maps_root_official_layout(monkeypatch, tmp_path):
+    monkeypatch.delenv(preview.DATA_ROOT_ENV, raising=False)
+    gpkg = tmp_path / "nuPlan" / "maps" / "sg-one-north" / "9.17.1964" / "map.gpkg"
+    gpkg.parent.mkdir(parents=True)
+    gpkg.write_bytes(b"")
+    folder = tmp_path / "nuPlan" / "data" / "cache"
+    folder.mkdir(parents=True)
+
+    assert preview.resolve_nuplan_maps_root(folder) == (tmp_path / "nuPlan" / "maps").resolve()
+
+    empty = tmp_path / "elsewhere"
+    empty.mkdir()
+    with pytest.raises(FileNotFoundError):
+        preview.resolve_nuplan_maps_root(empty)
+
+
+def test_shift_map_origin_translates_map_and_participants():
+    map_ = _fake_nuplan_map()
+
+    origin = preview._shift_map_origin(map_)
+
+    assert origin == (365000.0, 143000.0)
+    assert map_.boundary == (-100.0, 100.0, -100.0, 100.0)
+    assert list(map_.roadlines["1"].geometry.coords)[0] == (-100.0, -50.0)
+    assert map_.junctions["3"].custom_tags["shape"][0] == (-50.0, -50.0)
+
+    from tactics2d.participant.element import Vehicle
+    from tactics2d.participant.trajectory import State, Trajectory
+
+    vehicle = Vehicle(id_=1, type_="vehicle", trajectory=Trajectory(id_=1), length=4.5, width=2.0)
+    vehicle.trajectory.add_state(State(frame=0, x=365010.0, y=143020.0, heading=0.0))
+    preview._shift_participants({1: vehicle}, origin)
+
+    assert vehicle.trajectory.get_state(0).location == (10.0, 20.0)
+
+
+def test_load_nuplan_preview_scene_synthetic(monkeypatch, tmp_path):
+    import orjson
+
+    cache = tmp_path / "nuPlan" / "data" / "cache" / "mini"
+    cache.mkdir(parents=True)
+    _write_nuplan_db(cache / "log.db")
+    gpkg = tmp_path / "nuPlan" / "maps" / "sg-one-north" / "9.17.1964" / "map.gpkg"
+    gpkg.parent.mkdir(parents=True)
+    gpkg.write_bytes(b"")
+
+    monkeypatch.setattr(
+        dataset_parser.NuPlanParser, "parse_map", lambda self, file, folder=None: _fake_nuplan_map()
+    )
+
+    scene = preview.load_nuplan_preview_scene(
+        folder=tmp_path / "nuPlan" / "data" / "cache", file="mini/log.db", frames=2
+    )
+
+    # The third sweep (99 ms) falls outside the two-frame window.
+    assert scene.frame_ids == [0, 50]
+    assert scene.actual_time_range == (0, 50)
+    assert scene.sensor_id == "NuPlan-log"
+    assert scene.follow_id is not None
+
+    sensor = scene.sensor_for_frame(scene.frame_ids[0])
+    orjson.dumps(sensor)
+    # Trajectories follow the map into origin-local coordinates.
+    assert abs(sensor["position"][0]) <= 200
+    assert abs(sensor["position"][1]) <= 200
+    road_types = {element["type"] for element in sensor["map_data"]["road_elements"]}
+    assert "drivable_area" in road_types
+
+
+def test_load_preview_scene_dispatches_nuplan(monkeypatch, tmp_path):
+    calls = {}
+
+    def fake_loader(**kwargs):
+        calls.update(kwargs)
+        return "nuplan-scene"
+
+    monkeypatch.setattr(preview, "load_nuplan_preview_scene", fake_loader)
+
+    scene = asyncio.run(
+        server_module._load_preview_scene(
+            {"dataset": "nuplan", "folder": str(tmp_path), "file": "mini/a.db", "frames": 12}
+        )
+    )
+
+    assert scene == "nuplan-scene"
+    assert calls["file"] == "mini/a.db"
+    assert calls["frames"] == 12
+
+
 def test_levelx_preview_option_and_path_helpers(monkeypatch, tmp_path):
 
     fake_configs = [
@@ -1361,7 +1533,7 @@ def test_server_preview_control_endpoints(monkeypatch):
     async def fake_run_dataset_preview(manager, status, payload, pause_event):
         status.update({"status": "complete", "source": "dataset", "payload_file": payload["file"]})
 
-    monkeypatch.setattr(server_module, "_run_levelx_dataset_preview", fake_run_dataset_preview)
+    monkeypatch.setattr(server_module, "_run_dataset_preview", fake_run_dataset_preview)
     client = TestClient(server_module.create_app())
 
     assert client.get("/").status_code == 200
@@ -1424,7 +1596,7 @@ def test_server_run_server_and_main(monkeypatch):
     assert ("main", ("127.0.0.1", 9002, False, 30, False)) in calls
 
 
-def test_run_levelx_dataset_preview_updates_status(monkeypatch):
+def test_run_dataset_preview_updates_status(monkeypatch):
 
     class FakeScene:
         sensor_id = "highD-11"
@@ -1451,7 +1623,7 @@ def test_run_levelx_dataset_preview_updates_status(monkeypatch):
         pause_event = asyncio.Event()
         pause_event.set()
         manager = FakeManager()
-        await server_module._run_levelx_dataset_preview(
+        await server_module._run_dataset_preview(
             manager,
             status,
             {
@@ -1477,7 +1649,7 @@ def test_run_levelx_dataset_preview_updates_status(monkeypatch):
         status = {}
         pause_event = asyncio.Event()
         pause_event.set()
-        await server_module._run_levelx_dataset_preview(
+        await server_module._run_dataset_preview(
             FakeManager(),
             status,
             {"dataset": "highD", "folder": "data/highD", "file": "11"},

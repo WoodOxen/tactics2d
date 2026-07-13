@@ -64,13 +64,32 @@ tactics2d preview dataset \
 如果该数据集录像有已注册的地图配置，前端会自动解析对应的 OSM 文件。否则需要显式传入
 `--osm path/to/map.osm`。
 
+预览 NuPlan 日志（城市地图会根据日志自动解析，UTM 量级的坐标在渲染前会平移到局部
+原点）：
+
+```bash
+tactics2d preview dataset \
+  --dataset NuPlan \
+  --folder /path/to/nuPlan/data/cache \
+  --file mini/2021.10.05.07.10.04_veh-52_01442_01802.db \
+  --frames 300
+```
+
 ## 数据集自动发现
 
 服务端会扫描可配置的数据根目录，查找按官方结构存放的 LevelX 数据集
-（`<dataset>/data/<id>_tracks.csv`，或录像文件直接位于数据集目录下）以及可用的
-OSM 地图。检测到的数据集、录像和地图会以两级下拉的形式出现在浏览器表单中，加载
-场景无需手动输入任何路径。录像按其注册的地图位置分组显示，地图先选数据集再选
-具体地图，对应地图自动解析。每个表单的"更多"折叠区仍保留手动路径输入作为兜底。
+（`<dataset>/data/<id>_tracks.csv`，或录像文件直接位于数据集目录下）、NuPlan
+sqlite 日志（`nuPlan/data/cache/<split>/*.db`，或 nuplan-devkit 结构
+`nuplan/dataset/nuplan-v1.1/splits/<split>/*.db`，geopackage 地图放在同级的
+`maps/` 目录）以及可用的 OSM 地图。检测到的数据集、录像和地图会以两级下拉的形式
+出现在浏览器表单中，加载场景无需手动输入任何路径。LevelX 录像按其注册的地图位置
+分组显示，NuPlan 日志按 split 目录分组，地图先选数据集再选具体地图，对应地图自动
+解析。每个表单的"更多"折叠区仍保留手动路径输入作为兜底。
+
+NuPlan 注意事项：激光雷达扫描约 20 Hz 且时间戳有毫秒级抖动，预览按实际观测到的
+时间戳推进；未指定 `--follow-id` 时相机跟随存活最久的车辆；锥桶、护栏等静态目标
+会被解析但暂不渲染。地图表单中单独预览 `.gpkg` 城市地图时只显示地图中心附近的
+一个窗口，以保证浏览器端载荷可控。
 
 数据根目录按以下优先级解析：
 

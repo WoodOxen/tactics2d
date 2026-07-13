@@ -20,6 +20,11 @@ LOGGER = logging.getLogger(__name__)
 
 LEVELX_FRAME_STEP_MS = 40
 
+NUPLAN_DATASET = "NuPlan"
+# NuPlan lidar sweeps are nominally 20 Hz; observed stamps jitter by +-1 ms,
+# so scenes iterate the actual stamp list instead of a fixed-step range.
+NUPLAN_FRAME_STEP_MS = 50
+
 DATA_ROOT_ENV = "TACTICS2D_DATA_ROOT"
 
 _TRACKS_FILE_PATTERN = re.compile(r"^(\d+)_tracks\.csv$")
@@ -32,7 +37,13 @@ _MAP_CONFIG_NAMES = (
     "ROUND_MAP_CONFIG",
     "EXID_MAP_CONFIG",
     "UNID_MAP_CONFIG",
+    "NUPLAN_MAP_CONFIG",
 )
+
+_NUPLAN_DIR_VARIANTS = ("nuPlan", "NuPlan", "nuplan")
+# NuPlan maps are city scale (kilometers); cap the standalone map preview to a
+# window around the map center so the payload stays browser-friendly.
+_NUPLAN_PREVIEW_MAP_RANGE = 500.0
 
 
 @dataclass
@@ -72,29 +83,63 @@ class LevelXPreviewScene:
     def sensor_for_frame(self, frame: int) -> dict[str, Any]:
         """Build one frontend sensor payload for a dataset frame."""
 
-        from shapely.geometry import Point
+        return _build_scene_sensor(self, frame)
 
-        active_ids = _active_participant_ids(self.participants, frame)
-        position, heading = _choose_camera_pose(
-            self.participants, active_ids, frame, self.fallback_position, follow_id=self.follow_id
-        )
-        geometry_data, self.prev_road_id_set, self.prev_participant_id_set = self.camera.update(
-            frame,
-            self.participants,
-            active_ids,
-            self.prev_road_id_set,
-            self.prev_participant_id_set,
-            Point(*position),
-            heading,
-        )
-        return _sensor_payload(
-            self.sensor_id,
-            frame,
-            position,
-            heading,
-            float(self.camera.max_perception_distance),
-            geometry_data,
-        )
+
+@dataclass
+class NuPlanPreviewScene:
+    """Loaded NuPlan scene state used by CLI and server-side previews."""
+
+    dataset_name: str
+    file_id: str
+    sensor_id: str
+    actual_time_range: tuple[int, int]
+    map_: Any
+    camera: Any
+    participants: dict[int, Any]
+    fallback_position: tuple[float, float]
+    frame_ids: list[int] = field(default_factory=list)
+    follow_id: int | None = None
+    prev_road_id_set: set = field(default_factory=set)
+    prev_participant_id_set: set = field(default_factory=set)
+
+    def iter_frames(self):
+        """Yield the lidar sweep timestamps observed in the parsed window."""
+
+        return list(self.frame_ids)
+
+    def sensor_for_frame(self, frame: int) -> dict[str, Any]:
+        """Build one frontend sensor payload for a dataset frame."""
+
+        return _build_scene_sensor(self, frame)
+
+
+def _build_scene_sensor(scene, frame: int) -> dict[str, Any]:
+    """Build one frontend sensor payload for a loaded preview scene."""
+
+    from shapely.geometry import Point
+
+    active_ids = _active_participant_ids(scene.participants, frame)
+    position, heading = _choose_camera_pose(
+        scene.participants, active_ids, frame, scene.fallback_position, follow_id=scene.follow_id
+    )
+    geometry_data, scene.prev_road_id_set, scene.prev_participant_id_set = scene.camera.update(
+        frame,
+        scene.participants,
+        active_ids,
+        scene.prev_road_id_set,
+        scene.prev_participant_id_set,
+        Point(*position),
+        heading,
+    )
+    return _sensor_payload(
+        scene.sensor_id,
+        frame,
+        position,
+        heading,
+        float(scene.camera.max_perception_distance),
+        geometry_data,
+    )
 
 
 def canonical_levelx_dataset(dataset: str) -> str:
@@ -201,6 +246,116 @@ def discover_levelx_datasets() -> list[dict[str, Any]]:
     return discovered
 
 
+def _list_nuplan_db_files(folder: Path) -> list[str]:
+    """Return NuPlan ``.db`` logs below a folder, relative with split prefix."""
+
+    files: set[Path] = set()
+    try:
+        for pattern in ("*.db", "*/*.db"):
+            files.update(folder.glob(pattern))
+    except OSError:
+        return []
+    return sorted(str(path.relative_to(folder)) for path in files)
+
+
+def discover_nuplan_datasets() -> list[dict[str, Any]]:
+    """Scan the data roots for NuPlan sqlite logs.
+
+    Both the tactics2d convention ``nuPlan/data/cache/<split>/*.db`` and the
+    nuplan-devkit convention ``nuplan/dataset/nuplan-v1.1/splits/<split>/*.db``
+    are recognized. The first candidate folder containing logs wins.
+    """
+
+    for root in get_data_roots():
+        for variant in _NUPLAN_DIR_VARIANTS:
+            candidate = root / variant
+            if not candidate.is_dir():
+                continue
+            for folder in (
+                candidate / "data" / "cache",
+                candidate / "dataset" / "nuplan-v1.1" / "splits",
+                candidate,
+            ):
+                files = _list_nuplan_db_files(folder)
+                if files:
+                    return [{"dataset": NUPLAN_DATASET, "folder": str(folder), "files": files}]
+    return []
+
+
+def resolve_nuplan_maps_root(folder: Path) -> Path:
+    """Resolve the NuPlan ``maps/`` root for a log folder.
+
+    A candidate qualifies when it contains at least one registered
+    ``<location>/<version>/map.gpkg`` from ``NUPLAN_MAP_CONFIG``.
+    """
+
+    from tactics2d.map.map_config import NUPLAN_MAP_CONFIG
+
+    folder = folder.expanduser().resolve()
+    candidates = [
+        folder / "maps",
+        folder.parent / "maps",
+        folder.parent.parent / "maps",
+        folder.parent.parent.parent / "maps",
+        Path.cwd() / "tactics2d" / "data" / "map" / "NuPlan" / "maps",
+        Path.cwd() / "tactics2d" / "data" / "map" / "NuPlan",
+    ]
+    for root in get_data_roots():
+        for variant in _NUPLAN_DIR_VARIANTS:
+            candidates.append(root / variant / "maps")
+
+    for candidate in candidates:
+        if not candidate.is_dir():
+            continue
+        for config in NUPLAN_MAP_CONFIG.values():
+            if (candidate / config["folder"] / config["gpkg_file"]).exists():
+                return candidate.resolve()
+
+    checked = ", ".join(str(candidate) for candidate in candidates)
+    raise FileNotFoundError(f"Could not find a NuPlan maps folder. Checked: {checked}")
+
+
+def discover_nuplan_maps(
+    dataset_catalog: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Return registered NuPlan geopackage maps that exist on disk."""
+
+    from tactics2d.map.map_config import NUPLAN_MAP_CONFIG
+
+    folders = [
+        Path(entry["folder"])
+        for entry in (dataset_catalog or [])
+        if entry.get("dataset") == NUPLAN_DATASET
+    ]
+    folders.append(Path.cwd() / "data" / NUPLAN_DATASET)
+
+    maps_root = None
+    for folder in folders:
+        try:
+            maps_root = resolve_nuplan_maps_root(folder)
+            break
+        except FileNotFoundError:
+            continue
+    if maps_root is None:
+        return []
+
+    maps = []
+    for name, config in NUPLAN_MAP_CONFIG.items():
+        path = maps_root / config["folder"] / config["gpkg_file"]
+        if not path.exists():
+            continue
+        location = str(Path(config["folder"]).parts[0])
+        maps.append(
+            {
+                "name": name,
+                "dataset": NUPLAN_DATASET,
+                "osm_path": str(path.resolve()),
+                "description": location if location != name else "",
+            }
+        )
+    return maps
+
+
 def discover_maps(dataset_catalog: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     """Return maps that are actually available on disk.
 
@@ -231,6 +386,10 @@ def discover_maps(dataset_catalog: list[dict[str, Any]] | None = None) -> list[d
                 "description": config.get("name", name),
             }
         )
+
+    for entry in discover_nuplan_maps(dataset_catalog):
+        known_paths.add(Path(entry["osm_path"]))
+        maps.append(entry)
 
     for root in get_data_roots():
         for pattern in ("*.osm", "*/*.osm", "*/*/*.osm"):
@@ -267,11 +426,13 @@ def list_levelx_preview_options() -> dict[str, Any]:
                 "dataset": dataset,
                 "osm_file": config.get("osm_file"),
                 "trajectory_files": config.get("trajectory_files", []),
-                "description": config.get("name", name),
+                # NuPlan configs carry no display name; fall back to the key
+                # (the UI already shows the key, so avoid repeating it).
+                "description": config.get("name", ""),
             }
         )
 
-    datasets = discover_levelx_datasets()
+    datasets = discover_levelx_datasets() + discover_nuplan_datasets()
     maps = discover_maps(datasets)
     first = datasets[0] if datasets else None
 
@@ -382,18 +543,174 @@ def ensure_frontend_server(host: str, port: int, max_fps: int, open_browser: boo
     return renderer
 
 
+def _shift_map_origin(map_: Any) -> tuple[float, float]:
+    """Translate a map's geometry to a local origin at its center.
+
+    NuPlan maps carry UTM-scale coordinates (up to ~4.7e6 m). Three.js renders
+    with float32, whose resolution at that magnitude is 0.5 m, so geometry must
+    be shifted near the origin before it reaches the browser. Returns the
+    subtracted ``(origin_x, origin_y)``.
+    """
+
+    from shapely import affinity
+
+    boundary = map_.boundary
+    origin_x = float(round(0.5 * (boundary[0] + boundary[1])))
+    origin_y = float(round(0.5 * (boundary[2] + boundary[3])))
+
+    def shifted(geometry):
+        return affinity.translate(geometry, xoff=-origin_x, yoff=-origin_y)
+
+    for roadline in map_.roadlines.values():
+        if roadline.geometry is not None:
+            roadline.geometry = shifted(roadline.geometry)
+    for lane in map_.lanes.values():
+        for attr in ("geometry", "left_side", "right_side"):
+            geometry = getattr(lane, attr, None)
+            if geometry is not None:
+                setattr(lane, attr, shifted(geometry))
+    for area in map_.areas.values():
+        if area.geometry is not None:
+            area.geometry = shifted(area.geometry)
+    for junction in map_.junctions.values():
+        if getattr(junction, "geometry", None) is not None:
+            junction.geometry = shifted(junction.geometry)
+        shape = (junction.custom_tags or {}).get("shape")
+        if shape:
+            junction.custom_tags["shape"] = [(x - origin_x, y - origin_y) for x, y in shape]
+
+    # Keep the cached boundary consistent so later readers (e.g. a camera
+    # constructed without an explicit perception range) see local coordinates.
+    map_._boundary = (
+        boundary[0] - origin_x,
+        boundary[1] - origin_x,
+        boundary[2] - origin_y,
+        boundary[3] - origin_y,
+    )
+    return origin_x, origin_y
+
+
+def _shift_participants(participants: dict[int, Any], origin: tuple[float, float]) -> None:
+    """Translate all participant states by ``-origin`` in place."""
+
+    origin_x, origin_y = origin
+    for participant in participants.values():
+        for state in participant.trajectory.history_states.values():
+            state.x -= origin_x
+            state.y -= origin_y
+
+
+def load_nuplan_preview_scene(
+    folder: Path,
+    file: str,
+    map_config: str | None = None,
+    frames: int = 300,
+    start_time_ms: int | None = None,
+    follow_id: int | None = None,
+    perception_range: float = 80.0,
+) -> NuPlanPreviewScene:
+    """Load a NuPlan scene and return a frame payload source.
+
+    The map is resolved from the log's location via ``NUPLAN_MAP_CONFIG``
+    unless ``map_config`` names a location explicitly. Map and trajectories are
+    shifted to a local origin at the map center (see ``_shift_map_origin``).
+    """
+
+    import sqlite3
+
+    from tactics2d.dataset_parser import NuPlanParser
+    from tactics2d.display.sensor import BEVCamera
+    from tactics2d.map.map_config import NUPLAN_MAP_CONFIG
+    from tactics2d.participant.element import Vehicle
+
+    folder = folder.expanduser().resolve()
+    parser = NuPlanParser()
+
+    location = map_config or parser.get_location(str(file), str(folder))
+    if location not in NUPLAN_MAP_CONFIG:
+        raise KeyError(
+            f"{location} has no registered NuPlan map config. "
+            f"Choose one of: {', '.join(NUPLAN_MAP_CONFIG)}."
+        )
+    configs = NUPLAN_MAP_CONFIG[location]
+
+    # Query the sweep range cheaply so only the requested window is parsed.
+    with sqlite3.connect(folder / file) as connection:
+        row = connection.execute("SELECT MIN(timestamp), MAX(timestamp) FROM lidar_pc;").fetchone()
+    if row is None or row[0] is None:
+        raise RuntimeError(f"No lidar sweeps found in NuPlan log {file}.")
+    log_start_ms = int(row[0] / 1000 - NuPlanParser._DATETIME)
+
+    start = log_start_ms if start_time_ms is None else max(start_time_ms, log_start_ms)
+    # Half a step of margin absorbs sweep jitter; the frame list is truncated below.
+    end = start + (max(1, frames) - 1) * NUPLAN_FRAME_STEP_MS + NUPLAN_FRAME_STEP_MS // 2
+
+    LOGGER.info("Loading NuPlan log %s from %s (%s-%s ms).", file, folder, start, end)
+    participants, _ = parser.parse_trajectory(str(file), str(folder), time_range=(start, end))
+    if not participants:
+        raise RuntimeError(f"No participants found in NuPlan log {file}.")
+
+    maps_root = resolve_nuplan_maps_root(folder)
+    map_path = str(Path(configs["folder"]) / configs["gpkg_file"])
+    LOGGER.info("Loading map %s from %s.", map_path, maps_root)
+    map_ = parser.parse_map(map_path, str(maps_root))
+
+    origin = _shift_map_origin(map_)
+    _shift_participants(participants, origin)
+
+    frame_ids = sorted({frame for p in participants.values() for frame in p.trajectory.frames})
+    frame_ids = frame_ids[: max(1, frames)]
+
+    if follow_id is None:
+        # Cones and barriers are participants too; follow the longest-lived vehicle.
+        vehicles = [p for p in participants.values() if isinstance(p, Vehicle)]
+        if vehicles:
+            follow_id = max(vehicles, key=lambda p: len(p.trajectory.frames)).id_
+
+    camera = BEVCamera(id_=0, map_=map_, perception_range=perception_range)
+    boundary = map_.boundary
+    fallback_position = (0.5 * (boundary[0] + boundary[1]), 0.5 * (boundary[2] + boundary[3]))
+
+    return NuPlanPreviewScene(
+        dataset_name=NUPLAN_DATASET,
+        file_id=str(file),
+        sensor_id=f"{NUPLAN_DATASET}-{Path(file).stem}",
+        actual_time_range=(int(frame_ids[0]), int(frame_ids[-1])),
+        map_=map_,
+        camera=camera,
+        participants=participants,
+        fallback_position=fallback_position,
+        frame_ids=[int(frame) for frame in frame_ids],
+        follow_id=follow_id,
+    )
+
+
 def build_map_preview_sensor(
     osm_path: Path, lanelet2: bool, configs: dict[str, Any] | None = None
 ) -> dict[str, Any]:
-    """Build one frontend sensor payload for an OSM map preview."""
+    """Build one frontend sensor payload for a map preview.
+
+    ``.gpkg`` files are parsed as NuPlan geopackage maps and previewed in a
+    capped window around the map center; anything else goes through
+    ``OSMParser``.
+    """
 
     from shapely.geometry import Point
 
     from tactics2d.display.sensor import BEVCamera
-    from tactics2d.map.parser import OSMParser
 
-    map_ = OSMParser(lanelet2=lanelet2).parse(str(osm_path), configs)
-    camera = BEVCamera(id_=0, map_=map_)
+    if osm_path.suffix.lower() == ".gpkg":
+        from tactics2d.dataset_parser import NuPlanParser
+
+        map_ = NuPlanParser().parse_map(str(osm_path))
+        _shift_map_origin(map_)
+        camera_range = _NUPLAN_PREVIEW_MAP_RANGE
+    else:
+        from tactics2d.map.parser import OSMParser
+
+        map_ = OSMParser(lanelet2=lanelet2).parse(str(osm_path), configs)
+        camera_range = None
+    camera = BEVCamera(id_=0, map_=map_, perception_range=camera_range)
     x_center = 0.5 * (map_.boundary[0] + map_.boundary[1])
     y_center = 0.5 * (map_.boundary[2] + map_.boundary[3])
     geometry_data, _, _ = camera.update(0, {}, [], set(), set(), Point(x_center, y_center), 0)
@@ -416,8 +733,10 @@ def build_map_preview_sensor(
 
     preview_range = max(20.0, min(max(x_span, y_span) / 2, max(y_span * 3, x_span / 8)))
 
+    # Every NuPlan geopackage is named map.gpkg; label those by location dir.
+    label = osm_path.stem if osm_path.stem != "map" else osm_path.parent.parent.name
     return {
-        "id": f"map-{osm_path.stem}",
+        "id": f"map-{label}",
         "perception_range": float(preview_range),
         "viewport_aspect": float(max(1.0, x_span / (2 * preview_range))),
         "position": [float(x_center), float(y_center)],

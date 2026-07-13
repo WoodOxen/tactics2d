@@ -4,27 +4,45 @@ const DEFAULT_VIEWPORT_ASPECT = 16 / 9;
 
 const COLORS = {
   area: "#2f3542",
-  black: "#101418",
   bicycle: "#fd9644",
+  bicycle_lane: "#3a4a52",
+  black: "#101418",
   bus: "#4b6584",
+  crosswalk: "#57606f",
   cyclist: "#fd9644",
+  "dark-gray": "#57606f",
   default: "#a5b1c2",
+  drivable_area: "#2f3542",
+  gray: "#9aa7b3",
   heading_arrow: "#101418",
   hole: "#f4f7f7",
   highway: "#2f3542",
+  junction: "#353d4a",
   lane: "#2f3542",
   "light-blue": "#45aaf2",
+  "light-gray": "#c3ccd4",
+  "light-orange": "#fd9644",
   "light-turquoise": "#2bcbba",
+  parking: "#262c36",
   pedestrian: "#45aaf2",
   road: "#2f3542",
+  road_segment: "#2f3542",
   roadline: "#f4f7f7",
   vehicle: "#2bcbba",
+  walkway: "#c8d1da",
   white: "#f4f7f7"
 };
 
 const ORDERS = {
+  junction: 0.8,
+  bicycle_lane: 1,
+  drivable_area: 1,
+  parking: 1,
   road: 1,
+  road_segment: 1,
+  walkway: 1.2,
   lane: 2,
+  crosswalk: 2.5,
   hole: 3,
   roadline: 4,
   solid: 4,
@@ -374,29 +392,49 @@ class PreviewControls {
       );
     }
 
-    // Group recordings by their registered map location.
     fileSelect.replaceChildren();
-    const remaining = new Set(files);
-    configs.forEach((config) => {
-      const members = files.filter((fileId) =>
-        (config.trajectory_files || []).includes(fileId)
-      );
-      if (!members.length) return;
-      const group = document.createElement("optgroup");
-      group.label = config.description || config.name;
-      members.forEach((fileId) => {
-        group.appendChild(this.fileOption(fileId));
-        remaining.delete(fileId);
+    if (files.length && typeof files[0] === "string" && files[0].includes("/")) {
+      // Path-style recordings (NuPlan .db logs): group by split folder.
+      const splits = new Map();
+      files.forEach((file) => {
+        const split = file.split("/")[0];
+        if (!splits.has(split)) splits.set(split, []);
+        splits.get(split).push(file);
       });
-      fileSelect.appendChild(group);
-    });
-    if (remaining.size) {
-      const group = document.createElement("optgroup");
-      group.label = "未注册位置";
-      [...remaining].sort((a, b) => a - b).forEach((fileId) => {
-        group.appendChild(this.fileOption(fileId));
+      splits.forEach((members, split) => {
+        const group = document.createElement("optgroup");
+        group.label = split;
+        members.forEach((file) => {
+          const option = this.fileOption(file);
+          option.textContent = file.split("/").pop();
+          group.appendChild(option);
+        });
+        fileSelect.appendChild(group);
       });
-      fileSelect.appendChild(group);
+    } else {
+      // Group recordings by their registered map location.
+      const remaining = new Set(files);
+      configs.forEach((config) => {
+        const members = files.filter((fileId) =>
+          (config.trajectory_files || []).includes(fileId)
+        );
+        if (!members.length) return;
+        const group = document.createElement("optgroup");
+        group.label = config.description || config.name;
+        members.forEach((fileId) => {
+          group.appendChild(this.fileOption(fileId));
+          remaining.delete(fileId);
+        });
+        fileSelect.appendChild(group);
+      });
+      if (remaining.size) {
+        const group = document.createElement("optgroup");
+        group.label = "未注册位置";
+        [...remaining].sort((a, b) => a - b).forEach((fileId) => {
+          group.appendChild(this.fileOption(fileId));
+        });
+        fileSelect.appendChild(group);
+      }
     }
 
     document.getElementById("dataset-folder").value = entry ? entry.folder : "";

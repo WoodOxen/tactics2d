@@ -68,16 +68,36 @@ tactics2d preview dataset \
 If the dataset recording has a registered map configuration, the frontend resolves
 the matching OSM file automatically. Otherwise pass `--osm path/to/map.osm`.
 
+Preview a NuPlan log (the city map is resolved from the log automatically and the
+UTM-scale coordinates are shifted to a local origin before rendering):
+
+```bash
+tactics2d preview dataset \
+  --dataset NuPlan \
+  --folder /path/to/nuPlan/data/cache \
+  --file mini/2021.10.05.07.10.04_veh-52_01442_01802.db \
+  --frames 300
+```
+
 ## Dataset Discovery
 
 The server scans a configurable data root for LevelX datasets stored in their
 official layout (`<dataset>/data/<id>_tracks.csv`, or the recordings directly in
-the dataset directory) and for available OSM maps. Detected datasets, recordings,
-and maps appear as dropdowns in the browser forms, so scenes can be loaded without
-typing any path. Recordings are grouped by their registered map location, maps are
-selected per dataset, and the matching map is resolved automatically. Manual path
-fields remain available under the advanced ("更多") section of each form as a
-fallback.
+the dataset directory), for NuPlan sqlite logs (`nuPlan/data/cache/<split>/*.db`
+or the nuplan-devkit layout `nuplan/dataset/nuplan-v1.1/splits/<split>/*.db`,
+with the geopackage maps expected in a sibling `maps/` folder), and for available
+OSM maps. Detected datasets, recordings, and maps appear as dropdowns in the
+browser forms, so scenes can be loaded without typing any path. LevelX recordings
+are grouped by their registered map location, NuPlan logs by their split folder,
+maps are selected per dataset, and the matching map is resolved automatically.
+Manual path fields remain available under the advanced ("更多") section of each
+form as a fallback.
+
+NuPlan notes: lidar sweeps are ~20 Hz with millisecond jitter, so previews follow
+the observed sweep timestamps; the camera follows the longest-lived vehicle unless
+`--follow-id` is given; cones, barriers, and other static objects are parsed but
+not yet rendered. Standalone NuPlan map previews (`.gpkg` in the map form) show a
+capped window around the city center to keep the payload browser-friendly.
 
 The data root is resolved in this order:
 

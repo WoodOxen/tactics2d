@@ -548,11 +548,42 @@ def _map_config_from_name(name: str | None) -> dict | None:
     return configs[resolved_name]
 
 
-async def _run_levelx_dataset_preview(
+async def _load_preview_scene(payload: dict):
+    """Load the preview scene matching the payload's dataset family."""
+
+    from .preview import NUPLAN_DATASET, load_levelx_preview_scene, load_nuplan_preview_scene
+
+    if str(payload.get("dataset", "")).lower() == NUPLAN_DATASET.lower():
+        return await _to_thread(
+            load_nuplan_preview_scene,
+            folder=Path(payload["folder"]),
+            file=str(payload["file"]),
+            map_config=payload.get("map_config") or None,
+            frames=int(payload.get("frames", 300)),
+            start_time_ms=_optional_int(payload.get("start_time_ms")),
+            follow_id=_optional_int(payload.get("follow_id")),
+            perception_range=float(payload.get("perception_range", 80.0)),
+        )
+
+    return await _to_thread(
+        load_levelx_preview_scene,
+        dataset=payload["dataset"],
+        folder=Path(payload["folder"]),
+        file=payload["file"],
+        osm_path=_optional_path(payload.get("osm_path")),
+        map_config=payload.get("map_config") or None,
+        lanelet2=bool(payload.get("lanelet2", True)),
+        frames=int(payload.get("frames", 300)),
+        start_time_ms=_optional_int(payload.get("start_time_ms")),
+        ids=_parse_ids(payload.get("ids")),
+        follow_id=_optional_int(payload.get("follow_id")),
+        perception_range=float(payload.get("perception_range", 80.0)),
+    )
+
+
+async def _run_dataset_preview(
     manager: ConnectionManager, status: dict, payload: dict, pause_event: asyncio.Event
 ):
-    from .preview import load_levelx_preview_scene
-
     max_fps = max(1, min(int(payload.get("max_fps", 30)), 100))
     interval = 1.0 / max_fps
     loop = bool(payload.get("loop", False))
@@ -562,20 +593,7 @@ async def _run_levelx_dataset_preview(
 
     try:
         status.update({"status": "loading", "message": "loading dataset"})
-        scene = await _to_thread(
-            load_levelx_preview_scene,
-            dataset=payload["dataset"],
-            folder=Path(payload["folder"]),
-            file=payload["file"],
-            osm_path=_optional_path(payload.get("osm_path")),
-            map_config=payload.get("map_config") or None,
-            lanelet2=bool(payload.get("lanelet2", True)),
-            frames=int(payload.get("frames", 300)),
-            start_time_ms=_optional_int(payload.get("start_time_ms")),
-            ids=_parse_ids(payload.get("ids")),
-            follow_id=_optional_int(payload.get("follow_id")),
-            perception_range=float(payload.get("perception_range", 80.0)),
-        )
+        scene = await _load_preview_scene(payload)
         frame_ids = list(scene.iter_frames())
         total_frames = len(frame_ids)
         status.update(
@@ -981,7 +999,7 @@ def create_app(demo: bool = False, max_fps: int = 30):
         app.state.preview_pause_event = asyncio.Event()
         app.state.preview_pause_event.set()
         app.state.preview_task = asyncio.create_task(
-            _run_levelx_dataset_preview(
+            _run_dataset_preview(
                 manager, app.state.preview_status, payload, app.state.preview_pause_event
             )
         )
