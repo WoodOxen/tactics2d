@@ -39,6 +39,36 @@ tactics2d stop
 The page opens on the live view by default. In live mode the frontend displays the
 latest frame it receives; it is not a seekable recording player.
 
+### Remote mode
+
+The server binds to `127.0.0.1` by default, which only accepts local
+connections. To view the frontend from another machine — a common setup when
+simulations run on a lab server — bind to all interfaces and open the page via
+the server's address:
+
+```bash
+# On the simulation server
+tactics2d start --host 0.0.0.0 --port 8765 --background --no-open
+
+# On your workstation: browse to http://<server-ip>:8765
+```
+
+Python publishers reach the same server by address:
+
+```python
+renderer = FrontendRenderer(host="<server-ip>", port=8765)
+```
+
+Every `preview` subcommand also accepts `--host`/`--port`, so
+`tactics2d preview dataset --host 0.0.0.0 ...` works on a remote box.
+
+> **Security note**: the server has no authentication — anyone who can reach
+> the port can watch frames and publish their own. Only expose it on a trusted
+> intranet, or keep it on `127.0.0.1` and reach it through an SSH tunnel:
+> `ssh -L 8765:127.0.0.1:8765 user@server`, then browse
+> `http://127.0.0.1:8765` locally. Do not forward the port on a public
+> interface.
+
 ## Preview a Demo, Map, or Dataset
 
 The `preview` command starts the server when needed and publishes a preview frame
