@@ -1111,6 +1111,51 @@ def test_load_ngsim_preview_scene_synthetic(tmp_path):
     assert abs(state.heading) < 0.1  # moving in +x
 
 
+def test_load_ngsim_preview_scene_builds_gis_base_map(tmp_path):
+    import geopandas
+    import pyogrio
+    from shapely.geometry import LineString
+
+    folder = tmp_path / "NGSIM" / "I-80"
+    folder.mkdir(parents=True)
+    _write_moving_vehicle_csv(
+        folder / "trajectories-0500-0515.csv",
+        "Vehicle_ID,Frame_ID,Global_X,Global_Y,v_Vel,v_Acc,v_Length,v_Width",
+        "{vid},{step},{x},6000000.0,30.0,0.0,14.7,6.2".format(
+            vid="{vid}", step="{step}", x="{x}"
+        ).replace("{x}", "60000{step}0.0"),
+    )
+    gis = folder / "gis-files"
+    gis.mkdir()
+    # Coordinates in state-plane feet like the trajectory Global_X/Y columns.
+    layer = geopandas.GeoDataFrame(
+        {
+            "TYPE": ["Arterial", "Detector", "Highway"],
+            "geometry": [
+                LineString([(5999500, 6000000), (6000500, 6000000)]),  # near trajectory
+                LineString([(5999500, 6000100), (6000500, 6000100)]),  # skipped by TYPE
+                LineString([(7000000, 7000000), (7000500, 7000000)]),  # clipped away
+            ],
+        }
+    )
+    pyogrio.write_dataframe(layer, gis / "streets.shp")
+    # Camera layers are skipped entirely.
+    pyogrio.write_dataframe(layer.head(1), gis / "camera-coverage.shp")
+
+    scene = preview.load_ngsim_preview_scene(
+        folder=tmp_path / "NGSIM", file="I-80/trajectories-0500-0515.csv", frames=10
+    )
+
+    assert len(scene.map_.roadlines) == 1
+    sensor = scene.sensor_for_frame(scene.frame_ids[0])
+    lines = [e for e in sensor["map_data"]["road_elements"] if e["shape"] == "line"]
+    assert len(lines) == 1
+    # Dark stroke: NGSIM base-map lines sit on the near-white scene background.
+    assert lines[0]["color"] == "dark-gray"
+    # The clipped drawing follows the trajectory into origin-local coordinates.
+    assert all(abs(x) < 1e4 and abs(y) < 1e4 for x, y in lines[0]["geometry"])
+
+
 def test_load_interaction_preview_scene_synthetic(monkeypatch, tmp_path):
     import orjson
 

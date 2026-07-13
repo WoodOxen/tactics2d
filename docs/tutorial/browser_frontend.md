@@ -91,7 +91,7 @@ without typing any path. Manual path fields remain available under the advanced
 |---|---|---|
 | highD/inD/rounD/exiD/uniD | `<dataset>/data/<id>_tracks.csv` (official) | registered OSM configs, resolved automatically |
 | NuPlan | `nuPlan/data/cache/<split>/*.db` (or the nuplan-devkit layout) | geopackage city maps in a sibling `maps/`, auto-resolved from the log |
-| NGSIM | `NGSIM/<location>/trajectories*.csv` | none (trajectories only; headings derived from motion) |
+| NGSIM | `NGSIM/<location>/trajectories*.csv` | `gis-files/*.shp` street centerlines next to the csv (headings derived from motion) |
 | INTERACTION | `INTERACTION*/recorded_trackfiles/<scenario>/vehicle_tracks_XXX.csv` | `maps/<scenario>.osm` next to `recorded_trackfiles/` |
 | DLP | `DLP/data/DJI_XXXX_*.json` | `DLP.osm` in or next to the data folder |
 | CitySim | `CitySim/**/*.csv` | none |

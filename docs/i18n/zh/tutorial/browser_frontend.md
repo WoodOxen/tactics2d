@@ -85,7 +85,7 @@ OSM 地图。检测到的数据集、录像和地图会以两级下拉的形式�
 |---|---|---|
 | highD/inD/rounD/exiD/uniD | `<dataset>/data/<id>_tracks.csv`（官方结构） | 注册的 OSM 配置，自动解析 |
 | NuPlan | `nuPlan/data/cache/<split>/*.db`（或 nuplan-devkit 结构） | 同级 `maps/` 中的 geopackage 城市地图，按日志自动匹配 |
-| NGSIM | `NGSIM/<location>/trajectories*.csv` | 无（仅轨迹；航向由运动方向推导） |
+| NGSIM | `NGSIM/<location>/trajectories*.csv` | csv 同级 `gis-files/*.shp` 街道中心线（航向由运动方向推导） |
 | INTERACTION | `INTERACTION*/recorded_trackfiles/<scenario>/vehicle_tracks_XXX.csv` | `recorded_trackfiles/` 同级的 `maps/<scenario>.osm` |
 | DLP | `DLP/data/DJI_XXXX_*.json` | 数据目录内或上级的 `DLP.osm` |
 | CitySim | `CitySim/**/*.csv` | 无 |

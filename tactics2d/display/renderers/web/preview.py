@@ -68,6 +68,14 @@ _DATASET_DIR_VARIANTS = {
 # resolution in the browser degrades to >=1 cm beyond ~1e5 m).
 _ORIGIN_SHIFT_THRESHOLD = 1e4
 
+# NGSIM gis-files: street-centerline shapefiles in the same state-plane feet
+# frame as the trajectory Global_X/Y columns (no .prj files ship with them).
+_NGSIM_FEET_TO_METERS = 0.3048
+_NGSIM_GIS_SKIP_LAYERS = {"camera-coverage", "signs-and-signals", "signals-and-ramp-meters"}
+_NGSIM_GIS_SKIP_TYPES = {"Detector"}
+_NGSIM_GIS_DIM_TYPES = {"Shoulder", "Median"}
+_NGSIM_GIS_MARGIN = 150.0
+
 
 @dataclass
 class DatasetPreviewResult:
@@ -987,6 +995,97 @@ def _blank_map(name: str):
     return Map(name=name)
 
 
+def _participants_bounds(participants: dict[int, Any]) -> tuple[float, float, float, float] | None:
+    """Return the (min_x, min_y, max_x, max_y) over every participant state."""
+
+    xs, ys = [], []
+    for participant in participants.values():
+        for state in participant.trajectory.history_states.values():
+            xs.append(state.x)
+            ys.append(state.y)
+    if not xs:
+        return None
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
+def _ngsim_gis_map(folder: Path, file: str, participants: dict[int, Any]):
+    """Build a roadline base map from the gis-files shapefiles shipped with NGSIM.
+
+    Each recording folder carries ESRI shapefiles next to the trajectory csv;
+    the street-centerline layers share the state-plane feet frame of the
+    trajectory Global_X/Y columns, so they overlay after the same feet-to-meter
+    conversion. Camera-coverage and signal layers are skipped, and the drawing
+    is clipped to the participants' bounding box to keep the payload small.
+    """
+
+    map_ = _blank_map(f"ngsim-{Path(str(file)).stem}")
+    gis_dir = (folder / str(file)).parent / "gis-files"
+    bounds = _participants_bounds(participants)
+    if not gis_dir.is_dir() or bounds is None:
+        return map_
+
+    try:
+        import pyogrio
+        from shapely import affinity
+        from shapely.geometry import LineString, box
+    except ImportError as error:  # pragma: no cover - core deps, defensive only
+        LOGGER.warning("NGSIM gis-files base map skipped (missing dependency): %s", error)
+        return map_
+
+    window = box(
+        bounds[0] - _NGSIM_GIS_MARGIN,
+        bounds[1] - _NGSIM_GIS_MARGIN,
+        bounds[2] + _NGSIM_GIS_MARGIN,
+        bounds[3] + _NGSIM_GIS_MARGIN,
+    )
+    from tactics2d.map.element import RoadLine
+
+    line_count = 0
+    for shapefile in sorted(gis_dir.glob("*.shp")):
+        if shapefile.stem.lower() in _NGSIM_GIS_SKIP_LAYERS:
+            continue
+        try:
+            layer = pyogrio.read_dataframe(str(shapefile))
+        except Exception as error:
+            LOGGER.warning("Skipping unreadable NGSIM gis layer %s: %s", shapefile.name, error)
+            continue
+
+        types = layer["TYPE"] if "TYPE" in layer.columns else None
+        for row_index, geometry in enumerate(layer.geometry):
+            if geometry is None or geometry.geom_type not in ("LineString", "MultiLineString"):
+                continue
+            row_type = None if types is None else types.iloc[row_index]
+            if row_type in _NGSIM_GIS_SKIP_TYPES:
+                continue
+
+            scaled = affinity.scale(
+                geometry, xfact=_NGSIM_FEET_TO_METERS, yfact=_NGSIM_FEET_TO_METERS, origin=(0, 0)
+            )
+            clipped = scaled.intersection(window)
+            if clipped.is_empty:
+                continue
+            parts = getattr(clipped, "geoms", [clipped])
+            # NGSIM scenes have no lane polygons, so the drawing sits on the
+            # near-white scene background; the default white would vanish.
+            color = "gray" if row_type in _NGSIM_GIS_DIM_TYPES else "dark-gray"
+            for part in parts:
+                if part.geom_type != "LineString" or len(part.coords) < 2:
+                    continue
+                map_.add_roadline(
+                    RoadLine(
+                        id_=str(line_count),
+                        geometry=LineString(part),
+                        type_="line_thin",
+                        subtype="solid",
+                        color=color,
+                    )
+                )
+                line_count += 1
+
+    LOGGER.info("NGSIM gis base map: %s roadlines from %s.", line_count, gis_dir)
+    return map_
+
+
 def _resolve_config_osm_map(dataset: str, folder: Path, config_name: str, lanelet2: bool = True):
     """Parse the OSM map registered for a dataset config, or raise KeyError."""
 
@@ -1013,7 +1112,7 @@ def load_ngsim_preview_scene(
     follow_id: int | None = None,
     perception_range: float = 80.0,
 ) -> StampedPreviewScene:
-    """Load an NGSIM scene (10 Hz, no map, headings derived from motion)."""
+    """Load an NGSIM scene (10 Hz, gis-files roadline base map, derived headings)."""
 
     from tactics2d.dataset_parser import NGSIMParser
 
@@ -1026,7 +1125,7 @@ def load_ngsim_preview_scene(
     participants, _ = NGSIMParser().parse_trajectory(str(file), str(folder), time_range=time_range)
     _derive_headings(participants)
 
-    map_ = _blank_map(f"ngsim-{Path(str(file)).stem}")
+    map_ = _ngsim_gis_map(folder, str(file), participants)
     return _finalize_stamped_scene(
         NGSIM_DATASET, str(file), map_, participants, frames, follow_id, perception_range
     )
