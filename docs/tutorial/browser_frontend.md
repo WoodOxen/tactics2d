@@ -284,6 +284,26 @@ browser.close()
   first. Some datasets provide lane IDs in trajectories without lane geometry that
   can be rendered as a map.
 
+### Frame rates up to 100 Hz
+
+`FrontendRenderer` sustains a measured 100 Hz publish rate (the `max_fps`
+ceiling) over its keep-alive connection: on loopback, one frame with 100
+participants and 400 road elements costs well under a millisecond of HTTP
+round-trip. Two settings decide what a high-rate loop actually achieves:
+
+- **`wait_ack=True` (default)** throttles each frame to the browser's real
+  render pace. Browsers repaint on `requestAnimationFrame`, so this settles at
+  the display refresh rate (60 fps on a typical monitor) — by design, the
+  simulation then never outruns what the screen can show.
+- **`wait_ack=False`** publishes at the full requested rate; the browser
+  renders at its refresh rate and coalesces the surplus per stream (counted in
+  the 跳帧 badge), so a 100 Hz control loop keeps its timing without the
+  display holding it back.
+
+Measured on loopback: 99.6 fps sustained publishing with `wait_ack=False`
+(500/500 frames delivered, max jitter ≈ 1 ms) while the browser rendered a
+steady 60 fps.
+
 ## Unified Display Backend
 
 Tactics2D provides a unified `DisplayBackend` interface that wraps all rendering

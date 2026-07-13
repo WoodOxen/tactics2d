@@ -1751,29 +1751,35 @@ def test_frontend_renderer_http_helpers_and_ready_loop(monkeypatch, tmp_path):
     with pytest.raises(TypeError):
         renderer_module._json_default(object())
 
-    class FakeResponse:
+    class FakeHTTPResponse:
         def __init__(self, payload):
-            self.payload = payload
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc_value, traceback):
-            return None
+            self._payload = payload
+            self.status = 200
 
         def read(self):
-            return json.dumps(self.payload).encode("utf-8")
+            return json.dumps(self._payload).encode("utf-8")
 
     requests = []
 
-    def fake_urlopen(http_request, timeout):
-        requests.append((http_request, timeout))
-        if isinstance(http_request, str):
-            return FakeResponse({"status": "running"})
+    class FakeConnection:
+        def __init__(self, host, port, timeout=None):
+            requests.append(("connect", host, port, timeout))
+            self._pending = None
 
-        return FakeResponse({"payload": json.loads(http_request.data.decode("utf-8"))})
+        def request(self, method, path, body=None, headers=None):
+            requests.append((method, path))
+            if body is None:
+                self._pending = {"status": "running"}
+            else:
+                self._pending = {"payload": json.loads(body.decode("utf-8"))}
 
-    monkeypatch.setattr(renderer_module.request, "urlopen", fake_urlopen)
+        def getresponse(self):
+            return FakeHTTPResponse(self._pending)
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(renderer_module.http.client, "HTTPConnection", FakeConnection)
     renderer = frontend.FrontendRenderer("localhost", 9999, max_fps=500, timeout=0.2)
 
     assert renderer.health() == {"status": "running"}
@@ -1783,7 +1789,10 @@ def test_frontend_renderer_http_helpers_and_ready_loop(monkeypatch, tmp_path):
     )
     assert response["payload"]["path"] == "map.osm"
     assert response["payload"]["point"] == [1, 2]
-    assert requests[0] == ("http://localhost:9999/health", 0.2)
+    assert requests[0] == ("connect", "localhost", 9999, 0.2)
+    # The keep-alive connection is opened once and reused across requests.
+    assert [entry for entry in requests if entry[0] == "connect"] == [requests[0]]
+    renderer.close()
 
     ready_renderer = frontend.FrontendRenderer()
     ready_renderer.health = lambda: {"status": "running"}
