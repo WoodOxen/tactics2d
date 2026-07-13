@@ -81,23 +81,36 @@ tactics2d preview dataset \
 
 ## Dataset Discovery
 
-The server scans a configurable data root for LevelX datasets stored in their
-official layout (`<dataset>/data/<id>_tracks.csv`, or the recordings directly in
-the dataset directory), for NuPlan sqlite logs (`nuPlan/data/cache/<split>/*.db`
-or the nuplan-devkit layout `nuplan/dataset/nuplan-v1.1/splits/<split>/*.db`,
-with the geopackage maps expected in a sibling `maps/` folder), and for available
-OSM maps. Detected datasets, recordings, and maps appear as dropdowns in the
-browser forms, so scenes can be loaded without typing any path. LevelX recordings
-are grouped by their registered map location, NuPlan logs by their split folder,
-maps are selected per dataset, and the matching map is resolved automatically.
-Manual path fields remain available under the advanced ("更多") section of each
-form as a fallback.
+The server scans a configurable data root for every dataset family the preview
+pipeline supports and for available OSM maps. Detected datasets, recordings,
+and maps appear as dropdowns in the browser forms, so scenes can be loaded
+without typing any path. Manual path fields remain available under the advanced
+("更多") section of each form as a fallback.
 
-NuPlan notes: lidar sweeps are ~20 Hz with millisecond jitter, so previews follow
-the observed sweep timestamps; the camera follows the longest-lived vehicle unless
-`--follow-id` is given; cones, barriers, and other static objects are parsed but
-not yet rendered. Standalone NuPlan map previews (`.gpkg` in the map form) show a
-capped window around the city center to keep the payload browser-friendly.
+| Dataset | Expected layout under the data root | Map |
+|---|---|---|
+| highD/inD/rounD/exiD/uniD | `<dataset>/data/<id>_tracks.csv` (official) | registered OSM configs, resolved automatically |
+| NuPlan | `nuPlan/data/cache/<split>/*.db` (or the nuplan-devkit layout) | geopackage city maps in a sibling `maps/`, auto-resolved from the log |
+| NGSIM | `NGSIM/<location>/trajectories*.csv` | none (trajectories only; headings derived from motion) |
+| INTERACTION | `INTERACTION*/recorded_trackfiles/<scenario>/vehicle_tracks_XXX.csv` | `maps/<scenario>.osm` next to `recorded_trackfiles/` |
+| DLP | `DLP/data/DJI_XXXX_*.json` | `DLP.osm` in or next to the data folder |
+| CitySim | `CitySim/**/*.csv` | none |
+| Argoverse 2 | `Argoverse2/<split>/<scenario>/` (parquet + `log_map_archive_*.json`) | per-scenario map json |
+| DriveInsightD | `DriveInsightD/<id>_scenario.xosc` | any `.xodr` in the same folder (optional) |
+
+LevelX recordings are grouped by their registered map location; path-style
+recordings (NuPlan, NGSIM, INTERACTION, CitySim, Argoverse 2) are grouped by
+their top-level folder. WOMD is not wired into the preview UI yet (tfrecord
+shards need an extra scenario-selection step).
+
+Notes: datasets without a regular frame grid (NuPlan's ~20 Hz lidar sweeps,
+DriveInsightD's scenario vertices) are previewed on their observed timestamps;
+the camera follows the longest-lived vehicle unless `--follow-id` is given;
+global UTM/state-plane coordinates (NuPlan, NGSIM) are shifted to a local
+origin before rendering to stay within float32 resolution; cones, barriers,
+and other static objects are parsed but not yet rendered. Standalone NuPlan map
+previews (`.gpkg` in the map form) show a capped window around the city center
+to keep the payload browser-friendly.
 
 The data root is resolved in this order:
 

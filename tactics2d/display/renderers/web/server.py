@@ -551,11 +551,12 @@ def _map_config_from_name(name: str | None) -> dict | None:
 async def _load_preview_scene(payload: dict):
     """Load the preview scene matching the payload's dataset family."""
 
-    from .preview import NUPLAN_DATASET, load_levelx_preview_scene, load_nuplan_preview_scene
+    from .preview import is_stamped_dataset, load_dataset_preview_scene, load_levelx_preview_scene
 
-    if str(payload.get("dataset", "")).lower() == NUPLAN_DATASET.lower():
+    if is_stamped_dataset(payload.get("dataset", "")):
         return await _to_thread(
-            load_nuplan_preview_scene,
+            load_dataset_preview_scene,
+            dataset=str(payload["dataset"]),
             folder=Path(payload["folder"]),
             file=str(payload["file"]),
             map_config=payload.get("map_config") or None,

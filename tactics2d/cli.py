@@ -65,7 +65,20 @@ def parse_args(argv=None):
     map_parser.add_argument("--map-config", default=None)
 
     dataset_parser = preview_subparsers.add_parser("dataset", help="Preview a dataset scene.")
-    dataset_parser.add_argument("--dataset", choices=[*LEVELX_DATASETS, "NuPlan"], required=True)
+    dataset_parser.add_argument(
+        "--dataset",
+        choices=[
+            *LEVELX_DATASETS,
+            "NuPlan",
+            "NGSIM",
+            "INTERACTION",
+            "DLP",
+            "CitySim",
+            "Argoverse2",
+            "DriveInsightD",
+        ],
+        required=True,
+    )
     dataset_parser.add_argument("--folder", type=Path, required=True)
     dataset_parser.add_argument("--file", required=True)
     dataset_parser.add_argument("--osm", type=Path, default=None)

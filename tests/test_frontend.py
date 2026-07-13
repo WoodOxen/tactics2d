@@ -969,14 +969,14 @@ def test_load_nuplan_preview_scene_synthetic(monkeypatch, tmp_path):
     assert "drivable_area" in road_types
 
 
-def test_load_preview_scene_dispatches_nuplan(monkeypatch, tmp_path):
+def test_load_preview_scene_dispatches_stamped_datasets(monkeypatch, tmp_path):
     calls = {}
 
     def fake_loader(**kwargs):
         calls.update(kwargs)
-        return "nuplan-scene"
+        return "stamped-scene"
 
-    monkeypatch.setattr(preview, "load_nuplan_preview_scene", fake_loader)
+    monkeypatch.setattr(preview, "load_dataset_preview_scene", fake_loader)
 
     scene = asyncio.run(
         server_module._load_preview_scene(
@@ -984,9 +984,269 @@ def test_load_preview_scene_dispatches_nuplan(monkeypatch, tmp_path):
         )
     )
 
-    assert scene == "nuplan-scene"
+    assert scene == "stamped-scene"
+    assert calls["dataset"] == "nuplan"
     assert calls["file"] == "mini/a.db"
     assert calls["frames"] == 12
+
+    assert preview.is_stamped_dataset("NGSIM")
+    assert preview.is_stamped_dataset("driveinsightd")
+    assert not preview.is_stamped_dataset("highD")
+
+
+def test_discover_stamped_dataset_layouts(monkeypatch, tmp_path):
+    """Every non-LevelX dataset family is discovered from its official layout."""
+    (tmp_path / "NGSIM" / "I-80").mkdir(parents=True)
+    (tmp_path / "NGSIM" / "I-80" / "trajectories-0500-0515.csv").touch()
+
+    scenario = (
+        tmp_path / "INTERACTION-Dataset-DR-v1_2" / "recorded_trackfiles" / "DR_DEU_Merging_MT"
+    )
+    scenario.mkdir(parents=True)
+    (scenario / "vehicle_tracks_000.csv").touch()
+    (scenario / "vehicle_tracks_007.csv").touch()
+
+    (tmp_path / "DLP" / "data").mkdir(parents=True)
+    (tmp_path / "DLP" / "data" / "DJI_0012_frames.json").touch()
+
+    (tmp_path / "CitySim" / "Intersection A").mkdir(parents=True)
+    (tmp_path / "CitySim" / "Intersection A" / "trajectory.csv").touch()
+
+    (tmp_path / "Argoverse2" / "val" / "scenario-uuid-1").mkdir(parents=True)
+    (tmp_path / "Argoverse2" / "val" / "scenario-uuid-1" / "scenario_1.parquet").touch()
+
+    (tmp_path / "DriveInsightD").mkdir()
+    (tmp_path / "DriveInsightD" / "42_scenario.xosc").touch()
+
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(tmp_path))
+
+    catalog = {entry["dataset"]: entry for entry in preview.discover_stamped_datasets()}
+
+    assert catalog["NGSIM"]["files"] == ["I-80/trajectories-0500-0515.csv"]
+    assert catalog["INTERACTION"]["files"] == ["DR_DEU_Merging_MT/0", "DR_DEU_Merging_MT/7"]
+    assert catalog["DLP"]["files"] == [12]
+    assert catalog["CitySim"]["files"] == ["Intersection A/trajectory.csv"]
+    assert catalog["Argoverse2"]["files"] == ["val/scenario-uuid-1"]
+    assert catalog["DriveInsightD"]["files"] == ["42"]
+
+
+def _write_moving_vehicle_csv(path, header, row_format, count=12):
+    lines = [header]
+    for vehicle_id in (1, 2):
+        for step in range(count):
+            lines.append(row_format.format(vid=vehicle_id, step=step))
+    path.write_text("\n".join(lines) + "\n")
+
+
+def test_load_ngsim_preview_scene_synthetic(tmp_path):
+    import orjson
+
+    folder = tmp_path / "NGSIM" / "I-80"
+    folder.mkdir(parents=True)
+    # State-plane feet: 1.8e6 m scale after the parser's 0.3048 conversion.
+    _write_moving_vehicle_csv(
+        folder / "trajectories-0500-0515.csv",
+        "Vehicle_ID,Frame_ID,Global_X,Global_Y,v_Vel,v_Acc,v_Length,v_Width",
+        "{vid},{step},{x},6000000.0,30.0,0.0,14.7,6.2".format(
+            vid="{vid}", step="{step}", x="{x}"
+        ).replace("{x}", "60000{step}0.0"),
+    )
+
+    scene = preview.load_ngsim_preview_scene(
+        folder=tmp_path / "NGSIM", file="I-80/trajectories-0500-0515.csv", frames=10
+    )
+
+    assert scene.dataset_name == "NGSIM"
+    assert len(scene.frame_ids) == 10
+    sensor = scene.sensor_for_frame(scene.frame_ids[0])
+    orjson.dumps(sensor)
+    # Coordinates are shifted near the origin and headings derived from motion.
+    assert abs(sensor["position"][0]) < 1e4
+    state = scene.participants[1].trajectory.get_state(scene.frame_ids[1])
+    assert abs(state.heading) < 0.1  # moving in +x
+
+
+def test_load_interaction_preview_scene_synthetic(monkeypatch, tmp_path):
+    import orjson
+
+    scenario = tmp_path / "recorded_trackfiles" / "DR_DEU_Merging_MT"
+    scenario.mkdir(parents=True)
+    _write_moving_vehicle_csv(
+        scenario / "vehicle_tracks_000.csv",
+        "track_id,timestamp_ms,agent_type,length,width,x,y,vx,vy,psi_rad",
+        "{vid},{step}00,car,4.5,2.0,10{step}.0,50.0,10.0,0.0,0.0",
+        count=10,
+    )
+    monkeypatch.setattr(
+        preview, "_resolve_config_osm_map", lambda dataset, folder, name: _fake_nuplan_map()
+    )
+
+    scene = preview.load_interaction_preview_scene(
+        folder=tmp_path / "recorded_trackfiles", file="DR_DEU_Merging_MT/0", frames=8
+    )
+
+    assert scene.dataset_name == "INTERACTION"
+    assert len(scene.frame_ids) == 8
+    orjson.dumps(scene.sensor_for_frame(scene.frame_ids[0]))
+
+    with pytest.raises(ValueError):
+        preview.load_interaction_preview_scene(
+            folder=tmp_path / "recorded_trackfiles", file="0", frames=8
+        )
+
+
+def test_load_dlp_preview_scene_synthetic(monkeypatch, tmp_path):
+    import orjson
+
+    folder = tmp_path / "DLP" / "data"
+    folder.mkdir(parents=True)
+    frames = {}
+    instances = {}
+    for step in range(8):
+        instance_token = f"inst{step}"
+        frames[f"frame{step}"] = {"timestamp": step * 0.04, "instances": [instance_token]}
+        instances[instance_token] = {
+            "instance_token": instance_token,
+            "agent_token": "agent0",
+            "coords": [10.0 + step, 20.0],
+            "heading": 0.0,
+            "speed": 5.0,
+            "acceleration": [0.0, 0.0],
+        }
+    agents = {"agent0": {"agent_token": "agent0", "type": "Car", "size": [4.5, 2.0]}}
+    (folder / "DJI_0001_frames.json").write_text(json.dumps(frames))
+    (folder / "DJI_0001_agents.json").write_text(json.dumps(agents))
+    (folder / "DJI_0001_instances.json").write_text(json.dumps(instances))
+    obstacles = {
+        "obs0": {
+            "obstacle_token": "obs0",
+            "type": "Undefined",
+            "coords": [30.0, 25.0],
+            "size": [2.0, 1.0],
+            "heading": 0.0,
+        }
+    }
+    (folder / "DJI_0001_obstacles.json").write_text(json.dumps(obstacles))
+    monkeypatch.setattr(
+        preview, "_resolve_config_osm_map", lambda dataset, folder, name: _fake_nuplan_map()
+    )
+
+    scene = preview.load_dlp_preview_scene(folder=folder, file="1", frames=5)
+
+    assert scene.dataset_name == "DLP"
+    assert len(scene.frame_ids) == 5
+    # Token-keyed participants are renumbered to integers for the renderer.
+    assert all(isinstance(key, int) for key in scene.participants)
+    orjson.dumps(scene.sensor_for_frame(scene.frame_ids[0]))
+
+
+def test_load_citysim_preview_scene_synthetic(tmp_path):
+    import orjson
+
+    folder = tmp_path / "CitySim"
+    folder.mkdir()
+    header = (
+        "carId,frameNum,carCenterXft,carCenterYft,"
+        "boundingBox1Xft,boundingBox1Yft,boundingBox2Xft,boundingBox2Yft,"
+        "boundingBox3Xft,boundingBox3Yft,boundingBox4Xft,boundingBox4Yft,course,speed"
+    )
+    _write_moving_vehicle_csv(
+        folder / "intersection.csv",
+        header,
+        "{vid},{step},10{step}.0,50.0,"
+        "9{step}.0,45.0,11{step}.0,45.0,11{step}.0,55.0,9{step}.0,55.0,90.0,20.0",
+        count=10,
+    )
+
+    scene = preview.load_citysim_preview_scene(folder=folder, file="intersection.csv", frames=6)
+
+    assert scene.dataset_name == "CitySim"
+    assert len(scene.frame_ids) == 6
+    orjson.dumps(scene.sensor_for_frame(scene.frame_ids[0]))
+
+
+def test_load_argoverse2_preview_scene_synthetic(tmp_path):
+    import orjson
+
+    pd = pytest.importorskip("pandas")
+
+    scenario_dir = tmp_path / "Argoverse2" / "val" / "uuid-1"
+    scenario_dir.mkdir(parents=True)
+    rows = []
+    for track_id in ("AV", "1234"):
+        for step in range(10):
+            rows.append(
+                {
+                    "track_id": track_id,
+                    "object_type": "vehicle",
+                    "timestep": step,
+                    "position_x": 3000.0 + step,
+                    "position_y": 1500.0,
+                    "heading": 0.0,
+                    "velocity_x": 10.0,
+                    "velocity_y": 0.0,
+                }
+            )
+    pd.DataFrame(rows).to_parquet(scenario_dir / "scenario_uuid-1.parquet", engine="fastparquet")
+    map_data = {
+        "drivable_areas": {
+            "1": {
+                "id": 1,
+                "area_boundary": [
+                    {"x": 2990.0, "y": 1490.0},
+                    {"x": 3020.0, "y": 1490.0},
+                    {"x": 3020.0, "y": 1510.0},
+                    {"x": 2990.0, "y": 1510.0},
+                ],
+            }
+        }
+    }
+    (scenario_dir / "log_map_archive_uuid-1.json").write_text(json.dumps(map_data))
+
+    scene = preview.load_argoverse2_preview_scene(
+        folder=tmp_path / "Argoverse2", file="val/uuid-1", frames=6
+    )
+
+    assert scene.dataset_name == "Argoverse2"
+    assert len(scene.frame_ids) == 6
+    # String track ids (including "AV") are renumbered; the original is kept.
+    assert all(isinstance(key, int) for key in scene.participants)
+    assert {p.source_id for p in scene.participants.values()} == {"AV", "1234"}
+    orjson.dumps(scene.sensor_for_frame(scene.frame_ids[0]))
+
+
+def test_load_driveinsightd_preview_scene_synthetic(tmp_path):
+    import orjson
+
+    folder = tmp_path / "DriveInsightD"
+    folder.mkdir()
+    vertices = "".join(
+        f'<Vertex time="{step * 0.1:.1f}">'
+        f'<Position><WorldPosition x="{100 + step}" y="50" h="0"/></Position>'
+        f"</Vertex>"
+        for step in range(10)
+    )
+    (folder / "42_scenario.xosc").write_text(f"""<?xml version="1.0"?>
+<OpenSCENARIO>
+  <Entities>
+    <ScenarioObject name="ego">
+      <Vehicle vehicleCategory="car"><Dimensions length="4.6" width="1.9" height="1.5"/></Vehicle>
+    </ScenarioObject>
+  </Entities>
+  <Storyboard>
+    <ManeuverGroup><Actors><EntityRef entityRef="ego"/></Actors>{vertices}</ManeuverGroup>
+  </Storyboard>
+</OpenSCENARIO>
+""")
+
+    scene = preview.load_driveinsightd_preview_scene(folder=folder, file="42", frames=7)
+
+    assert scene.dataset_name == "DriveInsightD"
+    assert len(scene.frame_ids) == 7
+    # Name-keyed participants are renumbered; no map ships with the scenario.
+    assert list(scene.participants) == [0]
+    assert scene.participants[0].source_id == "ego"
+    orjson.dumps(scene.sensor_for_frame(scene.frame_ids[0]))
 
 
 def test_levelx_preview_option_and_path_helpers(monkeypatch, tmp_path):

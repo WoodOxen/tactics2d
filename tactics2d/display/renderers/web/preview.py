@@ -38,12 +38,35 @@ _MAP_CONFIG_NAMES = (
     "EXID_MAP_CONFIG",
     "UNID_MAP_CONFIG",
     "NUPLAN_MAP_CONFIG",
+    "INTERACTION_MAP_CONFIG",
+    "DLP_MAP_CONFIG",
 )
 
 _NUPLAN_DIR_VARIANTS = ("nuPlan", "NuPlan", "nuplan")
 # NuPlan maps are city scale (kilometers); cap the standalone map preview to a
 # window around the map center so the payload stays browser-friendly.
 _NUPLAN_PREVIEW_MAP_RANGE = 500.0
+
+NGSIM_DATASET = "NGSIM"
+INTERACTION_DATASET = "INTERACTION"
+DLP_DATASET = "DLP"
+CITYSIM_DATASET = "CitySim"
+ARGOVERSE2_DATASET = "Argoverse2"
+DRIVEINSIGHTD_DATASET = "DriveInsightD"
+
+_DATASET_DIR_VARIANTS = {
+    NGSIM_DATASET: ("NGSIM", "ngsim"),
+    INTERACTION_DATASET: ("INTERACTION", "interaction"),
+    DLP_DATASET: ("DLP", "dlp", "dragon_lake_parking"),
+    CITYSIM_DATASET: ("CitySim", "citysim", "CitySimData"),
+    ARGOVERSE2_DATASET: ("Argoverse2", "argoverse2", "av2", "Argoverse"),
+    DRIVEINSIGHTD_DATASET: ("DriveInsightD", "driveinsightd"),
+}
+
+# Datasets whose coordinates are global (UTM/state-plane scale); anything whose
+# scene center exceeds this magnitude is shifted to a local origin (float32
+# resolution in the browser degrades to >=1 cm beyond ~1e5 m).
+_ORIGIN_SHIFT_THRESHOLD = 1e4
 
 
 @dataclass
@@ -87,8 +110,13 @@ class LevelXPreviewScene:
 
 
 @dataclass
-class NuPlanPreviewScene:
-    """Loaded NuPlan scene state used by CLI and server-side previews."""
+class StampedPreviewScene:
+    """Loaded scene state for datasets with irregular frame stamps.
+
+    Unlike LevelX recordings, datasets such as NuPlan, NGSIM, or Argoverse 2
+    do not guarantee a fixed frame grid, so the scene carries the observed
+    stamp list explicitly.
+    """
 
     dataset_name: str
     file_id: str
@@ -356,6 +384,160 @@ def discover_nuplan_maps(
     return maps
 
 
+def _iter_dataset_dirs(dataset: str) -> Iterable[Path]:
+    """Yield existing data-root subdirectories matching a dataset's dir names."""
+
+    for root in get_data_roots():
+        for variant in _DATASET_DIR_VARIANTS[dataset]:
+            candidate = root / variant
+            if candidate.is_dir():
+                yield candidate
+
+
+def _glob_relative(folder: Path, patterns: tuple[str, ...]) -> list[str]:
+    """Return files below a folder matching any pattern, relative and sorted."""
+
+    files: set[Path] = set()
+    try:
+        for pattern in patterns:
+            files.update(folder.glob(pattern))
+    except OSError:
+        return []
+    return sorted(str(path.relative_to(folder)) for path in files)
+
+
+def discover_ngsim_datasets() -> list[dict[str, Any]]:
+    """Scan the data roots for NGSIM trajectory CSVs (``<location>/trajectories*.csv``)."""
+
+    for candidate in _iter_dataset_dirs(NGSIM_DATASET):
+        files = _glob_relative(candidate, ("trajectories*.csv", "*/trajectories*.csv"))
+        if files:
+            return [{"dataset": NGSIM_DATASET, "folder": str(candidate), "files": files}]
+    return []
+
+
+def discover_interaction_datasets() -> list[dict[str, Any]]:
+    """Scan the data roots for INTERACTION scenario track files.
+
+    The official layout is ``recorded_trackfiles/<scenario>/vehicle_tracks_XXX.csv``
+    with maps in a sibling ``maps/`` folder. Files are listed as
+    ``<scenario>/<id>`` so the UI can group recordings by scenario.
+    """
+
+    pattern = re.compile(r"^vehicle_tracks_(\d+)\.csv$")
+    for root in get_data_roots():
+        candidates = [
+            candidate
+            for variant in ("INTERACTION*", "interaction*")
+            for candidate in sorted(root.glob(variant))
+            if candidate.is_dir()
+        ]
+        for candidate in candidates:
+            for tracks_root in (candidate / "recorded_trackfiles", candidate):
+                if not tracks_root.is_dir():
+                    continue
+                files = []
+                for scenario_dir in sorted(tracks_root.iterdir()):
+                    if not scenario_dir.is_dir():
+                        continue
+                    for entry in sorted(scenario_dir.iterdir()):
+                        match = pattern.match(entry.name)
+                        if match:
+                            files.append(f"{scenario_dir.name}/{int(match.group(1))}")
+                if files:
+                    return [
+                        {
+                            "dataset": INTERACTION_DATASET,
+                            "folder": str(tracks_root),
+                            "files": files,
+                        }
+                    ]
+    return []
+
+
+def discover_dlp_datasets() -> list[dict[str, Any]]:
+    """Scan the data roots for DLP recordings (``DJI_<id>_frames.json`` sets)."""
+
+    pattern = re.compile(r"^DJI_(\d+)_frames\.json$")
+    for candidate in _iter_dataset_dirs(DLP_DATASET):
+        for folder in (candidate / "data", candidate):
+            if not folder.is_dir():
+                continue
+            ids = sorted(
+                int(match.group(1))
+                for entry in folder.iterdir()
+                if (match := pattern.match(entry.name))
+            )
+            if ids:
+                return [{"dataset": DLP_DATASET, "folder": str(folder), "files": ids}]
+    return []
+
+
+def discover_citysim_datasets() -> list[dict[str, Any]]:
+    """Scan the data roots for CitySim trajectory CSVs."""
+
+    for candidate in _iter_dataset_dirs(CITYSIM_DATASET):
+        files = _glob_relative(candidate, ("*.csv", "*/*.csv", "*/*/*.csv"))
+        if files:
+            return [{"dataset": CITYSIM_DATASET, "folder": str(candidate), "files": files}]
+    return []
+
+
+def discover_argoverse2_datasets() -> list[dict[str, Any]]:
+    """Scan the data roots for Argoverse 2 scenario folders (parquet + map json)."""
+
+    for candidate in _iter_dataset_dirs(ARGOVERSE2_DATASET):
+        files: set[Path] = set()
+        try:
+            for pattern in ("*/*.parquet", "*/*/*.parquet"):
+                files.update(path.parent for path in candidate.glob(pattern))
+        except OSError:
+            continue
+        if files:
+            scenario_dirs = sorted(str(path.relative_to(candidate)) for path in files)
+            return [
+                {"dataset": ARGOVERSE2_DATASET, "folder": str(candidate), "files": scenario_dirs}
+            ]
+    return []
+
+
+def discover_driveinsightd_datasets() -> list[dict[str, Any]]:
+    """Scan the data roots for DriveInsightD scenarios (``<id>_scenario.xosc``)."""
+
+    for candidate in _iter_dataset_dirs(DRIVEINSIGHTD_DATASET):
+        for folder in (candidate / "data", candidate):
+            if not folder.is_dir():
+                continue
+            ids = sorted(
+                entry.name[: -len("_scenario.xosc")]
+                for entry in folder.iterdir()
+                if entry.name.endswith("_scenario.xosc")
+            )
+            if ids:
+                return [{"dataset": DRIVEINSIGHTD_DATASET, "folder": str(folder), "files": ids}]
+    return []
+
+
+def discover_stamped_datasets() -> list[dict[str, Any]]:
+    """Scan the data roots for every non-LevelX dataset family."""
+
+    discovered: list[dict[str, Any]] = []
+    for discover in (
+        discover_nuplan_datasets,
+        discover_ngsim_datasets,
+        discover_interaction_datasets,
+        discover_dlp_datasets,
+        discover_citysim_datasets,
+        discover_argoverse2_datasets,
+        discover_driveinsightd_datasets,
+    ):
+        try:
+            discovered.extend(discover())
+        except OSError:
+            continue
+    return discovered
+
+
 def discover_maps(dataset_catalog: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     """Return maps that are actually available on disk.
 
@@ -375,7 +557,7 @@ def discover_maps(dataset_catalog: list[dict[str, Any]] | None = None) -> list[d
         folder = folders.get(dataset, Path.cwd() / "data" / dataset)
         try:
             path = resolve_levelx_osm_path(dataset, folder, config)
-        except (FileNotFoundError, ValueError):
+        except (FileNotFoundError, ValueError, KeyError):
             continue
         known_paths.add(path)
         maps.append(
@@ -432,7 +614,7 @@ def list_levelx_preview_options() -> dict[str, Any]:
             }
         )
 
-    datasets = discover_levelx_datasets() + discover_nuplan_datasets()
+    datasets = discover_levelx_datasets() + discover_stamped_datasets()
     maps = discover_maps(datasets)
     first = datasets[0] if datasets else None
 
@@ -485,7 +667,11 @@ def resolve_levelx_map_config(
 def resolve_levelx_osm_path(
     dataset: str, folder: Path, configs: dict[str, Any] | None, osm_path: Path | None = None
 ) -> Path:
-    """Resolve an OSM path from explicit input or the local dataset layout."""
+    """Resolve an OSM path from explicit input or the local dataset layout.
+
+    Despite the name this also serves non-LevelX datasets whose configs carry
+    an ``osm_file`` (INTERACTION, DLP); their dataset name is used verbatim.
+    """
 
     if osm_path is not None:
         return osm_path.expanduser().resolve()
@@ -493,7 +679,7 @@ def resolve_levelx_osm_path(
     if configs is None or not configs.get("osm_file"):
         raise ValueError("An OSM path is required when no map config with `osm_file` is found.")
 
-    dataset_name = canonical_levelx_dataset(dataset)
+    dataset_name = _LEVELX_CANONICAL.get(dataset.lower(), dataset)
     osm_file = configs["osm_file"]
     folder = folder.expanduser()
     candidates = (
@@ -503,7 +689,10 @@ def resolve_levelx_osm_path(
         folder / osm_file,
         folder.parent / osm_file,
         folder.parent / "map" / osm_file,
+        folder.parent / "maps" / osm_file,
         folder.parent / "maps" / "lanelet2" / osm_file,
+        # INTERACTION: recorded_trackfiles/<scenario>/ with maps two levels up.
+        folder.parent.parent / "maps" / osm_file,
     )
 
     for candidate in candidates:
@@ -600,6 +789,140 @@ def _shift_participants(participants: dict[int, Any], origin: tuple[float, float
             state.y -= origin_y
 
 
+def _derive_headings(participants: dict[int, Any]) -> None:
+    """Fill in headings from motion direction for datasets without yaw (NGSIM).
+
+    Only trajectories whose headings are all zero are touched; stationary
+    stretches keep the last moving direction.
+    """
+
+    import math
+
+    for participant in participants.values():
+        states = [
+            participant.trajectory.get_state(frame) for frame in participant.trajectory.frames
+        ]
+        if len(states) < 2 or any(abs(state.heading) > 1e-9 for state in states):
+            continue
+
+        headings: list[float | None] = [None] * len(states)
+        for index in range(len(states) - 1):
+            dx = states[index + 1].x - states[index].x
+            dy = states[index + 1].y - states[index].y
+            if math.hypot(dx, dy) > 0.05:
+                headings[index] = math.atan2(dy, dx)
+
+        first_known = next((value for value in headings if value is not None), 0.0)
+        last = first_known
+        for index, state in enumerate(states):
+            if headings[index] is not None:
+                last = headings[index]
+            state.heading = last
+
+
+def _scene_center(map_: Any, participants: dict[int, Any]) -> tuple[float, float]:
+    """Return the scene center from the map boundary or, lacking one, the participants."""
+
+    if map_.roadlines or map_.lanes or map_.areas or map_.junctions:
+        boundary = map_.boundary
+        return (0.5 * (boundary[0] + boundary[1]), 0.5 * (boundary[2] + boundary[3]))
+
+    first_states = [
+        participant.trajectory.get_state(participant.trajectory.frames[0])
+        for participant in participants.values()
+        if participant.trajectory.frames
+    ]
+    if not first_states:
+        return (0.0, 0.0)
+    return (
+        sum(state.x for state in first_states) / len(first_states),
+        sum(state.y for state in first_states) / len(first_states),
+    )
+
+
+def _finalize_stamped_scene(
+    dataset_name: str,
+    file: str,
+    map_: Any,
+    participants: dict[int, Any],
+    frames: int,
+    follow_id: int | None,
+    perception_range: float,
+) -> StampedPreviewScene:
+    """Shared tail of every stamped-scene loader.
+
+    Shifts global-scale coordinates to a local origin, truncates the observed
+    stamp list, picks a vehicle to follow, and builds the camera.
+    """
+
+    from tactics2d.display.sensor import BEVCamera
+    from tactics2d.participant.element import Vehicle
+
+    if not participants:
+        raise RuntimeError(f"No participants found in {dataset_name} recording {file}.")
+
+    # The renderer needs integer participant ids. Some parsers key participants
+    # by string tokens or names (DLP, DriveInsightD, Argoverse 2); renumber
+    # those sequentially and keep the original id as ``source_id``.
+    try:
+        normalized = {int(participant.id_): participant for participant in participants.values()}
+        renumber = len(normalized) != len(participants)
+    except (TypeError, ValueError):
+        renumber = True
+    if renumber:
+        normalized = {}
+        for index, participant in enumerate(participants.values()):
+            if getattr(participant, "source_id", None) is None:
+                participant.source_id = str(participant.id_)
+            normalized[index] = participant
+    for id_int, participant in normalized.items():
+        participant.id_ = id_int
+    participants = normalized
+
+    # Parsers built on pandas leak numpy scalars into states; the sensor
+    # payload must serialize with plain JSON types.
+    for participant in participants.values():
+        for state in participant.trajectory.history_states.values():
+            state.x = float(state.x)
+            state.y = float(state.y)
+            state.heading = float(state.heading) if state.heading is not None else 0.0
+
+    center = _scene_center(map_, participants)
+    if max(abs(center[0]), abs(center[1])) > _ORIGIN_SHIFT_THRESHOLD:
+        if map_.roadlines or map_.lanes or map_.areas or map_.junctions:
+            origin = _shift_map_origin(map_)
+        else:
+            origin = (float(round(center[0])), float(round(center[1])))
+        _shift_participants(participants, origin)
+    fallback_position = _scene_center(map_, participants)
+
+    frame_ids = sorted({frame for p in participants.values() for frame in p.trajectory.frames})
+    frame_ids = frame_ids[: max(1, frames)]
+    if not frame_ids:
+        raise RuntimeError(f"No frames found in {dataset_name} recording {file}.")
+
+    if follow_id is None:
+        # Cones and barriers are participants too; follow the longest-lived vehicle.
+        vehicles = [p for p in participants.values() if isinstance(p, Vehicle)]
+        if vehicles:
+            follow_id = max(vehicles, key=lambda p: len(p.trajectory.frames)).id_
+
+    camera = BEVCamera(id_=0, map_=map_, perception_range=perception_range)
+
+    return StampedPreviewScene(
+        dataset_name=dataset_name,
+        file_id=str(file),
+        sensor_id=f"{dataset_name}-{Path(str(file)).stem}",
+        actual_time_range=(int(frame_ids[0]), int(frame_ids[-1])),
+        map_=map_,
+        camera=camera,
+        participants=participants,
+        fallback_position=fallback_position,
+        frame_ids=[int(frame) for frame in frame_ids],
+        follow_id=follow_id,
+    )
+
+
 def load_nuplan_preview_scene(
     folder: Path,
     file: str,
@@ -608,7 +931,7 @@ def load_nuplan_preview_scene(
     start_time_ms: int | None = None,
     follow_id: int | None = None,
     perception_range: float = 80.0,
-) -> NuPlanPreviewScene:
+) -> StampedPreviewScene:
     """Load a NuPlan scene and return a frame payload source.
 
     The map is resolved from the log's location via ``NUPLAN_MAP_CONFIG``
@@ -619,9 +942,7 @@ def load_nuplan_preview_scene(
     import sqlite3
 
     from tactics2d.dataset_parser import NuPlanParser
-    from tactics2d.display.sensor import BEVCamera
     from tactics2d.map.map_config import NUPLAN_MAP_CONFIG
-    from tactics2d.participant.element import Vehicle
 
     folder = folder.expanduser().resolve()
     parser = NuPlanParser()
@@ -647,41 +968,275 @@ def load_nuplan_preview_scene(
 
     LOGGER.info("Loading NuPlan log %s from %s (%s-%s ms).", file, folder, start, end)
     participants, _ = parser.parse_trajectory(str(file), str(folder), time_range=(start, end))
-    if not participants:
-        raise RuntimeError(f"No participants found in NuPlan log {file}.")
 
     maps_root = resolve_nuplan_maps_root(folder)
     map_path = str(Path(configs["folder"]) / configs["gpkg_file"])
     LOGGER.info("Loading map %s from %s.", map_path, maps_root)
     map_ = parser.parse_map(map_path, str(maps_root))
 
-    origin = _shift_map_origin(map_)
-    _shift_participants(participants, origin)
+    return _finalize_stamped_scene(
+        NUPLAN_DATASET, str(file), map_, participants, frames, follow_id, perception_range
+    )
 
-    frame_ids = sorted({frame for p in participants.values() for frame in p.trajectory.frames})
-    frame_ids = frame_ids[: max(1, frames)]
 
-    if follow_id is None:
-        # Cones and barriers are participants too; follow the longest-lived vehicle.
-        vehicles = [p for p in participants.values() if isinstance(p, Vehicle)]
-        if vehicles:
-            follow_id = max(vehicles, key=lambda p: len(p.trajectory.frames)).id_
+def _blank_map(name: str):
+    """Return an empty map for datasets that ship no map geometry."""
 
-    camera = BEVCamera(id_=0, map_=map_, perception_range=perception_range)
-    boundary = map_.boundary
-    fallback_position = (0.5 * (boundary[0] + boundary[1]), 0.5 * (boundary[2] + boundary[3]))
+    from tactics2d.map.element import Map
 
-    return NuPlanPreviewScene(
-        dataset_name=NUPLAN_DATASET,
-        file_id=str(file),
-        sensor_id=f"{NUPLAN_DATASET}-{Path(file).stem}",
-        actual_time_range=(int(frame_ids[0]), int(frame_ids[-1])),
-        map_=map_,
-        camera=camera,
-        participants=participants,
-        fallback_position=fallback_position,
-        frame_ids=[int(frame) for frame in frame_ids],
+    return Map(name=name)
+
+
+def _resolve_config_osm_map(dataset: str, folder: Path, config_name: str, lanelet2: bool = True):
+    """Parse the OSM map registered for a dataset config, or raise KeyError."""
+
+    from tactics2d.map.parser import OSMParser
+
+    all_configs = dict(iter_map_configs())
+    if config_name not in all_configs:
+        raise KeyError(
+            f"{config_name} has no registered map config. "
+            f"Choose one of: {', '.join(sorted(all_configs))}."
+        )
+    configs = all_configs[config_name]
+    osm_path = resolve_levelx_osm_path(dataset, folder, configs)
+    LOGGER.info("Loading map %s.", osm_path)
+    return OSMParser(lanelet2=lanelet2).parse(str(osm_path), configs)
+
+
+def load_ngsim_preview_scene(
+    folder: Path,
+    file: str,
+    map_config: str | None = None,
+    frames: int = 300,
+    start_time_ms: int | None = None,
+    follow_id: int | None = None,
+    perception_range: float = 80.0,
+) -> StampedPreviewScene:
+    """Load an NGSIM scene (10 Hz, no map, headings derived from motion)."""
+
+    from tactics2d.dataset_parser import NGSIMParser
+
+    folder = folder.expanduser().resolve()
+    # NGSIM's parser filters on Frame_ID (10 Hz) while states are stamped in ms.
+    start_frame = 0 if start_time_ms is None else start_time_ms // 100
+    time_range = (start_frame, start_frame + max(1, frames) - 1)
+
+    LOGGER.info("Loading NGSIM recording %s from %s (frames %s).", file, folder, time_range)
+    participants, _ = NGSIMParser().parse_trajectory(str(file), str(folder), time_range=time_range)
+    _derive_headings(participants)
+
+    map_ = _blank_map(f"ngsim-{Path(str(file)).stem}")
+    return _finalize_stamped_scene(
+        NGSIM_DATASET, str(file), map_, participants, frames, follow_id, perception_range
+    )
+
+
+def load_interaction_preview_scene(
+    folder: Path,
+    file: str,
+    map_config: str | None = None,
+    frames: int = 300,
+    start_time_ms: int | None = None,
+    follow_id: int | None = None,
+    perception_range: float = 80.0,
+) -> StampedPreviewScene:
+    """Load an INTERACTION scene (10 Hz, ``<scenario>/<id>`` recording keys)."""
+
+    from tactics2d.dataset_parser import InteractionParser
+
+    folder = folder.expanduser().resolve()
+    scenario, _, recording = str(file).rpartition("/")
+    scenario = scenario or map_config or ""
+    if not scenario:
+        raise ValueError(f"INTERACTION recordings are addressed as <scenario>/<id>; got {file!r}.")
+
+    start = 0 if start_time_ms is None else start_time_ms
+    time_range = (start, start + (max(1, frames) - 1) * 100)
+
+    LOGGER.info("Loading INTERACTION %s recording %s from %s.", scenario, recording, folder)
+    participants, _ = InteractionParser().parse_trajectory(
+        str(recording), str(folder / scenario), time_range=time_range
+    )
+    map_ = _resolve_config_osm_map(INTERACTION_DATASET, folder / scenario, scenario)
+    return _finalize_stamped_scene(
+        INTERACTION_DATASET, str(file), map_, participants, frames, follow_id, perception_range
+    )
+
+
+def load_dlp_preview_scene(
+    folder: Path,
+    file: str,
+    map_config: str | None = None,
+    frames: int = 300,
+    start_time_ms: int | None = None,
+    follow_id: int | None = None,
+    perception_range: float = 80.0,
+) -> StampedPreviewScene:
+    """Load a DLP scene (25 Hz, single parking-lot map)."""
+
+    from tactics2d.dataset_parser import DLPParser
+
+    folder = folder.expanduser().resolve()
+    start = 0 if start_time_ms is None else start_time_ms
+    time_range = (start, start + (max(1, frames) - 1) * 40)
+
+    LOGGER.info("Loading DLP recording %s from %s.", file, folder)
+    participants, _ = DLPParser().parse_trajectory(str(file), str(folder), time_range=time_range)
+    map_ = _resolve_config_osm_map(DLP_DATASET, folder, map_config or "DLP")
+    return _finalize_stamped_scene(
+        DLP_DATASET, str(file), map_, participants, frames, follow_id, perception_range
+    )
+
+
+def load_citysim_preview_scene(
+    folder: Path,
+    file: str,
+    map_config: str | None = None,
+    frames: int = 300,
+    start_time_ms: int | None = None,
+    follow_id: int | None = None,
+    perception_range: float = 80.0,
+) -> StampedPreviewScene:
+    """Load a CitySim scene (30 Hz CSV, no vector map)."""
+
+    from tactics2d.dataset_parser import CitySimParser
+
+    folder = folder.expanduser().resolve()
+    start = 0 if start_time_ms is None else start_time_ms
+    # 30 Hz stamps land on int(n * 1000 / 30); half a step absorbs the rounding.
+    time_range = (start, start + (max(1, frames) - 1) * 34 + 17)
+
+    LOGGER.info("Loading CitySim recording %s from %s.", file, folder)
+    participants, _ = CitySimParser().parse_trajectory(
+        str(file), str(folder), time_range=time_range
+    )
+    _derive_headings(participants)
+
+    map_ = _blank_map(f"citysim-{Path(str(file)).stem}")
+    return _finalize_stamped_scene(
+        CITYSIM_DATASET, str(file), map_, participants, frames, follow_id, perception_range
+    )
+
+
+def load_argoverse2_preview_scene(
+    folder: Path,
+    file: str,
+    map_config: str | None = None,
+    frames: int = 300,
+    start_time_ms: int | None = None,
+    follow_id: int | None = None,
+    perception_range: float = 80.0,
+) -> StampedPreviewScene:
+    """Load an Argoverse 2 scenario (10 Hz, per-scenario parquet + map json).
+
+    ``file`` is the scenario directory relative to the dataset folder. Track
+    ids are strings in Argoverse 2; they are renumbered to integers for the
+    renderer and kept as ``source_id``.
+    """
+
+    from tactics2d.dataset_parser import Argoverse2Parser
+
+    folder = folder.expanduser().resolve()
+    scenario_dir = folder / str(file)
+    parquets = sorted(scenario_dir.glob("*.parquet"))
+    if not parquets:
+        raise FileNotFoundError(f"No parquet trajectory found in {scenario_dir}.")
+    map_jsons = sorted(scenario_dir.glob("log_map_archive_*.json")) or sorted(
+        scenario_dir.glob("*.json")
+    )
+    if not map_jsons:
+        raise FileNotFoundError(f"No map json found in {scenario_dir}.")
+
+    parser = Argoverse2Parser()
+    LOGGER.info("Loading Argoverse 2 scenario %s from %s.", file, folder)
+    participants, _ = parser.parse_trajectory(parquets[0].name, str(scenario_dir))
+    map_ = parser.parse_map(map_jsons[0].name, str(scenario_dir))
+    return _finalize_stamped_scene(
+        ARGOVERSE2_DATASET, str(file), map_, participants, frames, follow_id, perception_range
+    )
+
+
+def load_driveinsightd_preview_scene(
+    folder: Path,
+    file: str,
+    map_config: str | None = None,
+    frames: int = 300,
+    start_time_ms: int | None = None,
+    follow_id: int | None = None,
+    perception_range: float = 80.0,
+) -> StampedPreviewScene:
+    """Load a DriveInsightD scenario (OpenSCENARIO log + optional OpenDRIVE map)."""
+
+    from tactics2d.dataset_parser import DriveInsightDParser
+
+    folder = folder.expanduser().resolve()
+    stamp_range = None if start_time_ms is None else (start_time_ms, float("inf"))
+
+    LOGGER.info("Loading DriveInsightD scenario %s from %s.", file, folder)
+    participants, _ = DriveInsightDParser().parse_trajectory(
+        str(file), str(folder), stamp_range=stamp_range
+    )
+
+    xodr_candidates = (
+        [folder / map_config] if map_config and map_config.endswith(".xodr") else []
+    ) + sorted(folder.glob("*.xodr"))
+    if xodr_candidates and xodr_candidates[0].exists():
+        from tactics2d.map.parser import XODRParser
+
+        LOGGER.info("Loading map %s.", xodr_candidates[0])
+        map_ = XODRParser().parse(str(xodr_candidates[0]))
+    else:
+        map_ = _blank_map(f"driveinsightd-{file}")
+
+    return _finalize_stamped_scene(
+        DRIVEINSIGHTD_DATASET, str(file), map_, participants, frames, follow_id, perception_range
+    )
+
+
+_STAMPED_SCENE_LOADERS = {
+    NUPLAN_DATASET.lower(): load_nuplan_preview_scene,
+    NGSIM_DATASET.lower(): load_ngsim_preview_scene,
+    INTERACTION_DATASET.lower(): load_interaction_preview_scene,
+    DLP_DATASET.lower(): load_dlp_preview_scene,
+    CITYSIM_DATASET.lower(): load_citysim_preview_scene,
+    ARGOVERSE2_DATASET.lower(): load_argoverse2_preview_scene,
+    DRIVEINSIGHTD_DATASET.lower(): load_driveinsightd_preview_scene,
+}
+
+
+def is_stamped_dataset(dataset: str) -> bool:
+    """Return whether a dataset name is served by a stamped-scene loader."""
+
+    return str(dataset).lower() in _STAMPED_SCENE_LOADERS
+
+
+def load_dataset_preview_scene(
+    dataset: str,
+    folder: Path,
+    file: str,
+    map_config: str | None = None,
+    frames: int = 300,
+    start_time_ms: int | None = None,
+    follow_id: int | None = None,
+    perception_range: float = 80.0,
+) -> StampedPreviewScene:
+    """Load a preview scene for any non-LevelX dataset family."""
+
+    loader = _STAMPED_SCENE_LOADERS.get(str(dataset).lower())
+    if loader is None:
+        raise KeyError(
+            f"{dataset} has no frontend preview loader. "
+            f"Choose one of: {', '.join(sorted(_STAMPED_SCENE_LOADERS))}."
+        )
+    return loader(
+        folder=folder,
+        file=file,
+        map_config=map_config,
+        frames=frames,
+        start_time_ms=start_time_ms,
         follow_id=follow_id,
+        perception_range=perception_range,
     )
 
 

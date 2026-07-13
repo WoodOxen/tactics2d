@@ -7,6 +7,7 @@ const COLORS = {
   bicycle: "#fd9644",
   bicycle_lane: "#3a4a52",
   black: "#101418",
+  blue: "#3867d6",
   bus: "#4b6584",
   crosswalk: "#57606f",
   cyclist: "#fd9644",
@@ -30,7 +31,8 @@ const COLORS = {
   roadline: "#f4f7f7",
   vehicle: "#2bcbba",
   walkway: "#c8d1da",
-  white: "#f4f7f7"
+  white: "#f4f7f7",
+  yellow: "#f7b731"
 };
 
 const ORDERS = {

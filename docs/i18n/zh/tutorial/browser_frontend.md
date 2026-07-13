@@ -77,19 +77,30 @@ tactics2d preview dataset \
 
 ## 数据集自动发现
 
-服务端会扫描可配置的数据根目录，查找按官方结构存放的 LevelX 数据集
-（`<dataset>/data/<id>_tracks.csv`，或录像文件直接位于数据集目录下）、NuPlan
-sqlite 日志（`nuPlan/data/cache/<split>/*.db`，或 nuplan-devkit 结构
-`nuplan/dataset/nuplan-v1.1/splits/<split>/*.db`，geopackage 地图放在同级的
-`maps/` 目录）以及可用的 OSM 地图。检测到的数据集、录像和地图会以两级下拉的形式
-出现在浏览器表单中，加载场景无需手动输入任何路径。LevelX 录像按其注册的地图位置
-分组显示，NuPlan 日志按 split 目录分组，地图先选数据集再选具体地图，对应地图自动
-解析。每个表单的"更多"折叠区仍保留手动路径输入作为兜底。
+服务端会扫描可配置的数据根目录，查找预览管线支持的所有数据集家族以及可用的
+OSM 地图。检测到的数据集、录像和地图会以两级下拉的形式出现在浏览器表单中，
+加载场景无需手动输入任何路径。每个表单的"更多"折叠区仍保留手动路径输入作为兜底。
 
-NuPlan 注意事项：激光雷达扫描约 20 Hz 且时间戳有毫秒级抖动，预览按实际观测到的
-时间戳推进；未指定 `--follow-id` 时相机跟随存活最久的车辆；锥桶、护栏等静态目标
-会被解析但暂不渲染。地图表单中单独预览 `.gpkg` 城市地图时只显示地图中心附近的
-一个窗口，以保证浏览器端载荷可控。
+| 数据集 | 数据根目录下的期望结构 | 地图 |
+|---|---|---|
+| highD/inD/rounD/exiD/uniD | `<dataset>/data/<id>_tracks.csv`（官方结构） | 注册的 OSM 配置，自动解析 |
+| NuPlan | `nuPlan/data/cache/<split>/*.db`（或 nuplan-devkit 结构） | 同级 `maps/` 中的 geopackage 城市地图，按日志自动匹配 |
+| NGSIM | `NGSIM/<location>/trajectories*.csv` | 无（仅轨迹；航向由运动方向推导） |
+| INTERACTION | `INTERACTION*/recorded_trackfiles/<scenario>/vehicle_tracks_XXX.csv` | `recorded_trackfiles/` 同级的 `maps/<scenario>.osm` |
+| DLP | `DLP/data/DJI_XXXX_*.json` | 数据目录内或上级的 `DLP.osm` |
+| CitySim | `CitySim/**/*.csv` | 无 |
+| Argoverse 2 | `Argoverse2/<split>/<scenario>/`（parquet + `log_map_archive_*.json`） | 场景目录内的地图 json |
+| DriveInsightD | `DriveInsightD/<id>_scenario.xosc` | 同目录任意 `.xodr`（可选） |
+
+LevelX 录像按其注册的地图位置分组显示；路径式录像（NuPlan、NGSIM、INTERACTION、
+CitySim、Argoverse 2）按顶层目录分组。WOMD 尚未接入预览 UI（tfrecord 分片还需要
+额外的场景选择步骤）。
+
+注意事项：没有规则帧网格的数据集（NuPlan 约 20 Hz 的激光扫描、DriveInsightD 的
+场景顶点）按实际观测到的时间戳推进；未指定 `--follow-id` 时相机跟随存活最久的
+车辆；UTM/州平面量级的全局坐标（NuPlan、NGSIM）渲染前会平移到局部原点以保证
+float32 精度；锥桶、护栏等静态目标会被解析但暂不渲染。地图表单中单独预览
+`.gpkg` 城市地图时只显示地图中心附近的一个窗口，以保证浏览器端载荷可控。
 
 数据根目录按以下优先级解析：
 
