@@ -1109,6 +1109,9 @@ def test_discover_stamped_dataset_layouts(monkeypatch, tmp_path):
     (tmp_path / "DriveInsightD").mkdir()
     (tmp_path / "DriveInsightD" / "42_scenario.xosc").touch()
 
+    (tmp_path / "WOMD").mkdir()
+    _write_womd_shard(tmp_path / "WOMD" / "sample.tfrecord")
+
     monkeypatch.setenv(preview.DATA_ROOT_ENV, str(tmp_path))
 
     catalog = {entry["dataset"]: entry for entry in preview.discover_stamped_datasets()}
@@ -1119,6 +1122,8 @@ def test_discover_stamped_dataset_layouts(monkeypatch, tmp_path):
     assert catalog["CitySim"]["files"] == ["Intersection A/trajectory.csv"]
     assert catalog["Argoverse2"]["files"] == ["val/scenario-uuid-1"]
     assert catalog["DriveInsightD"]["files"] == ["42"]
+    # Small WOMD shards are enumerated per scenario.
+    assert catalog["WOMD"]["files"] == ["sample.tfrecord/aaaa1111", "sample.tfrecord/bbbb2222"]
 
 
 def _write_moving_vehicle_csv(path, header, row_format, count=12):
@@ -1383,6 +1388,93 @@ def test_load_driveinsightd_preview_scene_synthetic(tmp_path):
     assert list(scene.participants) == [0]
     assert scene.participants[0].source_id == "ego"
     orjson.dumps(scene.sensor_for_frame(scene.frame_ids[0]))
+
+
+def _write_womd_shard(path, scenario_ids=("aaaa1111", "bbbb2222")):
+    """Write a minimal WOMD tfrecord shard: two moving vehicles and a tiny map."""
+    import struct
+
+    from tfrecord.writer import TFRecordWriter
+
+    from tactics2d.dataset_parser.womd_proto import scenario_pb
+
+    with path.open("wb") as shard:
+        for index, scenario_id in enumerate(scenario_ids):
+            scenario = scenario_pb.Scenario()
+            scenario.scenario_id = scenario_id
+            scenario.timestamps_seconds.extend([step * 0.1 for step in range(10)])
+            for track_id in (1, 2):
+                track = scenario.tracks.add()
+                track.id = track_id
+                track.object_type = 1  # vehicle
+                for step in range(10):
+                    state = track.states.add()
+                    state.center_x = 1000.0 + index * 100 + step * (1.0 + track_id)
+                    state.center_y = 500.0 + track_id * 5.0
+                    state.heading = 0.0
+                    state.velocity_x = 10.0
+                    state.velocity_y = 0.0
+                    state.length = 4.5
+                    state.width = 2.0
+                    state.height = 1.6
+                    state.valid = True
+            roadline = scenario.map_features.add()
+            roadline.id = 7
+            roadline.road_line.type = 2  # solid white
+            for x in (990.0, 1150.0):
+                point = roadline.road_line.polyline.add()
+                point.x = x
+                point.y = 495.0
+            crossing = scenario.map_features.add()
+            crossing.id = 8
+            for x, y in ((1000, 490), (1010, 490), (1010, 510), (1000, 510)):
+                point = crossing.crosswalk.polygon.add()
+                point.x = x
+                point.y = y
+
+            record = scenario.SerializeToString()
+            length_bytes = struct.pack("<Q", len(record))
+            shard.write(length_bytes)
+            shard.write(TFRecordWriter.masked_crc(length_bytes))
+            shard.write(record)
+            shard.write(TFRecordWriter.masked_crc(record))
+
+
+def test_load_womd_preview_scene_synthetic(tmp_path):
+    import orjson
+
+    shard_dir = tmp_path / "WOMD" / "training"
+    shard_dir.mkdir(parents=True)
+    shard = "training/sample.tfrecord-00000-of-00001"
+    _write_womd_shard(tmp_path / "WOMD" / shard)
+
+    scene = preview.load_womd_preview_scene(
+        folder=tmp_path / "WOMD", file=f"{shard}/bbbb2222", frames=8
+    )
+
+    assert scene.dataset_name == "WOMD"
+    assert len(scene.frame_ids) == 8
+    assert scene.frame_ids[0] == 0
+    assert sorted(scene.participants) == [1, 2]
+    # The second scenario's coordinates confirm scenario selection by id.
+    assert scene.participants[1].trajectory.get_state(0).x == pytest.approx(1100.0)
+    sensor = scene.sensor_for_frame(scene.frame_ids[0])
+    orjson.dumps(sensor)
+    shapes = {element["shape"] for element in sensor["map_data"]["road_elements"]}
+    assert shapes == {"line", "polygon"}  # road_line + crosswalk
+
+    # A bare shard path previews the first scenario.
+    first = preview.load_womd_preview_scene(folder=tmp_path / "WOMD", file=shard, frames=5)
+    assert first.participants[1].trajectory.get_state(0).x == pytest.approx(1000.0)
+
+    # start_time_ms trims leading frames from the fixed scenario window.
+    trimmed = preview.load_womd_preview_scene(
+        folder=tmp_path / "WOMD", file=shard, frames=8, start_time_ms=300
+    )
+    assert trimmed.frame_ids[0] == 300
+
+    with pytest.raises(FileNotFoundError):
+        preview.load_womd_preview_scene(folder=tmp_path / "WOMD", file="missing.tfrecord")
 
 
 def test_levelx_preview_option_and_path_helpers(monkeypatch, tmp_path):

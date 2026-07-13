@@ -127,11 +127,14 @@ without typing any path. Manual path fields remain available under the advanced
 | CitySim | `CitySim/**/*.csv` | none |
 | Argoverse 2 | `Argoverse2/<split>/<scenario>/` (parquet + `log_map_archive_*.json`) | per-scenario map json |
 | DriveInsightD | `DriveInsightD/<id>_scenario.xosc` | any `.xodr` in the same folder (optional) |
+| WOMD | `WOMD/**/*.tfrecord*` shards | per-scenario vector map inside the shard |
 
 LevelX recordings are grouped by their registered map location; path-style
-recordings (NuPlan, NGSIM, INTERACTION, CitySim, Argoverse 2) are grouped by
-their top-level folder. WOMD is not wired into the preview UI yet (tfrecord
-shards need an extra scenario-selection step).
+recordings (NuPlan, NGSIM, INTERACTION, CitySim, Argoverse 2, WOMD) are grouped
+by their top-level folder. WOMD shards up to 32 MB are listed per scenario as
+`<shard>/<scenario_id>` (enumerating ids means decoding the whole file);
+official-size shards appear as one entry and preview their first scenario —
+pass `--file "<shard>/<scenario_id>"` on the CLI to pick another.
 
 Notes: datasets without a regular frame grid (NuPlan's ~20 Hz lidar sweeps,
 DriveInsightD's scenario vertices) are previewed on their observed timestamps;

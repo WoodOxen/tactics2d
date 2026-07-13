@@ -76,6 +76,7 @@ def parse_args(argv=None):
             "CitySim",
             "Argoverse2",
             "DriveInsightD",
+            "WOMD",
         ],
         required=True,
     )

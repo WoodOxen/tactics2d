@@ -117,10 +117,13 @@ OSM 地图。检测到的数据集、录像和地图会以两级下拉的形式�
 | CitySim | `CitySim/**/*.csv` | 无 |
 | Argoverse 2 | `Argoverse2/<split>/<scenario>/`（parquet + `log_map_archive_*.json`） | 场景目录内的地图 json |
 | DriveInsightD | `DriveInsightD/<id>_scenario.xosc` | 同目录任意 `.xodr`（可选） |
+| WOMD | `WOMD/**/*.tfrecord*` 分片 | 分片内自带的逐场景矢量地图 |
 
 LevelX 录像按其注册的地图位置分组显示；路径式录像（NuPlan、NGSIM、INTERACTION、
-CitySim、Argoverse 2）按顶层目录分组。WOMD 尚未接入预览 UI（tfrecord 分片还需要
-额外的场景选择步骤）。
+CitySim、Argoverse 2、WOMD）按顶层目录分组。不超过 32 MB 的 WOMD 分片会按场景
+枚举为 `<分片>/<场景id>` 条目（枚举场景 id 需要解码整个文件）；官方尺寸的大分片
+只显示一个条目、默认预览第一个场景，可在 CLI 用
+`--file "<分片>/<场景id>"` 指定其它场景。
 
 注意事项：没有规则帧网格的数据集（NuPlan 约 20 Hz 的激光扫描、DriveInsightD 的
 场景顶点）按实际观测到的时间戳推进；未指定 `--follow-id` 时相机跟随存活最久的

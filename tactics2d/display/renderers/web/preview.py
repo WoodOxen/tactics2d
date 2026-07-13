@@ -53,6 +53,7 @@ DLP_DATASET = "DLP"
 CITYSIM_DATASET = "CitySim"
 ARGOVERSE2_DATASET = "Argoverse2"
 DRIVEINSIGHTD_DATASET = "DriveInsightD"
+WOMD_DATASET = "WOMD"
 
 _DATASET_DIR_VARIANTS = {
     NGSIM_DATASET: ("NGSIM", "ngsim"),
@@ -61,7 +62,14 @@ _DATASET_DIR_VARIANTS = {
     CITYSIM_DATASET: ("CitySim", "citysim", "CitySimData"),
     ARGOVERSE2_DATASET: ("Argoverse2", "argoverse2", "av2", "Argoverse"),
     DRIVEINSIGHTD_DATASET: ("DriveInsightD", "driveinsightd"),
+    WOMD_DATASET: ("WOMD", "womd", "Waymo", "waymo_open_motion"),
 }
+
+# WOMD shards hold hundreds of scenarios; enumerating ids means decoding the
+# whole file, so only shards up to this size get per-scenario dropdown entries.
+# Bigger shards appear as one entry and preview their first scenario.
+_WOMD_ENUMERATE_MAX_BYTES = 32 * 1024 * 1024
+_WOMD_MAX_SCENARIOS_PER_SHARD = 50
 
 # Datasets whose coordinates are global (UTM/state-plane scale); anything whose
 # scene center exceeds this magnitude is shifted to a local origin (float32
@@ -526,6 +534,45 @@ def discover_driveinsightd_datasets() -> list[dict[str, Any]]:
     return []
 
 
+def discover_womd_datasets() -> list[dict[str, Any]]:
+    """Scan the data roots for WOMD tfrecord shards.
+
+    Small shards (synthetic fixtures, extracted samples) are listed per
+    scenario as ``<shard>/<scenario_id>``; official-size shards are listed as
+    one entry each and preview their first scenario when selected.
+    """
+
+    for candidate in _iter_dataset_dirs(WOMD_DATASET):
+        shards = _glob_relative(candidate, ("*.tfrecord*", "*/*.tfrecord*"))
+        files: list[str] = []
+        for shard in shards:
+            shard_path = candidate / shard
+            try:
+                enumerate_ids = shard_path.stat().st_size <= _WOMD_ENUMERATE_MAX_BYTES
+            except OSError:
+                continue
+            if enumerate_ids:
+                try:
+                    import tfrecord as tfrecord_lib
+
+                    from tactics2d.dataset_parser import WOMDParser
+
+                    scenario_ids = WOMDParser().get_scenario_ids(
+                        tfrecord_lib.tfrecord_iterator(str(shard_path), compression_type=None)
+                    )
+                    files.extend(
+                        f"{shard}/{scenario_id}"
+                        for scenario_id in scenario_ids[:_WOMD_MAX_SCENARIOS_PER_SHARD]
+                    )
+                    continue
+                except Exception as error:
+                    LOGGER.warning("Could not enumerate WOMD shard %s: %s", shard, error)
+            files.append(shard)
+        if files:
+            return [{"dataset": WOMD_DATASET, "folder": str(candidate), "files": files}]
+    return []
+
+
 def discover_stamped_datasets() -> list[dict[str, Any]]:
     """Scan the data roots for every non-LevelX dataset family."""
 
@@ -538,6 +585,7 @@ def discover_stamped_datasets() -> list[dict[str, Any]]:
         discover_citysim_datasets,
         discover_argoverse2_datasets,
         discover_driveinsightd_datasets,
+        discover_womd_datasets,
     ):
         try:
             discovered.extend(discover())
@@ -1293,6 +1341,62 @@ def load_driveinsightd_preview_scene(
     )
 
 
+def load_womd_preview_scene(
+    folder: Path,
+    file: str,
+    map_config: str | None = None,
+    frames: int = 300,
+    start_time_ms: int | None = None,
+    follow_id: int | None = None,
+    perception_range: float = 80.0,
+) -> StampedPreviewScene:
+    """Load a WOMD scenario (10 Hz, ~9 s, per-scenario vector map).
+
+    ``file`` is either a shard path (previews its first scenario) or
+    ``<shard>/<scenario_id>`` as produced by :func:`discover_womd_datasets`.
+    Scenarios are fully articulated, so ``start_time_ms`` only trims leading
+    frames from the fixed window.
+    """
+
+    from tactics2d.dataset_parser import WOMDParser
+
+    folder = folder.expanduser().resolve()
+    shard, scenario_id = str(file), None
+    if not (folder / shard).is_file():
+        shard, _, scenario_id = str(file).rpartition("/")
+        if not shard or not (folder / shard).is_file():
+            raise FileNotFoundError(f"WOMD shard for {file!r} not found under {folder}.")
+
+    parser = WOMDParser()
+    LOGGER.info("Loading WOMD scenario %s from shard %s.", scenario_id or "<first>", shard)
+    participants, _ = parser.parse_trajectory(scenario_id, file=shard, folder=str(folder))
+    if not participants:
+        raise RuntimeError(f"WOMD scenario {scenario_id!r} not found in {shard}.")
+    if start_time_ms:
+        from tactics2d.participant.trajectory import Trajectory
+
+        trimmed = {}
+        for id_, participant in participants.items():
+            kept = [
+                state
+                for state in participant.trajectory.history_states.values()
+                if state.frame >= start_time_ms
+            ]
+            if not kept:
+                continue
+            trajectory = Trajectory(id_=id_, fps=10, stable_freq=False)
+            for state in sorted(kept, key=lambda state: state.frame):
+                trajectory.add_state(state)
+            participant.trajectory = trajectory
+            trimmed[id_] = participant
+        participants = trimmed
+    map_ = parser.parse_map(scenario_id, file=shard, folder=str(folder))
+
+    return _finalize_stamped_scene(
+        WOMD_DATASET, str(file), map_, participants, frames, follow_id, perception_range
+    )
+
+
 _STAMPED_SCENE_LOADERS = {
     NUPLAN_DATASET.lower(): load_nuplan_preview_scene,
     NGSIM_DATASET.lower(): load_ngsim_preview_scene,
@@ -1301,6 +1405,7 @@ _STAMPED_SCENE_LOADERS = {
     CITYSIM_DATASET.lower(): load_citysim_preview_scene,
     ARGOVERSE2_DATASET.lower(): load_argoverse2_preview_scene,
     DRIVEINSIGHTD_DATASET.lower(): load_driveinsightd_preview_scene,
+    WOMD_DATASET.lower(): load_womd_preview_scene,
 }
 
 
