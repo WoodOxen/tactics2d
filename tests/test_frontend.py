@@ -849,8 +849,11 @@ def test_levelx_preview_resolves_map_config_from_recording():
     assert config["osm_file"] == "highD_1.osm"
 
 
-def test_resolve_osm_path_official_levelx_maps_layout(tmp_path):
+def test_resolve_osm_path_official_levelx_maps_layout(tmp_path, monkeypatch):
     """levelXdata ships maps as <dataset>/maps/lanelet2/<location>_<site>.osm."""
+    # The resolver prefers repo-bundled maps under cwd; chdir so a checked-out
+    # tactics2d/data (present on CI) cannot shadow the official layout under test.
+    monkeypatch.chdir(tmp_path)
     maps_dir = tmp_path / "exiD" / "maps" / "lanelet2"
     maps_dir.mkdir(parents=True)
     osm = maps_dir / "0_cologne_butzweiler.osm"
