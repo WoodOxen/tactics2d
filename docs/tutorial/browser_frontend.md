@@ -147,7 +147,12 @@ recommended way to render scenes in new code.
 ### Using the Factory
 
 ```python
-from tactics2d.display import create_display_backend, SceneSnapshot
+from tactics2d.display import (
+    CameraMetadata,
+    ParticipantElement,
+    SceneSnapshot,
+    create_display_backend,
+)
 
 # Create a browser backend (auto-starts the server if needed)
 backend = create_display_backend("browser")
@@ -236,5 +241,5 @@ Dependencies:
 
 - **GIF export**: install `imageio` (`pip install imageio`)
 - **PNG sequence export**: install `Pillow` (`pip install Pillow`)
-- **Browser backend**: install `fastapi` and `uvicorn` (included as optional
-  dependencies of tactics2d)
+- **Browser backend**: no extra installation needed — `fastapi`, `uvicorn`, and
+  `orjson` are core dependencies of tactics2d and are installed with the package

@@ -128,3 +128,106 @@ renderer.send_frame([sensor], frame=frame)
 - 进入实时模式时，前端会保留最近一次实时快照；仿真运行中刷新浏览器不会清空当前场景。
 - 如果浏览器只显示车辆、没有道路，先检查源地图 payload。部分数据集在轨迹中提供
   `Lane_ID`，但并没有可渲染为地图的车道几何。
+
+## 统一显示后端
+
+Tactics2D 提供统一的 `DisplayBackend` 接口，把所有渲染方式（pygame、浏览器、
+matplotlib、null）封装在同一套 API 后面。新代码推荐使用这种方式渲染场景。
+
+### 使用工厂函数
+
+```python
+from tactics2d.display import (
+    CameraMetadata,
+    ParticipantElement,
+    SceneSnapshot,
+    create_display_backend,
+)
+
+# 创建浏览器后端（需要时自动启动前端服务）
+backend = create_display_backend("browser")
+
+# 构造一帧快照
+snapshot = SceneSnapshot(
+    frame=0,
+    participants={
+        1: ParticipantElement(
+            id_=1, shape="polygon",
+            geometry=[[-2,-1],[2,-1],[2,1],[-2,1]],
+            position=(0, 0), rotation=0.0, type_="vehicle",
+        ),
+    },
+    cameras=[CameraMetadata(id_="cam0", position=(0,0), yaw=0.0, perception_range=50)],
+)
+
+# 每帧渲染
+for frame in range(120):
+    snapshot.frame = frame
+    snapshot.participants[1].position = (frame * 0.2, 0.0)
+    backend.render(snapshot)
+
+backend.close()
+```
+
+### 与环境集成
+
+创建环境时设置 `render_mode="browser"`，环境会自动创建浏览器后端，并在每次
+`render()` 调用时发送快照：
+
+```python
+from tactics2d.envs import ParkingEnv
+
+env = ParkingEnv(render_mode="browser", render_fps=30)
+obs, info = env.reset()
+
+for _ in range(200):
+    obs, reward, terminated, truncated, info = env.step(env.action_space.sample())
+    env.render()              # 把当前帧发送到浏览器
+    if terminated or truncated:
+        break
+
+env.close()
+```
+
+浏览器后端会自动管理服务生命周期：
+
+- 如果服务已经在运行（例如通过 `tactics2d start` 启动），后端会直接连接它。
+- 如果没有服务在运行，后端会以子进程方式启动一个。
+- 调用 `backend.close()` 或 `env.close()` 只会断开连接，**不会**停止由外部管理的服务。
+
+其他支持的渲染模式：
+
+| 模式 | 后端 | 输出 |
+|------|------|------|
+| `"human"` | pygame 窗口 | 本地屏幕窗口 |
+| `"rgb_array"` | pygame（离屏） | `render()` 返回 NumPy 数组 |
+| `"browser"` | 浏览器 HTTP + WebSocket | 远程浏览器标签页 |
+| `"matplotlib"` | Matplotlib 图像 | NumPy 数组或保存的图片 |
+| `"none"` | NullBackend（空操作） | `None` |
+
+### 录制输出
+
+用 `GifRecorder` 或 `FrameExporter` 包装任意后端，可以把渲染帧保存为 GIF 动画
+或 PNG 序列：
+
+```python
+from tactics2d.display import create_display_backend, SceneSnapshot
+from tactics2d.display.recorder import GifRecorder
+
+backend = create_display_backend("matplotlib")
+recorder = GifRecorder(backend, output_path="output.gif", fps=10)
+
+for frame in range(100):
+    snapshot = build_snapshot(frame)
+    recorder.render(snapshot)    # 渲染并记录
+
+recorder.save()    # 写出 output.gif
+recorder.close()
+```
+
+依赖说明：
+
+- **GIF 导出**：安装 `imageio`（`pip install imageio`）
+- **PNG 序列导出**：安装 `Pillow`（`pip install Pillow`）
+- **浏览器后端**：无需额外安装——`fastapi`、`uvicorn` 和 `orjson` 是 tactics2d
+  的核心依赖，随包一起安装
