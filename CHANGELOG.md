@@ -36,6 +36,7 @@
 
 ### Fixed
 
+- Fixed browser-frontend dataset discovery emitting backslash-separated relative paths on Windows: entries are now normalized with `as_posix()`, which also unbreaks WOMD and Argoverse 2 scenario selection there (both split the `file` value on `/`).
 - Fixed `Argoverse2Parser` crashing with `KeyError: 'construction'` on real motion-forecasting scenarios: the `construction` and `unknown` object categories were missing from the type mappings, and unseen future categories now degrade to `Other` instead of aborting the parse. Found by loading official validation scenarios from the public Argoverse S3 bucket.
 - Fixed screen recordings failing to play in strict players (e.g. GNOME Videos): with the compatibility-mode toggle enabled (default), captures are finalized server-side via ffmpeg (`POST /api/record/export`) into constant-frame-rate H.264 MP4, since raw MediaRecorder output declares a variable (0/1) frame rate; unticking the toggle (or a server without ffmpeg) downloads the raw recording unchanged.
 - Fixed compatibility-mode recordings crashing hardware-accelerated players (GStreamer VA-API heap corruption, observed in GNOME Videos) when the capture width is not a multiple of 4: the ffmpeg finalize now pads output to 4-pixel-aligned dimensions, the capture canvas is aligned client-side, and a failed transcode surfaces a status message instead of silently downloading the raw file.

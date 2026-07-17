@@ -457,14 +457,17 @@ def test_replay_task_streams_recording(monkeypatch, tmp_path):
 
     manager = server_module.ConnectionManager()
     status = {}
-    pause_event = asyncio.Event()
-    pause_event.set()
 
-    asyncio.run(
-        server_module._run_recording_replay(
+    # On Python <= 3.9 asyncio primitives bind to a loop at construction, so
+    # the Event must be created inside the coroutine run by asyncio.run.
+    async def run_replay():
+        pause_event = asyncio.Event()
+        pause_event.set()
+        await server_module._run_recording_replay(
             manager, status, {"name": "clip", "max_fps": 100}, pause_event
         )
-    )
+
+    asyncio.run(run_replay())
 
     assert status["status"] == "complete"
     assert status["total_frames"] == 3
@@ -481,7 +484,7 @@ def test_discover_maps_includes_scanned_osm_files(monkeypatch, tmp_path):
 
     entry = next(item for item in maps if item["osm_path"] == str(osm.resolve()))
     assert entry["dataset"] is None
-    assert entry["name"] == str(Path("custom") / "my_map.osm")
+    assert entry["name"] == "custom/my_map.osm"
 
 
 def test_preview_map_endpoint_publishes_frame():

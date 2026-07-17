@@ -299,7 +299,7 @@ def _list_nuplan_db_files(folder: Path) -> list[str]:
             files.update(folder.glob(pattern))
     except OSError:
         return []
-    return sorted(str(path.relative_to(folder)) for path in files)
+    return sorted(path.relative_to(folder).as_posix() for path in files)
 
 
 def discover_nuplan_datasets() -> list[dict[str, Any]]:
@@ -419,7 +419,7 @@ def _glob_relative(folder: Path, patterns: tuple[str, ...]) -> list[str]:
             files.update(folder.glob(pattern))
     except OSError:
         return []
-    return sorted(str(path.relative_to(folder)) for path in files)
+    return sorted(path.relative_to(folder).as_posix() for path in files)
 
 
 def discover_ngsim_datasets() -> list[dict[str, Any]]:
@@ -510,7 +510,7 @@ def discover_argoverse2_datasets() -> list[dict[str, Any]]:
         except OSError:
             continue
         if files:
-            scenario_dirs = sorted(str(path.relative_to(candidate)) for path in files)
+            scenario_dirs = sorted(path.relative_to(candidate).as_posix() for path in files)
             return [
                 {"dataset": ARGOVERSE2_DATASET, "folder": str(candidate), "files": scenario_dirs}
             ]
@@ -638,7 +638,7 @@ def discover_maps(dataset_catalog: list[dict[str, Any]] | None = None) -> list[d
                 known_paths.add(resolved)
                 maps.append(
                     {
-                        "name": str(osm.relative_to(root)),
+                        "name": osm.relative_to(root).as_posix(),
                         "dataset": None,
                         "osm_path": str(resolved),
                         "description": "",
