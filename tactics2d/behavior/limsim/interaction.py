@@ -5,7 +5,7 @@
 
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from tactics2d.geometry import euclidean_distance, oriented_box
+from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 
 from .config import LimSimConfig
@@ -62,7 +62,7 @@ class InteractionGraph:
     def _has_interaction(
         self, source: AgentDecisionState, target: AgentDecisionState, map_: Optional[Map]
     ) -> bool:
-        distance = euclidean_distance(source.location, target.location)
+        distance = spatial.euclidean_distance(source.location, target.location)
         if distance <= self.config.conflict_distance:
             return True
 
@@ -132,17 +132,17 @@ def has_trajectory_collision(trajectories: Sequence[Sequence[AgentDecisionState]
     for step in range(steps):
         states = [trajectory[step] for trajectory in trajectories]
         for i, source in enumerate(states):
-            source_shape = _footprint(source)  # hoisted: compute once per source
+            source_shape = source.footprint  # hoisted: compute once per source
             source_radius = 0.5 * (source.length**2 + source.width**2) ** 0.5
             for j in range(i + 1, len(states)):
                 target = states[j]
                 target_radius = 0.5 * (target.length**2 + target.width**2) ** 0.5
                 if (
-                    euclidean_distance(source.location, target.location)
+                    spatial.euclidean_distance(source.location, target.location)
                     > source_radius + target_radius
                 ):
                     continue
-                if source_shape.intersects(_footprint(target)):
+                if source_shape.intersects(target.footprint):
                     return True
     return False
 
@@ -158,17 +158,17 @@ def first_collision_info(
     for step in range(steps):
         states = [trajectory[step] for trajectory in trajectories]
         for i, source in enumerate(states):
-            source_shape = _footprint(source)  # hoisted: compute once per source
+            source_shape = source.footprint  # hoisted: compute once per source
             source_radius = 0.5 * (source.length**2 + source.width**2) ** 0.5
             for j in range(i + 1, len(states)):
                 target = states[j]
                 target_radius = 0.5 * (target.length**2 + target.width**2) ** 0.5
                 if (
-                    euclidean_distance(source.location, target.location)
+                    spatial.euclidean_distance(source.location, target.location)
                     > source_radius + target_radius
                 ):
                     continue
-                if source_shape.intersects(_footprint(target)):
+                if source_shape.intersects(target.footprint):
                     return step, source, target
     return None
 
@@ -183,10 +183,6 @@ def minimum_pair_distance(trajectories: Sequence[Sequence[AgentDecisionState]]) 
     for step in range(steps):
         for i, source in enumerate(trajectories):
             for target in trajectories[i + 1 :]:
-                distance = euclidean_distance(source[step].location, target[step].location)
+                distance = spatial.euclidean_distance(source[step].location, target[step].location)
                 min_distance = min(min_distance, distance)
     return min_distance
-
-
-def _footprint(state: AgentDecisionState):
-    return oriented_box(state.x, state.y, state.heading, state.length, state.width)

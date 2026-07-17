@@ -8,7 +8,7 @@ from typing import Dict, Iterable, Optional, Sequence, Tuple
 import numpy as np
 
 from tactics2d.behavior.base import BehaviorModelBase
-from tactics2d.geometry import normalize_angle
+from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import Trajectory
@@ -18,7 +18,7 @@ from .config import LimSimConfig
 from .decision_search import LimSimDecisionSearch
 from .frenet_planner import FrenetTrajectoryPlanner
 from .interaction import InteractionGraph, first_collision_info
-from .planner import LaneFollower
+from .lane_follower import LaneFollower
 from .prediction import LimSimPredictor
 from .roi import RoISelector
 from .scene import SceneBuilder
@@ -330,7 +330,7 @@ class LimSimBehaviorModel(BehaviorModelBase):
                 reference_state.with_updates(
                     x=raw_state.x,
                     y=raw_state.y,
-                    heading=normalize_angle(raw_state.heading),
+                    heading=spatial.normalize_angle(raw_state.heading),
                     speed=max(raw_state.speed or 0.0, 0.0),
                     route_progress=previous_progress,
                 )

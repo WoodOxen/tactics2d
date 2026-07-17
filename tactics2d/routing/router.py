@@ -6,14 +6,15 @@
 from typing import Callable, Dict, Optional, Sequence
 
 import numpy as np
+from shapely.geometry import LineString, Point
 
+from tactics2d.geometry import polyline
 from tactics2d.map.element import Map
 
 from .algorithm_adapter import AlgorithmAdapter
 from .cost_builder import RoutingCostFunction
 from .graph_builder import GraphBuilder
 from .route import Route, RouteSegment
-from .utils import concatenate_centerlines, find_nearest_lane, get_lane_centerline
 
 
 class Router:
@@ -71,8 +72,8 @@ class Router:
         )
         routing_graph = graph_builder.build(map_)
 
-        start_lane_id = find_nearest_lane(map_, start)
-        goal_lane_id = find_nearest_lane(map_, goal)
+        start_lane_id = self._find_nearest_lane(map_, start)
+        goal_lane_id = self._find_nearest_lane(map_, goal)
 
         route = Route(tuple(start[:2]), tuple(goal[:2]), start_lane_id, goal_lane_id)
         if start_lane_id is None or goal_lane_id is None:
@@ -99,7 +100,10 @@ class Router:
 
         centerlines = []
         for path_pos, lane_id in enumerate(route.lane_ids):
-            centerline = get_lane_centerline(map_.lanes[lane_id])
+            centerline = map_.lanes[lane_id].centerline()
+            centerline = (
+                np.asarray(centerline.coords, dtype=float) if centerline is not None else None
+            )
             centerlines.append(centerline)
 
             relation_type = "start"
@@ -122,7 +126,7 @@ class Router:
                 )
             )
 
-        route.path = concatenate_centerlines(centerlines)
+        route.path = polyline.concatenate(centerlines)
         return route
 
     def _build_heuristic(self, map_: Map, routing_graph) -> Callable[[int, int], float]:
@@ -131,7 +135,10 @@ class Router:
 
         center_cache = {}
         for lane_id, idx in routing_graph.lane_id_to_index.items():
-            centerline = get_lane_centerline(map_.lanes[lane_id])
+            centerline = map_.lanes[lane_id].centerline()
+            centerline = (
+                np.asarray(centerline.coords, dtype=float) if centerline is not None else None
+            )
             if centerline is None or len(centerline) == 0:
                 center_cache[idx] = None
             else:
@@ -145,3 +152,24 @@ class Router:
             return float(np.linalg.norm(src_center - dst_center))
 
         return heuristic
+
+    @staticmethod
+    def _find_nearest_lane(map_: Map, point_xy: Sequence[float]) -> Optional[str]:
+        """Find the nearest lane to a point."""
+        point = Point(point_xy[0], point_xy[1])
+        best_lane_id = None
+        best_distance = np.inf
+
+        for lane_id, lane in map_.lanes.items():
+            if lane.geometry is None:
+                continue
+            centerline = lane.centerline()
+            if centerline is not None:
+                distance = LineString(centerline).distance(point)
+            else:
+                distance = lane.geometry.distance(point)
+            if distance < best_distance:
+                best_distance = distance
+                best_lane_id = lane_id
+
+        return best_lane_id

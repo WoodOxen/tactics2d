@@ -14,7 +14,7 @@ from tactics2d.behavior.trajectory_evaluation import (
     displacement_errors,
     find_first_collision,
 )
-from tactics2d.geometry import normalize_angle
+from tactics2d.geometry import spatial
 from tactics2d.participant.trajectory import State, Trajectory
 
 from .action import LimSimAction
@@ -40,6 +40,11 @@ class AgentDecisionState:
     @property
     def location(self) -> Tuple[float, float]:
         return (self.x, self.y)
+
+    @property
+    def footprint(self):
+        """Return the oriented bounding box of this agent."""
+        return spatial.oriented_box(self.x, self.y, self.heading, self.length, self.width)
 
     def with_updates(self, **kwargs) -> "AgentDecisionState":
         """Return a new instance with the given fields replaced.
@@ -105,7 +110,7 @@ def states_to_trajectory(
     trajectory = Trajectory(id_=agent_id, fps=round(1.0 / dt, 3), stable_freq=True)
     for index, state in enumerate(states):
         frame = int(round(start_frame + (index + 1) * dt * 1000))
-        heading = normalize_angle(state.heading)
+        heading = spatial.normalize_angle(state.heading)
         vx = state.speed * np.cos(heading)
         vy = state.speed * np.sin(heading)
         trajectory.add_state(

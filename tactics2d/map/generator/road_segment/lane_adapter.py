@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from tactics2d.geometry import cumulative_s
+from tactics2d.geometry import polyline
 from tactics2d.map.element import Lane, RoadLine
 from tactics2d.map.generator.rules.lane_marking_rules import (
     one_way_boundary_token,
@@ -48,9 +48,9 @@ def _variable_offset_polyline(
     if len(pts) < 2:
         return pts.copy()
 
-    cum = cumulative_s(pts)
-    total = cum[-1]
-    t = np.zeros(len(pts)) if total < 1e-9 else cum / total
+    cumulative_lengths = polyline.arc_lengths(pts)
+    total = cumulative_lengths[-1]
+    t = np.zeros(len(pts)) if total < 1e-9 else cumulative_lengths / total
     t = t * t * (3.0 - 2.0 * t)
 
     tangents = np.empty_like(pts)

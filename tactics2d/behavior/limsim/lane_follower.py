@@ -1,17 +1,16 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Trajectory rollout for LimSim-style actions."""
+"""Lane-following trajectory rollout for LimSim-style actions."""
 
 from typing import List, Optional, Tuple
 
 import numpy as np
 from shapely.geometry import LineString, Point
 
-from tactics2d.geometry import normalize_angle
+from tactics2d.geometry import polyline, spatial
 from tactics2d.map.element import Map
 from tactics2d.map.query import SemanticMapQuery
-from tactics2d.routing.utils import concatenate_centerlines, get_lane_centerline
 
 from .action import LimSimAction
 from .config import LimSimConfig
@@ -58,7 +57,9 @@ class LaneFollower:
                 progress = min(progress + travel, route_path.length)
                 point = route_path.interpolate(progress)
                 lookahead = route_path.interpolate(min(progress + 0.5, route_path.length))
-                heading = normalize_angle(np.arctan2(lookahead.y - point.y, lookahead.x - point.x))
+                heading = spatial.normalize_angle(
+                    np.arctan2(lookahead.y - point.y, lookahead.x - point.x)
+                )
                 lateral_offset = self._next_lateral_offset(current, action)
                 x = float(point.x - lateral_offset * np.sin(heading))
                 y = float(point.y + lateral_offset * np.cos(heading))
@@ -87,7 +88,13 @@ class LaneFollower:
     def _lane_transition(
         self, agent: AgentDecisionState, action: LimSimAction, map_: Optional[Map]
     ) -> Optional[AgentDecisionState]:
-        """Switch lane when the lateral Frenet offset crosses a lane boundary."""
+        """Smoothly transition lane_id when the lateral offset crosses a lane boundary.
+
+        Instead of teleporting the lateral offset to the new lane's frame (which
+        produces a discontinuous jump of ~one lane width), this method projects
+        the vehicle's current Cartesian position onto the neighbor lane's
+        centerline to obtain a **continuous** lateral offset in the new frame.
+        """
 
         if action not in {LimSimAction.LCL, LimSimAction.LCR}:
             return None
@@ -119,31 +126,29 @@ class LaneFollower:
             return agent.with_updates(lateral_offset=float(clipped_offset))
 
         next_lane = map_.lanes[next_lane_id]
-        next_width = self._lane_width(next_lane)
-        if action == LimSimAction.LCL:
-            next_offset = agent.lateral_offset - (current_width + next_width) / 2.0
-        else:
-            next_offset = agent.lateral_offset + (current_width + next_width) / 2.0
-
-        next_centerline = get_lane_centerline(next_lane)
+        next_centerline = next_lane.centerline()
+        next_centerline = (
+            np.asarray(next_centerline.coords, dtype=float) if next_centerline is not None else None
+        )
         if next_centerline is None or len(next_centerline) < 2:
-            return agent.with_updates(lane_id=next_lane_id, lateral_offset=float(next_offset))
+            return agent.with_updates(lane_id=next_lane_id)
 
+        # Project the vehicle's current Cartesian position onto the neighbor
+        # lane's centerline to get a continuous lateral offset in the new frame.
         line = LineString(next_centerline)
         next_progress = float(line.project(Point(agent.x, agent.y)))
         point = line.interpolate(next_progress)
         lookahead = line.interpolate(min(next_progress + 0.5, line.length))
-        heading = normalize_angle(np.arctan2(lookahead.y - point.y, lookahead.x - point.x))
-        x = float(point.x - next_offset * np.sin(heading))
-        y = float(point.y + next_offset * np.cos(heading))
+        heading = spatial.normalize_angle(np.arctan2(lookahead.y - point.y, lookahead.x - point.x))
+
+        # Signed distance from the neighbor centerline = continuous lateral offset.
+        # This avoids the 3.6 m arithmetic jump that the old formula produced.
+        dx = agent.x - point.x
+        dy = agent.y - point.y
+        next_offset = float(-dx * np.sin(heading) + dy * np.cos(heading))
+
         return agent.with_updates(
-            x=x,
-            y=y,
-            heading=heading,
-            lane_id=next_lane_id,
-            route_lane_ids=(next_lane_id,),
-            route_progress=next_progress,
-            lateral_offset=float(next_offset),
+            lane_id=next_lane_id, route_progress=next_progress, lateral_offset=next_offset
         )
 
     def _choose_neighbor_lane(
@@ -153,21 +158,25 @@ class LaneFollower:
         if not candidates:
             return None
         point = Point(agent.x, agent.y)
-        return min(
-            candidates,
-            key=lambda lane_id: (
-                LineString(get_lane_centerline(map_.lanes[lane_id])).distance(point)
-                if get_lane_centerline(map_.lanes[lane_id]) is not None
-                else float("inf")
-            ),
-        )
+
+        def _lane_centerline_distance(lid: str) -> float:
+            centerline = map_.lanes[lid].centerline()
+            centerline = (
+                np.asarray(centerline.coords, dtype=float) if centerline is not None else None
+            )
+            return (
+                LineString(centerline).distance(point) if centerline is not None else float("inf")
+            )
+
+        return min(candidates, key=_lane_centerline_distance)
 
     def _lane_width(self, lane) -> float:
         if lane.left_side is None or lane.right_side is None:
             return self.config.default_lane_width
         left = LineString(lane.left_side)
         right = LineString(lane.right_side)
-        centerline = get_lane_centerline(lane)
+        centerline = lane.centerline()
+        centerline = np.asarray(centerline.coords, dtype=float) if centerline is not None else None
         if centerline is None or len(centerline) < 2:
             return self.config.default_lane_width
         line = LineString(centerline)
@@ -235,8 +244,13 @@ class LaneFollower:
                 route_lanes.append(next_lane_id)
                 current_lane_id = next_lane_id
 
-        centerlines = [get_lane_centerline(map_.lanes[lane_id]) for lane_id in route_lanes]
-        path_array = concatenate_centerlines(centerlines)
+        centerlines = []
+        for lane_id in route_lanes:
+            centerline = map_.lanes[lane_id].centerline()
+            centerlines.append(
+                np.asarray(centerline.coords, dtype=float) if centerline is not None else None
+            )
+        path_array = polyline.concatenate(centerlines)
         if path_array is None or len(path_array) < 2:
             return None, tuple(route_lanes), 0.0
 
@@ -245,7 +259,7 @@ class LaneFollower:
         return route_path, tuple(route_lanes), float(start_progress)
 
 
-def action_is_valid(agent: AgentDecisionState, action: LimSimAction, map_: Optional[Map]) -> bool:
+def is_action_valid(agent: AgentDecisionState, action: LimSimAction, map_: Optional[Map]) -> bool:
     """Check map-topology feasibility for a high-level action."""
 
     if action not in {LimSimAction.LCL, LimSimAction.LCR}:

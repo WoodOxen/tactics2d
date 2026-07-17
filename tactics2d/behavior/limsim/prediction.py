@@ -9,7 +9,7 @@ from tactics2d.map.element import Map
 from tactics2d.participant.trajectory import Trajectory
 
 from .config import LimSimConfig
-from .planner import LaneFollower
+from .lane_follower import LaneFollower
 from .scene import SceneBuilder
 from .schema import states_to_trajectory
 

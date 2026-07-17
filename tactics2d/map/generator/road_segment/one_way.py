@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from tactics2d.geometry import offset_polyline
+from tactics2d.geometry import polyline
 from tactics2d.map.element import Lane, RoadLine
 from tactics2d.map.generator.rules.lane_marking_rules import (
     one_way_boundary_token,
@@ -87,7 +87,7 @@ class OneWay(RoadSegment):
 
         boundary_num = lane_n + 1
         boundary_pts = [
-            offset_polyline(center_pts, boundary_offset(i, lane_n, lane_w))
+            polyline.offset(center_pts, boundary_offset(i, lane_n, lane_w))
             for i in range(boundary_num)
         ]
 

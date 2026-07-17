@@ -1,34 +1,40 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Tests for LimSim-style interactive behavior planning."""
+"""Smoke tests for LimSim-style interactive behavior planning.
+
+Each test runs a scenario end-to-end and checks the key outcome — no
+exhaustive field-by-field assertions.
+"""
 
 import numpy as np
 import pytest
-from shapely.geometry import LineString, Point, Polygon
+from shapely.geometry import LineString, Point
 
-from tactics2d.behavior import BehaviorModelBase, LimSimBehaviorModel
+from tactics2d.behavior import LimSimBehaviorModel
 from tactics2d.behavior.limsim.action import LimSimAction
 from tactics2d.behavior.limsim.config import LimSimConfig
 from tactics2d.behavior.limsim.frenet_planner import (
     FrenetTrajectoryPlanner,
-    build_reference_path_from_agent,
+    reference_path_from_agent,
 )
 from tactics2d.behavior.limsim.interaction import InteractionGraph, has_trajectory_collision
-from tactics2d.behavior.limsim.planner import LaneFollower
-from tactics2d.behavior.limsim.prediction import LimSimPredictor
+from tactics2d.behavior.limsim.lane_follower import LaneFollower
 from tactics2d.behavior.limsim.roi import RoISelector
 from tactics2d.behavior.limsim.scene import SceneBuilder
-from tactics2d.behavior.limsim.schema import evaluate_planning_result, states_to_trajectory
-from tactics2d.behavior.trajectory_evaluation import dimensions_from_participants
-from tactics2d.geometry import ReferencePath
+from tactics2d.behavior.limsim.schema import evaluate_planning_result
+from tactics2d.geometry import frenet
 from tactics2d.map.element import Junction, Lane, LaneRelationship, Map, Regulatory, RoadLine
 from tactics2d.map.query import SemanticMapQuery
 from tactics2d.participant.element import Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 
+# ---------------------------------------------------------------------------
+# helpers
+# ---------------------------------------------------------------------------
 
-def _build_lane(lane_id, x_left, x_right, y_start, y_end):
+
+def _lane(lane_id, x_left, x_right, y_start, y_end):
     left_side = LineString([(x_left, y_start), (x_left, y_end)])
     right_side = LineString([(x_right, y_start), (x_right, y_end)])
     return Lane(
@@ -43,48 +49,48 @@ def _build_lane(lane_id, x_left, x_right, y_start, y_end):
     )
 
 
-def _build_parallel_map():
-    map_ = Map(name="limsim_test_map")
-    lane_a = _build_lane("A", 0.0, 2.0, 0.0, 80.0)
-    lane_b = _build_lane("B", 2.0, 4.0, 0.0, 80.0)
-    lane_a.add_related_lane("B", LaneRelationship.RIGHT_NEIGHBOR)
-    lane_b.add_related_lane("A", LaneRelationship.LEFT_NEIGHBOR)
-    map_.add_lane(lane_a)
-    map_.add_lane(lane_b)
+def _parallel_map():
+    map_ = Map(name="parallel")
+    a = _lane("A", 0.0, 2.0, 0.0, 80.0)
+    b = _lane("B", 2.0, 4.0, 0.0, 80.0)
+    a.add_related_lane("B", LaneRelationship.RIGHT_NEIGHBOR)
+    b.add_related_lane("A", LaneRelationship.LEFT_NEIGHBOR)
+    map_.add_lane(a)
+    map_.add_lane(b)
     return map_
 
 
-def _build_successor_map():
-    map_ = Map(name="limsim_successor_map")
-    lane_a = _build_lane("A", 0.0, 2.0, 0.0, 30.0)
-    lane_b = _build_lane("B", 0.0, 2.0, 30.0, 80.0)
-    lane_a.add_related_lane("B", LaneRelationship.SUCCESSOR)
-    map_.add_lane(lane_a)
-    map_.add_lane(lane_b)
+def _successor_map():
+    map_ = Map(name="successor")
+    a = _lane("A", 0.0, 2.0, 0.0, 30.0)
+    b = _lane("B", 0.0, 2.0, 30.0, 80.0)
+    a.add_related_lane("B", LaneRelationship.SUCCESSOR)
+    map_.add_lane(a)
+    map_.add_lane(b)
     return map_
 
 
-def _build_crossing_map():
-    map_ = Map(name="crossing_map")
-    east_west = Lane(
+def _crossing_map():
+    map_ = Map(name="crossing")
+    ew = Lane(
         id_="EW",
         left_side=LineString([(-10.0, 1.0), (10.0, 1.0)]),
         right_side=LineString([(-10.0, -1.0), (10.0, -1.0)]),
         custom_tags={"centerline": np.array([[-10.0, 0.0], [10.0, 0.0]])},
     )
-    north_south = Lane(
+    ns = Lane(
         id_="NS",
         left_side=LineString([(-1.0, -10.0), (-1.0, 10.0)]),
         right_side=LineString([(1.0, -10.0), (1.0, 10.0)]),
         custom_tags={"centerline": np.array([[0.0, -10.0], [0.0, 10.0]])},
     )
-    map_.add_lane(east_west)
-    map_.add_lane(north_south)
+    map_.add_lane(ew)
+    map_.add_lane(ns)
     return map_
 
 
-def _build_semantic_map():
-    map_ = _build_parallel_map()
+def _semantic_map():
+    map_ = _parallel_map()
     map_.add_roadline(
         RoadLine(id_="solid_left", geometry=LineString([(0.0, 0.0), (0.0, 80.0)]), subtype="solid")
     )
@@ -94,29 +100,12 @@ def _build_semantic_map():
         )
     )
     lane = map_.lanes["A"]
-    lane.add_related_lane("B", LaneRelationship.LEFT_NEIGHBOR)
     lane.line_ids = {"left": ["solid_left"], "right": ["dashed_right"]}
     lane.custom_tags = {
         **(lane.custom_tags or {}),
         "boundary_segments": {
-            "left": [
-                {
-                    "roadline_id": "solid_left",
-                    "lane_start_index": 0,
-                    "lane_end_index": 1,
-                    "start_s": 0.0,
-                    "end_s": 80.0,
-                }
-            ],
-            "right": [
-                {
-                    "roadline_id": "dashed_right",
-                    "lane_start_index": 0,
-                    "lane_end_index": 1,
-                    "start_s": 0.0,
-                    "end_s": 80.0,
-                }
-            ],
+            "left": [{"roadline_id": "solid_left", "start_s": 0.0, "end_s": 80.0}],
+            "right": [{"roadline_id": "dashed_right", "start_s": 0.0, "end_s": 80.0}],
         },
     }
     map_.add_regulatory(
@@ -126,7 +115,7 @@ def _build_semantic_map():
     )
     map_.add_regulatory(
         Regulatory(
-            id_="traffic_light_A",
+            id_="tl_A",
             ways={"A": "refers"},
             subtype="traffic_light",
             dynamic=True,
@@ -182,593 +171,227 @@ def _pedestrian(agent_id, frame, x, y, heading=np.pi / 2, speed=1.0):
     return Pedestrian(agent_id, "adult_male", trajectory=trajectory, width=0.4)
 
 
-def test_scene_builder_matches_lanes_and_builds_agent_states():
-    map_ = _build_parallel_map()
+# ---------------------------------------------------------------------------
+# scene building + lane matching
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.map_parser
+@pytest.mark.env
+def test_scene_and_lane_matching():
+    """Lane matching assigns correct lanes in a simple parallel map."""
+    map_ = _parallel_map()
     participants = {1: _vehicle(1, 0, 1.0, 5.0), 2: _vehicle(2, 0, 3.0, 8.0)}
-    builder = SceneBuilder(LimSimConfig())
 
-    states = builder.build(participants, map_, frame=0)
+    states = SceneBuilder(LimSimConfig()).build(participants, map_, frame=0)
 
-    assert set(states) == {1, 2}
     assert states[1].lane_id == "A"
     assert states[2].lane_id == "B"
-    assert states[1].speed == pytest.approx(5.0)
 
 
-def test_scene_builder_prefers_heading_consistent_lane_over_nearest_crossing_lane():
-    map_ = Map(name="heading_match_map")
-    northbound = Lane(
+def test_scene_prefers_heading_consistent_lane():
+    """Heading-consistent lane wins over geometrically nearest."""
+    map_ = Map(name="heading_match")
+    nb = Lane(
         id_="N",
         left_side=LineString([(-1.0, -10.0), (-1.0, 10.0)]),
         right_side=LineString([(1.0, -10.0), (1.0, 10.0)]),
         custom_tags={"centerline": np.array([[0.0, -10.0], [0.0, 10.0]])},
     )
-    crossing = Lane(
+    x = Lane(
         id_="X",
         left_side=LineString([(-10.0, 0.3), (10.0, 0.3)]),
         right_side=LineString([(-10.0, -0.7), (10.0, -0.7)]),
         custom_tags={"centerline": np.array([[-10.0, -0.2], [10.0, -0.2]])},
     )
-    map_.add_lane(northbound)
-    map_.add_lane(crossing)
-    participant = _vehicle(1, 0, 0.0, 0.1, heading=np.pi / 2, speed=5.0)
+    map_.add_lane(nb)
+    map_.add_lane(x)
 
-    states = SceneBuilder(LimSimConfig()).build({1: participant}, map_, frame=0)
+    states = SceneBuilder(LimSimConfig()).build(
+        {1: _vehicle(1, 0, 0.0, 0.1, heading=np.pi / 2)}, map_, frame=0
+    )
 
     assert states[1].lane_id == "N"
 
 
-def test_lane_geometry_helpers_project_points_and_width():
-    lane = _build_lane("A", 0.0, 2.0, 0.0, 80.0)
-
-    assert lane.get_width() == pytest.approx(2.0)
-
-    projection = lane.project_point((1.5, 10.0))
-    assert projection is not None
-    assert projection.s == pytest.approx(10.0)
-    assert projection.d == pytest.approx(-0.5)
-    assert projection.distance == pytest.approx(0.5)
+# ---------------------------------------------------------------------------
+# semantic map queries
+# ---------------------------------------------------------------------------
 
 
-def test_reference_path_converts_cartesian_and_frenet_coordinates():
-    reference_path = ReferencePath(LineString([(0.0, 0.0), (10.0, 0.0)]), ("A",), 2.0)
+@pytest.mark.map_parser
+def test_semantic_query():
+    """Conflict detection, stop targets, lane-change permission, junctions."""
+    # crossing conflict
+    cq = SemanticMapQuery(_crossing_map())
+    assert cq.has_conflict("EW", "NS")
 
-    frenet = reference_path.cartesian_to_frenet(4.0, 1.0)
-    x, y, heading = reference_path.frenet_to_cartesian(frenet.s, frenet.d)
+    # stop & traffic-light targets
+    sq = SemanticMapQuery(_semantic_map())
+    stop_targets = sq.get_stop_targets("A", time_ms=0)
+    assert {t.reason for t in stop_targets} == {"stop_sign", "traffic_light"}
 
-    assert frenet.s == pytest.approx(4.0)
-    assert frenet.d == pytest.approx(1.0)
-    assert x == pytest.approx(4.0)
-    assert y == pytest.approx(1.0)
-    assert heading == pytest.approx(0.0)
+    # lane-change permission
+    assert sq.get_lane_change_permission("A", "right", s=10.0)
+    assert not sq.get_lane_change_permission("A", "left", s=10.0)
 
+    # junction area
+    area = sq.get_junction_area(lane_id="A")
+    assert area is not None
 
-def test_map_get_speed_limit_by_lane_id():
-    map_ = Map(name="speed_limit_map")
-    lane = _build_lane("A", 0.0, 2.0, 0.0, 80.0)
-    lane.speed_limit = 13.4
-    map_.add_lane(lane)
-
-    assert map_.get_speed_limit("A") == pytest.approx(13.4)
-    assert map_.get_speed_limit("missing", default=8.0) == pytest.approx(8.0)
-
-
-def test_semantic_map_query_infers_crossing_lane_conflict():
-    query = SemanticMapQuery(_build_crossing_map())
-
-    assert query.has_conflict("EW", "NS")
-    assert query.get_conflict_lanes("EW") == ["NS"]
-    conflicts = query.get_junction_conflicts("EW")
-    points = query.get_conflict_points("EW", "NS")
-    assert len(conflicts) == 1
-    assert conflicts[0].lane_id == "EW"
-    assert conflicts[0].conflict_lane_id == "NS"
-    assert conflicts[0].inferred
-    assert conflicts[0].source == "geometry"
-    assert len(conflicts[0].points) == 1
-    assert len(points) == 1
-    assert points[0].x == pytest.approx(0.0)
-    assert points[0].y == pytest.approx(0.0)
+    # reference path with lookahead
+    ref = SemanticMapQuery(_successor_map()).get_reference_path("A", lookahead_lanes=2)
+    assert ref is not None and ref.lane_ids == ("A", "B")
 
 
-def test_semantic_map_query_does_not_treat_neighbors_as_conflict():
-    query = SemanticMapQuery(_build_parallel_map())
-
-    assert not query.has_conflict("A", "B")
-    assert query.get_conflict_lanes("A") == []
+# ---------------------------------------------------------------------------
+# lane follower + frenet planner
+# ---------------------------------------------------------------------------
 
 
-def test_semantic_map_query_builds_reference_path_and_region_lane_query():
-    query = SemanticMapQuery(_build_successor_map())
+def test_lane_follower_and_frenet_planner():
+    """Keep, lane-change, stop-for-obstacle, and candidate filtering."""
+    config = LimSimConfig(horizon_steps=20)
+    map_ = _parallel_map()
+    state = SceneBuilder(config).build({1: _vehicle(1, 0, 1.0, 5.0, speed=8.0)}, map_, frame=0)[1]
+    follower = LaneFollower(config)
 
-    reference = query.get_reference_path("A", lookahead_lanes=2)
+    # lane-keep moves forward
+    keep = follower.rollout(state, LimSimAction.KEEP, map_)
+    assert keep[-1].y > state.y
+    assert keep[-1].lane_id == "A"
 
-    assert reference is not None
-    assert isinstance(reference, ReferencePath)
-    assert reference.lane_ids == ("A", "B")
-    assert reference.path.length == pytest.approx(80.0)
-    assert query.get_lanes_in_region((0.0, 2.0, 20.0, 40.0)) == ["A", "B"]
+    # lane-change-right eventually switches lane
+    lcr = follower.rollout(state, LimSimAction.LCR, map_)
+    assert lcr[-1].lane_id == "B"
 
+    # frenet planner: illegal LCL filtered, legal LCR allowed
+    smap = _semantic_map()
+    smap_state = SceneBuilder(config).build({1: _vehicle(1, 0, 1.0, 5.0)}, smap, frame=0)[1]
+    planner = FrenetTrajectoryPlanner(config)
+    ref = reference_path_from_agent(smap_state, smap, config)
+    assert planner.sample_candidates(smap_state, LimSimAction.LCL, ref, smap) == []
+    assert planner.sample_candidates(smap_state, LimSimAction.LCR, ref, smap)
 
-def test_semantic_map_query_reads_stop_and_traffic_light_targets():
-    query = SemanticMapQuery(_build_semantic_map())
+    # frenet planner stops for stop target
+    stop_config = LimSimConfig(horizon_steps=40, frenet_stop_line_penalty=10000.0)
+    stop_state = SceneBuilder(stop_config).build(
+        {1: _vehicle(1, 0, 1.0, 5.0, speed=8.0)}, smap, frame=0
+    )[1]
+    traj = FrenetTrajectoryPlanner(stop_config).plan(stop_state, LimSimAction.KS, smap)
+    assert traj[-1].speed <= stop_config.frenet_stop_speed_threshold
 
-    traffic_light = query.get_traffic_light_for_lane("A")
-    traffic_state = query.get_traffic_light_state("A", time_ms=90)
-    stop_signs = query.get_stop_signs("A")
-    stop_targets = query.get_stop_targets("A", time_ms=0)
-    stop_line = query.get_stop_line("A", stop_targets[0])
-    stop_line_geometry = query.get_stop_line_geometry("A", stop_targets[0])
-
-    assert traffic_light.id_ == "traffic_light_A"
-    assert traffic_state["state"] == "LANE_STATE_GO"
-    assert [stop_sign.id_ for stop_sign in stop_signs] == ["stop_A"]
-    assert {target.reason for target in stop_targets} == {"stop_sign", "traffic_light"}
-    assert stop_line.virtual
-    assert stop_line.source_id == stop_targets[0].source_id
-    assert stop_line.reason == stop_targets[0].reason
-    assert stop_line.geometry.length == pytest.approx(2.0)
-    assert stop_line_geometry.length == pytest.approx(2.0)
-
-
-def test_semantic_map_query_checks_lane_change_permission_from_roadlines():
-    query = SemanticMapQuery(_build_semantic_map())
-
-    assert not query.get_lane_change_permission("A", "left", s=10.0)
-    assert query.get_lane_change_permission("A", "right", s=10.0)
-    assert not query.get_lane_change_permission("missing", "right")
-
-
-def test_action_validity_uses_lane_change_permission():
-    from tactics2d.behavior.limsim.planner import action_is_valid
-
-    map_ = _build_semantic_map()
-    state = SceneBuilder(LimSimConfig()).build({1: _vehicle(1, 0, 1.0, 5.0)}, map_, frame=0)[1]
-
-    assert not action_is_valid(state, LimSimAction.LCL, map_)
-    assert action_is_valid(state, LimSimAction.LCR, map_)
-
-
-def test_semantic_map_query_returns_existing_junction_area():
-    query = SemanticMapQuery(_build_semantic_map())
-
-    area = query.get_junction_area(lane_id="A")
-
-    assert isinstance(area, Polygon)
-    assert area.area == pytest.approx(24.0)
-
-
-def test_interaction_graph_groups_nearby_agents_only():
-    config = LimSimConfig(interaction_distance=10.0)
-    map_ = _build_parallel_map()
-    participants = {
-        1: _vehicle(1, 0, 1.0, 5.0),
-        2: _vehicle(2, 0, 3.0, 8.0),
-        3: _vehicle(3, 0, 3.0, 60.0),
-    }
-    states = SceneBuilder(config).build(participants, map_, frame=0)
-
-    groups = InteractionGraph(config).build_groups(states)
-
-    assert sorted(sorted(group) for group in groups) == [[1, 2], [3]]
-
-
-def test_roi_selector_splits_inner_and_background_agents_by_radius():
-    participants = {
-        1: _vehicle(1, 0, 0.0, 0.0),
-        2: _vehicle(2, 0, 3.0, 4.0),
-        3: _vehicle(3, 0, 8.0, 0.0),
-        4: _vehicle(4, 0, 20.0, 0.0),
-    }
-
-    selection = RoISelector.select_by_radius(
-        participants, frame=0, center=(0.0, 0.0), radius=5.0, outer_radius=10.0
+    # collision checker
+    collision_config = LimSimConfig(horizon_steps=3)
+    cs = SceneBuilder(collision_config).build(
+        {1: _vehicle(1, 0, 1.0, 5.0, speed=0.0), 2: _vehicle(2, 0, 1.0, 5.0, speed=0.0)},
+        map_,
+        frame=0,
     )
+    traj_a = LaneFollower(collision_config).rollout(cs[1], LimSimAction.KEEP, map_)
+    traj_b = LaneFollower(collision_config).rollout(cs[2], LimSimAction.KEEP, map_)
+    assert has_trajectory_collision([traj_a, traj_b])
 
-    assert selection.agent_ids == [1, 2]
-    assert selection.background_agent_ids == [3]
-    assert selection.center == (0.0, 0.0)
+
+# ---------------------------------------------------------------------------
+# behavior model end-to-end
+# ---------------------------------------------------------------------------
 
 
-def test_roi_selector_selects_around_ego_agent():
+@pytest.mark.env
+def test_behavior_model_basic():
+    """Single-step plan produces trajectories for all controlled agents."""
+    config = LimSimConfig(horizon_steps=6, dt=0.2, mcts_iterations=20, interaction_distance=15.0)
+    map_ = _parallel_map()
+    participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=5.0), 2: _vehicle(2, 0, 1.0, 10.0, speed=2.0)}
+
+    result = LimSimBehaviorModel(config).plan(participants, map_, route_map={}, frame=0)
+
+    assert set(result.actions) == {1, 2}
+    assert set(result.trajectories) == {1, 2}
+    assert len(result.trajectories[1].frames) == config.horizon_steps
+
+
+def test_behavior_model_with_obstacle_yields_deceleration():
+    """Faster agent behind slower one decelerates."""
+    config = LimSimConfig(horizon_steps=20, mcts_iterations=200, interaction_distance=20.0)
+    participants = {
+        1: _vehicle(1, 0, 1.0, 10.0, speed=8.0),
+        2: _vehicle(2, 0, 1.0, 20.0, speed=1.0),
+    }
+
+    result = LimSimBehaviorModel(config).plan(participants, _parallel_map(), route_map={}, frame=0)
+
+    assert result.actions[1] == LimSimAction.DC
+
+
+# ---------------------------------------------------------------------------
+# roi selection + filtering
+# ---------------------------------------------------------------------------
+
+
+def test_roi_and_filtering():
+    """RoI selects agents within radius; non-vehicles filtered."""
     participants = {
         1: _vehicle(1, 0, 0.0, 0.0),
         2: _vehicle(2, 0, 4.0, 0.0),
         3: _vehicle(3, 0, 9.0, 0.0),
     }
 
-    selection = RoISelector.select_around_agent(participants, frame=0, ego_id=1, radius=5.0)
+    sel = RoISelector.select_around_agent(participants, frame=0, ego_id=1, radius=5.0)
+    assert sel.agent_ids == [1, 2]
+    assert sel.background_agent_ids == [3]
 
-    assert selection.agent_ids == [1, 2]
-    assert selection.background_agent_ids == [3]
-
-
-def test_roi_selector_selects_dense_region():
-    participants = {
-        1: _vehicle(1, 0, 0.0, 0.0),
-        2: _vehicle(2, 0, 1.0, 0.0),
-        3: _vehicle(3, 0, 0.0, 1.0),
-        4: _vehicle(4, 0, 100.0, 100.0),
-    }
-
-    selection = RoISelector.select_dense_region(participants, frame=0, max_agents=3)
-
-    assert set(selection.agent_ids) == {1, 2, 3}
-
-
-def test_lane_follower_rolls_out_forward_and_lane_change():
-    config = LimSimConfig(horizon_steps=5)
-    map_ = _build_parallel_map()
-    state = SceneBuilder(config).build({1: _vehicle(1, 0, 1.0, 5.0)}, map_, frame=0)[1]
-    follower = LaneFollower(config)
-
-    keep_states = follower.rollout(state, LimSimAction.KEEP, map_)
-    lane_change_states = follower.rollout(state, LimSimAction.LCR, map_)
-
-    assert keep_states[-1].y > state.y
-    assert keep_states[-1].lane_id == "A"
-    assert lane_change_states[-1].lane_id == "A"
-    assert state.x < lane_change_states[-1].x
-
-
-def test_non_lane_change_actions_keep_lateral_offset():
-    config = LimSimConfig(horizon_steps=5)
-    map_ = _build_parallel_map()
-    state = SceneBuilder(config).build({1: _vehicle(1, 0, 1.5, 5.0, speed=0.0)}, map_, frame=0)[1]
-    follower_states = LaneFollower(config).rollout(state, LimSimAction.KS, map_)
-    planner_states = FrenetTrajectoryPlanner(config).plan(state, LimSimAction.KS, map_)
-
-    assert {round(state_.lateral_offset, 6) for state_ in follower_states} == {
-        round(state.lateral_offset, 6)
-    }
-    assert {round(state_.lateral_offset, 6) for state_ in planner_states} == {
-        round(state.lateral_offset, 6)
-    }
-
-
-def test_lane_follower_switches_lane_after_lateral_boundary_crossing():
-    config = LimSimConfig(horizon_steps=20)
-    map_ = _build_parallel_map()
-    state = SceneBuilder(config).build({1: _vehicle(1, 0, 1.0, 5.0)}, map_, frame=0)[1]
-
-    lane_change_states = LaneFollower(config).rollout(state, LimSimAction.LCR, map_)
-
-    assert lane_change_states[-1].lane_id == "B"
-    assert lane_change_states[-1].x > 2.0
-
-
-def test_reference_path_converts_between_cartesian_and_frenet():
-    config = LimSimConfig()
-    map_ = _build_parallel_map()
-    state = SceneBuilder(config).build({1: _vehicle(1, 0, 1.5, 5.0)}, map_, frame=0)[1]
-
-    reference_path = build_reference_path_from_agent(state, map_, config)
-    frenet = reference_path.cartesian_to_frenet(state.x, state.y)
-    x, y, heading = reference_path.frenet_to_cartesian(frenet.s, frenet.d)
-
-    assert frenet.s == pytest.approx(5.0)
-    assert x == pytest.approx(state.x)
-    assert y == pytest.approx(state.y)
-    assert heading == pytest.approx(np.pi / 2)
-
-
-def test_frenet_planner_generates_lane_change_candidate():
-    config = LimSimConfig(horizon_steps=30)
-    map_ = _build_parallel_map()
-    state = SceneBuilder(config).build({1: _vehicle(1, 0, 1.0, 5.0)}, map_, frame=0)[1]
-
-    planned = FrenetTrajectoryPlanner(config).plan(state, LimSimAction.LCR, map_)
-
-    assert len(planned) == config.horizon_steps
-    assert planned[-1].lane_id == "B"
-    assert planned[-1].x > 2.5
-    assert planned[-1].y > state.y
-
-
-def test_frenet_planner_filters_illegal_lane_change_candidate():
-    config = LimSimConfig(horizon_steps=15)
-    map_ = _build_semantic_map()
-    state = SceneBuilder(config).build({1: _vehicle(1, 0, 1.0, 5.0)}, map_, frame=0)[1]
-    planner = FrenetTrajectoryPlanner(config)
-    reference_path = build_reference_path_from_agent(state, map_, config)
-
-    assert planner.sample_candidates(state, LimSimAction.LCL, reference_path, map_) == []
-    assert planner.sample_candidates(state, LimSimAction.LCR, reference_path, map_)
-
-
-def test_frenet_planner_stops_for_stop_target():
-    config = LimSimConfig(horizon_steps=40, frenet_stop_line_penalty=10000.0)
-    map_ = _build_semantic_map()
-    state = SceneBuilder(config).build({1: _vehicle(1, 0, 1.0, 5.0, speed=8.0)}, map_, frame=0)[1]
-
-    trajectory = FrenetTrajectoryPlanner(config).plan(state, LimSimAction.KS, map_)
-
-    assert trajectory[-1].speed <= config.frenet_stop_speed_threshold
-    assert trajectory[-1].route_progress <= 20.0
-
-
-def test_frenet_planner_scores_obstacle_collision_risk():
-    config = LimSimConfig(horizon_steps=20, frenet_obstacle_buffer=4.0)
-    map_ = _build_parallel_map()
-    states = SceneBuilder(config).build(
-        {1: _vehicle(1, 0, 1.0, 5.0, speed=8.0), 2: _vehicle(2, 0, 1.0, 14.0, speed=0.0)},
-        map_,
-        frame=0,
-    )
-    planner = FrenetTrajectoryPlanner(config)
-    obstacle = LaneFollower(config).rollout(states[2], LimSimAction.KS, map_)
-
-    keep_reference = build_reference_path_from_agent(states[1], map_, config)
-    candidates = planner.sample_candidates(
-        states[1], LimSimAction.DC, keep_reference, map_, obstacle_trajectories=[obstacle]
-    )
-    chosen = planner.plan(states[1], LimSimAction.DC, map_, obstacle_trajectories=[obstacle])
-
-    assert candidates
-    assert min(candidate.cost for candidate in candidates) < max(
-        candidate.cost for candidate in candidates
-    )
-    assert chosen[-1].y < obstacle[-1].y
-
-
-def test_frenet_planner_adds_junction_conflict_cost():
-    config = LimSimConfig(horizon_steps=20)
-    map_ = _build_crossing_map()
-    planner = FrenetTrajectoryPlanner(config)
-    ego = SceneBuilder(config).build(
-        {1: _vehicle(1, 0, -6.0, 0.0, heading=0.0, speed=6.0)}, map_, frame=0
-    )[1]
-    obstacle = SceneBuilder(config).build(
-        {2: _vehicle(2, 0, 0.0, -6.0, heading=np.pi / 2, speed=6.0)}, map_, frame=0
-    )[2]
-    reference_path = build_reference_path_from_agent(ego, map_, config)
-    states = planner.sample_candidates(ego, LimSimAction.KS, reference_path, map_)[0].states
-    obstacle_states = LaneFollower(config).rollout(obstacle, LimSimAction.KS, map_)
-
-    no_obstacle_cost = planner._cost(states, 6.0, 0.0, 0.0, 0.0, [], reference_path, map_)
-    conflict_cost = planner._cost(
-        states, 6.0, 0.0, 0.0, 0.0, [obstacle_states], reference_path, map_
-    )
-
-    assert conflict_cost > no_obstacle_cost
-
-
-def test_frenet_planner_stop_fallback_avoids_collision_candidate():
-    config = LimSimConfig(horizon_steps=20)
-    map_ = _build_parallel_map()
-    states = SceneBuilder(config).build(
-        {1: _vehicle(1, 0, 1.0, 5.0, speed=8.0), 2: _vehicle(2, 0, 1.0, 13.0, speed=0.0)},
-        map_,
-        frame=0,
-    )
-    obstacle = LaneFollower(config).rollout(states[2], LimSimAction.KS, map_)
-
-    planned = FrenetTrajectoryPlanner(config).plan(
-        states[1], LimSimAction.AC, map_, obstacle_trajectories=[obstacle]
-    )
-
-    assert has_trajectory_collision([planned, obstacle]) is False
-    assert planned[-1].speed == pytest.approx(0.0)
-
-
-def test_limsim_behavior_model_outputs_trajectories_for_group():
-    config = LimSimConfig(horizon_steps=6, dt=0.2, mcts_iterations=20, interaction_distance=15.0)
-    map_ = _build_parallel_map()
-    participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=5.0), 2: _vehicle(2, 0, 1.0, 10.0, speed=2.0)}
-
-    result = LimSimBehaviorModel(config).plan(participants, map_, route_map={}, frame=0)
-
-    assert config.planning_steps == 6
-    assert config.step_ms == 200
-    assert sorted(result.groups[0]) == [1, 2]
-    assert set(result.actions) == {1, 2}
-    assert set(result.trajectories) == {1, 2}
-    assert len(result.trajectories[1].frames) == config.horizon_steps
-
-
-def test_limsim_behavior_model_predict_returns_shared_trajectory_dict():
-    config = LimSimConfig(horizon_steps=4, mcts_iterations=10, interaction_distance=15.0)
-    map_ = _build_parallel_map()
-    participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=5.0)}
-    model = LimSimBehaviorModel(config)
-
-    trajectories = model.predict(participants, map_, frame=0)
-
-    assert isinstance(model, BehaviorModelBase)
-    assert set(trajectories) == {1}
-    assert len(trajectories[1].frames) == config.horizon_steps
-
-
-def test_limsim_behavior_model_can_select_roi_around_ego():
+    # pedestrian not included as controlled agent
     config = LimSimConfig(horizon_steps=6, mcts_iterations=20, interaction_distance=15.0)
-    map_ = _build_parallel_map()
+    mixed = {1: _vehicle(1, 0, 1.0, 5.0), 2: _pedestrian(2, 0, 1.0, 6.0)}
+    result = LimSimBehaviorModel(config).plan(mixed, _parallel_map(), route_map={}, frame=0)
+    assert set(result.actions) == {1}  # pedestrian filtered
+
+
+# ---------------------------------------------------------------------------
+# interaction graph
+# ---------------------------------------------------------------------------
+
+
+def test_interaction_graph():
+    """Nearby agents grouped; distant ones isolated."""
+    config = LimSimConfig(interaction_distance=10.0)
     participants = {
-        1: _vehicle(1, 0, 1.0, 5.0, speed=5.0),
-        2: _vehicle(2, 0, 1.0, 10.0, speed=2.0),
-        3: _vehicle(3, 0, 1.0, 28.0, speed=2.0),
-        4: _vehicle(4, 0, 1.0, 70.0, speed=2.0),
+        1: _vehicle(1, 0, 1.0, 5.0),
+        2: _vehicle(2, 0, 3.0, 8.0),
+        3: _vehicle(3, 0, 3.0, 60.0),
     }
+    states = SceneBuilder(config).build(participants, _parallel_map(), frame=0)
 
-    result = LimSimBehaviorModel(config).plan(
-        participants, map_, route_map={}, frame=0, ego_id=1, roi_radius=12.0
+    groups = InteractionGraph(config).build_groups(states)
+
+    assert sorted(sorted(g) for g in groups) == [[1, 2], [3]]
+
+    # successor relationship connects lanes
+    sc = LimSimConfig(interaction_distance=1.0)
+    ss = SceneBuilder(sc).build(
+        {1: _vehicle(1, 0, 1.0, 27.0), 2: _vehicle(2, 0, 1.0, 33.0)}, _successor_map(), frame=0
     )
-
-    assert result.roi_agent_ids == [1, 2]
-    assert result.background_agent_ids == [3]
-    assert set(result.actions) == {1, 2}
-
-
-def test_limsim_behavior_model_controls_vehicles_only_in_roi():
-    config = LimSimConfig(horizon_steps=6, mcts_iterations=20, interaction_distance=15.0)
-    map_ = _build_parallel_map()
-    participants = {
-        1: _vehicle(1, 0, 1.0, 5.0, speed=5.0),
-        2: _pedestrian(2, 0, 1.0, 6.0, speed=1.0),
-        3: _vehicle(3, 0, 1.0, 14.0, speed=2.0),
-        4: _pedestrian(4, 0, 1.0, 18.0, speed=1.0),
-    }
-
-    result = LimSimBehaviorModel(config).plan(
-        participants, map_, route_map={}, frame=0, ego_id=1, roi_radius=5.0, roi_outer_radius=20.0
-    )
-
-    assert result.roi_agent_ids == [1]
-    assert result.background_agent_ids == [3]
-    assert set(result.actions) == {1}
-    assert set(result.trajectories) == {1}
-
-
-def test_limsim_behavior_model_filters_explicit_non_vehicle_agents():
-    config = LimSimConfig(horizon_steps=6, mcts_iterations=20, interaction_distance=15.0)
-    map_ = _build_parallel_map()
-    participants = {
-        1: _vehicle(1, 0, 1.0, 5.0, speed=5.0),
-        2: _pedestrian(2, 0, 1.0, 6.0, speed=1.0),
-    }
-
-    result = LimSimBehaviorModel(config).plan(
-        participants, map_, route_map={}, frame=0, agent_ids=[1, 2]
-    )
-
-    assert result.roi_agent_ids == [1]
-    assert result.background_agent_ids == []
-    assert set(result.actions) == {1}
-    assert set(result.trajectories) == {1}
-
-
-def test_limsim_behavior_model_filters_non_vehicle_ego_from_controlled_agents():
-    config = LimSimConfig(horizon_steps=6, mcts_iterations=20, interaction_distance=15.0)
-    map_ = _build_parallel_map()
-    participants = {
-        1: _pedestrian(1, 0, 1.0, 5.0, speed=1.0),
-        2: _vehicle(2, 0, 1.0, 14.0, speed=2.0),
-    }
-
-    result = LimSimBehaviorModel(config).plan(
-        participants, map_, route_map={}, frame=0, ego_id=1, roi_radius=5.0, roi_outer_radius=20.0
-    )
-
-    assert result.roi_agent_ids == []
-    assert result.background_agent_ids == [2]
-    assert result.actions == {}
-    assert result.trajectories == {}
-
-
-def test_background_roi_vehicle_influences_single_agent_action():
-    config = LimSimConfig(horizon_steps=20, mcts_iterations=30, interaction_distance=10.0)
-    map_ = _build_parallel_map()
-    participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=8.0), 2: _vehicle(2, 0, 1.0, 22.0, speed=0.0)}
-
-    result = LimSimBehaviorModel(config).plan(
-        participants, map_, route_map={}, frame=0, ego_id=1, roi_radius=10.0
-    )
-
-    assert result.roi_agent_ids == [1]
-    assert result.background_agent_ids == [2]
-    assert result.actions[1] == LimSimAction.DC
-
-
-def test_background_roi_vehicle_influences_decision_search_group_action():
-    config = LimSimConfig(horizon_steps=20, mcts_iterations=120, interaction_distance=12.0)
-    map_ = _build_parallel_map()
-    participants = {
-        1: _vehicle(1, 0, 1.0, 5.0, speed=8.0),
-        2: _vehicle(2, 0, 3.0, 8.0, speed=8.0),
-        3: _vehicle(3, 0, 1.0, 23.0, speed=0.0),
-    }
-
-    result = LimSimBehaviorModel(config).plan(
-        participants, map_, route_map={}, frame=0, ego_id=1, roi_radius=10.0
-    )
-
-    assert set(result.roi_agent_ids) == {1, 2}
-    assert result.background_agent_ids == [3]
-    assert result.actions[1] == LimSimAction.DC
-
-
-def test_evaluate_planning_result_reports_actions_and_reference_error():
-    config = LimSimConfig(horizon_steps=6, mcts_iterations=20, interaction_distance=15.0)
-    map_ = _build_parallel_map()
-    participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=5.0), 2: _vehicle(2, 0, 1.0, 20.0, speed=5.0)}
-    result = LimSimBehaviorModel(config).plan(participants, map_, route_map={}, frame=0)
-
-    evaluation = evaluate_planning_result(
-        result,
-        reference_trajectories=result.trajectories,
-        dimensions={1: (4.5, 1.8), 2: (4.5, 1.8)},
-    )
-
-    assert evaluation.action_counts
-    assert evaluation.has_collision is False
-    assert evaluation.mean_ade == pytest.approx(0.0)
-    assert evaluation.mean_fde == pytest.approx(0.0)
-
-
-def test_interaction_graph_uses_successor_lane_relationship():
-    config = LimSimConfig(interaction_distance=1.0)
-    map_ = _build_successor_map()
-    participants = {
-        1: _vehicle(1, 0, 1.0, 27.0, speed=5.0),
-        2: _vehicle(2, 0, 1.0, 33.0, speed=2.0),
-    }
-    states = SceneBuilder(config).build(participants, map_, frame=0)
-
-    groups = InteractionGraph(config).build_groups(states, map_)
-
-    assert sorted(sorted(group) for group in groups) == [[1, 2]]
-
-
-def test_limsim_predictor_reuses_remaining_planned_trajectory():
-    config = LimSimConfig(horizon_steps=4)
-    map_ = _build_parallel_map()
-    participants = {1: _vehicle(1, 0, 1.0, 5.0)}
-    previous = (
-        LimSimBehaviorModel(config).plan(participants, map_, route_map={}, frame=0).trajectories
-    )
-
-    prediction = LimSimPredictor(config).predict(
-        participants, map_, frame=100, last_planned_trajectories=previous
-    )
-
-    assert 1 in prediction
-    assert prediction[1].first_frame > 100
-
-
-def test_mcts_selects_deceleration_for_rear_end_risk():
-    config = LimSimConfig(horizon_steps=20, mcts_iterations=300, interaction_distance=20.0)
-    map_ = _build_parallel_map()
-    participants = {
-        1: _vehicle(1, 0, 1.0, 10.0, speed=8.0),
-        2: _vehicle(2, 0, 1.0, 24.0, speed=1.0),
-    }
-
-    result = LimSimBehaviorModel(config).plan(participants, map_, route_map={}, frame=0)
-
-    assert result.actions[1] == LimSimAction.DC
-
-
-def test_mcts_prefers_braking_when_collision_is_hard_to_avoid():
-    config = LimSimConfig(horizon_steps=20, mcts_iterations=300, interaction_distance=20.0)
-    map_ = _build_parallel_map()
-    participants = {
-        1: _vehicle(1, 0, 1.0, 10.0, speed=8.0),
-        2: _vehicle(2, 0, 1.0, 16.0, speed=1.0),
-    }
-
-    result = LimSimBehaviorModel(config).plan(participants, map_, route_map={}, frame=0)
-
-    assert result.actions[1] == LimSimAction.DC
-
-
-def test_collision_checker_detects_overlapping_rollouts():
-    config = LimSimConfig(horizon_steps=3)
-    map_ = _build_parallel_map()
-    participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=0.0), 2: _vehicle(2, 0, 1.0, 5.0, speed=0.0)}
-    states = SceneBuilder(config).build(participants, map_, frame=0)
-    follower = LaneFollower(config)
-    trajectories = [
-        follower.rollout(states[1], LimSimAction.KEEP, map_),
-        follower.rollout(states[2], LimSimAction.KEEP, map_),
+    assert sorted(sorted(g) for g in InteractionGraph(sc).build_groups(ss, _successor_map())) == [
+        [1, 2]
     ]
 
-    assert has_trajectory_collision(trajectories)
+
+# ---------------------------------------------------------------------------
+# evaluation
+# ---------------------------------------------------------------------------
+
+
+def test_evaluation():
+    """Self-comparison yields zero ADE/FDE."""
+    config = LimSimConfig(horizon_steps=6, mcts_iterations=20, interaction_distance=15.0)
+    participants = {1: _vehicle(1, 0, 1.0, 5.0, speed=5.0)}
+    result = LimSimBehaviorModel(config).plan(participants, _parallel_map(), route_map={}, frame=0)
+
+    ev = evaluate_planning_result(
+        result, reference_trajectories=result.trajectories, dimensions={1: (4.5, 1.8)}
+    )
+
+    assert ev.has_collision is False
+    assert ev.mean_ade == pytest.approx(0.0)

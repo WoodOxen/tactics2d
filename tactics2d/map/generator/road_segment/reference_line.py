@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from tactics2d.geometry import as_point, heading_unit, normalize_angle
+from tactics2d.geometry import spatial
 from tactics2d.interpolator import Bezier
 from tactics2d.interpolator.spiral import Spiral
 
@@ -54,7 +54,7 @@ def sample_centerline(
     Returns:
         Sampled centre-line points with shape ``(N, 2)``.
     """
-    start = as_point(start, "start")
+    start = spatial.as_point(start, "start")
     n_interpolation = interpolation_count_from_step(length, step_size)
 
     return Spiral.get_curve(
@@ -91,7 +91,7 @@ def arc_pts(
     Returns:
         A tuple ``(points, end_heading)``.
     """
-    start_pt = as_point(start_pt, "start_pt")
+    start_pt = spatial.as_point(start_pt, "start_pt")
     angle = float(angle)
     radius = float(radius)
 
@@ -136,8 +136,8 @@ def bezier_connection(
     Returns:
         Sampled Bezier curve points with shape ``(N, 2)``.
     """
-    p0 = as_point(p0, "p0")
-    p3 = as_point(p3, "p3")
+    p0 = spatial.as_point(p0, "p0")
+    p3 = spatial.as_point(p3, "p3")
     h0 = float(h0)
     h3 = float(h3)
     step_size = float(step_size)
@@ -152,12 +152,12 @@ def bezier_connection(
     if chord < 1e-6:
         return np.vstack([p0, p3])
 
-    delta_heading = abs(normalize_angle(h3 - h0))
+    delta_heading = abs(spatial.normalize_angle(h3 - h0))
     tension = 1.0 / 3.0 + (delta_heading / np.pi) * 0.20
     tangent_len = max(min_tangent, chord * tension)
 
-    p1 = p0 + tangent_len * heading_unit(h0)
-    p2 = p3 - tangent_len * heading_unit(h3)
+    p1 = p0 + tangent_len * spatial.heading_unit(h0)
+    p2 = p3 - tangent_len * spatial.heading_unit(h3)
 
     n_interpolation = max(8, int(np.ceil(chord / step_size)) + 1)
 
@@ -188,8 +188,8 @@ def fit_reference_line(
     Returns:
         Reference-line points with shape ``(N, 2)``.
     """
-    p0 = as_point(start_point, "start_point")
-    p1 = as_point(end_point, "end_point")
+    p0 = spatial.as_point(start_point, "start_point")
+    p1 = spatial.as_point(end_point, "end_point")
     start_heading = float(start_heading)
     end_heading = float(end_heading)
     step_size = float(step_size)
@@ -204,8 +204,8 @@ def fit_reference_line(
 
     chord_heading = float(np.arctan2(chord[1], chord[0]))
     aligned = (
-        abs(normalize_angle(start_heading - chord_heading)) < 1e-3
-        and abs(normalize_angle(end_heading - chord_heading)) < 1e-3
+        abs(spatial.normalize_angle(start_heading - chord_heading)) < 1e-3
+        and abs(spatial.normalize_angle(end_heading - chord_heading)) < 1e-3
     )
 
     if aligned:

@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 from shapely.geometry import LineString
 
-from tactics2d.geometry import polyline_length, sample_by_s
+from tactics2d.geometry import polyline
 from tactics2d.map.element import Junction, Lane, LaneRelationship, RoadLine
 from tactics2d.map.generator.rules.module_types import RoadPort, build_port
 
@@ -338,7 +338,7 @@ def build_segmented_roadline(
     Returns:
         Tuple of ``(roadlines, roadline_ids, updated_id_counter)``.
     """
-    total_length = polyline_length(pts)
+    total_length = polyline.arc_length(pts)
 
     if gap_interval is None:
         t = dict(custom_tags)
@@ -360,7 +360,7 @@ def build_segmented_roadline(
             continue
 
         n = max(2, int(seg_len / max(step_size, 1e-3)) + 1)
-        seg_pts, _, _ = sample_by_s(pts, seg_start, seg_end, n)
+        seg_pts, _, _ = polyline.sample_uniformly(pts, seg_start, seg_end, n)
         t = dict(custom_tags)
         t["dash_offset"] = float(global_s_offset + seg_start)
         roadline = build_roadline_from_points(

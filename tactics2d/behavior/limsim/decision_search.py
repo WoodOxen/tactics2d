@@ -12,7 +12,7 @@ from tactics2d.search import MCTS
 
 from .action import LimSimAction
 from .config import LimSimConfig
-from .planner import LaneFollower, action_is_valid
+from .lane_follower import LaneFollower, is_action_valid
 from .reward import LimSimReward
 from .schema import AgentDecisionState, JointDecisionState
 
@@ -102,7 +102,7 @@ class LimSimDecisionSearch:
             actions = [
                 action
                 for action in self.config.candidate_actions
-                if action_is_valid(agent, action, map_)
+                if is_action_valid(agent, action, map_)
             ]
             actions = self._prune_actions(agent, actions)
             action_sets.append(actions or [LimSimAction.KS])

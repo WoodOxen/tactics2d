@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from tactics2d.geometry import offset_polyline
+from tactics2d.geometry import polyline
 from tactics2d.map.element import Lane, LaneRelationship, RoadLine
 from tactics2d.map.generator.rules.lane_marking_rules import (
     roadline_render_kwargs,
@@ -115,7 +115,7 @@ class TwoWay(RoadSegment):
         forward_boundary_rls: list[RoadLine] = [center_roadline]
 
         for i in range(1, forward_n + 1):
-            pts = offset_polyline(center_pts, -i * lane_w)
+            pts = polyline.offset(center_pts, -i * lane_w)
             rl = build_roadline_from_points(
                 id_=id_counter,
                 points=pts,
@@ -150,7 +150,7 @@ class TwoWay(RoadSegment):
         backward_boundary_rls: list[RoadLine] = [center_roadline]
 
         for i in range(1, backward_n + 1):
-            pts = offset_polyline(center_pts, i * lane_w)[::-1]
+            pts = polyline.offset(center_pts, i * lane_w)[::-1]
             rl = build_roadline_from_points(
                 id_=id_counter,
                 points=pts,

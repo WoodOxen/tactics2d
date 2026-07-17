@@ -6,7 +6,7 @@
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
-from tactics2d.geometry import euclidean_distance
+from tactics2d.geometry import spatial
 
 
 @dataclass(frozen=True)
@@ -55,7 +55,7 @@ class RoISelector:
             if participant is None or not participant.trajectory.has_state(frame):
                 continue
             state = participant.trajectory.get_state(frame)
-            distance = euclidean_distance(state.location, center_xy)
+            distance = spatial.euclidean_distance(state.location, center_xy)
             if distance <= radius:
                 agent_ids.append(agent_id)
             elif distance <= outer:
@@ -135,7 +135,7 @@ class RoISelector:
         scored = []
         for agent_id, state in active:
             distances = sorted(
-                euclidean_distance(state.location, other_state.location)
+                spatial.euclidean_distance(state.location, other_state.location)
                 for other_id, other_state in active
                 if other_id != agent_id
             )
@@ -146,7 +146,7 @@ class RoISelector:
         _, _, anchor_state = min(scored, key=lambda item: item[0])
         ordered = sorted(
             active,
-            key=lambda item: euclidean_distance(item[1].location, anchor_state.location),
+            key=lambda item: spatial.euclidean_distance(item[1].location, anchor_state.location),
         )
         agent_ids = [agent_id for agent_id, _ in ordered[:max_agents]]
         return RoISelection(agent_ids=agent_ids, center=anchor_state.location)

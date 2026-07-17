@@ -14,15 +14,15 @@ from typing import Dict, Iterable, List, Optional, Tuple
 import numpy as np
 from shapely.geometry import LineString, Point
 
-from tactics2d.geometry import normalize_angle
+from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
-from tactics2d.routing.utils import find_nearest_lane, get_lane_centerline
 
 
 def _lane_heading_at(lane, s: Optional[float]) -> Optional[float]:
     """Compute the heading of *lane* at longitudinal offset *s*."""
-    centerline = get_lane_centerline(lane)
+    centerline = lane.centerline()
+    centerline = np.asarray(centerline.coords, dtype=float) if centerline is not None else None
     if centerline is None or len(centerline) < 2:
         return None
     line = LineString(centerline)
@@ -42,10 +42,15 @@ def _candidate_lane_ids(map_: Map, lane_id: str, point_xy, lane_match_radius: fl
     for candidate_id, candidate_lane in map_.lanes.items():
         if candidate_lane.geometry is None:
             continue
-        cl = get_lane_centerline(candidate_lane)
+        candidate_centerline = candidate_lane.centerline()
+        candidate_centerline = (
+            np.asarray(candidate_centerline.coords, dtype=float)
+            if candidate_centerline is not None
+            else None
+        )
         distance = (
-            LineString(cl).distance(point)
-            if cl is not None
+            LineString(candidate_centerline).distance(point)
+            if candidate_centerline is not None
             else candidate_lane.geometry.distance(point)
         )
         if distance <= lane_match_radius:
@@ -84,11 +89,25 @@ def match_lane_for_state(
     if map_ is None or len(map_.lanes) == 0:
         return None
 
-    nearby_lane_id = find_nearest_lane(map_, (x, y))
+    # find the nearest lane to the point
+    point = Point(x, y)
+    nearby_lane_id = None
+    best_distance = float("inf")
+    for lid, lane in map_.lanes.items():
+        if lane.geometry is None:
+            continue
+        lane_centerline = lane.centerline()
+        if lane_centerline is not None:
+            distance = LineString(lane_centerline).distance(point)
+        else:
+            distance = lane.geometry.distance(point)
+        if distance < best_distance:
+            best_distance = distance
+            nearby_lane_id = lid
+
     if nearby_lane_id is None:
         return None
 
-    point = Point(x, y)
     best_lane_id = nearby_lane_id
     best_score = np.inf
     lane_ids = _candidate_lane_ids(map_, nearby_lane_id, (x, y), lane_match_radius)
@@ -104,7 +123,7 @@ def match_lane_for_state(
         lh = _lane_heading_at(lane, proj.s if proj is not None else None)
         heading_error = 0.0
         if lh is not None:
-            heading_error = abs(normalize_angle(heading - lh))
+            heading_error = abs(spatial.normalize_angle(heading - lh))
             heading_error = min(heading_error, abs(np.pi - heading_error))
         score = distance + heading_weight * heading_error
         if score < best_score:

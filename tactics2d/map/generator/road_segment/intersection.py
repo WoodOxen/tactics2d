@@ -9,7 +9,7 @@ from typing import Any
 
 import numpy as np
 
-from tactics2d.geometry import heading_unit, normalize_angle, offset_polyline
+from tactics2d.geometry import polyline, spatial
 from tactics2d.map.element import Lane, RoadLine
 from tactics2d.map.generator.rules.lane_marking_rules import roadline_render_kwargs
 from tactics2d.map.generator.rules.module_types import RoadModuleResult, RoadPort
@@ -60,7 +60,7 @@ def _arm_boundary_point(
     pts = sample_centerline(center, heading_outward, radius, curvature, step_size)
 
     if len(pts) < 2:
-        boundary_pt = center + radius * heading_unit(heading_outward)
+        boundary_pt = center + radius * spatial.heading_unit(heading_outward)
         return boundary_pt, heading_outward + np.pi
 
     boundary_pt = pts[-1]
@@ -213,7 +213,7 @@ def _turn_direction(inc_heading: float, out_heading: float) -> str:
         ``"right"``, ``"straight"``, or ``"left"``.
     """
     inc_outward = inc_heading + np.pi
-    angle = normalize_angle(out_heading - inc_outward)
+    angle = spatial.normalize_angle(out_heading - inc_outward)
 
     if angle > np.pi / 4.0:
         return "left"
@@ -468,8 +468,8 @@ def _intersection_build(
                     float(inc_arm["speed_limit"]), float(out_arm["speed_limit"]), float(speed_limit)
                 )
 
-                left_pts = offset_polyline(center_pts, lane_w / 2.0)
-                right_pts = offset_polyline(center_pts, -lane_w / 2.0)
+                left_pts = polyline.offset(center_pts, lane_w / 2.0)
+                right_pts = polyline.offset(center_pts, -lane_w / 2.0)
 
                 left_roadline = build_roadline_from_points(
                     id_=id_counter,

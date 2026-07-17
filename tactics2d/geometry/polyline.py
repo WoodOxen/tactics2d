@@ -8,7 +8,7 @@ from __future__ import annotations
 import numpy as np
 from shapely.geometry import LineString, Point
 
-from .utils import normalize_angle
+from .spatial import angle_between, cubic_hermite_points, normalize_angle
 
 
 def _as_polyline(pts: np.ndarray, min_points: int = 2) -> np.ndarray:
@@ -24,7 +24,7 @@ def _as_polyline(pts: np.ndarray, min_points: int = 2) -> np.ndarray:
     return arr
 
 
-def offset_polyline(pts: np.ndarray, offset: float) -> np.ndarray:
+def offset(pts: np.ndarray, offset: float) -> np.ndarray:
     """Offset a polyline laterally by a signed distance.
 
     Positive offset is to the left of the polyline direction; negative offset
@@ -56,7 +56,7 @@ def offset_polyline(pts: np.ndarray, offset: float) -> np.ndarray:
     return pts + float(offset) * left_normals
 
 
-def polyline_length(pts: np.ndarray) -> float:
+def arc_length(pts: np.ndarray) -> float:
     """Return the arc length of a polyline.
 
     Args:
@@ -75,7 +75,7 @@ def polyline_length(pts: np.ndarray) -> float:
     return float(np.sum(np.linalg.norm(np.diff(pts, axis=0), axis=1)))
 
 
-def cumulative_s(pts: np.ndarray) -> np.ndarray:
+def arc_lengths(pts: np.ndarray) -> np.ndarray:
     """Return cumulative arc-length coordinates of a polyline.
 
     Args:
@@ -98,7 +98,7 @@ def cumulative_s(pts: np.ndarray) -> np.ndarray:
     return np.concatenate([[0.0], np.cumsum(seg_lens)])
 
 
-def nearest_s(polyline: np.ndarray, point: np.ndarray) -> float:
+def project_arc_length(polyline: np.ndarray, point: np.ndarray) -> float:
     """Project a point onto a polyline and return the arc-length coordinate.
 
     Args:
@@ -123,7 +123,7 @@ def nearest_s(polyline: np.ndarray, point: np.ndarray) -> float:
     return float(LineString(polyline).project(Point(float(point[0]), float(point[1]))))
 
 
-def sample_by_s(
+def sample_uniformly(
     pts: np.ndarray, s_start: float, s_end: float, n_samples: int
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Sample positions, headings, and right normals uniformly by arc length.
@@ -153,23 +153,23 @@ def sample_by_s(
             fewer than 2 points.
     """
     pts = _as_polyline(pts)
-    cum = cumulative_s(pts)
-    total = cum[-1]
+    cumulative_lengths = arc_lengths(pts)
+    total = cumulative_lengths[-1]
 
     s_start = float(np.clip(s_start, 0.0, total))
     s_end = float(np.clip(s_end, s_start, total))
     n_samples = max(2, int(n_samples))
 
     s_query = np.linspace(s_start, s_end, n_samples)
-    xs = np.interp(s_query, cum, pts[:, 0])
-    ys = np.interp(s_query, cum, pts[:, 1])
+    xs = np.interp(s_query, cumulative_lengths, pts[:, 0])
+    ys = np.interp(s_query, cumulative_lengths, pts[:, 1])
     positions = np.column_stack([xs, ys])
 
-    seg_lens = np.diff(cum)
+    seg_lens = np.diff(cumulative_lengths)
     headings = np.empty(n_samples, dtype=float)
 
     for i, s in enumerate(s_query):
-        idx = int(np.searchsorted(cum, s, side="right") - 1)
+        idx = int(np.searchsorted(cumulative_lengths, s, side="right") - 1)
         idx = int(np.clip(idx, 0, len(seg_lens) - 1))
 
         tangent = pts[idx + 1] - pts[idx]
@@ -182,7 +182,7 @@ def sample_by_s(
     return positions, headings, right_normals
 
 
-def polyline_end_pose(pts: np.ndarray) -> tuple[np.ndarray, float]:
+def end_pose(pts: np.ndarray) -> tuple[np.ndarray, float]:
     """Return the end point and tangent heading of a polyline.
 
     Args:
@@ -278,7 +278,7 @@ def has_self_intersection(pts: np.ndarray) -> bool:
     return not LineString(pts).is_simple
 
 
-def point_at_s(points: np.ndarray, s: float) -> np.ndarray:
+def point_at_arc_length(points: np.ndarray, s: float) -> np.ndarray:
     """Sample one point from a polyline by arc-length coordinate.
 
     Args:
@@ -292,30 +292,29 @@ def point_at_s(points: np.ndarray, s: float) -> np.ndarray:
         ValueError: If ``points`` does not have shape ``(N, 2)`` or contains
             fewer than 2 points.
     """
-    positions, _, _ = sample_by_s(points, s, s, 2)
+    positions, _, _ = sample_uniformly(points, s, s, 2)
     return positions[0].copy()
 
 
-def point_heading_at_s(points: np.ndarray, s: float) -> tuple[np.ndarray, float]:
+def heading_at_arc_length(points: np.ndarray, s: float) -> tuple[np.ndarray, float]:
     """Sample one point and tangent heading from a polyline by arc-length coordinate.
 
     Args:
         points: Polyline points with shape ``(N, 2)``, ``N >= 2``.
-        s: Arc-length coordinate. Clamped to ``[0, total_length]``.
+        s: Arc-length coordinate. Clamped to ``[0, total_arc_length]``.
 
     Returns:
-        A tuple ``(point, heading)`` where ``point`` has shape ``(2,)`` and
-        ``heading`` is the tangent angle in radians at ``s``.
+        Tangent heading in radians at arc-length coordinate ``s``.
 
     Raises:
         ValueError: If ``points`` does not have shape ``(N, 2)`` or contains
             fewer than 2 points.
     """
-    positions, headings, _ = sample_by_s(points, s, s, 2)
-    return positions[0].copy(), float(headings[0])
+    _, headings, _ = sample_uniformly(points, s, s, 2)
+    return float(headings[0])
 
 
-def resample_polyline(points: np.ndarray, n: int) -> np.ndarray:
+def resample(points: np.ndarray, n: int) -> np.ndarray:
     """Resample a polyline to exactly ``n`` uniformly spaced points by arc length.
 
     Args:
@@ -334,11 +333,11 @@ def resample_polyline(points: np.ndarray, n: int) -> np.ndarray:
     if len(points) == 1 or n <= 1:
         return points[:1].copy()
 
-    total = polyline_length(points)
+    total = arc_length(points)
     if total < 1e-9:
         return np.repeat(points[:1], int(n), axis=0)
 
-    positions, _, _ = sample_by_s(points, 0.0, total, int(n))
+    positions, _, _ = sample_uniformly(points, 0.0, total, int(n))
     return positions
 
 
@@ -425,7 +424,7 @@ def find_intersection_point(
     return points[0]
 
 
-def cut_polyline(line: LineString, pt: Point, keep: str) -> np.ndarray:
+def cut(line: LineString, pt: Point, keep: str) -> np.ndarray:
     """Cut a Shapely LineString at a point and return one side as a numpy array.
 
     Args:
@@ -468,3 +467,99 @@ def cut_polyline(line: LineString, pt: Point, keep: str) -> np.ndarray:
         return np.vstack([coords[:idx], pt_coords])
 
     return np.vstack([pt_coords, coords[idx:]])
+
+
+def smooth_joint(
+    prev_tail: np.ndarray, next_head: np.ndarray, kink_angle_threshold_deg: float = 15.0
+) -> np.ndarray | None:
+    """Return interpolated arc points when two segments meet at a kink.
+
+    ``prev_tail`` is the last *k* points of the previous polyline (k >= 2).
+    ``next_head`` is the first *k* points of the next polyline (k >= 2).
+    Returns ``None`` when the joint is smooth enough to skip.
+
+    Args:
+        prev_tail: Last points of the previous polyline with shape ``(K, 2)``.
+        next_head: First points of the next polyline with shape ``(K, 2)``.
+        kink_angle_threshold_deg: Angle threshold in degrees above which a
+            smoothing arc is inserted. Defaults to 15.0.
+
+    Returns:
+        Interpolated arc points with shape ``(M, 2)``, or ``None`` if the
+        joint is smooth enough.
+    """
+    p_joint = prev_tail[-1]
+    q_joint = next_head[0]
+
+    gap = np.linalg.norm(q_joint - p_joint)
+    if gap > 0.5:
+        return None
+
+    v_in = p_joint - prev_tail[-2]
+    v_out = next_head[1] - q_joint
+    norm_in = np.linalg.norm(v_in)
+    norm_out = np.linalg.norm(v_out)
+    if norm_in < 1e-6 or norm_out < 1e-6:
+        return None
+
+    v_in_unit = v_in / norm_in
+    v_out_unit = v_out / norm_out
+
+    angle = angle_between(v_in_unit, v_out_unit)
+    if angle < np.deg2rad(kink_angle_threshold_deg):
+        return None
+
+    arc_len = min(4.0, norm_in, norm_out)
+    p_start = p_joint - v_in_unit * arc_len
+    p_end = q_joint + v_out_unit * arc_len
+    num_points = max(4, int(arc_len / 0.5))
+    arc = cubic_hermite_points(
+        p_start, v_in_unit * arc_len, p_end, v_out_unit * arc_len, num_points
+    )
+
+    mask = (np.linalg.norm(arc - p_joint, axis=1) >= 0.01) & (
+        np.linalg.norm(arc - q_joint, axis=1) >= 0.01
+    )
+    interior = arc[mask]
+    return interior if len(interior) >= 2 else None
+
+
+def concatenate(
+    polylines: list[np.ndarray], kink_angle_threshold_deg: float = 15.0
+) -> np.ndarray | None:
+    """Concatenate multiple polylines with C1-smooth joints.
+
+    When two consecutive polylines meet at a kink (angle > threshold),
+    transitional Hermite arc points are inserted to produce a smooth joint.
+
+    Args:
+        polylines: Sequence of polyline point arrays, each ``(N_i, 2)``.
+        kink_angle_threshold_deg: Angle threshold in degrees. Defaults to 15.0.
+
+    Returns:
+        Concatenated polyline points with shape ``(M, 2)``, or ``None`` if
+        no valid polylines are provided.
+    """
+    merged: list[np.ndarray] = []
+    for polyline in polylines:
+        if polyline is None or len(polyline) == 0:
+            continue
+        if not merged:
+            merged.append(polyline.copy())
+            continue
+
+        previous = merged[-1]
+        if np.allclose(previous[-1], polyline[0]):
+            n_tail = min(3, len(previous))
+            n_head = min(3, len(polyline))
+            arc = smooth_joint(previous[-n_tail:], polyline[:n_head], kink_angle_threshold_deg)
+            if arc is not None:
+                merged.append(arc)
+            merged.append(polyline[1:].copy())
+        else:
+            merged.append(polyline.copy())
+
+    if not merged:
+        return None
+
+    return np.vstack(merged)

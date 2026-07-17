@@ -153,8 +153,8 @@ def split_polyline(pts: list | np.ndarray, max_seg_length: float = 20.0) -> list
 
     diffs = np.diff(arr, axis=0)
     lens = np.linalg.norm(diffs, axis=1)
-    cum = np.concatenate([[0.0], np.cumsum(lens)])
-    total = cum[-1]
+    cumulative_lengths = np.concatenate([[0.0], np.cumsum(lens)])
+    total = cumulative_lengths[-1]
 
     if total <= max_seg_length:
         return [arr]
@@ -165,11 +165,11 @@ def split_polyline(pts: list | np.ndarray, max_seg_length: float = 20.0) -> list
     segments = []
     for i in range(n_segs):
         s0, s1 = breaks[i], breaks[i + 1]
-        mask = (cum >= s0 - 1e-9) & (cum <= s1 + 1e-9)
+        mask = (cumulative_lengths >= s0 - 1e-9) & (cumulative_lengths <= s1 + 1e-9)
         seg = arr[mask]
         if len(seg) < 2:
-            idx0 = np.searchsorted(cum, s0)
-            idx1 = np.searchsorted(cum, s1)
+            idx0 = np.searchsorted(cumulative_lengths, s0)
+            idx1 = np.searchsorted(cumulative_lengths, s1)
             seg = arr[max(0, idx0) : min(len(arr), idx1 + 1)]
         if len(seg) >= 2:
             segments.append(seg)

@@ -10,9 +10,9 @@ from dataclasses import dataclass
 from math import sqrt
 from typing import Callable, Literal
 
-from tactics2d.map.element import Lane, Map
+from shapely.geometry import LineString
 
-from .utils import get_lane_length
+from tactics2d.map.element import Lane, Map
 
 RoutingCostFunction = Callable[[Map, Lane, Lane, str], float]
 RoutingCostMode = Literal[
@@ -21,6 +21,16 @@ RoutingCostMode = Literal[
 
 _DEFAULT_SPEED_MPS = 13.89
 _EPS = 1e-6
+
+
+def _get_lane_length(lane: Lane) -> float:
+    """Estimate lane traversal length from centerline or geometry."""
+    centerline = lane.centerline()
+    if centerline is not None:
+        return float(LineString(centerline).length)
+    if lane.geometry is not None:
+        return float(lane.geometry.length) / 2.0
+    return 0.0
 
 
 def _lane_speed_mps(lane: Lane, default_speed_mps: float) -> float:
@@ -67,7 +77,7 @@ class DistanceCostBuilder(CostBuilder):
     def build(self) -> RoutingCostFunction:
         def cost(map_: Map, from_lane: Lane, to_lane: Lane, relation: str) -> float:
             del map_, from_lane
-            traversal_cost = get_lane_length(to_lane)
+            traversal_cost = _get_lane_length(to_lane)
             if relation == "neighbor":
                 return traversal_cost + self.lane_change_penalty
             return traversal_cost
@@ -86,7 +96,7 @@ class TravelTimeCostBuilder(CostBuilder):
         def cost(map_: Map, from_lane: Lane, to_lane: Lane, relation: str) -> float:
             del map_, from_lane
             speed_mps = max(_lane_speed_mps(to_lane, self.default_speed_mps), _EPS)
-            traversal_cost = get_lane_length(to_lane) / speed_mps
+            traversal_cost = _get_lane_length(to_lane) / speed_mps
             if relation == "neighbor":
                 return traversal_cost + self.lane_change_penalty
             return traversal_cost
@@ -109,8 +119,8 @@ class AveragedLengthCostBuilder(CostBuilder):
     def build(self) -> RoutingCostFunction:
         def cost(map_: Map, from_lane: Lane, to_lane: Lane, relation: str) -> float:
             del map_
-            from_length = get_lane_length(from_lane)
-            to_length = get_lane_length(to_lane)
+            from_length = _get_lane_length(from_lane)
+            to_length = _get_lane_length(to_lane)
             if relation == "neighbor":
                 if self.min_lane_change_length > 0.0 and from_length < self.min_lane_change_length:
                     return float("inf")
@@ -136,7 +146,7 @@ class AveragedTravelTimeCostBuilder(CostBuilder):
     def build(self) -> RoutingCostFunction:
         def cost(map_: Map, from_lane: Lane, to_lane: Lane, relation: str) -> float:
             del map_
-            from_length = get_lane_length(from_lane)
+            from_length = _get_lane_length(from_lane)
             if relation == "neighbor":
                 if self.min_lane_change_length > 0.0 and from_length < self.min_lane_change_length:
                     return float("inf")
@@ -144,8 +154,8 @@ class AveragedTravelTimeCostBuilder(CostBuilder):
 
             from_speed = max(_lane_speed_mps(from_lane, self.default_speed_mps), _EPS)
             to_speed = max(_lane_speed_mps(to_lane, self.default_speed_mps), _EPS)
-            from_time = get_lane_length(from_lane) / from_speed
-            to_time = get_lane_length(to_lane) / to_speed
+            from_time = _get_lane_length(from_lane) / from_speed
+            to_time = _get_lane_length(to_lane) / to_speed
             return 0.5 * (from_time + to_time)
 
         return cost
@@ -170,7 +180,7 @@ class NodeEdgeCostBuilder(CostBuilder):
 
     def build(self) -> RoutingCostFunction:
         def node_cost(lane: Lane) -> float:
-            lane_length = get_lane_length(lane)
+            lane_length = _get_lane_length(lane)
             speed_mps = _lane_speed_mps(lane, self.base_speed_mps)
             if speed_mps >= self.base_speed_mps:
                 speed_ratio = 1.0 / sqrt(speed_mps / self.base_speed_mps)
@@ -183,7 +193,7 @@ class NodeEdgeCostBuilder(CostBuilder):
         def lane_change_multiplier(from_lane: Lane) -> float:
             if self.base_changing_length <= 0.0:
                 return 1.0
-            from_length = get_lane_length(from_lane)
+            from_length = _get_lane_length(from_lane)
             if from_length <= 0.0:
                 return float("inf")
             if from_length >= self.base_changing_length:

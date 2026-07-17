@@ -113,3 +113,45 @@ def oriented_box(x: float, y: float, heading: float, length: float, width: float
     )
     transform = [np.cos(heading), -np.sin(heading), np.sin(heading), np.cos(heading), x, y]
     return Polygon(affine_transform(bbox, transform))
+
+
+def angle_between(v1: np.ndarray, v2: np.ndarray) -> float:
+    """Return the absolute angle in radians between two 2D direction vectors.
+
+    Args:
+        v1: First direction vector with shape ``(2,)``.
+        v2: Second direction vector with shape ``(2,)``.
+
+    Returns:
+        Absolute angle between the two vectors in radians, in ``[0, pi]``.
+    """
+    dot = np.clip(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-12), -1.0, 1.0)
+    return float(np.arccos(dot))
+
+
+def cubic_hermite_points(
+    p0: np.ndarray, t0: np.ndarray, p1: np.ndarray, t1: np.ndarray, num_points: int = 8
+) -> np.ndarray:
+    """Sample points along a cubic Hermite curve.
+
+    Args:
+        p0: Start point with shape ``(2,)``.
+        t0: Start tangent vector with shape ``(2,)``.
+        p1: End point with shape ``(2,)``.
+        t1: End tangent vector with shape ``(2,)``.
+        num_points: Number of sample points. Defaults to 8.
+
+    Returns:
+        Sampled points with shape ``(num_points, 2)``.
+    """
+    ts = np.linspace(0, 1, num_points)
+    h00 = 2 * ts**3 - 3 * ts**2 + 1
+    h10 = ts**3 - 2 * ts**2 + ts
+    h01 = -2 * ts**3 + 3 * ts**2
+    h11 = ts**3 - ts**2
+    return (
+        p0[np.newaxis, :] * h00[:, np.newaxis]
+        + t0[np.newaxis, :] * h10[:, np.newaxis]
+        + p1[np.newaxis, :] * h01[:, np.newaxis]
+        + t1[np.newaxis, :] * h11[:, np.newaxis]
+    )

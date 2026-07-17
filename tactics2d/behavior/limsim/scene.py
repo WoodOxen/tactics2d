@@ -9,10 +9,9 @@ import numpy as np
 from shapely.geometry import LineString, Point
 from shapely.strtree import STRtree
 
-from tactics2d.geometry import normalize_angle
+from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 from tactics2d.participant.trajectory import State
-from tactics2d.routing.utils import get_lane_centerline
 
 from .config import LimSimConfig
 from .schema import AgentDecisionState
@@ -65,7 +64,7 @@ class SceneBuilder:
                 agent_id=agent_id,
                 x=raw_state.x,
                 y=raw_state.y,
-                heading=normalize_angle(raw_state.heading),
+                heading=spatial.normalize_angle(raw_state.heading),
                 speed=max(raw_state.speed or 0.0, 0.0),
                 lane_id=lane_id,
                 lateral_offset=lateral_offset,
@@ -123,7 +122,7 @@ class SceneBuilder:
             lane_heading = self._lane_heading_at(lane, s)
             heading_error = 0.0
             if lane_heading is not None:
-                heading_error = abs(normalize_angle(state.heading - lane_heading))
+                heading_error = abs(spatial.normalize_angle(state.heading - lane_heading))
                 heading_error = min(heading_error, abs(np.pi - heading_error))
             score = distance + self.config.lane_heading_match_weight * heading_error
             if score < best_score:
@@ -149,7 +148,10 @@ class SceneBuilder:
         for candidate_id, candidate_lane in map_.lanes.items():
             if candidate_lane.geometry is None:
                 continue
-            centerline = get_lane_centerline(candidate_lane)
+            centerline = candidate_lane.centerline()
+            centerline = (
+                np.asarray(centerline.coords, dtype=float) if centerline is not None else None
+            )
             if centerline is not None and len(centerline) >= 2:
                 indexed_lane_ids.append(candidate_id)
                 indexed_centerlines.append(LineString(centerline))
@@ -164,7 +166,8 @@ class SceneBuilder:
         return result
 
     def _lane_heading_at(self, lane, s: Optional[float]) -> Optional[float]:
-        centerline = get_lane_centerline(lane)
+        centerline = lane.centerline()
+        centerline = np.asarray(centerline.coords, dtype=float) if centerline is not None else None
         if centerline is None or len(centerline) < 2:
             return None
         line = LineString(centerline)
