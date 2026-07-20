@@ -25,12 +25,12 @@ class LimSimAction(str, Enum):
 
     @property
     def acceleration(self) -> float:
-        """Nominal longitudinal acceleration attached to the action."""
+        """Nominal longitudinal acceleration for this action (m/s²)."""
 
         if self == LimSimAction.AC:
             return 0.7
         if self == LimSimAction.DC:
-            return -8.0
+            return -0.7
         return 0.0
 
     @property

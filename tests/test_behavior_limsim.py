@@ -313,12 +313,14 @@ def test_behavior_model_basic():
 
 
 def test_behavior_model_with_obstacle_yields_deceleration():
-    """Faster agent behind slower one decelerates."""
-    config = LimSimConfig(horizon_steps=20, mcts_iterations=200, interaction_distance=20.0)
-    participants = {
-        1: _vehicle(1, 0, 1.0, 10.0, speed=8.0),
-        2: _vehicle(2, 0, 1.0, 20.0, speed=1.0),
-    }
+    """Faster agent behind slower one decelerates to avoid rear-ending.
+
+    Uses realistic deceleration (-0.7 m/s², matching the original LimSim
+    DEFAULT_ACC).  KS would cause a collision within the planning horizon;
+    DC gently brakes early enough to stay safely behind.
+    """
+    config = LimSimConfig(horizon_steps=50, mcts_iterations=200, interaction_distance=20.0)
+    participants = {1: _vehicle(1, 0, 1.0, 0.0, speed=8.0), 2: _vehicle(2, 0, 1.0, 25.0, speed=3.0)}
 
     result = LimSimBehaviorModel(config).plan(participants, _parallel_map(), route_map={}, frame=0)
 

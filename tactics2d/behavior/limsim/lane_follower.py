@@ -40,11 +40,14 @@ class LaneFollower:
         progress = start_progress
         current = agent
         for _ in range(horizon):
+            accel = 0.0
+            if action == LimSimAction.AC:
+                accel = self.config.acceleration
+            elif action == LimSimAction.DC:
+                accel = self.config.deceleration
             speed = float(
                 np.clip(
-                    speed + action.acceleration * self.config.dt,
-                    self.config.min_speed,
-                    self.config.max_speed,
+                    speed + accel * self.config.dt, self.config.min_speed, self.config.max_speed
                 )
             )
             travel = speed * self.config.dt

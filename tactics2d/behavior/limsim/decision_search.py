@@ -32,7 +32,15 @@ class LimSimDecisionSearch:
         map_: Optional[Map],
         obstacle_trajectories: Sequence[Sequence[AgentDecisionState]] = (),
     ) -> Tuple[Dict[object, LimSimAction], Dict[object, List[AgentDecisionState]], object]:
-        """Plan one joint action for a group of interacting agents."""
+        """Plan one joint action for a group of interacting agents.
+
+        Implements the original LimSim-style chained MCTS: the search runs
+        sequentially per decision step, with a decaying iteration budget
+        ``budget = base_budget / (depth/2 + 1)`` so that the immediate next
+        action receives the most computation.  Each step inherits the best
+        child of the previous step as its root, matching the paper's
+        receding-horizon-within-MCTS design.
+        """
 
         self._expand_cache.clear()
 
@@ -56,20 +64,51 @@ class LimSimDecisionSearch:
             return self.reward.evaluate(agents, trajectories, obstacle_trajectories)
 
         def simulate_fn(state: JointDecisionState) -> JointDecisionState:
-            if terminal_fn(state):
-                return state
-            candidates = expand_fn(state)
-            return random.choice(candidates) if candidates else state
+            """Rollout to terminal with lightweight random-step generation.
 
-        mcts = MCTS(
-            terminal_fn=terminal_fn,
-            expand_fn=expand_fn,
-            reward_fn=reward_fn,
-            simulate_fn=simulate_fn,
-            exploration_weight=self.config.exploration_weight,
-        )
-        _, root = mcts.plan(start=start_state, max_try=self.config.mcts_iterations)
-        selected = self._best_state_from_root(root) or start_state
+            Uses :meth:`_simulate_step` instead of :meth:`_expand` to avoid
+            computing the full Cartesian product of all agent actions on every
+            simulation step.
+            """
+            current = state
+            while not terminal_fn(current):
+                next_state = self._simulate_step(current, map_)
+                if next_state is None:
+                    break
+                current = next_state
+            return current
+
+        # --- chained MCTS: one search per decision step with decaying budget ---
+        base_budget = max(1, self.config.mcts_iterations)
+        current_state = start_state
+        best_intermediate = start_state
+        last_root = None
+
+        for depth in range(self.config.terminal_depth):
+            budget = max(2, int(base_budget / (depth / 2.0 + 1.0)))
+            mcts = MCTS(
+                terminal_fn=terminal_fn,
+                expand_fn=expand_fn,
+                reward_fn=reward_fn,
+                simulate_fn=simulate_fn,
+                exploration_weight=self.config.exploration_weight,
+            )
+            _, last_root = mcts.plan(start=current_state, max_try=budget)
+
+            selected = self._best_state_from_root(last_root)
+            if selected is None:
+                break
+            best_intermediate = selected
+
+            # early termination: good-enough terminal state (original paper §3.3)
+            if terminal_fn(selected) and reward_fn(selected) > 0.8:
+                break
+
+            # follow best child as the root for the next decision step
+            current_state = selected
+
+        # --- one-step fallback: did MCTS beat the greedy immediate choice? ---
+        selected = best_intermediate
         root_fallback = self._best_one_step_state(start_state, map_, agents, obstacle_trajectories)
         if root_fallback is not None and reward_fn(root_fallback) > reward_fn(selected):
             selected = root_fallback
@@ -90,7 +129,7 @@ class LimSimDecisionSearch:
                     steps=self.config.horizon_steps - len(trajectories.get(agent.agent_id, [])),
                 )
                 trajectories[agent.agent_id] = trajectories.get(agent.agent_id, []) + remaining
-        return actions, trajectories, root
+        return actions, trajectories, last_root
 
     def _expand(self, state: JointDecisionState, map_: Optional[Map]) -> List[JointDecisionState]:
         cache_key = id(state)
@@ -142,6 +181,40 @@ class LimSimDecisionSearch:
 
         self._expand_cache[cache_key] = expanded
         return expanded
+
+    def _simulate_step(
+        self, state: JointDecisionState, map_: Optional[Map]
+    ) -> Optional[JointDecisionState]:
+        """Generate a single random child without the full Cartesian product.
+
+        This is the lightweight counterpart of :meth:`_expand`, used exclusively
+        during simulation rollouts.  It picks one random action per agent,
+        rolls out only those agent-action pairs, and returns one child state
+        in O(N) instead of O(|A|^N).
+        """
+
+        steps_per_decision = max(1, int(round(self.config.decision_resolution / self.config.dt)))
+        next_agents = []
+        next_trajectories = []
+
+        for index, agent in enumerate(state.agents):
+            actions = [
+                action
+                for action in self.config.candidate_actions
+                if is_action_valid(agent, action, map_)
+            ]
+            actions = self._prune_actions(agent, actions)
+            action = random.choice(actions or [LimSimAction.KS])
+            segment = self.follower.rollout(agent, action, map_, steps=steps_per_decision)
+            next_agent = segment[-1] if segment else agent.with_updates(action=action)
+            next_agents.append(next_agent)
+            history = list(state.trajectories[index]) if state.trajectories else []
+            history.extend(segment)
+            next_trajectories.append(tuple(history[: self.config.horizon_steps]))
+
+        return JointDecisionState(
+            agents=tuple(next_agents), depth=state.depth + 1, trajectories=tuple(next_trajectories)
+        )
 
     def _prune_actions(
         self, agent: AgentDecisionState, actions: List[LimSimAction]

@@ -143,14 +143,21 @@ class LimSimBehaviorModel(BehaviorModelBase):
             background_agent_ids=background_ids,
         )
         rough_trajectories = {}
+        decided_trajectories = {}
+        decided_ids: set = set()
 
         for group in groups:
             agents = [scene_states[agent_id] for agent_id in group]
             group_obstacles = list(background_trajectories.values())
+            # previously decided groups: use actual MCTS decisions (original paper §3.2)
+            group_obstacles.extend(decided_trajectories.values())
+            # not-yet-decided groups: use constant-speed predictions as placeholders
             group_obstacles.extend(
                 scene_predictions[other_id]
                 for other_id in scene_states
-                if other_id not in group and other_id in scene_predictions
+                if other_id not in group
+                and other_id in scene_predictions
+                and other_id not in decided_ids
             )
             if len(agents) <= 1:
                 agent = agents[0]
@@ -159,6 +166,8 @@ class LimSimBehaviorModel(BehaviorModelBase):
                 )
                 result.actions[agent.agent_id] = action
                 rough_trajectories[agent.agent_id] = self.follower.rollout(agent, action, map_)
+                decided_trajectories[agent.agent_id] = rough_trajectories[agent.agent_id]
+                decided_ids.add(agent.agent_id)
                 continue
 
             actions, trajectories, root = self.decision_search.plan(
@@ -168,6 +177,8 @@ class LimSimBehaviorModel(BehaviorModelBase):
             for agent in agents:
                 result.actions[agent.agent_id] = actions[agent.agent_id]
                 rough_trajectories[agent.agent_id] = trajectories[agent.agent_id]
+                decided_trajectories[agent.agent_id] = trajectories[agent.agent_id]
+                decided_ids.add(agent.agent_id)
 
         final_state_trajectories = {}
         for agent in scene_states.values():
