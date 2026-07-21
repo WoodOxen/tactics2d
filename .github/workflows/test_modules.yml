@@ -129,6 +129,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          allow-unsafe-pr-checkout: true
           repository: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
 
@@ -179,6 +180,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          allow-unsafe-pr-checkout: true
           repository: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
 
