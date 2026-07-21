@@ -47,6 +47,9 @@
 - Fixed `POST /api/preview/map` raising an unhandled HTTP 500 with no UI feedback when the OSM path is missing or invalid; it now returns HTTP 400 with an error message that persists in the status bar.
 - Fixed browser frontend favicon 404 console error by adding an inline SVG favicon.
 - Removed a machine-specific hardcoded dataset folder from the browser frontend preview defaults; defaults are now derived from data-root discovery.
+- Fixed browser frontend tutorial incorrectly stating `fastapi`/`uvicorn` are optional dependencies (they are core dependencies installed with the package), and added missing `ParticipantElement`/`CameraMetadata` imports in the display backend example.
+- Fixed `render_mode` docstrings in `ParkingEnv` and `RacingEnv` missing the supported `browser` and `matplotlib` modes.
+- Synchronized the Chinese browser frontend tutorial with the English version by adding the missing "Unified Display Backend" section (factory usage, environment integration, render mode table, recording output).
 - Fixed `NetXMLParser._get_lane_subtype` incorrectly declared as `@staticmethod` with a `self` parameter, causing all lane parsing to fail silently.
 - Fixed `NetXMLParser._offset_line` referencing undefined normal vector variables when consecutive points have zero distance.
 - Fixed `NetXMLParser` not reading the lane element's `width` attribute, falling back to inaccurate heuristic estimation.

@@ -81,7 +81,7 @@ class RacingEnv(gym.Env):
         """Initialize the racing environment.
 
         Args:
-            render_mode (str, optional): The mode of the rendering. It can be "human", "rgb_array", "none" or None. Defaults to "human".
+            render_mode (str, optional): The mode of the rendering. It can be "human", "rgb_array", "browser", "matplotlib", "none" or None. Defaults to "human".
             render_fps (int, optional): The frame rate of the rendering.
             max_step (int, optional): The maximum time step of the scenario. Defaults to 100000.
             continuous (bool, optional): Whether to use continuous action space. Defaults to True.
