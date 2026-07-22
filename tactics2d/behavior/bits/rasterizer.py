@@ -3,7 +3,7 @@
 
 """Map rasterization utilities for BITS-style behavior imitation."""
 
-from typing import Iterable, Optional, Sequence, Tuple
+from typing import Iterable, Optional, Sequence
 
 import numpy as np
 from matplotlib.path import Path
@@ -198,10 +198,7 @@ class BitsRasterizer:
             self._draw_line(mask, geometry.coords, transform)
 
     def _fill_polygon(
-        self,
-        mask: np.ndarray,
-        exterior: np.ndarray,
-        holes: Optional[Iterable[np.ndarray]] = None,
+        self, mask: np.ndarray, exterior: np.ndarray, holes: Optional[Iterable[np.ndarray]] = None
     ) -> None:
         if exterior.shape[0] < 3:
             return
@@ -228,8 +225,8 @@ class BitsRasterizer:
         rows = np.arange(min_row, max_row, dtype=float) + 0.5
         grid_cols, grid_rows = np.meshgrid(cols, rows)
         points = np.column_stack([grid_cols.ravel(), grid_rows.ravel()])
-        inside = Path(coords).contains_points(points).reshape(
-            (max_row - min_row, max_col - min_col)
+        inside = (
+            Path(coords).contains_points(points).reshape((max_row - min_row, max_col - min_col))
         )
         window = mask[min_row:max_row, min_col:max_col]
         window[inside] = value

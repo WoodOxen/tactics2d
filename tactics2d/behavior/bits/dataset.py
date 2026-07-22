@@ -7,8 +7,9 @@ from dataclasses import dataclass
 from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
+from shapely.geometry import LineString, Point
 
-from tactics2d.geometry import euclidean_distance, normalize_angle, transform_point
+from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State
@@ -33,9 +34,7 @@ class BitsBatchBuilder:
     OTHER_TYPE = 0
 
     def __init__(
-        self,
-        config: Optional[BitsConfig] = None,
-        rasterizer: Optional[BitsRasterizer] = None,
+        self, config: Optional[BitsConfig] = None, rasterizer: Optional[BitsRasterizer] = None
     ):
         self.config = config or BitsConfig()
         self.rasterizer = rasterizer or BitsRasterizer(self.config)
@@ -188,7 +187,7 @@ class BitsBatchBuilder:
                 participant, Vehicle
             ):
                 continue
-            distance = euclidean_distance(
+            distance = spatial.euclidean_distance(
                 ego_state.location, participant.trajectory.get_state(frame).location
             )
             if distance <= self.config.max_agents_distance:
@@ -197,11 +196,7 @@ class BitsBatchBuilder:
         return [agent_id for _, agent_id in selected]
 
     def _extract_sequence(
-        self,
-        participant,
-        frames: Sequence[int],
-        agent_from_world: np.ndarray,
-        ego_heading: float,
+        self, participant, frames: Sequence[int], agent_from_world: np.ndarray, ego_heading: float
     ):
         positions = np.zeros((len(frames), 2), dtype=float)
         yaws = np.zeros((len(frames), 1), dtype=float)
@@ -210,8 +205,8 @@ class BitsBatchBuilder:
             if not participant.trajectory.has_state(frame):
                 continue
             state = participant.trajectory.get_state(frame)
-            positions[index] = transform_point(state.location, agent_from_world)
-            yaws[index, 0] = normalize_angle(state.heading - ego_heading)
+            positions[index] = spatial.transform_point(state.location, agent_from_world)
+            yaws[index, 0] = spatial.normalize_angle(state.heading - ego_heading)
             availabilities[index] = True
         return positions, yaws, availabilities
 
@@ -221,12 +216,7 @@ class BitsBatchBuilder:
         c = float(np.cos(state.heading))
         s = float(np.sin(state.heading))
         return np.asarray(
-            [
-                [c, s, -(c * x + s * y)],
-                [-s, c, s * x - c * y],
-                [0.0, 0.0, 1.0],
-            ],
-            dtype=float,
+            [[c, s, -(c * x + s * y)], [-s, c, s * x - c * y], [0.0, 0.0, 1.0]], dtype=float
         )
 
     def _participant_extent(self, participant) -> np.ndarray:
@@ -245,9 +235,24 @@ class BitsBatchBuilder:
     def _match_lane(map_: Optional[Map], state: State) -> Optional[str]:
         if map_ is None or not map_.lanes:
             return None
-        from tactics2d.routing.utils import find_nearest_lane
 
-        return find_nearest_lane(map_, state.location)
+        point = Point(state.location[0], state.location[1])
+        best_lane_id = None
+        best_distance = float("inf")
+
+        for lane_id, lane in map_.lanes.items():
+            if lane.geometry is None:
+                continue
+            centerline = lane.centerline()
+            if centerline is not None:
+                distance = LineString(centerline).distance(point)
+            else:
+                distance = lane.geometry.distance(point)
+            if distance < best_distance:
+                best_distance = distance
+                best_lane_id = lane_id
+
+        return best_lane_id
 
 
 class BitsSampleDataset:
@@ -306,9 +311,7 @@ class BitsSampleDataset:
         return sorted({index.ego_id for index in self.indices}, key=str)
 
     def _build_indices(
-        self,
-        ego_ids: Optional[Iterable[object]],
-        frame_range: Optional[Tuple[int, int]],
+        self, ego_ids: Optional[Iterable[object]], frame_range: Optional[Tuple[int, int]]
     ) -> List[BitsSampleIndex]:
         selected_ego_ids = list(self.participants.keys()) if ego_ids is None else list(ego_ids)
         indices = []

@@ -9,15 +9,69 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from tactics2d.behavior.trajectory_evaluation import (
-    TrajectoryError,
-    displacement_errors,
-    find_first_collision,
-)
 from tactics2d.geometry import spatial
 from tactics2d.participant.trajectory import State, Trajectory
 
 from .action import LimSimAction
+
+
+@dataclass
+class TrajectoryError:
+    """Displacement error between a planned trajectory and a reference trajectory."""
+
+    ade: float
+    fde: float
+    samples: int
+
+
+def find_first_collision(
+    trajectories: Dict[object, Trajectory],
+    dimensions: Optional[Dict[object, Tuple[float, float]]] = None,
+) -> Optional[Tuple[int, object, object]]:
+    """Return the first colliding frame and agent ids, if any."""
+    agent_ids = sorted(trajectories)
+    if len(agent_ids) < 2:
+        return None
+    frame_sets = [set(trajectories[agent_id].frames) for agent_id in agent_ids]
+    common_frames = sorted(set.intersection(*frame_sets)) if frame_sets else []
+    for frame in common_frames:
+        footprints = []
+        for agent_id in agent_ids:
+            length, width = (dimensions or {}).get(agent_id, (4.8, 1.9))
+            state = trajectories[agent_id].get_state(frame)
+            footprints.append(
+                (agent_id, spatial.oriented_box(state.x, state.y, state.heading, length, width))
+            )
+        for i, (source_id, source_shape) in enumerate(footprints):
+            for target_id, target_shape in footprints[i + 1 :]:
+                if source_shape.intersects(target_shape):
+                    return frame, source_id, target_id
+    return None
+
+
+def displacement_errors(
+    planned: Dict[object, Trajectory], reference: Dict[object, Trajectory]
+) -> Dict[object, TrajectoryError]:
+    """Compute ADE/FDE on frames shared by planned and reference trajectories."""
+    errors = {}
+    for agent_id, trajectory in planned.items():
+        reference_trajectory = reference.get(agent_id)
+        if reference_trajectory is None:
+            continue
+        common_frames = sorted(set(trajectory.frames) & set(reference_trajectory.frames))
+        if not common_frames:
+            continue
+        distances = []
+        for frame in common_frames:
+            planned_state = trajectory.get_state(frame)
+            reference_state = reference_trajectory.get_state(frame)
+            distances.append(
+                spatial.euclidean_distance(planned_state.location, reference_state.location)
+            )
+        errors[agent_id] = TrajectoryError(
+            ade=float(np.mean(distances)), fde=float(distances[-1]), samples=len(distances)
+        )
+    return errors
 
 
 @dataclass(frozen=True)
