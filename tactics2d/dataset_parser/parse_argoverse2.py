@@ -33,6 +33,8 @@ class Argoverse2Parser:
         "pedestrian": "pedestrian",
         "background": "background",
         "static": "static",
+        "construction": "construction",
+        "unknown": "unknown",
     }
 
     _CLASS_MAPPING = {
@@ -44,6 +46,8 @@ class Argoverse2Parser:
         "pedestrian": Pedestrian,
         "background": Other,
         "static": Other,
+        "construction": Other,
+        "unknown": Other,
     }
 
     _DEFAULT_SIZE = {
@@ -55,6 +59,8 @@ class Argoverse2Parser:
         "pedestrian": (0.5, 0.5),
         "background": (None, None),
         "static": (None, None),
+        "construction": (None, None),
+        "unknown": (None, None),
     }
 
     _LANE_TYPE_MAPPING = {"VEHICLE": "road", "BIKE": "bicycle_lane"}
@@ -97,12 +103,16 @@ class Argoverse2Parser:
         for _, state_info in df.iterrows():
             if state_info["track_id"] not in participants:
                 object_type = state_info["object_type"]
-                participants[state_info["track_id"]] = self._CLASS_MAPPING[object_type](
+                # Unseen categories degrade to Other instead of crashing the parse.
+                size = self._DEFAULT_SIZE.get(object_type, (None, None))
+                participants[state_info["track_id"]] = self._CLASS_MAPPING.get(
+                    object_type, Other
+                )(
                     id_=state_info["track_id"],
-                    type_=self._TYPE_MAPPING[object_type],
+                    type_=self._TYPE_MAPPING.get(object_type, object_type),
                     trajectory=Trajectory(id_=state_info["track_id"], fps=10.0),
-                    length=self._DEFAULT_SIZE[object_type][0],
-                    width=self._DEFAULT_SIZE[object_type][1],
+                    length=size[0],
+                    width=size[1],
                 )
 
             time_stamp = int(state_info["timestep"] * 100)

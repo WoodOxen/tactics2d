@@ -3,7 +3,6 @@
 
 """Camera implementation."""
 
-
 import time
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -11,7 +10,7 @@ import numpy as np
 from shapely.geometry import Point, Polygon
 
 from tactics2d.map.element import Area, Junction, Lane, Map, RoadLine
-from tactics2d.participant.element import Cyclist, Obstacle, Pedestrian, Vehicle
+from tactics2d.participant.element import Cyclist, Obstacle, Other, Pedestrian, Vehicle
 
 from .sensor_base import SensorBase
 
@@ -83,6 +82,8 @@ class BEVCamera(SensorBase):
             return "cyclist"
         elif isinstance(element, Pedestrian):
             return "pedestrian"
+        elif isinstance(element, Other):
+            return "other"
 
         return "default"
 
@@ -329,13 +330,47 @@ class BEVCamera(SensorBase):
                     {
                         "id": id_,
                         "shape": "circle",
-                        "position": [participant_geometry.x, participant_geometry.y],
-                        "radius": participant_radius,
+                        "position": [float(participant_geometry.x), float(participant_geometry.y)],
+                        "radius": float(participant_radius),
                         "color": participant.color,
                         "type": self._get_type(participant),
                         "line_width": 1,
                     }
                 )
+                participant_id_list.append(id_)
+
+            elif isinstance(participant, Other):
+                id_ = abs(int(participant.id_))
+
+                if isinstance(participant_geometry, Point):
+                    participant_list.append(
+                        {
+                            "id": id_,
+                            "shape": "circle",
+                            "position": [
+                                float(participant_geometry.x),
+                                float(participant_geometry.y),
+                            ],
+                            "radius": 0.5,
+                            "color": participant.color,
+                            "type": self._get_type(participant),
+                            "line_width": 1,
+                        }
+                    )
+                else:
+                    state = participant.trajectory.get_state(frame)
+                    participant_list.append(
+                        {
+                            "id": id_,
+                            "shape": "polygon",
+                            "geometry": np.array(participant.geometry.coords).tolist(),
+                            "position": list(state.location),
+                            "rotation": state.heading,
+                            "color": participant.color,
+                            "type": self._get_type(participant),
+                            "line_width": 1,
+                        }
+                    )
                 participant_id_list.append(id_)
 
             elif isinstance(participant, Obstacle):

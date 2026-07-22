@@ -468,3 +468,49 @@ body {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
+
+.secondary-button.is-recording {
+  border-color: #e05252;
+  color: #ff8b8b;
+}
+
+.recording-panel {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid #30342f;
+  display: grid;
+  gap: 10px;
+}
+
+.recording-panel h3 {
+  margin: 0;
+  color: #8a938c;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 4px;
+}
+
+.recording-group {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #2a2f2a;
+  border-radius: 8px;
+}
+
+.recording-group .group-title {
+  color: #dce4de;
+  font-size: 13px;
+}
+
+.recording-group .secondary-button {
+  margin-top: 2px;
+}
+
+.panel-hint {
+  margin: 0;
+  color: #8a938c;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.6;
+}

@@ -39,6 +39,36 @@ tactics2d stop
 The page opens on the live view by default. In live mode the frontend displays the
 latest frame it receives; it is not a seekable recording player.
 
+### Remote mode
+
+The server binds to `127.0.0.1` by default, which only accepts local
+connections. To view the frontend from another machine — a common setup when
+simulations run on a lab server — bind to all interfaces and open the page via
+the server's address:
+
+```bash
+# On the simulation server
+tactics2d start --host 0.0.0.0 --port 8765 --background --no-open
+
+# On your workstation: browse to http://<server-ip>:8765
+```
+
+Python publishers reach the same server by address:
+
+```python
+renderer = FrontendRenderer(host="<server-ip>", port=8765)
+```
+
+Every `preview` subcommand also accepts `--host`/`--port`, so
+`tactics2d preview dataset --host 0.0.0.0 ...` works on a remote box.
+
+> **Security note**: the server has no authentication — anyone who can reach
+> the port can watch frames and publish their own. Only expose it on a trusted
+> intranet, or keep it on `127.0.0.1` and reach it through an SSH tunnel:
+> `ssh -L 8765:127.0.0.1:8765 user@server`, then browse
+> `http://127.0.0.1:8765` locally. Do not forward the port on a public
+> interface.
+
 ## Preview a Demo, Map, or Dataset
 
 The `preview` command starts the server when needed and publishes a preview frame
@@ -67,6 +97,68 @@ tactics2d preview dataset \
 
 If the dataset recording has a registered map configuration, the frontend resolves
 the matching OSM file automatically. Otherwise pass `--osm path/to/map.osm`.
+
+Preview a NuPlan log (the city map is resolved from the log automatically and the
+UTM-scale coordinates are shifted to a local origin before rendering):
+
+```bash
+tactics2d preview dataset \
+  --dataset NuPlan \
+  --folder /path/to/nuPlan/data/cache \
+  --file mini/2021.10.05.07.10.04_veh-52_01442_01802.db \
+  --frames 300
+```
+
+## Dataset Discovery
+
+The server scans a configurable data root for every dataset family the preview
+pipeline supports and for available OSM maps. Detected datasets, recordings,
+and maps appear as dropdowns in the browser forms, so scenes can be loaded
+without typing any path. Manual path fields remain available under the advanced
+("更多") section of each form as a fallback.
+
+| Dataset | Expected layout under the data root | Map |
+|---|---|---|
+| highD/inD/rounD/exiD/uniD | `<dataset>/data/<id>_tracks.csv` (official) | registered OSM configs, resolved automatically |
+| NuPlan | `nuPlan/data/cache/<split>/*.db` (or the nuplan-devkit layout) | geopackage city maps in a sibling `maps/`, auto-resolved from the log |
+| NGSIM | `NGSIM/<location>/trajectories*.csv` | `gis-files/*.shp` street centerlines next to the csv (headings derived from motion) |
+| INTERACTION | `INTERACTION*/recorded_trackfiles/<scenario>/vehicle_tracks_XXX.csv` | `maps/<scenario>.osm` next to `recorded_trackfiles/` |
+| DLP | `DLP/data/DJI_XXXX_*.json` | `DLP.osm` in or next to the data folder |
+| CitySim | `CitySim/**/*.csv` | none |
+| Argoverse 2 | `Argoverse2/<split>/<scenario>/` (parquet + `log_map_archive_*.json`) | per-scenario map json |
+| DriveInsightD | `DriveInsightD/<id>_scenario.xosc` | any `.xodr` in the same folder (optional) |
+| WOMD | `WOMD/**/*.tfrecord*` shards | per-scenario vector map inside the shard |
+
+LevelX recordings are grouped by their registered map location; path-style
+recordings (NuPlan, NGSIM, INTERACTION, CitySim, Argoverse 2, WOMD) are grouped
+by their top-level folder. WOMD shards up to 32 MB are listed per scenario as
+`<shard>/<scenario_id>` (enumerating ids means decoding the whole file);
+official-size shards appear as one entry and preview their first scenario —
+pass `--file "<shard>/<scenario_id>"` on the CLI to pick another.
+
+Notes: datasets without a regular frame grid (NuPlan's ~20 Hz lidar sweeps,
+DriveInsightD's scenario vertices) are previewed on their observed timestamps;
+the camera follows the longest-lived vehicle unless `--follow-id` is given;
+global UTM/state-plane coordinates (NuPlan, NGSIM) are shifted to a local
+origin before rendering to stay within float32 resolution; cones, barriers,
+and other static objects render as small color-coded markers (rectangles when
+the dataset provides dimensions, dots otherwise). Standalone NuPlan map
+previews (`.gpkg` in the map form) show a capped window around the city center
+to keep the payload browser-friendly.
+
+The data root is resolved in this order:
+
+1. `tactics2d start --data-root /path/to/datasets`
+2. The `TACTICS2D_DATA_ROOT` environment variable (multiple roots can be
+   separated by the OS path separator)
+3. `./data` relative to the working directory (repository convention)
+
+```bash
+tactics2d start --data-root /mnt/datasets
+# or
+export TACTICS2D_DATA_ROOT=/mnt/datasets
+tactics2d start
+```
 
 ## Send Live Frames from Python
 
@@ -125,6 +217,93 @@ Custom simulations usually build the `map_data` and `participant_data` dictionar
 from a `BEVCamera` update result, then pass those dictionaries through
 `FrontendRenderer.send_frame`.
 
+### Multiple environments on one server
+
+Several environments (separate processes included) can stream to the same
+server at once, each rendering into its own view. Give each publisher a unique
+sensor id and pass `remove_missing_sensors=False` so one environment's frames
+do not remove the other's view:
+
+```python
+# Environment A                          # Environment B
+renderer.send_frame(                     renderer.send_frame(
+    [{"id": "env-a", ...}],                  [{"id": "env-b", ...}],
+    frame=frame,                             frame=frame,
+    remove_missing_sensors=False,            remove_missing_sensors=False,
+)                                        )
+```
+
+With `BrowserBackend`, the same is expressed through the constructor:
+`BrowserBackend(sensor_id="env-a", exclusive=False)`. A non-exclusive backend
+also removes only its own view on `close()`. Frame acknowledgements are
+tracked per published frame server-side, so concurrent streams that number
+their frames independently do not interfere with each other's
+`wait_ack`/`drop_if_busy` backpressure.
+
+## Recording
+
+Three complementary recording options are available:
+
+### Screen recording (browser)
+
+The 录屏 button records the rendered sensor windows via the browser's
+MediaRecorder API. With compatibility mode enabled (the default), the capture
+is finalized server-side with ffmpeg into a constant-frame-rate H.264 MP4
+with 4-pixel-aligned dimensions — raw MediaRecorder files declare a variable
+frame rate (0/1) that strict players such as GNOME Videos refuse to play,
+and misaligned frame widths crash some hardware-accelerated decoders
+(e.g. GStreamer VA-API). The capture itself
+prefers VP9, whose realtime encoder — unlike the browser's H.264 one —
+leaves no ghost trails behind moving vehicles. Untick 兼容模式 to skip the
+transcode and download the raw recording directly (faster; WebM on most
+browsers, MP4 on Safari). ffmpeg needs no extra installation: it is
+resolved from `PATH` or from the bundled `imageio-ffmpeg` core dependency, and
+the raw file is used automatically when neither is available.
+It captures exactly what you see — all sensor tiles composited in the current
+layout — and works for live streams, demos, and dataset previews alike. The
+capture frame rate is bounded by the browser's rendering speed.
+
+### Frame recording and replay (server)
+
+The 帧录制 controls in the sidebar 录制 section capture every frame payload
+published by the server into a JSONL file, one line per frame. Recording starts with the
+current scene snapshot so a replay reproduces the full scene, and it is not
+thinned when the browser drops frames. Saved recordings appear in the 回放
+dropdown and stream back through the same pipeline as dataset previews
+(pause, stop, and the progress bar work the same way).
+
+Recordings are stored in `~/.cache/tactics2d/recordings/` by default; set
+`TACTICS2D_RECORD_DIR` to override. The HTTP API:
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/record/start` | Start recording (optional `{"name": ...}`) |
+| `POST /api/record/stop` | Stop and save the recording |
+| `GET /api/recordings` | List saved recordings |
+| `POST /api/preview/replay` | Replay: `{"name": ..., "max_fps": 30, "loop": false}` |
+
+### Offline rendering (Python)
+
+For pixel-perfect GIF or PNG output, render the same `SceneSnapshot` to a
+matplotlib backend wrapped in a recorder, in parallel with the browser view:
+
+```python
+from tactics2d.display import create_display_backend
+from tactics2d.display.recorder import GifRecorder
+
+browser = create_display_backend("browser")
+recorder = GifRecorder(create_display_backend("matplotlib"), "output.gif", fps=10)
+
+for frame in range(300):
+    snapshot = build_snapshot(frame)
+    browser.render(snapshot)   # live view in the browser
+    recorder.render(snapshot)  # offline GIF rendering
+
+recorder.save()
+recorder.close()
+browser.close()
+```
+
 ## Practical Notes
 
 - Use live mode for running simulations or homework scripts that continuously push
@@ -137,6 +316,26 @@ from a `BEVCamera` update result, then pass those dictionaries through
 - If the browser shows only vehicles and no road, inspect the source map payload
   first. Some datasets provide lane IDs in trajectories without lane geometry that
   can be rendered as a map.
+
+### Frame rates up to 100 Hz
+
+`FrontendRenderer` sustains a measured 100 Hz publish rate (the `max_fps`
+ceiling) over its keep-alive connection: on loopback, one frame with 100
+participants and 400 road elements costs well under a millisecond of HTTP
+round-trip. Two settings decide what a high-rate loop actually achieves:
+
+- **`wait_ack=True` (default)** throttles each frame to the browser's real
+  render pace. Browsers repaint on `requestAnimationFrame`, so this settles at
+  the display refresh rate (60 fps on a typical monitor) — by design, the
+  simulation then never outruns what the screen can show.
+- **`wait_ack=False`** publishes at the full requested rate; the browser
+  renders at its refresh rate and coalesces the surplus per stream (counted in
+  the 跳帧 badge), so a 100 Hz control loop keeps its timing without the
+  display holding it back.
+
+Measured on loopback: 99.6 fps sustained publishing with `wait_ack=False`
+(500/500 frames delivered, max jitter ≈ 1 ms) while the browser rendered a
+steady 60 fps.
 
 ## Unified Display Backend
 

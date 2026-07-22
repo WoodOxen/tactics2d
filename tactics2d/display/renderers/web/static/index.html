@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tactics2D Frontend</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260601-ui11">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2357b6a8'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/styles.css?v=20260710-ui20">
   <script type="importmap">
     {
       "imports": {
@@ -12,7 +13,7 @@
       }
     }
   </script>
-  <script type="module" src="/static/app.js?v=20260601-ui11"></script>
+  <script type="module" src="/static/app.js?v=20260713-ui26"></script>
 </head>
 <body>
   <header class="toolbar">
@@ -42,14 +43,10 @@
           <label for="dataset-select">数据集</label>
           <select id="dataset-select" name="dataset"></select>
         </div>
-        <div class="field">
-          <label for="dataset-folder">数据目录</label>
-          <input id="dataset-folder" name="folder" autocomplete="off">
-        </div>
         <div class="form-grid">
           <div class="field">
-            <label for="dataset-file">文件号</label>
-            <input id="dataset-file" name="file" autocomplete="off">
+            <label for="dataset-file">录像</label>
+            <select id="dataset-file" name="file"></select>
           </div>
           <div class="field">
             <label for="dataset-frames">帧数</label>
@@ -72,6 +69,10 @@
         </div>
         <details class="advanced-options">
           <summary>更多</summary>
+          <div class="field">
+            <label for="dataset-folder">数据目录</label>
+            <input id="dataset-folder" name="folder" autocomplete="off">
+          </div>
           <div class="field">
             <label for="dataset-osm">OSM路径</label>
             <input id="dataset-osm" name="osm_path" autocomplete="off">
@@ -104,21 +105,62 @@
 
       <form id="map-form" class="preview-form is-hidden" data-source-panel="map" role="tabpanel" hidden>
         <div class="field">
-          <label for="map-osm">OSM路径</label>
-          <input id="map-osm" name="osm_path" autocomplete="off">
+          <label for="map-dataset">数据集</label>
+          <select id="map-dataset" name="map_dataset"></select>
         </div>
         <div class="field">
-          <label for="map-config">地图配置</label>
-          <select id="map-config" name="map_config"></select>
+          <label for="map-select">地图</label>
+          <select id="map-select" name="map_select"></select>
         </div>
         <label class="check-field">
           <input id="map-lanelet2" name="lanelet2" type="checkbox" checked>
           <span>Lanelet2</span>
         </label>
+        <details class="advanced-options">
+          <summary>更多</summary>
+          <div class="field">
+            <label for="map-osm">OSM路径</label>
+            <input id="map-osm" name="osm_path" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="map-config">地图配置</label>
+            <select id="map-config" name="map_config"></select>
+          </div>
+        </details>
         <button class="primary-button" type="submit">加载地图</button>
       </form>
 
-      <div id="live-panel" class="preview-form" data-source-panel="live" role="tabpanel"></div>
+      <div id="live-panel" class="preview-form" data-source-panel="live" role="tabpanel">
+        <p class="panel-hint">等待 Python 端推送实时帧。录制操作见下方"录制"区。</p>
+      </div>
+
+      <section class="recording-panel">
+        <h3>录制</h3>
+        <div class="recording-group">
+          <div class="field">
+            <label class="group-title">录屏 · 视频下载</label>
+            <p class="panel-hint">把当前画面录制为视频并自动下载。兼容模式经服务端 ffmpeg 转为恒帧率 MP4，通用播放器可直接播放；关闭则直接下载原始录制（更快，部分播放器不支持）。</p>
+          </div>
+          <label class="check-field">
+            <input id="record-compat" type="checkbox" checked>
+            <span>兼容模式（转码为恒帧率 MP4）</span>
+          </label>
+          <button id="record-screen" class="secondary-button" type="button">开始录屏</button>
+        </div>
+        <div class="recording-group">
+          <div class="field">
+            <label class="group-title" for="record-name">帧录制 · 服务端可回放</label>
+            <p class="panel-hint">在服务端记录帧数据，可随时在下方选择回放。</p>
+            <input id="record-name" placeholder="录制名（可留空）" autocomplete="off">
+          </div>
+          <button id="record-frames" class="secondary-button" type="button">开始录制</button>
+          <div class="field">
+            <label for="replay-select">回放</label>
+            <select id="replay-select"></select>
+          </div>
+          <button id="replay-start" class="secondary-button" type="button">回放</button>
+        </div>
+      </section>
 
     </aside>
     <main class="viewer-shell">

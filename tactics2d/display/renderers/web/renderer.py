@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import signal
@@ -13,7 +14,12 @@ import sys
 import time
 from pathlib import Path
 from typing import Any, Iterable
-from urllib import error, request
+from urllib import error
+
+try:  # orjson serializes large frames several times faster than json.
+    import orjson
+except ImportError:  # pragma: no cover - orjson is a core dependency
+    orjson = None
 
 
 def _default_pid_file() -> Path:
@@ -54,25 +60,64 @@ class FrontendRenderer:
         self.ack_timeout = ack_timeout
         self.drop_if_busy = drop_if_busy
         self._last_send_time = 0.0
+        self._http: http.client.HTTPConnection | None = None
 
     @property
     def base_url(self) -> str:
         return f"http://{self.host}:{self.port}"
 
+    def _encode(self, payload: dict[str, Any]) -> bytes:
+        if orjson is not None:
+            try:
+                return orjson.dumps(payload, default=_json_default)
+            except TypeError:
+                pass  # e.g. integer dict keys; the stdlib encoder coerces them
+        return json.dumps(payload, default=_json_default).encode("utf-8")
+
+    def _reset_connection(self) -> None:
+        if self._http is not None:
+            try:
+                self._http.close()
+            except Exception:
+                pass
+        self._http = None
+
+    def _request(self, method: str, path: str, body: bytes | None = None) -> dict[str, Any]:
+        # A keep-alive connection is reused across frames; a fresh TCP + HTTP
+        # handshake per frame costs tens of milliseconds and caps the rate.
+        headers = {"Content-Type": "application/json"} if body is not None else {}
+        for attempt in (0, 1):
+            if self._http is None:
+                self._http = http.client.HTTPConnection(
+                    self.host, self.port, timeout=self.timeout
+                )
+            try:
+                self._http.request(method, path, body=body, headers=headers)
+                response = self._http.getresponse()
+                data = response.read()
+                status = response.status
+            except (http.client.HTTPException, OSError):
+                self._reset_connection()
+                if attempt:
+                    raise
+                continue
+
+            if status >= 400:
+                raise error.HTTPError(
+                    f"{self.base_url}{path}", status, data.decode("utf-8"), {}, None
+                )
+            return json.loads(data.decode("utf-8"))
+        raise RuntimeError("unreachable")
+
     def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
-        data = json.dumps(payload, default=_json_default).encode("utf-8")
-        http_request = request.Request(
-            f"{self.base_url}{path}",
-            data=data,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with request.urlopen(http_request, timeout=self.timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
+        return self._request("POST", path, body=self._encode(payload))
 
     def _get(self, path: str) -> dict[str, Any]:
-        with request.urlopen(f"{self.base_url}{path}", timeout=self.timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
+        return self._request("GET", path)
+
+    def close(self) -> None:
+        """Close the keep-alive connection to the server."""
+        self._reset_connection()
 
     def health(self) -> dict[str, Any]:
         return self._get("/health")
@@ -160,10 +205,13 @@ class FrontendRenderer:
         ack_timeout: float | None = None,
         drop_if_busy: bool | None = None,
     ) -> dict[str, Any]:
+        # Pace against the previous send *start*; anchoring on completion would
+        # add the request time to every interval and cap the rate below max_fps.
         min_interval = 1.0 / self.max_fps
-        elapsed = time.monotonic() - self._last_send_time
-        if elapsed < min_interval:
-            time.sleep(min_interval - elapsed)
+        wait = self._last_send_time + min_interval - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        self._last_send_time = time.monotonic()
 
         payload = {"sensors": list(sensors)}
         if frame is not None:
@@ -178,9 +226,7 @@ class FrontendRenderer:
         payload["ack_timeout"] = self.ack_timeout if ack_timeout is None else ack_timeout
         payload["drop_if_busy"] = self.drop_if_busy if drop_if_busy is None else drop_if_busy
 
-        response = self._post("/api/frame", payload)
-        self._last_send_time = time.monotonic()
-        return response
+        return self._post("/api/frame", payload)
 
 
 class FrontendServer:
