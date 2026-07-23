@@ -3,67 +3,76 @@
 
 ## [Unreleased]
 
-### Fixed
-- CitySim OSM data now renders correctly instead of appearing blank. Added standard OSM highway type mappings (tertiary, primary, residential, service, etc.) to the renderer's `DEFAULT_COLOR` config.
-
 ### Added
 
-- Refined structured road-segment generators, including fork/merge, ramp, intersection, two-way road, and related test coverage.
-- Updated generator rules and geometry helpers to improve roadline metadata handling, reference-line construction, and module connection consistency.
-- Added shared geometry and RoadLine utilities for road-segment map generation, including polyline sampling, cutting, offsetting, intersection extraction, curvature checks, and marking metadata support.
-- Added lane-marking foundations for map generation, including marking token specifications, MUTCD/GB rule tables, lane-change permissions, rendering metadata, and shared road module socket/result types.
-- Added a parser and corresponding tests, documentations for DriveInsightD dataset.
-- Added native SUMO `.net.xml` map parser (`NetXMLParser`) with junction geometry parsing, connection attachment, and junction shape auto-completion via convex hull.
-- Merged `Connection` class into `Junction` by flattening its properties directly into `Junction` with default values.
-- Added `Net2XodrConverter` for converting SUMO `.net.xml` maps to OpenDRIVE `.xodr` format.
-- Added `Xodr2NetConverter` for converting OpenDRIVE `.xodr` maps to SUMO `.net.xml` format.
-- Added lane-level routing module with topology-graph construction, search adapter integration, route containers, and WOMD tutorial notebook.
-- Added `Osm2XodrConverter` for converting Lanelet2 `.osm` maps to OpenDRIVE `.xodr` format, with topology-aware predecessor/successor link generation and junction detection.
-- Added configurable routing cost presets and custom cost-function injection for lane-level routing, including classic distance/time baselines and source-inspired Lanelet2/Apollo variants.
-- Added `Xodr2OsmConverter` for converting OpenDRIVE `.xodr` maps to Lanelet2-annotated `.osm` format via the `XODRParser` → `Map` → `OsmWriter` pipeline, with roadMark-to-subtype mapping and speed limit regulatory element export.
-- Added `OsmWriter` as a standalone public class in `tactics2d/map/writer/` for writing a Tactics2D `Map` to Lanelet2 OSM XML, with public `write_nodes`, `write_way`, `write_boundary_ways`, `write_lanelet_relation`, and `write_speed_regulatory` methods.
-- Added `XodrWriter` as a standalone public class in `tactics2d/map/writer/` for writing a Tactics2D `Map` to OpenDRIVE `.xodr` XML, with topology inference via lane endpoint proximity and lane width fitted as a cubic polynomial over real arc-length.
-- Added `SumoWriter` as a standalone public class in `tactics2d/map/writer/` for writing a Tactics2D `Map` to SUMO `.net.xml` XML, grouping lanes by `sumo_id` edge prefix and supporting lossless centre-line export via `custom_tags["centerline"]`.
-- Added `Net2OsmConverter` for converting SUMO `.net.xml` maps to Lanelet2-annotated `.osm` format via the `NetXMLParser` → `Map` → `OsmWriter` pipeline.
-- Added `Osm2NetConverter` for converting Lanelet2-annotated `.osm` maps to SUMO `.net.xml` format via the `OSMParser` → `Map` → `SumoWriter` pipeline.
-
-### Fixed
-
-- Fixed `NetXMLParser._get_lane_subtype` incorrectly declared as `@staticmethod` with a `self` parameter, causing all lane parsing to fail silently.
-- Fixed `NetXMLParser._offset_line` referencing undefined normal vector variables when consecutive points have zero distance.
-- Fixed `NetXMLParser` not reading the lane element's `width` attribute, falling back to inaccurate heuristic estimation.
-- Fixed `SumoWriter` failing when `Map.boundary` is None by adding automatic boundary computation from lane geometries.
-- Fixed `XodrWriter._get_centerline` using lane center as XODR reference line instead of left boundary, causing gaps between adjacent lanes after round-trip conversion.
-- Fixed `NetXMLParser` filtering out junctions without shape, causing junction count mismatch in round-trip conversion tests.
-- Fixed U-turn internal lanes (dir="T") rendering as dots due to extreme curvature collapsing the inner offset boundary; these lanes are now excluded during parsing.
-- Fixed lane boundary direction misalignment in `Xodr2NetConverter` and `NetXMLParser` on curved roads.
-- Fixed backtrack points in lane boundary geometry produced by `XODRParser` on tight curves via direction-change filtering in `_sanitise_linestring`.
-- Fixed self-intersecting offset curves in `NetXMLParser` caused by narrow lane offsets on sharp bends.
-- Fixed routing tutorial notebook execution flow and route visualization output for WOMD examples.
-- Fixed unified routing cost parameter forwarding so `lane_change_penalty` consistently reaches Lanelet2-style and Apollo-inspired presets through `Router`.
-- Fixed `XODRParser` offset geometry on curved roads: all `_sample_*` methods now return analytic curvature alongside sampled points (`line` → 0, `arc` → constant, `spiral` → linear, `poly3`/`paramPoly3` → Frenet-Serret formula), eliminating finite-difference estimation noise at segment boundaries that caused offset points to deviate by hundreds of metres on roundabout geometries.
-- Fixed `_build_offset_polyline` curvature-aware clamping: corrected `0.99 / kappa_abs * sign(t)` to `0.99 / kappa`, ensuring the collapse boundary is computed with the correct sign for both left and right offsets.
-- Fixed `XodrWriter._fit_width` width polynomial fitted over normalised `[0, 1]` instead of real arc-length, causing `XODRParser` to evaluate the polynomial far outside its valid domain and produce lane widths of ±700 m on roads longer than ~10 m.
-- Fixed `_sanitise_linestring` direction-change filter threshold from `dots > -0.5` to `dots > 0.0`, retaining all geometrically valid curved segments while still removing U-turn backtrack artefacts.
+- Added road-segment map generation framework with structured generators (fork/merge, ramp, intersection, two-way road), shared geometry and RoadLine utilities (polyline sampling, cutting, offsetting, curvature checks), and lane-marking foundations (MUTCD/GB rule tables, lane-change permissions, rendering metadata).
+- Added parser, tests, and documentation for the DriveInsightD dataset.
+- Added a BITS behavior-model reproduction path for NuPlan, including the core BITS API, torch inference/training utilities, a cached planner training script, tests, and a tutorial.
+- Added native SUMO `.net.xml` map parser (`NetXMLParser`) with junction geometry parsing and shape auto-completion.
+- Added bidirectional converters between SUMO `.net.xml`, OpenDRIVE `.xodr`, and Lanelet2 `.osm` formats: `Net2XodrConverter`, `Xodr2NetConverter`, `Osm2XodrConverter`, `Xodr2OsmConverter`, `Net2OsmConverter`, `Osm2NetConverter`.
+- Added standalone map-writer classes (`OsmWriter`, `XodrWriter`, `SumoWriter`) in `tactics2d/map/writer/`.
+- Added lane-level routing module with topology-graph construction, search adapter integration, configurable cost presets, and custom cost-function injection.
 
 ### Changed
 
-- Extracted `OsmWriter` from `Xodr2OsmConverter` into `tactics2d/map/writer/osm_writer.py` as a standalone public class with full Google-style docstrings and type annotations.
-- Refactored `Xodr2OsmConverter` to reuse `XODRParser` and `OsmWriter` via the `Map` intermediate representation, removing the duplicate `_XodrReader` XML parser, the `_LaneGeom` intermediary struct, and the redundant geometry helper functions.
-- Refactored `Net2XodrConverter` and `Osm2XodrConverter` to delegate XML construction to `XodrWriter`, removing duplicated `_write_plan_view`, `_write_lanes`, and related private methods.
-- Refactored `Xodr2NetConverter` to delegate XML construction to `SumoWriter`, removing inline XML construction logic.
-- Stored original SUMO lane `shape` in `NetXMLParser` `custom_tags["centerline"]` for lossless centre-line export to xodr and net.xml without re-deriving from offset boundaries.
-- Updated docstring `Example` sections across converter and writer classes to Google-style Markdown code blocks.
-- Improved WOMD parser support for official Motion Dataset shards:
-  - reconstruct lane sides from WOMD boundary metadata,
-  - expose driveway polygons as `drivable_area`,
-  - parse dynamic lane signal states as time-indexed `traffic_light` regulations,
-  - harden map parsing against single-point road-edge features,
-  - add official-shard parser tests and dataset support documentation.
-- Refactored `NetXMLParser` into modular pipeline stages (`_parse_location`, `_build_edge_junction_map`, `_parse_edges`, `_parse_junctions`, `_parse_connections`, `_compute_junction_shapes`) for improved readability and maintainability.
-- Changed `SumoWriter` method naming from `_write_xxx` private pattern to direct public `write_xxx` methods, consistent with `OsmWriter` style.
-- Refactored routing cost presets behind a `CostBuilder` abstraction while preserving the public preset names and custom cost-function support.
-- Fixed speed unit handling in `Net2XodrConverter` and `Xodr2NetConverter` to correctly convert between m/s internal storage and km/h xodr output.
+- LimSim MCTS now chains searches per decision step with a decaying iteration budget, matching the original paper's receding-horizon-within-MCTS design.
+  <details><summary>Budget decay formula</summary>
+
+  The budget decays as `budget = base / (depth / 2 + 1)`, so the immediate next action receives the most computation while distant steps get progressively fewer iterations.
+  </details>
+- Extracted `OsmWriter` from `Xodr2OsmConverter` as a standalone public class.
+- Refactored converters (`Xodr2OsmConverter`, `Net2XodrConverter`, `Osm2XodrConverter`, `Xodr2NetConverter`) to delegate XML construction to shared writer classes, removing duplicated logic.
+  <details><summary>Converter changes</summary>
+
+  - `Xodr2OsmConverter` now reuses `XODRParser` and `OsmWriter` via the `Map` intermediate representation, removing a duplicate XML parser.
+  - `Net2XodrConverter` and `Osm2XodrConverter` delegate to `XodrWriter`, removing duplicated road/lane writing methods.
+  - `Xodr2NetConverter` delegates to `SumoWriter`, removing inline XML construction logic.
+  </details>
+- Merged `Connection` class into `Junction` by flattening its properties with default values.
+- Stored original SUMO lane shapes in `NetXMLParser` `custom_tags["centerline"]` for lossless round-trip export.
+- Refactored `NetXMLParser` into modular pipeline stages for improved maintainability.
+- Refactored routing cost presets behind a `CostBuilder` abstraction while preserving public preset names.
+- Renamed `SumoWriter` private methods to public `write_xxx` interface, consistent with `OsmWriter`.
+- Improved WOMD parser support for official Motion Dataset shards.
+  <details><summary>Improvements</summary>
+
+  - Reconstruct lane sides from WOMD boundary metadata.
+  - Expose driveway polygons as `drivable_area`.
+  - Parse dynamic lane signal states as time-indexed `traffic_light` regulations.
+  - Harden map parsing against single-point road-edge features.
+  - Add official-shard parser tests and dataset support documentation.
+  </details>
+- Updated docstring `Example` sections across converters and writers to Google-style Markdown code blocks.
+
+### Fixed
+- Fixed CitySim OSM rendering failure by adding standard highway type color mappings.
+- Fixed XML round-trip conversion bugs in the converter pipeline.
+  <details><summary>Affected components</summary>
+
+  - Fixed lane boundary direction misalignment in `Xodr2NetConverter` and `NetXMLParser` on curved roads.
+  - Fixed `NetXMLParser` not reading the lane element's `width` attribute, falling back to inaccurate heuristic estimation.
+  - Fixed self-intersecting offset curves in `NetXMLParser` caused by narrow lane offsets on sharp bends.
+  - Fixed U-turn internal lanes (dir="T") rendering as dots due to extreme curvature collapsing the inner offset boundary.
+  - Fixed `NetXMLParser` filtering out junctions without shape, causing junction count mismatch in round-trip tests.
+  - Fixed `XodrWriter._get_centerline` using lane center instead of left boundary, causing gaps between adjacent lanes after round-trip conversion.
+  </details>
+- Fixed `XODRParser` geometry artifacts on curved roads and tight corners.
+  <details><summary>Technical details</summary>
+
+  - All `_sample_*` methods now return analytic curvature (line → 0, arc → constant, spiral → linear, poly3/paramPoly3 → Frenet-Serret formula), eliminating finite-difference estimation noise at segment boundaries.
+  - Fixed `_build_offset_polyline` curvature-aware clamping from `0.99 / kappa_abs * sign(t)` to `0.99 / kappa`.
+  - Fixed `_sanitise_linestring` direction-change filter threshold from `dots > -0.5` to `dots > 0.0`.
+  </details>
+- Fixed `XodrWriter` width polynomial domain error that caused extreme lane width values (±700 m) on roads over ~10 m.
+  <details><summary>Root cause</summary>
+
+  `XodrWriter._fit_width` fitted the width polynomial over normalized `[0, 1]` instead of real arc-length, causing `XODRParser` to evaluate the polynomial far outside its valid domain.
+  </details>
+- Fixed `SumoWriter` crash when `Map.boundary` is unset.
+- Fixed `NetXMLParser` missing lane width attribute parsing and incorrect static method declaration.
+- Fixed speed unit handling in `Net2XodrConverter` and `Xodr2NetConverter` to correctly convert between m/s and km/h.
+- Fixed routing tutorial execution flow and `lane_change_penalty` parameter forwarding through `Router`.
+
 ## [0.1.9rc3] - 2026-01-29
 
 ### Added
@@ -78,6 +87,9 @@
 ### Changed
 
 - Aligned interface within controller module.
+
+### Fixed
+
 - Fixed dependency vulnerability issue of protobuf.
 
 ## [0.1.9rc1] - 2026-01-09

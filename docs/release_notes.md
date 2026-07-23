@@ -4,10 +4,37 @@
 
 ### Added
 
-- Added a parser and corresponding tests, documentations for DriveInsightD dataset.
-- Added a BITS behavior-model reproduction path for NuPlan, including the core BITS API,
-  torch inference/training utilities, a cached planner training script, tests, and a tutorial
-  that shows how to load a trained planner checkpoint with the official predictor weights.
+- Added road-segment map generation framework with structured generators (fork/merge, ramp, intersection, two-way road), shared geometry and RoadLine utilities, and lane-marking foundations.
+- Added parser, tests, and documentation for the DriveInsightD dataset.
+- Added a BITS behavior-model reproduction path for NuPlan, including the core BITS API, torch inference/training utilities, a cached planner training script, tests, and a tutorial that shows how to load a trained planner checkpoint with the official predictor weights.
+- Added native SUMO `.net.xml` map parser (`NetXMLParser`) with junction geometry parsing and shape auto-completion.
+- Added bidirectional converters between SUMO `.net.xml`, OpenDRIVE `.xodr`, and Lanelet2 `.osm` formats (6 converters in total).
+- Added standalone map-writer classes (`OsmWriter`, `XodrWriter`, `SumoWriter`) in `tactics2d/map/writer/`.
+- Added lane-level routing module with topology-graph construction, search adapter integration, configurable cost presets, and custom cost-function injection.
+
+### Changed
+
+- LimSim MCTS now chains searches per decision step with a decaying iteration budget, matching the original paper's receding-horizon-within-MCTS design.
+- Extracted `OsmWriter` from `Xodr2OsmConverter` as a standalone public class.
+- Refactored converters (`Xodr2OsmConverter`, `Net2XodrConverter`, `Osm2XodrConverter`, `Xodr2NetConverter`) to delegate XML construction to shared writer classes, removing duplicated logic.
+- Merged `Connection` class into `Junction` by flattening its properties with default values.
+- Stored original SUMO lane shapes in `NetXMLParser` for lossless round-trip export.
+- Refactored `NetXMLParser` into modular pipeline stages for improved maintainability.
+- Refactored routing cost presets behind a `CostBuilder` abstraction while preserving public preset names.
+- Renamed `SumoWriter` private methods to public `write_xxx` interface, consistent with `OsmWriter`.
+- Improved WOMD parser support for official Motion Dataset shards (lane side reconstruction, driveway polygons, traffic light regulations, hardened edge-case parsing).
+- Updated docstring `Example` sections across converters and writers to Google-style Markdown code blocks.
+
+### Fixed
+
+- Fixed CitySim OSM rendering failure by adding standard highway type color mappings.
+- Fixed XML round-trip conversion bugs in the converter pipeline (boundary direction misalignment, lane width heuristics, self-intersecting offset curves, U-turn lane rendering, junction count mismatches).
+- Fixed `XODRParser` geometry artifacts on curved roads and tight corners.
+- Fixed `XodrWriter` width polynomial domain error that caused extreme lane width values (±700 m) on roads over ~10 m.
+- Fixed `SumoWriter` crash when `Map.boundary` is unset.
+- Fixed `NetXMLParser` missing lane width attribute parsing and incorrect static method declaration.
+- Fixed speed unit handling in `Net2XodrConverter` and `Xodr2NetConverter` to correctly convert between m/s and km/h.
+- Fixed routing tutorial execution flow and `lane_change_penalty` parameter forwarding through `Router`.
 
 ---
 
@@ -25,6 +52,9 @@
 ### Changed
 
 - Aligned interface within controller module.
+
+### Fixed
+
 - Fixed dependency vulnerability issue of protobuf.
 
 ---
