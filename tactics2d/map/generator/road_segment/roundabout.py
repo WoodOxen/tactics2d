@@ -135,7 +135,7 @@ def _normalize_roundabout_arm(
         raise ValueError("Each arm dict must contain 'heading' and 'lane_num'.")
 
     heading_outward = float(arm["heading"])
-    arm_radius = float(arm.get("radius", default_radius))
+    arm_radius = max(float(arm.get("radius", default_radius)), default_radius)
     lane_width = float(arm.get("lane_width", default_lane_width))
     point = center + arm_radius * heading_unit(heading_outward)
 
@@ -242,7 +242,7 @@ def _build_connector_lane(
     Returns:
         Tuple ``(lane, [left_roadline, right_roadline], updated_id_counter)``.
     """
-    centerline = bezier_connection(p_start, h_start, p_end, h_end, step_size, min_tangent=0.0)
+    centerline = bezier_connection(p_start, h_start, p_end, h_end, step_size, min_tangent=5.0)
     left_pts = offset_polyline(centerline, arm_lane_width / 2.0)
     right_pts = offset_polyline(centerline, -arm_lane_width / 2.0)
 
