@@ -35,7 +35,7 @@ test = [
     "httpx>=0.28.0",
     "pytest>=7.4.4",
     "pytest-cov>=4.1.0",
-    "torch>=2.8.0, <2.9.0; python_version >= '3.9'",
+    "torch>=2.8.0, <2.14.0; python_version >= '3.9'",
     "torchvision>=0.23.0, <0.29.0; python_version >= '3.9'",
 ]
 dev = [
@@ -45,7 +45,7 @@ dev = [
     "clang-format",
 ]
 bits = [
-    "torch>=2.8.0, <2.9.0; python_version >= '3.9'",
+    "torch>=2.8.0, <2.14.0; python_version >= '3.9'",
     "torchvision>=0.23.0, <0.29.0; python_version >= '3.9'",
 ]
 
