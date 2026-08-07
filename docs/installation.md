@@ -4,12 +4,12 @@
 
 We have conducted testing for the execution and construction of `tactics2d` on the following platforms:
 
-| System | 3.10 | 3.11 | 3.12 | 3.13 | 3.14 |
-| --- | --- | --- | --- | --- | --- |
-| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| MacOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| System | 3.10 | 3.11 | 3.12 | 3.13 |
+| --- | --- | --- | --- | --- |
+| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| MacOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 
 ## Installation on Linux
 
