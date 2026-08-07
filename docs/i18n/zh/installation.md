@@ -4,12 +4,12 @@
 
 我们已在以下平台测试 `tactics2d` 的执行和构建：
 
-| 系统 | 3.10 | 3.11 | 3.12 | 3.13 | 3.14 |
-| --- | --- | --- | --- | --- | --- |
-| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| MacOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| 系统 | 3.10 | 3.11 | 3.12 | 3.13 |
+| --- | --- | --- | --- | --- |
+| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| MacOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 
 ## Linux 系统安装
 

@@ -10,7 +10,7 @@
 [![Downloads](https://img.shields.io/pypi/dm/tactics2d)](https://pypi.org/project/tactics2d/)
 [![Discord](https://img.shields.io/discord/1209363816912126003)](https://discordapp.com/widget?id=1209363816912126003&theme=system)
 
-![python-version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)
+![python-version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Github license](https://img.shields.io/github/license/WoodOxen/tactics2d)](https://github.com/WoodOxen/tactics2d/blob/master/LICENSE)
 
@@ -50,18 +50,18 @@ We have conducted testing for the execution and construction of `tactics2d` on t
 
 > Note: The matrix below reflects versions covered by the `test_modules` CI workflow.
 
-| System | 3.10 | 3.11 | 3.12 | 3.13 | 3.14 |
-| --- | --- | --- | --- | --- | --- |
-| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| macOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| System | 3.10 | 3.11 | 3.12 | 3.13 |
+| --- | --- | --- | --- | --- |
+| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| macOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 
 #### Python Support Policy
 
 Tactics2D supports Python versions that are actively supported by CPython upstream. We generally support the latest four Python minor releases. Support for a Python version may be dropped after it reaches upstream end-of-life.
 
-**Supported Python versions: 3.10–3.14** (Python 3.10 will be dropped at its upstream end-of-life in October 2026).
+**Supported Python versions: 3.10–3.13**: Python 3.14 is not yet supported because the core dependencies `pygame` and `polars-runtime-32` do not ship cp314 wheels; we will re-enable it once they do.
 
 ### 1. Installation
 
@@ -72,6 +72,9 @@ We strongly recommend using `conda` to manage the Python environment. If you don
 conda create -n tactics2d python=3.10
 conda activate tactics2d
 ```
+
+> [!note]
+> `pip` resolves this project's large dependency tree serially, which is usually the slow part of a fresh install. For a much faster setup, see [1.3 Speeding up installation](#13-speeding-up-installation).
 
 #### 1.1 Install from PyPI
 
@@ -90,10 +93,10 @@ You can also install `tactics2d` from its source on GitHub. This way is recommen
 # please download NuPlan's map data from its official website and put it in the `tactics2d/data/map/NuPlan` directory
 git clone --recurse-submodules git@github.com:WoodOxen/tactics2d.git
 cd tactics2d
-pip install -v .
+pip install -e .
 ```
 
-If no errors occur, you should have installed `tactics2d` successfully.
+`-e` installs in editable mode, so pure-Python changes take effect without reinstalling — recommended for development. Use `pip install -v .` instead for a regular (non-editable) install, or `uv pip install -e .` for a faster alternative. If no errors occur, you should have installed `tactics2d` successfully.
 
 ### 2. Dataset Preparation
 
