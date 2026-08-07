@@ -4,13 +4,12 @@
 
 We have conducted testing for the execution and construction of `tactics2d` on the following platforms:
 
-| System | 3.8 | 3.9 | 3.10 | 3.11 |
-| --- | --- | --- | --- | --- |
-| Ubuntu 18.04 | :white_check_mark: | - | - | - |
-| Ubuntu 20.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| MacOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| System | 3.10 | 3.11 | 3.12 | 3.13 | 3.14 |
+| --- | --- | --- | --- | --- | --- |
+| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| MacOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 
 ## Installation on Linux
 
@@ -18,7 +17,7 @@ We have conducted testing for the execution and construction of `tactics2d` on t
     We recommend using a virtual environment to install `tactics2d` to avoid conflicts with other Python packages.
 
 !!! info
-    We have tested the installation process on Dockers of Ubuntu 18.04, 20.04, and 22.04.
+    We have tested the installation process on Docker environments of Ubuntu 22.04 and 24.04.
 
 ### Install with PyPI
 

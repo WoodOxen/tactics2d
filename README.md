@@ -10,7 +10,7 @@
 [![Downloads](https://img.shields.io/pypi/dm/tactics2d)](https://pypi.org/project/tactics2d/)
 [![Discord](https://img.shields.io/discord/1209363816912126003)](https://discordapp.com/widget?id=1209363816912126003&theme=system)
 
-![python-version](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)
+![python-version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Github license](https://img.shields.io/github/license/WoodOxen/tactics2d)](https://github.com/WoodOxen/tactics2d/blob/master/LICENSE)
 
@@ -50,14 +50,18 @@ We have conducted testing for the execution and construction of `tactics2d` on t
 
 > Note: The matrix below reflects versions covered by the `test_modules` CI workflow.
 
-| System | 3.8 | 3.9 | 3.10 | 3.11 | 3.12 | 3.13 |
-| --- | --- | --- | --- | --- | --- | --- |
-| Ubuntu 18.04 | :white_check_mark: | - | - | - | - | - |
-| Ubuntu 20.04 | :white_check_mark: | :white_check_mark: | - | - | - | - |
-| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Windows | - | - | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| macOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| System | 3.10 | 3.11 | 3.12 | 3.13 | 3.14 |
+| --- | --- | --- | --- | --- | --- |
+| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| macOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+
+#### Python Support Policy
+
+Tactics2D supports Python versions that are actively supported by CPython upstream. We generally support the latest four Python minor releases. Support for a Python version may be dropped after it reaches upstream end-of-life.
+
+**Supported Python versions: 3.10–3.14** (Python 3.10 will be dropped at its upstream end-of-life in October 2026).
 
 ### 1. Installation
 
@@ -65,7 +69,7 @@ We strongly recommend using `conda` to manage the Python environment. If you don
 
 ```bash
 # create a new conda environment
-conda create -n tactics2d python=3.9
+conda create -n tactics2d python=3.10
 conda activate tactics2d
 ```
 

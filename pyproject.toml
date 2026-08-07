@@ -4,7 +4,7 @@ version = "0.1.9rc3"
 description = "Tactics2D: A Reinforcement Learning Environment Library with Generative Scenarios for Driving Decision-making"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }
-requires-python = ">= 3.8"
+requires-python = ">=3.10"
 keywords = ["reinforcement-learning", "environment", "simulator", "decision-making", "traffic-behavior"]
 authors = [
     { name = "Yueyuan Li", email = "rowena.academic@gmail.com" }
@@ -16,6 +16,11 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",
@@ -35,8 +40,8 @@ test = [
     "httpx>=0.28.0",
     "pytest>=7.4.4",
     "pytest-cov>=4.1.0",
-    "torch>=2.8.0, <2.14.0; python_version >= '3.9'",
-    "torchvision>=0.23.0, <0.29.0; python_version >= '3.9'",
+    "torch>=2.8.0",
+    "torchvision>=0.23.0",
 ]
 dev = [
     "pre-commit==3.5.0",
@@ -45,8 +50,8 @@ dev = [
     "clang-format",
 ]
 bits = [
-    "torch>=2.8.0, <2.14.0; python_version >= '3.9'",
-    "torchvision>=0.23.0, <0.29.0; python_version >= '3.9'",
+    "torch>=2.8.0",
+    "torchvision>=0.23.0",
 ]
 
 [build-system]
