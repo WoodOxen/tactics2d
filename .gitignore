@@ -5,7 +5,7 @@
 **/data/*
 **/wandb/*
 **/logs/*
-tests/runtime
+**/runtime/*
 
 # claude code
 .claude/settings.local.json

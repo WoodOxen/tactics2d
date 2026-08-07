@@ -10,7 +10,7 @@
 [![Downloads](https://img.shields.io/pypi/dm/tactics2d)](https://pypi.org/project/tactics2d/)
 [![Discord](https://img.shields.io/discord/1209363816912126003)](https://discordapp.com/widget?id=1209363816912126003&theme=system)
 
-![python-version](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)
+![python-version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Github license](https://img.shields.io/github/license/WoodOxen/tactics2d)](https://github.com/WoodOxen/tactics2d/blob/master/LICENSE)
 
@@ -52,14 +52,18 @@
 
 > 说明：下表与 `test_modules` CI 工作流的覆盖版本保持一致。
 
-| System | 3.8 | 3.9 | 3.10 | 3.11 | 3.12 | 3.13 |
-| --- | --- | --- | --- | --- | --- | --- |
-| Ubuntu 18.04 | :white_check_mark: | - | - | - | - | - |
-| Ubuntu 20.04 | :white_check_mark: | :white_check_mark: | - | - | - | - |
-| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Windows | - | - | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| macOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| System | 3.10 | 3.11 | 3.12 | 3.13 | 3.14 |
+| --- | --- | --- | --- | --- | --- |
+| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| macOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+
+#### Python 支持策略
+
+Tactics2D 支持仍处于 CPython 上游支持周期内的 Python 版本。我们通常支持最新的四个 Python 小版本。当某个 Python 版本达到上游 EOL 后，我们可能移除对其的支持。
+
+**当前支持的 Python 版本：3.10–3.14**（Python 3.10 将在其上游 EOL，即 2026 年 10 月后移除）。
 
 ### 1. 安装
 
@@ -67,7 +71,7 @@
 
 ```bash
 # 创建一个新的conda环境
-conda create -n tactics2d python=3.9
+conda create -n tactics2d python=3.10
 conda activate tactics2d
 ```
 

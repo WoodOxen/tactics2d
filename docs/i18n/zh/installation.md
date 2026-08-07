@@ -4,13 +4,12 @@
 
 我们已在以下平台测试 `tactics2d` 的执行和构建：
 
-| 系统 | 3.8 | 3.9 | 3.10 | 3.11 |
-| --- | --- | --- | --- | --- |
-| Ubuntu 18.04 | :white_check_mark: | - | - | - |
-| Ubuntu 20.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| MacOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| 系统 | 3.10 | 3.11 | 3.12 | 3.13 | 3.14 |
+| --- | --- | --- | --- | --- | --- |
+| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| MacOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 
 ## Linux 系统安装
 
@@ -18,7 +17,7 @@
     建议使用虚拟环境安装 `tactics2d`，以避免与其他 Python 包冲突。
 
 !!! info
-    我们已在 Ubuntu 18.04、20.04 和 22.04 的 Docker 环境中测试安装过程。
+    我们已在 Ubuntu 22.04 和 24.04 的 Docker 环境中测试安装过程。
 
 ### 通过 PyPI 安装
 

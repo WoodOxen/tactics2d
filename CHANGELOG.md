@@ -34,6 +34,16 @@
 - Added `Net2OsmConverter` for converting SUMO `.net.xml` maps to Lanelet2-annotated `.osm` format via the `NetXMLParser` → `Map` → `OsmWriter` pipeline.
 - Added `Osm2NetConverter` for converting Lanelet2-annotated `.osm` maps to SUMO `.net.xml` format via the `OSMParser` → `Map` → `SumoWriter` pipeline.
 
+### Changed
+
+- Raised `requires-python` to `>=3.10` and documented a Python Support Policy: the officially supported baseline is now Python 3.10–3.14 and Ubuntu 22.04+.
+- Rebased the `test_modules` CI matrix in `test_modules.yml` onto Python 3.10–3.14 across Ubuntu 22.04/24.04, macOS, and Windows (20 jobs).
+
+### Removed
+
+- Dropped support for Python 3.8 and 3.9 (upstream end-of-life).
+- Removed the legacy Ubuntu 18.04/20.04 Docker CI job and stopped building wheels for cp38–cp39 (cp310 remains until its upstream EOL in 2026-10).
+
 ### Fixed
 
 - Fixed browser-frontend dataset discovery emitting backslash-separated relative paths on Windows: entries are now normalized with `as_posix()`, which also unbreaks WOMD and Argoverse 2 scenario selection there (both split the `file` value on `/`).
