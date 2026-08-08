@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 from shapely.geometry import LineString
 
-from tactics2d.geometry import polyline_length, sample_by_s
+from tactics2d.geometry import cumulative_s, polyline_length, sample_by_s
 from tactics2d.map.element import Junction, Lane, LaneRelationship, RoadLine
 from tactics2d.map.generator.rules.module_types import RoadPort, build_port
 
@@ -399,7 +399,17 @@ def build_junction_arm_ports(
     Returns:
         Dict of named :class:`RoadPort` instances keyed
         ``"arm_{i}_in"`` / ``"arm_{i}_out"``.
+
+    Raises:
+        ValueError: If the lane-id lists do not contain one entry per arm.
     """
+    arm_num = len(normalized_arms)
+    if len(outgoing_lane_ids) != arm_num or len(incoming_lane_ids) != arm_num:
+        raise ValueError(
+            "outgoing_lane_ids and incoming_lane_ids must each contain one "
+            "lane-id list per normalized arm."
+        )
+
     ports: dict[str, RoadPort] = {}
 
     for arm_idx, arm in enumerate(normalized_arms):
@@ -442,3 +452,172 @@ def build_junction_arm_ports(
         )
 
     return ports
+
+
+def variable_offset_polyline(
+    centerline: np.ndarray, start_offset: float, end_offset: float
+) -> np.ndarray:
+    """Offset a polyline with a smoothly varying lateral offset.
+
+    The offset transitions from ``start_offset`` to ``end_offset`` via a
+    quintic smoothstep function of arc length, producing zero first **and**
+    second derivatives at both ends (C² continuity).  Compared with the
+    simpler cubic smoothstep, the quintic avoids curvature jumps at the
+    taper entry / exit, which makes the resulting boundary noticeably
+    smoother when lane counts change.
+
+    Args:
+        centerline: Centreline points with shape ``(N, 2)``.
+        start_offset: Lateral offset at the entry end in metres.
+            Positive = left of travel direction.
+        end_offset: Lateral offset at the exit end in metres.
+            Positive = left of travel direction.
+
+    Returns:
+        Offset polyline with shape ``(N, 2)``.
+    """
+    pts = np.asarray(centerline, dtype=float)
+
+    if len(pts) < 2:
+        return pts.copy()
+
+    cum = cumulative_s(pts)
+    total = cum[-1]
+    t = np.zeros(len(pts)) if total < 1e-9 else cum / total
+    # quintic smoothstep: t^3 (6 t^2 - 15 t + 10)
+    t = t * t * t * (6.0 * t * t - 15.0 * t + 10.0)
+
+    tangents = np.empty_like(pts)
+    tangents[0] = pts[1] - pts[0]
+    tangents[-1] = pts[-1] - pts[-2]
+    if len(pts) > 2:
+        tangents[1:-1] = pts[2:] - pts[:-2]
+    norms = np.linalg.norm(tangents, axis=1, keepdims=True)
+    tangents /= np.where(norms < 1e-9, 1.0, norms)
+    normals = np.column_stack([-tangents[:, 1], tangents[:, 0]])
+
+    offsets = float(start_offset) + (float(end_offset) - float(start_offset)) * t
+    return pts + offsets[:, None] * normals
+
+
+def lane_role(start_width: float, end_width: float) -> str:
+    """Classify a lane's role in a taper or adapter transition.
+
+    Args:
+        start_width: Lane width at the entry end in metres.
+        end_width: Lane width at the exit end in metres.
+
+    Returns:
+        ``"added"`` if the lane opens from zero width, ``"dropped"`` if it
+        closes to zero, or ``"through"`` otherwise.
+    """
+    eps = 1e-3
+    if start_width <= eps and end_width > eps:
+        return "added"
+    if start_width > eps and end_width <= eps:
+        return "dropped"
+    return "through"
+
+
+def apply_lane_side_shift(offsets: list[float], lane_side: str) -> list[float]:
+    """Shift boundary offsets so all lanes sit on one side of the centreline.
+
+    When ``lane_side`` is ``"right"`` the leftmost boundary is pinned to zero;
+    when ``"left"`` the rightmost boundary is pinned to zero.  ``"center"``
+    leaves the symmetric offsets unchanged.
+
+    Args:
+        offsets: Boundary offsets sorted left-to-right (most positive to most
+            negative).  ``len(offsets) == lane_num + 1``.
+        lane_side: ``"center"`` (no shift), ``"left"`` (all lanes left of
+            centreline), or ``"right"`` (all lanes right of centreline).
+
+    Returns:
+        New offset list with the requested lateral shift applied.  The shift
+        preserves relative spacing so the lane widths are unchanged.
+
+    Raises:
+        ValueError: If ``lane_side`` is not one of the three valid values.
+    """
+    if lane_side == "center":
+        return list(offsets)
+
+    if lane_side == "right":
+        shift = float(offsets[0])
+    elif lane_side == "left":
+        shift = float(offsets[-1])
+    else:
+        raise ValueError(f"lane_side must be 'center', 'left', or 'right', got {lane_side!r}")
+
+    return [float(o) - shift for o in offsets]
+
+
+def deduplicate_roadlines(
+    roadlines: list[RoadLine], lanes: list[Lane], step_size: float
+) -> tuple[list[RoadLine], list[Lane]]:
+    """Merge geometrically near-identical RoadLines and update Lane references.
+
+    Two roadlines are merged when their Hausdorff distance is within
+    ``2 * step_size``. This compares the complete geometries (in either
+    direction), avoiding false positives for curves that merely share similar
+    endpoints and length. When a merge occurs the first RoadLine in the input
+    list is kept and all Lane ``line_ids`` references to the discarded id are
+    rewritten.
+
+    This is useful after assembling multiple :class:`RoadModuleResult` objects
+    into a single map, where neighbouring modules may produce overlapping
+    boundary roadlines (e.g. two adapters sharing the same centreline).
+
+    Args:
+        roadlines: List of RoadLines to deduplicate.
+        lanes: Lanes whose ``line_ids`` may reference the duplicate roadlines.
+        step_size: Sampling interval used as the tolerance base.
+
+    Returns:
+        Tuple ``(deduped_roadlines, lanes)``.  ``lanes`` is mutated in place
+        (the return value is the same list for convenience).
+    """
+    if step_size <= 0.0:
+        raise ValueError("step_size must be positive.")
+
+    if len(roadlines) < 2:
+        return roadlines, lanes
+
+    tol = 2.0 * float(step_size)
+    n = len(roadlines)
+    id_merge_map: dict[str, str] = {}  # discarded_id -> kept_id
+
+    for i in range(n):
+        id_i = roadlines[i].id_
+        if id_i in id_merge_map:
+            continue
+
+        for j in range(i + 1, n):
+            id_j = roadlines[j].id_
+            if id_j in id_merge_map:
+                continue
+
+            if roadlines[i].geometry.hausdorff_distance(roadlines[j].geometry) <= tol:
+                id_merge_map[id_j] = id_i
+
+    if not id_merge_map:
+        return roadlines, lanes
+
+    # Update lane references
+    for lane in lanes:
+        for side in ("left", "right"):
+            if side not in lane.line_ids:
+                continue
+            updated: list[str] = []
+            seen: set[str] = set()
+            for lid in lane.line_ids[side]:
+                mapped = id_merge_map.get(lid, lid)
+                if mapped not in seen:
+                    seen.add(mapped)
+                    updated.append(mapped)
+            lane.line_ids[side] = updated
+
+    merged_ids = set(id_merge_map.keys())
+    deduped = [rl for rl in roadlines if rl.id_ not in merged_ids]
+
+    return deduped, lanes

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import numpy as np
 
-from tactics2d.geometry import cumulative_s
 from tactics2d.map.element import Lane, RoadLine
 from tactics2d.map.generator.rules.lane_marking_rules import (
     one_way_boundary_token,
@@ -17,53 +16,14 @@ from tactics2d.map.generator.rules.module_types import RoadModuleResult, RoadPor
 
 from .element_builder import (
     add_ordered_lane_neighbors,
+    apply_lane_side_shift,
     build_lane_from_boundaries,
     build_roadline_from_points,
+    lane_role,
+    variable_offset_polyline,
 )
 from .reference_line import fit_reference_line
 from .road_segment import RoadSegment
-
-
-def _variable_offset_polyline(
-    centerline: np.ndarray, start_offset: float, end_offset: float
-) -> np.ndarray:
-    """Offset a polyline with a smoothly varying lateral offset.
-
-    The offset transitions from ``start_offset`` to ``end_offset`` via a
-    smoothstep (zero-slope Hermite cubic) function of arc length, producing
-    zero first derivative at both ends.
-
-    Args:
-        centerline: Centreline points with shape ``(N, 2)``.
-        start_offset: Lateral offset at the entry end in metres.
-            Positive = left of travel direction.
-        end_offset: Lateral offset at the exit end in metres.
-            Positive = left of travel direction.
-
-    Returns:
-        Offset polyline with shape ``(N, 2)``.
-    """
-    pts = np.asarray(centerline, dtype=float)
-
-    if len(pts) < 2:
-        return pts.copy()
-
-    cum = cumulative_s(pts)
-    total = cum[-1]
-    t = np.zeros(len(pts)) if total < 1e-9 else cum / total
-    t = t * t * (3.0 - 2.0 * t)
-
-    tangents = np.empty_like(pts)
-    tangents[0] = pts[1] - pts[0]
-    tangents[-1] = pts[-1] - pts[-2]
-    if len(pts) > 2:
-        tangents[1:-1] = pts[2:] - pts[:-2]
-    norms = np.linalg.norm(tangents, axis=1, keepdims=True)
-    tangents /= np.where(norms < 1e-9, 1.0, norms)
-    normals = np.column_stack([-tangents[:, 1], tangents[:, 0]])
-
-    offsets = float(start_offset) + (float(end_offset) - float(start_offset)) * t
-    return pts + offsets[:, None] * normals
 
 
 def _boundary_offsets_for_adapter(
@@ -105,28 +65,6 @@ def _boundary_offsets_for_adapter(
     return _uniform(max_lane_num), _padded(end_lane_num, change_side)
 
 
-def _lane_role(start_width: float, end_width: float) -> str:
-    """Classify a lane's role in the adapter transition.
-
-    Args:
-        start_width: Lane width at the entry end in metres.
-        end_width: Lane width at the exit end in metres.
-
-    Returns:
-        ``"added"`` if the lane opens from zero width, ``"dropped"`` if it
-        closes to zero, or ``"through"`` otherwise.
-    """
-    eps = 1e-3
-
-    if start_width <= eps and end_width > eps:
-        return "added"
-
-    if start_width > eps and end_width <= eps:
-        return "dropped"
-
-    return "through"
-
-
 class LaneAdapter(RoadSegment):
     """Same-direction lane-count adapter generator.
 
@@ -137,27 +75,53 @@ class LaneAdapter(RoadSegment):
     Attributes:
         change_side: Side where the lane is added or dropped. ``"right"`` means
             the rightmost lane changes; ``"left"`` means the leftmost lane changes.
+        lane_side: Which side of the centreline the lane group occupies.
+            ``"center"`` (default) places lanes symmetrically around the
+            centreline, matching :class:`OneWay` convention.  ``"right"`` pins
+            the leftmost boundary to the centreline so all lanes sit on the
+            right, matching :class:`TwoWay` forward convention.  ``"left"``
+            pins the rightmost boundary to the centreline (TwoWay backward
+            convention).
         step_size: Reference-line sampling interval in metres.
     """
 
-    def __init__(self, change_side: str = "right", step_size: float = 0.1) -> None:
+    def __init__(
+        self,
+        change_side: str = "right",
+        step_size: float = 0.1,
+        lane_side: str = "center",
+        centerline_marking_token: str | None = None,
+    ) -> None:
         """Initialise the generator.
 
         Args:
             change_side: Side where the lane count changes. Must be ``"left"``
                 or ``"right"``.
             step_size: Reference-line sampling interval in metres.
+            lane_side: Which side of the centreline all lanes sit on.
+                ``"center"`` (default), ``"left"``, or ``"right"``.
+            centerline_marking_token: When ``lane_side`` is ``"right"`` or
+                ``"left"``, the boundary pinned to the centreline continues
+                the TwoWay centre divider.  Pass a marking token string
+                (e.g. ``"solid_double_yellow"`` or the result of
+                :func:`~tactics2d.map.generator.rules.lane_marking_rules.two_way_centerline`)
+                to use that marking instead of the one-way edge rule.
+                Ignored when ``lane_side`` is ``"center"``.
 
         Raises:
             ValueError: If ``change_side`` is not ``"left"`` or ``"right"``,
-                or ``step_size <= 0``.
+                ``lane_side`` is invalid, or ``step_size <= 0``.
         """
         if change_side not in ("left", "right"):
             raise ValueError("change_side must be 'left' or 'right'.")
+        if lane_side not in ("center", "left", "right"):
+            raise ValueError("lane_side must be 'center', 'left', or 'right'.")
         if step_size <= 0.0:
             raise ValueError("step_size must be positive.")
         self.change_side = change_side
+        self.lane_side = lane_side
         self.step_size = step_size
+        self.centerline_marking_token = centerline_marking_token
 
     def build(
         self,
@@ -168,6 +132,9 @@ class LaneAdapter(RoadSegment):
         end_lane_num: int | None = None,
         lane_width: float | None = None,
         speed_limit: float | None = None,
+        start_lane_side: str | None = None,
+        end_lane_side: str | None = None,
+        centerline_marking_token: str | None = None,
         id_offset: int = 0,
     ) -> RoadModuleResult:
         """Build a lane-count adapter between two ports.
@@ -181,6 +148,13 @@ class LaneAdapter(RoadSegment):
                 ``end_port.lane_num``.
             lane_width: Lane width in metres. Defaults to ``start_port.lane_width``.
             speed_limit: Speed limit in km/h. Defaults to ``start_port.speed_limit``.
+            start_lane_side: Override ``self.lane_side`` for the start end.
+                ``None`` uses the generator default.
+            end_lane_side: Override ``self.lane_side`` for the end end.
+                ``None`` uses the generator default.
+            centerline_marking_token: Per-call override for
+                ``self.centerline_marking_token``.  ``None`` uses the generator
+                default.
             id_offset: First element id.
 
         Returns:
@@ -195,6 +169,13 @@ class LaneAdapter(RoadSegment):
         end_n = int(end_lane_num if end_lane_num is not None else end_port.lane_num)
         lane_w = float(lane_width if lane_width is not None else start_port.lane_width)
         speed = float(speed_limit if speed_limit is not None else start_port.speed_limit)
+        start_side = start_lane_side if start_lane_side is not None else self.lane_side
+        end_side = end_lane_side if end_lane_side is not None else self.lane_side
+        cl_token = (
+            centerline_marking_token
+            if centerline_marking_token is not None
+            else self.centerline_marking_token
+        )
 
         if start_n < 1:
             raise ValueError("start_lane_num must be >= 1.")
@@ -207,20 +188,33 @@ class LaneAdapter(RoadSegment):
                 "lane_adapter v1 only supports lane count difference of 1. "
                 "Use chained adapters, e.g. 2 -> 3 -> 4."
             )
+        for side in (start_side, end_side):
+            if side not in ("center", "left", "right"):
+                raise ValueError(f"lane_side must be 'center', 'left', or 'right', got {side!r}")
 
         center_pts = fit_reference_line(
             start_port.point, start_port.heading, end_port.point, end_port.heading, self.step_size
         )
 
-        start_offsets, end_offsets = _boundary_offsets_for_adapter(
+        raw_start_offsets, raw_end_offsets = _boundary_offsets_for_adapter(
             start_lane_num=start_n,
             end_lane_num=end_n,
             lane_width=lane_w,
             change_side=self.change_side,
         )
 
+        start_offsets = apply_lane_side_shift(raw_start_offsets, start_side)
+        end_offsets = apply_lane_side_shift(raw_end_offsets, end_side)
+
         max_lane_num = max(start_n, end_n)
         boundary_num = max_lane_num + 1
+
+        # ---- identify centreline boundary (if any) -----------------------
+        cl_boundary_idx: int | None = None
+        if start_side == end_side == "right":
+            cl_boundary_idx = 0
+        elif start_side == end_side == "left":
+            cl_boundary_idx = boundary_num - 1
 
         boundary_points: list[np.ndarray] = []
         roadlines: list[RoadLine] = []
@@ -228,14 +222,17 @@ class LaneAdapter(RoadSegment):
         id_counter = id_offset
 
         for boundary_idx in range(boundary_num):
-            pts = _variable_offset_polyline(
+            pts = variable_offset_polyline(
                 centerline=center_pts,
                 start_offset=start_offsets[boundary_idx],
                 end_offset=end_offsets[boundary_idx],
             )
             boundary_points.append(pts)
 
-            marking_token = one_way_boundary_token(boundary_idx, boundary_num)
+            if boundary_idx == cl_boundary_idx and cl_token is not None:
+                marking_token = cl_token
+            else:
+                marking_token = one_way_boundary_token(boundary_idx, boundary_num)
 
             roadline = build_roadline_from_points(
                 id_=id_counter,
@@ -261,7 +258,7 @@ class LaneAdapter(RoadSegment):
 
             start_width = abs(start_offsets[lane_idx] - start_offsets[lane_idx + 1])
             end_width = abs(end_offsets[lane_idx] - end_offsets[lane_idx + 1])
-            role = _lane_role(start_width, end_width)
+            role = lane_role(start_width, end_width)
 
             lane = build_lane_from_boundaries(
                 id_=id_counter,

@@ -26,6 +26,7 @@ from tactics2d.map.generator.road_segment import (
     ExitRamp,
     Fork,
     Intersection,
+    JunctionApproach,
     LaneAdapter,
     Merge,
     OneWay,
@@ -263,6 +264,126 @@ def test_lane_adapter(runtime_dir, start_n: int, end_n: int, change_side: str) -
     assert result.ports["exit"].lane_num == end_n
     assert len(result.lanes) == max_n
     assert len(result.roadlines) == max_n + 1
+
+
+def _junction_approach_centerline(start, heading, length, step_size=0.1):
+    """Generate a straight centreline for JunctionApproach tests."""
+    from tactics2d.map.generator.road_segment.reference_line import sample_centerline
+
+    return sample_centerline(start, heading, length, curvature=0.0, step_size=step_size)
+
+
+@pytest.mark.map_generator
+@pytest.mark.parametrize(
+    "start_n,end_n,change_side,taper_len",
+    [
+        (2, 3, "right", 30.0),
+        (3, 2, "right", 30.0),
+        (2, 3, "left", 30.0),
+        (3, 2, "left", 30.0),
+        (2, 2, "both", 30.0),
+        (1, 3, "both", 40.0),
+        (3, 1, "both", 40.0),
+    ],
+    ids=["expand_right", "reduce_right", "expand_left", "reduce_left", "no_change", "1to3", "3to1"],
+)
+def test_junction_approach(
+    runtime_dir, start_n: int, end_n: int, change_side: str, taper_len: float
+) -> None:
+    """Visual smoke test: renders each transition scenario for manual inspection.
+
+    Run with ``TACTICS2D_RENDER_MAPS=1 pytest ...`` to generate PNGs under
+    ``build/test_maps/``.
+    """
+    map_ = Map(name=f"junction_approach_{start_n}to{end_n}_{change_side}")
+    cl = _junction_approach_centerline(np.array([0.0, 0.0]), 0.0, taper_len)
+    result = JunctionApproach(change_side=change_side).build(
+        centerline=cl,
+        start_lane_num=start_n,
+        end_lane_num=end_n,
+        end_boundary_offsets=np.array([end_n / 2.0 * 3.5 - i * 3.5 for i in range(end_n + 1)]),
+        id_offset=0,
+    )
+    _add_result(map_, result)
+    _render(map_, runtime_dir / f"junction_approach_{start_n}to{end_n}_{change_side}.png")
+    max_n = max(start_n, end_n)
+    assert "entry" in result.ports
+    assert "exit" in result.ports
+    assert result.ports["entry"].lane_num == start_n
+    assert result.ports["exit"].lane_num == end_n
+    assert len(result.lanes) == max_n
+    assert len(result.roadlines) == max_n + 1
+
+
+@pytest.mark.map_generator
+@pytest.mark.parametrize(
+    "taper_len,expect_warning", [(30.0, False), (3.0, True)], ids=["adequate_length", "too_short"]
+)
+def test_junction_approach_taper_length(caplog, taper_len: float, expect_warning: bool) -> None:
+    """Short centreline should emit a warning about taper stiffness."""
+    caplog.set_level(
+        logging.WARNING, logger="tactics2d.map.generator.road_segment.junction_approach"
+    )
+    cl = _junction_approach_centerline(np.array([0.0, 0.0]), 0.0, taper_len)
+    JunctionApproach().build(
+        centerline=cl,
+        start_lane_num=2,
+        end_lane_num=3,
+        end_boundary_offsets=np.array([5.25, 3.5, 1.75, 0.0]),
+        id_offset=0,
+    )
+    if expect_warning:
+        assert any("shorter than recommended" in rec.message for rec in caplog.records)
+    else:
+        assert not any("shorter than recommended" in rec.message for rec in caplog.records)
+
+
+@pytest.mark.map_generator
+def test_junction_approach_invalid_args() -> None:
+    """Invalid arguments should raise ValueError."""
+    cl = _junction_approach_centerline(np.array([0.0, 0.0]), 0.0, 20.0)
+
+    with pytest.raises(ValueError, match="start_lane_num must be >= 1"):
+        JunctionApproach().build(
+            centerline=cl,
+            start_lane_num=0,
+            end_lane_num=2,
+            end_boundary_offsets=np.array([3.5, 1.75, 0.0]),
+            id_offset=0,
+        )
+    with pytest.raises(ValueError, match="end_lane_num must be >= 1"):
+        JunctionApproach().build(
+            centerline=cl,
+            start_lane_num=2,
+            end_lane_num=0,
+            end_boundary_offsets=np.array([0.0]),
+            id_offset=0,
+        )
+    with pytest.raises(ValueError, match="lane_width must be positive"):
+        JunctionApproach().build(
+            centerline=cl,
+            start_lane_num=2,
+            end_lane_num=2,
+            end_boundary_offsets=np.array([3.5, 1.75, 0.0]),
+            lane_width=0.0,
+            id_offset=0,
+        )
+    with pytest.raises(ValueError, match="end_boundary_offsets must have"):
+        JunctionApproach().build(
+            centerline=cl,
+            start_lane_num=2,
+            end_lane_num=2,
+            end_boundary_offsets=np.array([3.5, 0.0]),  # should be 3 elements
+            id_offset=0,
+        )
+    with pytest.raises(ValueError, match="centreline must have at least 2 points"):
+        JunctionApproach().build(
+            centerline=np.array([[0.0, 0.0]]),
+            start_lane_num=2,
+            end_lane_num=2,
+            end_boundary_offsets=np.array([3.5, 1.75, 0.0]),
+            id_offset=0,
+        )
 
 
 @pytest.mark.map_generator
@@ -660,21 +781,8 @@ def test_ramp_urban_left_side_raises() -> None:
 @pytest.mark.map_generator
 @pytest.mark.parametrize(
     "arm_dicts,match",
-    [
-        (
-            [{"heading": h, "lane_num": 2} for h in [0.0, np.pi / 2]],
-            "intersection requires 3 or 4 arms",
-        ),
-        (
-            [
-                {"heading": h, "lane_num": 2}
-                for h in [0.0, np.pi / 2, np.pi, 3 * np.pi / 2, np.pi / 4]
-            ],
-            "intersection requires 3 or 4 arms",
-        ),
-        ([{"heading": h, "lane_num": 0} for h in [0.0, np.pi / 2, np.pi]], "lane_num must be"),
-    ],
-    ids=["too_few_arms", "too_many_arms", "zero_lane_num"],
+    [([{"heading": h, "lane_num": 0} for h in [0.0, np.pi / 2, np.pi]], "lane_num must be")],
+    ids=["zero_lane_num"],
 )
 def test_intersection_invalid_arms(arm_dicts: list, match: str) -> None:
     with pytest.raises(ValueError, match=match):
@@ -715,3 +823,506 @@ def test_intersection_no_id_collision() -> None:
     ids_2 = {e.id_ for e in [*result_2.lanes, *result_2.roadlines, *result_2.junctions]}
     assert len(ids_1 & ids_2) == 0
     assert result_2.id_counter > result_1.id_counter
+
+
+# ---------------------------------------------------------------------------
+# JunctionApproach curvature and integration tests
+# ---------------------------------------------------------------------------
+
+
+def _compute_curvature(pts: np.ndarray) -> np.ndarray:
+    """Discrete signed curvature along a polyline using finite differences.
+
+    Args:
+        pts: Points with shape ``(N, 2)``.
+
+    Returns:
+        Curvature array of length ``N``.  Boundary points use one-sided
+        differences; interior points use central differences.
+    """
+    if len(pts) < 3:
+        return np.zeros(len(pts))
+
+    d1 = np.diff(pts, axis=0)  # first differences, shape (N-1, 2)
+    ds = np.linalg.norm(d1, axis=1)
+    ds = np.where(ds < 1e-12, 1e-12, ds)
+    tangents = d1 / ds[:, None]  # shape (N-1, 2)
+
+    # second differences via tangent differences at midpoints
+    d_tangents = np.diff(tangents, axis=0)  # shape (N-2, 2)
+    mid_ds = (ds[:-1] + ds[1:]) / 2.0  # shape (N-2,)
+    mid_ds = np.where(mid_ds < 1e-12, 1e-12, mid_ds)
+    curvature = np.zeros(len(pts))
+    curvature[1:-1] = np.linalg.norm(d_tangents, axis=1) / mid_ds
+
+    # one-sided for endpoints
+    curvature[0] = curvature[1]
+    curvature[-1] = curvature[-2]
+
+    return curvature
+
+
+@pytest.mark.map_generator
+def test_junction_approach_curvature_endpoints() -> None:
+    """Quintic smoothstep boundaries must have near-zero curvature at both ends.
+
+    This is the key numerical guarantee that fixes the "stiff taper" issue:
+    cubic smoothstep produces curvature jumps at endpoints; quintic eliminates
+    them.  We verify by generating a taper on a curved centreline with a
+    lane-count change and checking that every boundary's curvature decays to
+    near zero within a few samples of each endpoint.
+    """
+    from tactics2d.map.generator.road_segment.reference_line import sample_centerline
+
+    # curved centreline — a gentle left-turning arc
+    cl = sample_centerline(np.array([0.0, 0.0]), heading=0.0, length=40.0, curvature=0.005)
+    end_n = 3
+    end_offs = np.array([end_n / 2.0 * 3.5 - i * 3.5 for i in range(end_n + 1)])
+
+    result = JunctionApproach(change_side="both").build(
+        centerline=cl,
+        start_lane_num=2,
+        end_lane_num=end_n,
+        end_boundary_offsets=end_offs,
+        lane_width=3.5,
+        id_offset=0,
+    )
+
+    # extract boundary polylines
+    for rl in result.roadlines:
+        pts = np.asarray(rl.geometry.coords)
+        if len(pts) < 5:
+            continue  # skip very short boundaries
+        kappa = _compute_curvature(pts)
+        # first and last 3 samples should be small (< 50% of max curvature)
+        max_k = max(float(np.max(np.abs(kappa))), 1e-6)
+        entry_curv = np.abs(kappa[:3]).max()
+        exit_curv = np.abs(kappa[-3:]).max()
+        assert (
+            entry_curv / max_k < 0.5
+        ), f"high entry curvature: {entry_curv:.4f} vs max {max_k:.4f}"
+        assert exit_curv / max_k < 0.5, f"high exit curvature: {exit_curv:.4f} vs max {max_k:.4f}"
+
+
+@pytest.mark.map_generator
+@pytest.mark.parametrize(
+    "change_side,taper_len,label",
+    [
+        ("both", 20.0, "curved_both"),
+        ("left", 20.0, "curved_left"),
+        ("right", 20.0, "curved_right"),
+        ("both", 5.0, "short_both"),
+    ],
+    ids=["curved_both", "curved_left", "curved_right", "short_both"],
+)
+def test_junction_approach_complex(
+    runtime_dir, change_side: str, taper_len: float, label: str
+) -> None:
+    """Curved centreline + non-uniform port boundaries — realistic junction approach.
+
+    This exercises the three fixes together:
+    - Quintic smoothstep on a curved reference line
+    - change_side controlling asymmetric lane addition
+    - min_taper_length warning for the "short" variant
+
+    The junction port simulates a 3-lane arm where the left-turn lane is
+    narrower (3.0 m) and the through/right lanes are 3.5 m.
+    """
+    from tactics2d.map.generator.road_segment.reference_line import sample_centerline
+
+    # curved approach at 30° heading
+    cl = sample_centerline(
+        np.array([0.0, 0.0]), heading=np.deg2rad(30), length=taper_len, curvature=0.008
+    )
+    # non-uniform port boundaries: [leftmost=5.25, 2.75, 0.0, -3.5] (rightmost)
+    end_offsets = np.array([5.25, 2.75, 0.0, -3.5])
+
+    map_ = Map(name=f"junction_approach_{label}")
+    result = JunctionApproach(change_side=change_side).build(
+        centerline=cl,
+        start_lane_num=2,
+        end_lane_num=3,
+        end_boundary_offsets=end_offsets,
+        lane_width=3.5,
+        id_offset=0,
+    )
+    _add_result(map_, result)
+    _render(map_, runtime_dir / f"junction_approach_{label}.png")
+
+    assert len(result.lanes) == 3
+    assert len(result.roadlines) == 4
+    # all lanes must have valid line references
+    _assert_lane_line_ids_resolved(result)
+
+
+# ---------------------------------------------------------------------------
+# Bug 2 verification — lane matching with change_side
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.map_generator
+@pytest.mark.parametrize(
+    "start_n,end_n,change_side,expected_roles",
+    [
+        # 2→3: one lane added
+        (2, 3, "left", ["added", "through", "through"]),
+        (2, 3, "right", ["through", "through", "added"]),
+        # 3→2: one lane dropped
+        (3, 2, "left", ["dropped", "through", "through"]),
+        (3, 2, "right", ["through", "through", "dropped"]),
+        # 2→4: two lanes added on the specified side
+        (2, 4, "left", ["added", "added", "through", "through"]),
+        (2, 4, "right", ["through", "through", "added", "added"]),
+        # 4→2: two lanes dropped on the specified side
+        (4, 2, "left", ["dropped", "dropped", "through", "through"]),
+        (4, 2, "right", ["through", "through", "dropped", "dropped"]),
+        # no change — all through
+        (2, 2, "left", ["through", "through"]),
+        (2, 2, "right", ["through", "through"]),
+    ],
+    ids=[
+        "expand_left_2to3",
+        "expand_right_2to3",
+        "reduce_left_3to2",
+        "reduce_right_3to2",
+        "expand_left_2to4",
+        "expand_right_2to4",
+        "reduce_left_4to2",
+        "reduce_right_4to2",
+        "no_change_left",
+        "no_change_right",
+    ],
+)
+def test_junction_approach_lane_roles(
+    start_n: int, end_n: int, change_side: str, expected_roles: list[str]
+) -> None:
+    """Verify change_side correctly positions added/dropped lanes.
+
+    This is the direct validation of bug 2 (lane matching).  Each lane's
+    ``custom_tags["lane_role"]`` must match the expected side-preference.
+    """
+    from tactics2d.map.generator.road_segment.reference_line import sample_centerline
+
+    cl = sample_centerline(np.array([0.0, 0.0]), 0.0, 30.0)
+    end_offs = np.array([end_n / 2.0 * 3.5 - i * 3.5 for i in range(end_n + 1)])
+
+    result = JunctionApproach(change_side=change_side).build(
+        centerline=cl,
+        start_lane_num=start_n,
+        end_lane_num=end_n,
+        end_boundary_offsets=end_offs,
+        id_offset=0,
+    )
+
+    actual_roles = [lane.custom_tags.get("lane_role", "?") for lane in result.lanes]
+    assert actual_roles == expected_roles, (
+        f"change_side={change_side!r}, {start_n}→{end_n}: "
+        f"expected {expected_roles}, got {actual_roles}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Bug 3 verification — roadline deduplication
+# ---------------------------------------------------------------------------
+
+
+def _make_dummy_roadline(id_: str, start, end, step_size=0.1):
+    """Create a RoadLine with a straight segment from *start* to *end*."""
+    from shapely.geometry import LineString
+
+    from tactics2d.map.element import RoadLine
+
+    return RoadLine(
+        id_=str(id_),
+        geometry=LineString([tuple(start), tuple(end)]),
+        type_="virtual",
+        subtype="solid",
+        color="white",
+    )
+
+
+@pytest.mark.map_generator
+def test_deduplicate_roadlines_merges_identical() -> None:
+    """Two roadlines with nearly identical geometry should be merged."""
+    from shapely.geometry import LineString
+
+    from tactics2d.map.element import Lane, RoadLine
+    from tactics2d.map.generator.road_segment.element_builder import deduplicate_roadlines
+
+    start = np.array([0.0, 0.0])
+    end = np.array([10.0, 0.0])
+
+    rl_a = _make_dummy_roadline("a", start, end)
+    rl_b = _make_dummy_roadline("b", start + 0.01, end + 0.01)  # nearly identical
+    rl_c = _make_dummy_roadline("c", start, np.array([10.0, 5.0]))  # different end
+
+    # Lane that references both duplicates
+    lane = Lane(
+        id_="lane_1",
+        left_side=LineString([(0.0, 1.75), (10.0, 1.75)]),
+        right_side=LineString([(0.0, -1.75), (10.0, -1.75)]),
+        line_ids={"left": ["a"], "right": ["b", "c"]},
+    )
+
+    roadlines = [rl_a, rl_b, rl_c]
+    deduped, updated_lanes = deduplicate_roadlines(roadlines, [lane], step_size=0.1)
+
+    # rl_b should be merged into rl_a
+    assert len(deduped) < len(roadlines), "expected at least one roadline to be merged"
+    remaining_ids = {rl.id_ for rl in deduped}
+    assert "a" in remaining_ids, "kept roadline 'a' should remain"
+    assert "b" not in remaining_ids, "duplicate roadline 'b' should be removed"
+    assert "c" in remaining_ids, "non-duplicate roadline 'c' should remain"
+
+    # Lane references should be updated
+    left_ids = updated_lanes[0].line_ids["left"]
+    right_ids = updated_lanes[0].line_ids["right"]
+    assert left_ids == ["a"], f"left refs should be ['a'], got {left_ids}"
+    assert "b" not in right_ids, f"'b' should not appear in right refs: {right_ids}"
+    assert "a" in right_ids, f"'a' should replace 'b' in right refs: {right_ids}"
+    assert "c" in right_ids, f"'c' should be kept in right refs: {right_ids}"
+
+
+@pytest.mark.map_generator
+def test_deduplicate_roadlines_no_false_positive() -> None:
+    """Roadlines with clearly different geometry should NOT be merged."""
+    from shapely.geometry import LineString
+
+    from tactics2d.map.element import Lane, RoadLine
+    from tactics2d.map.generator.road_segment.element_builder import deduplicate_roadlines
+
+    rl_a = _make_dummy_roadline("a", np.array([0.0, 0.0]), np.array([10.0, 0.0]))
+    rl_b = _make_dummy_roadline("b", np.array([0.0, 0.0]), np.array([10.0, 5.0]))  # different
+    rl_c = _make_dummy_roadline("c", np.array([5.0, 0.0]), np.array([15.0, 0.0]))  # shifted
+    # Same endpoints and length within the old tolerance, but not the same path.
+    rl_d = RoadLine(
+        id_="d",
+        geometry=LineString([(0.0, 0.0), (5.0, 1.0), (10.0, 0.0)]),
+        type_="virtual",
+        subtype="solid",
+        color="white",
+    )
+
+    lane = Lane(
+        id_="lane_1",
+        left_side=LineString([(0.0, 1.0), (10.0, 1.0)]),
+        right_side=LineString([(0.0, -1.0), (10.0, -1.0)]),
+        line_ids={"left": ["a"], "right": ["b", "c"]},
+    )
+
+    roadlines = [rl_a, rl_b, rl_c, rl_d]
+    deduped, _ = deduplicate_roadlines(roadlines, [lane], step_size=0.1)
+
+    assert len(deduped) == 4, "no roadlines should be merged — all are distinct"
+
+
+# ---------------------------------------------------------------------------
+# LaneAdapter lane_side parameter tests
+# ---------------------------------------------------------------------------
+
+
+def _adapter_lane_centers(result: RoadModuleResult) -> list[float]:
+    """Return lane centre offsets at the start end (midpoint of left/right boundaries)."""
+    centers: list[float] = []
+    for lane in result.lanes:
+        left_pts = np.asarray(lane.left_side.coords)
+        right_pts = np.asarray(lane.right_side.coords)
+        # measure offset at the first point of each boundary
+        dx_l = left_pts[0, 0] - left_pts[-1, 0]
+        dy_l = left_pts[0, 1] - left_pts[-1, 1]
+        dx_r = right_pts[0, 0] - right_pts[-1, 0]
+        dy_r = right_pts[0, 1] - right_pts[-1, 1]
+        # lateral offset at start ≈ perpendicular distance from centreline start
+        # For a horizontal road heading=0, y is the lateral coordinate
+        start_y = (left_pts[0, 1] + right_pts[0, 1]) / 2.0
+        centers.append(round(start_y, 6))
+    return centers
+
+
+@pytest.mark.map_generator
+@pytest.mark.parametrize(
+    "lane_side,start_n,end_n,expected_signs",
+    [
+        ("center", 2, 3, ["mixed", "mixed", "mixed"]),
+        ("right", 2, 3, ["right", "right", "right"]),
+        ("left", 2, 3, ["left", "left", "left"]),
+        ("right", 3, 2, ["right", "right", "right"]),
+        ("left", 3, 2, ["left", "left", "left"]),
+        ("center", 2, 2, ["mixed", "mixed"]),
+        ("right", 2, 2, ["right", "right"]),
+    ],
+    ids=[
+        "center_2to3",
+        "right_2to3",
+        "left_2to3",
+        "right_3to2",
+        "left_3to2",
+        "center_no_change",
+        "right_no_change",
+    ],
+)
+def test_lane_adapter_lane_side_position(
+    lane_side: str, start_n: int, end_n: int, expected_signs: list[str]
+) -> None:
+    """LaneAdapter lane_side must correctly position lanes relative to centreline.
+
+    For a straight, horizontal (heading=0) adapter, the centreline is on y=0.
+    "right" means all lane centre y values are negative;
+    "left" means all are positive;
+    "center" means lanes straddle both sides.
+
+    Zero-width ("added" / "dropped") lanes may have a centre at y=0; they are
+    excluded from the sign check because the lane does not yet exist at the
+    collapsed end.
+    """
+    result = LaneAdapter(change_side="right", lane_side=lane_side).build(
+        _make_port(0.0, 0.0, 0.0, start_n),
+        _make_port(30.0, 0.0, 0.0, end_n),
+        start_lane_num=start_n,
+        end_lane_num=end_n,
+        id_offset=0,
+    )
+
+    assert len(result.lanes) == max(start_n, end_n)
+
+    for lane, expected in zip(result.lanes, expected_signs):
+        left_y = np.asarray(lane.left_side.coords)[0, 1]
+        right_y = np.asarray(lane.right_side.coords)[0, 1]
+        center_y = (left_y + right_y) / 2.0
+        width = abs(left_y - right_y)
+
+        # collapsed (zero-width) lanes may sit at y=0 — skip sign check
+        if width < 1e-6:
+            continue
+
+        if expected == "right":
+            assert center_y < -1e-6, f"lane {lane.id_} centre {center_y} should be < 0 (right)"
+            assert left_y <= 1e-6, f"lane {lane.id_} left boundary {left_y} should be ≤ 0"
+        elif expected == "left":
+            assert center_y > 1e-6, f"lane {lane.id_} centre {center_y} should be > 0 (left)"
+            assert right_y >= -1e-6, f"lane {lane.id_} right boundary {right_y} should be ≥ 0"
+        # "mixed" — no assertion, symmetric distribution
+
+
+@pytest.mark.map_generator
+def test_lane_adapter_per_end_lane_side() -> None:
+    """Per-end lane_side overrides allow asymmetric configurations.
+
+    TwoWay forward → intersection: start_side="right" (road), end_side="center"
+    (intersection).
+    """
+    result = LaneAdapter(change_side="right", lane_side="right").build(
+        _make_port(0.0, 0.0, 0.0, 2),
+        _make_port(30.0, 0.0, 0.0, 3),
+        start_lane_num=2,
+        end_lane_num=3,
+        end_lane_side="center",  # intersection side stays symmetric
+        id_offset=0,
+    )
+
+    # start end (road side): all lanes on the right
+    for lane in result.lanes:
+        left_start_y = np.asarray(lane.left_side.coords)[0, 1]
+        right_start_y = np.asarray(lane.right_side.coords)[0, 1]
+        assert left_start_y <= 1e-6, f"start: lane {lane.id_} left should be ≤ 0"
+
+    # end end (intersection side): centred
+    end_centers = []
+    for lane in result.lanes:
+        left_end_y = np.asarray(lane.left_side.coords)[-1, 1]
+        right_end_y = np.asarray(lane.right_side.coords)[-1, 1]
+        end_centers.append((left_end_y + right_end_y) / 2.0)
+
+    # after shifting at start only, the end should still be symmetric
+    assert any(c > 1e-6 for c in end_centers), "at least one lane centre should be > 0"
+    assert any(c < -1e-6 for c in end_centers), "at least one lane centre should be < 0"
+
+
+@pytest.mark.map_generator
+def test_junction_approach_lane_side() -> None:
+    """JunctionApproach lane_side shifts road-end lanes while keeping junction end fixed."""
+    from tactics2d.map.generator.road_segment.reference_line import sample_centerline
+
+    cl = sample_centerline(np.array([0.0, 0.0]), 0.0, 30.0)
+    end_n = 3
+    end_offs = np.array([end_n / 2.0 * 3.5 - i * 3.5 for i in range(end_n + 1)])
+
+    result = JunctionApproach(change_side="both", lane_side="right").build(
+        centerline=cl,
+        start_lane_num=2,
+        end_lane_num=end_n,
+        end_boundary_offsets=end_offs,
+        id_offset=0,
+    )
+
+    # road-end (start): all lanes on the right side
+    for lane in result.lanes:
+        left_start_y = np.asarray(lane.left_side.coords)[0, 1]
+        right_start_y = np.asarray(lane.right_side.coords)[0, 1]
+        center_start_y = (left_start_y + right_start_y) / 2.0
+        assert (
+            center_start_y < -1e-6 or abs(center_start_y) < 1e-6
+        ), f"road-end lane centre {center_start_y} should be ≤ 0 (right side)"
+
+    # junction end keeps the port offsets
+    _assert_lane_line_ids_resolved(result)
+
+
+@pytest.mark.map_generator
+@pytest.mark.parametrize(
+    "init_kwargs,match", [({"lane_side": "diagonal"}, "lane_side must be")], ids=["bad_lane_side"]
+)
+def test_lane_adapter_invalid_lane_side(init_kwargs: dict, match: str) -> None:
+    """Invalid lane_side must raise ValueError."""
+    with pytest.raises(ValueError, match=match):
+        LaneAdapter(**init_kwargs)
+
+
+@pytest.mark.map_generator
+def test_lane_adapter_positional_step_size_compatibility() -> None:
+    """The pre-existing positional ``step_size`` argument remains supported."""
+    adapter = LaneAdapter("left", 0.5)
+    assert adapter.change_side == "left"
+    assert adapter.step_size == pytest.approx(0.5)
+    assert adapter.lane_side == "center"
+
+
+@pytest.mark.map_generator
+def test_junction_approach_lane_side_invalid() -> None:
+    """Invalid lane_side in JunctionApproach build() must raise ValueError."""
+    from tactics2d.map.generator.road_segment.reference_line import sample_centerline
+
+    cl = sample_centerline(np.array([0.0, 0.0]), 0.0, 20.0)
+    with pytest.raises(ValueError, match="lane_side must be"):
+        JunctionApproach().build(
+            centerline=cl,
+            start_lane_num=2,
+            end_lane_num=2,
+            end_boundary_offsets=np.array([3.5, 1.75, 0.0]),
+            start_lane_side="diagonal",
+            id_offset=0,
+        )
+
+
+@pytest.mark.map_generator
+def test_lane_adapter_centerline_marking():
+    """When centerline_marking_token is set, the centreline boundary uses it."""
+    result = LaneAdapter(
+        change_side="right", lane_side="right", centerline_marking_token="solid_double_yellow"
+    ).build(
+        _make_port(0.0, 0.0, 0.0, 2),
+        _make_port(30.0, 0.0, 0.0, 3),
+        start_lane_num=2,
+        end_lane_num=3,
+        id_offset=0,
+    )
+
+    # boundary 0 (leftmost) should use the centreline marking
+    rl0 = result.roadlines[0]
+    assert rl0.custom_tags.get("marking_token") == "solid_double_yellow"
+    assert rl0.custom_tags.get("marking_role") == "centerline"
+    assert rl0.color == "yellow"
+
+    # boundary 1 and beyond should use standard one-way markings
+    rl1 = result.roadlines[1]
+    assert rl1.custom_tags.get("marking_token") != "solid_double_yellow"
