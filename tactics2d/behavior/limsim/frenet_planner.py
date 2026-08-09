@@ -10,15 +10,22 @@ from typing import Sequence
 
 import numpy as np
 from shapely.geometry import LineString, Point
+from shapely.ops import substring
 
-from tactics2d.geometry import frenet, polyline, spatial
+from tactics2d.geometry import frenet, spatial
 from tactics2d.map.element import Map
 from tactics2d.map.query import SemanticMapQuery, StopTarget
 
 from .action import LimSimAction
 from .config import LimSimConfig
-from .lane_follower import LaneFollower
-from .schema import AgentDecisionState
+from .lane_follower import (
+    LaneFollower,
+    _continuous_route_lanes,
+    _route_path_from_lanes,
+    route_has_continuation,
+    route_lanes_from_agent,
+)
+from .schema import AgentDecisionState, DecisionStep, decision_sequence_covers_horizon
 
 
 @dataclass
@@ -104,21 +111,114 @@ class FrenetTrajectoryPlanner:
         map_: Map | None,
         obstacle_trajectories: Sequence[Sequence[AgentDecisionState]] = (),
         time_ms: int | None = None,
+        decision_sequence: Sequence[DecisionStep] = (),
     ) -> list[AgentDecisionState]:
         """Generate a final trajectory for one agent after the behavior action is fixed."""
+
+        current_frame = int(time_ms or 0)
+        if decision_sequence_covers_horizon(
+            decision_sequence, current_frame, self.config.horizon_steps, self.config.step_ms
+        ):
+            return self._plan_decision_sequence(
+                agent, action, decision_sequence, map_, obstacle_trajectories, time_ms
+            )
+        return self._plan_action(
+            agent, action, map_, obstacle_trajectories, time_ms, steps=self.config.horizon_steps
+        )
+
+    def _plan_decision_sequence(
+        self,
+        agent: AgentDecisionState,
+        fallback_action: LimSimAction,
+        decision_sequence: Sequence[DecisionStep],
+        map_: Map | None,
+        obstacle_trajectories: Sequence[Sequence[AgentDecisionState]],
+        time_ms: int | None,
+    ) -> list[AgentDecisionState]:
+        """Generate piecewise trajectories toward the remaining MCTS targets."""
+
+        current_frame = int(time_ms or 0)
+        step_ms = int(round(self.config.dt * 1000))
+        horizon_end = current_frame + self.config.horizon_steps * step_ms
+        remaining = [
+            decision for decision in decision_sequence if decision.expected_frame > current_frame
+        ]
+        if not remaining:
+            return self._plan_action(
+                agent,
+                fallback_action,
+                map_,
+                obstacle_trajectories,
+                time_ms,
+                steps=self.config.horizon_steps,
+            )
+
+        # The official generator skips an intermediate target when the next
+        # decision keeps the same action, while retaining the full cached list.
+        targets = [
+            decision
+            for index, decision in enumerate(remaining)
+            if index + 1 == len(remaining) or remaining[index + 1].action != decision.action
+        ]
+
+        planned = []
+        current = agent
+        for decision in targets:
+            segment_end = min(decision.expected_frame, horizon_end)
+            segment_steps = int(round((segment_end - current_frame) / step_ms))
+            if segment_steps <= 0:
+                continue
+            target_state = (
+                decision.expected_state if segment_end == decision.expected_frame else None
+            )
+            segment_obstacles = self._slice_obstacles(obstacle_trajectories, len(planned))
+            segment = self._plan_action(
+                current,
+                decision.action,
+                map_,
+                segment_obstacles,
+                current_frame,
+                steps=segment_steps,
+                target_state=target_state,
+            )
+            if not segment:
+                break
+            planned.extend(segment[:segment_steps])
+            current = planned[-1]
+            completed_steps = min(len(segment), segment_steps)
+            current_frame += completed_steps * step_ms
+            if completed_steps < segment_steps or current_frame >= horizon_end:
+                break
+        return planned
+
+    def _plan_action(
+        self,
+        agent: AgentDecisionState,
+        action: LimSimAction,
+        map_: Map | None,
+        obstacle_trajectories: Sequence[Sequence[AgentDecisionState]],
+        time_ms: int | None,
+        steps: int,
+        target_state: AgentDecisionState | None = None,
+    ) -> list[AgentDecisionState]:
+        """Plan one action segment with an optional MCTS endpoint target."""
+
+        steps = max(1, int(steps))
 
         reference_path = reference_path_from_agent(
             agent, map_, self.config, cache=self._ref_path_cache
         )
         if reference_path is None or reference_path.path.length <= 1e-6:
-            return self.fallback.rollout(agent, action, map_)
-        start = reference_path.cartesian_to_frenet(agent.x, agent.y)
+            return self.fallback.rollout(agent, action, map_, steps=steps)
+        start = reference_path.cartesian_to_frenet(
+            agent.x, agent.y, hint_s=reference_path.initial_s
+        )
         if abs(start.d) > self.config.max_lateral_offset_for_lane_rollout:
-            return self.fallback.rollout(agent, action, map_)
+            return self.fallback.rollout(agent, action, map_, steps=steps)
 
         # --- pre-compute map queries shared across all candidates ---
         stop_target_info = self._nearest_required_stop_target(
-            agent, reference_path, map_, time_ms=time_ms
+            agent, reference_path, map_, time_ms=time_ms, steps=steps
         )
         conflict_points_cache = self._build_conflict_cache(
             reference_path, map_, obstacle_trajectories
@@ -137,9 +237,12 @@ class FrenetTrajectoryPlanner:
             stop_target_info=stop_target_info,
             conflict_points_cache=conflict_points_cache,
             obstacle_footprints=obstacle_footprints,
+            start=start,
+            steps=steps,
+            target_state=target_state,
         )
         if not candidates:
-            return self.fallback.rollout(agent, action, map_)
+            return self.fallback.rollout(agent, action, map_, steps=steps)
         if stop_target_info is not None:
             candidates.append(
                 self._stop_target_candidate(
@@ -153,25 +256,53 @@ class FrenetTrajectoryPlanner:
                     time_ms,
                     conflict_points_cache=conflict_points_cache,
                     obstacle_footprints=obstacle_footprints,
+                    steps=steps,
                 )
             )
-        best_candidate = min(candidates, key=lambda candidate: candidate.cost)
-        if obstacle_trajectories and self._has_collision(
-            best_candidate.states, obstacle_trajectories, obstacle_footprints
-        ):
-            candidates.append(
-                self._stop_candidate(
-                    agent,
-                    action,
-                    obstacle_trajectories,
-                    map_,
-                    time_ms,
-                    stop_target_info=stop_target_info,
-                    conflict_points_cache=conflict_points_cache,
-                    obstacle_footprints=obstacle_footprints,
-                )
+        feasible_candidates = [candidate for candidate in candidates if np.isfinite(candidate.cost)]
+        if not feasible_candidates and not action.is_lane_change:
+            nudge_candidates = self.sample_candidates(
+                agent,
+                action,
+                reference_path,
+                map_,
+                obstacle_trajectories,
+                time_ms=time_ms,
+                stop_target_info=stop_target_info,
+                conflict_points_cache=conflict_points_cache,
+                obstacle_footprints=obstacle_footprints,
+                start=start,
+                steps=steps,
+                target_state=target_state,
+                lateral_offsets=self._nudge_lateral_offsets(reference_path.lane_width),
             )
-        return min(candidates, key=lambda candidate: candidate.cost).states
+            feasible_candidates = [
+                candidate for candidate in nudge_candidates if np.isfinite(candidate.cost)
+            ]
+        if not feasible_candidates:
+            return self._stop_candidate(
+                agent,
+                action,
+                reference_path,
+                start,
+                obstacle_trajectories,
+                map_,
+                time_ms,
+                stop_target_info=stop_target_info,
+                conflict_points_cache=conflict_points_cache,
+                obstacle_footprints=obstacle_footprints,
+                steps=steps,
+            ).states
+        return min(feasible_candidates, key=lambda candidate: candidate.cost).states
+
+    def _slice_obstacles(
+        self, obstacle_trajectories: Sequence[Sequence[AgentDecisionState]], offset: int
+    ) -> list[Sequence[AgentDecisionState]]:
+        """Align obstacle predictions with a later piecewise planning segment."""
+
+        return [
+            trajectory[offset:] for trajectory in obstacle_trajectories if len(trajectory) > offset
+        ]
 
     def _precompute_obstacle_footprints(
         self, obstacle_trajectories: Sequence[Sequence[AgentDecisionState]]
@@ -224,40 +355,54 @@ class FrenetTrajectoryPlanner:
         stop_target_info: tuple[StopTarget, float] | None = None,
         conflict_points_cache: dict[tuple[str, str], list[Point]] | None = None,
         obstacle_footprints: list[list[object]] | None = None,
+        start: frenet.FrenetPoint | None = None,
+        steps: int | None = None,
+        target_state: AgentDecisionState | None = None,
+        lateral_offsets: Sequence[float] | None = None,
     ) -> list[FrenetCandidate]:
-        start = reference_path.cartesian_to_frenet(agent.x, agent.y)
+        if start is None:
+            start = reference_path.cartesian_to_frenet(
+                agent.x, agent.y, hint_s=reference_path.initial_s
+            )
         if not self._lane_change_is_allowed(agent, action, map_, start.s):
             return []
 
-        duration = max(self.config.dt, self.config.horizon_steps * self.config.dt)
-        nominal_speed = np.clip(
-            agent.speed + action.acceleration * duration,
-            self.config.min_speed,
-            self.config.max_speed,
+        planning_steps = self.config.horizon_steps if steps is None else max(1, int(steps))
+        duration = max(self.config.dt, planning_steps * self.config.dt)
+        desired_speed = float(
+            np.clip(agent.target_speed, self.config.min_speed, self.config.max_speed)
         )
-        nominal_d = self._target_lateral_offset(agent, action, map_, reference_path)
+        if target_state is None:
+            nominal_d = self._target_lateral_offset(agent, action, map_, reference_path)
+        else:
+            target = reference_path.cartesian_to_frenet(
+                target_state.x, target_state.y, hint_s=max(start.s, target_state.route_progress)
+            )
+            nominal_d = target.d
 
         candidates = []
-        for speed_offset in self.config.frenet_target_speed_offsets:
-            target_speed = float(
-                np.clip(nominal_speed + speed_offset, self.config.min_speed, self.config.max_speed)
-            )
-            for lateral_offset in self._sample_lateral_offsets(nominal_d, action):
+        for sampled_speed in self._sample_target_speeds(agent, target_state, map_):
+            for lateral_offset in self._sample_lateral_offsets(
+                nominal_d,
+                has_decision_target=target_state is not None,
+                explicit_offsets=lateral_offsets,
+            ):
                 states, accel_cost, jerk_cost = self._build_states(
                     agent,
                     action,
                     reference_path,
                     start,
-                    target_speed,
+                    sampled_speed,
                     lateral_offset,
                     duration,
                     map_,
+                    steps=planning_steps,
                 )
                 if not states:
                     continue
                 cost = self._cost(
                     states,
-                    target_speed,
+                    desired_speed,
                     nominal_d,
                     accel_cost,
                     jerk_cost,
@@ -272,6 +417,51 @@ class FrenetTrajectoryPlanner:
                 candidates.append(FrenetCandidate(states=states, cost=cost))
         return candidates
 
+    def _sample_target_speeds(
+        self,
+        agent: AgentDecisionState,
+        target_state: AgentDecisionState | None,
+        map_: Map | None,
+    ) -> list[float]:
+        """Return LimSim's lane-keeping or decision endpoint speed samples."""
+
+        speed_limit = self.config.max_speed
+        if map_ is not None and agent.lane_id is not None:
+            speed_limit = map_.get_speed_limit(agent.lane_id, default=speed_limit)
+        speed_limit = float(np.clip(speed_limit, self.config.min_speed, self.config.max_speed))
+        desired_speed = float(
+            np.clip(agent.target_speed, self.config.min_speed, self.config.max_speed)
+        )
+
+        if self.config.frenet_target_speed_offsets:
+            center_speed = target_state.speed if target_state is not None else desired_speed
+            return sorted(
+                {
+                    float(
+                        np.clip(
+                            center_speed + offset,
+                            self.config.min_speed,
+                            speed_limit,
+                        )
+                    )
+                    for offset in self.config.frenet_target_speed_offsets
+                }
+            )
+
+        speed_step = 2.5 / 3.6
+        if target_state is not None:
+            lower = max(1e-9, target_state.speed - 3.0 * speed_step)
+            upper = min(target_state.speed + speed_step, speed_limit)
+            sample_count = 10
+        else:
+            lower = max(1e-9, agent.speed - 2.0 * speed_step)
+            upper = min(
+                max(agent.speed, desired_speed) + 2.0 * speed_step * 1.01,
+                speed_limit,
+            )
+            sample_count = 5
+        return [float(speed) for speed in np.linspace(lower, upper, sample_count)]
+
     def _build_states(
         self,
         agent: AgentDecisionState,
@@ -282,9 +472,15 @@ class FrenetTrajectoryPlanner:
         target_d: float,
         duration: float,
         map_: Map | None,
+        steps: int | None = None,
     ) -> tuple[list[AgentDecisionState], float, float]:
         longitudinal = _QuarticPolynomial(
-            start.s, agent.speed, action.acceleration, target_speed, 0.0, duration
+            start.s,
+            agent.speed,
+            self._action_acceleration(action),
+            target_speed,
+            0.0,
+            duration,
         )
         lateral = _QuinticPolynomial(start.d, 0.0, 0.0, target_d, 0.0, 0.0, duration)
 
@@ -292,9 +488,14 @@ class FrenetTrajectoryPlanner:
         accel_cost = 0.0
         jerk_cost = 0.0
         previous_s = start.s
-        for step in range(1, self.config.horizon_steps + 1):
+        planning_steps = self.config.horizon_steps if steps is None else max(1, int(steps))
+        for step in range(1, planning_steps + 1):
             t = min(step * self.config.dt, duration)
-            s = float(np.clip(longitudinal.calculate(t), previous_s, reference_path.path.length))
+            # A recorded route can be shorter than the planning horizon. Stop
+            # this rollout at a true route endpoint instead of stacking states.
+            s = float(max(longitudinal.calculate(t), previous_s))
+            if reference_path.terminal and s > reference_path.path.length:
+                break
             d = lateral.calculate(t)
             x, y, heading = reference_path.frenet_to_cartesian(s, d)
             speed = max(longitudinal.calculate(t, order=1), self.config.min_speed)
@@ -334,7 +535,6 @@ class FrenetTrajectoryPlanner:
                     heading=heading,
                     speed=float(np.clip(speed, self.config.min_speed, self.config.max_speed)),
                     lane_id=lane_id,
-                    route_lane_ids=reference_path.lane_ids,
                     route_progress=s,
                     lateral_offset=float(d),
                     action=action,
@@ -350,7 +550,7 @@ class FrenetTrajectoryPlanner:
         reference_path: ReferencePath,
     ) -> float:
         if action not in {LimSimAction.LCL, LimSimAction.LCR}:
-            return agent.lateral_offset
+            return 0.0
         if map_ is None or agent.lane_id is None or agent.lane_id not in map_.lanes:
             return agent.lateral_offset
 
@@ -367,13 +567,35 @@ class FrenetTrajectoryPlanner:
         signed_distance = 0.5 * (reference_path.lane_width + neighbor_width)
         return signed_distance if action == LimSimAction.LCL else -signed_distance
 
-    def _sample_lateral_offsets(self, nominal_d: float, action: LimSimAction) -> list[float]:
-        if action not in {LimSimAction.LCL, LimSimAction.LCR}:
-            return [float(nominal_d)]  # single offset for longitudinal actions
-        if abs(nominal_d) < 1e-6:
-            return list(self.config.frenet_lateral_offsets)
-        # sample around the target lane center for lane changes
-        return [float(nominal_d + offset) for offset in self.config.frenet_lateral_offsets]
+    def _sample_lateral_offsets(
+        self,
+        nominal_d: float,
+        has_decision_target: bool = False,
+        explicit_offsets: Sequence[float] | None = None,
+    ) -> list[float]:
+        if explicit_offsets is not None:
+            return [float(offset) for offset in explicit_offsets]
+        if self.config.frenet_lateral_offsets:
+            return [float(nominal_d + offset) for offset in self.config.frenet_lateral_offsets]
+        if has_decision_target:
+            return [float(offset) for offset in np.linspace(nominal_d - 0.75, nominal_d + 0.75, 5)]
+        return [float(nominal_d)]
+
+    @staticmethod
+    def _nudge_lateral_offsets(lane_width: float) -> list[float]:
+        sample_count = max(2, int(lane_width / 0.75) + 1)
+        return [
+            float(offset)
+            for offset in np.linspace(-lane_width / 3.0, lane_width / 3.0, sample_count)
+            if abs(offset) > 1e-9
+        ]
+
+    def _action_acceleration(self, action: LimSimAction) -> float:
+        if action == LimSimAction.AC:
+            return self.config.acceleration
+        if action == LimSimAction.DC:
+            return self.config.deceleration
+        return 0.0
 
     def _lane_id_for_offset(
         self, agent: AgentDecisionState, d: float, action: LimSimAction, map_: Map | None
@@ -415,17 +637,25 @@ class FrenetTrajectoryPlanner:
             (state.lateral_offset - nominal_d) ** 2 for state in states
         )
 
-        ego_radius = 0.5 * (states[0].length ** 2 + states[0].width ** 2) ** 0.5 if states else 0.0
+        ego_radius = (
+            0.5 * ((states[0].length * 1.5) ** 2 + (states[0].width * 1.1) ** 2) ** 0.5
+            if states
+            else 0.0
+        )
         for step, state in enumerate(states):
-            ego_shape = _footprint(state)  # hoisted: compute once per step
+            ego_shape = _footprint(
+                state,
+                length=state.length * 1.5,
+                width=state.width * 1.1,
+            )
             for obs_idx, obstacle in enumerate(obstacle_trajectories):
-                if not obstacle:
+                if step >= len(obstacle):
                     continue
-                other = obstacle[min(step, len(obstacle) - 1)]
+                other = obstacle[step]
                 distance = spatial.euclidean_distance(state.location, other.location)
                 other_radius = 0.5 * (other.length**2 + other.width**2) ** 0.5
                 if distance > ego_radius + other_radius:
-                    # bounding circles don't overlap — can't collide
+                    # Bounding circles do not overlap, so collision is impossible.
                     if distance < self.config.frenet_obstacle_buffer:
                         cost += (
                             self.config.frenet_proximity_weight
@@ -441,7 +671,7 @@ class FrenetTrajectoryPlanner:
                     else _footprint(other)
                 )
                 if ego_shape.intersects(other_shape):
-                    cost += self.config.frenet_collision_penalty
+                    return float("inf")
                 elif distance < self.config.frenet_obstacle_buffer:
                     cost += (
                         self.config.frenet_proximity_weight
@@ -464,23 +694,27 @@ class FrenetTrajectoryPlanner:
         self,
         agent: AgentDecisionState,
         action: LimSimAction,
+        reference_path: ReferencePath,
+        start: FrenetPoint,
         obstacle_trajectories: Sequence[Sequence[AgentDecisionState]],
         map_: Map | None = None,
         time_ms: int | None = None,
         stop_target_info: tuple[StopTarget, float] | None = None,
         conflict_points_cache: dict[tuple[str, str], list[Point]] | None = None,
         obstacle_footprints: list[list[object]] | None = None,
+        steps: int | None = None,
     ) -> FrenetCandidate:
-        states = [
-            agent.with_updates(speed=0.0, action=action) for _ in range(self.config.horizon_steps)
-        ]
+        states, accel_cost, jerk_cost = self._build_deceleration_states(
+            agent, action, reference_path, start, steps=steps
+        )
         cost = self._cost(
             states,
             target_speed=0.0,
             nominal_d=agent.lateral_offset,
-            accel_cost=0.0,
-            jerk_cost=0.0,
+            accel_cost=accel_cost,
+            jerk_cost=jerk_cost,
             obstacle_trajectories=obstacle_trajectories,
+            reference_path=reference_path,
             map_=map_,
             time_ms=time_ms,
             stop_target_info=stop_target_info,
@@ -488,36 +722,6 @@ class FrenetTrajectoryPlanner:
             obstacle_footprints=obstacle_footprints,
         )
         return FrenetCandidate(states=states, cost=cost)
-
-    def _has_collision(
-        self,
-        states: Sequence[AgentDecisionState],
-        obstacle_trajectories: Sequence[Sequence[AgentDecisionState]],
-        obstacle_footprints: list[list[object]] | None = None,
-    ) -> bool:
-        for step, state in enumerate(states):
-            ego_radius = 0.5 * (state.length**2 + state.width**2) ** 0.5
-            ego_shape = _footprint(state)  # hoisted: compute once per step
-            for obs_idx, obstacle in enumerate(obstacle_trajectories):
-                if not obstacle:
-                    continue
-                other = obstacle[min(step, len(obstacle) - 1)]
-                other_radius = 0.5 * (other.length**2 + other.width**2) ** 0.5
-                if (
-                    spatial.euclidean_distance(state.location, other.location)
-                    > ego_radius + other_radius
-                ):
-                    continue
-                other_shape = (
-                    obstacle_footprints[obs_idx][step]
-                    if obstacle_footprints is not None
-                    and obs_idx < len(obstacle_footprints)
-                    and step < len(obstacle_footprints[obs_idx])
-                    else _footprint(other)
-                )
-                if ego_shape.intersects(other_shape):
-                    return True
-        return False
 
     def _lane_change_is_allowed(
         self, agent: AgentDecisionState, action: LimSimAction, map_: Map | None, s: float
@@ -535,14 +739,18 @@ class FrenetTrajectoryPlanner:
         reference_path: ReferencePath,
         map_: Map | None,
         time_ms: int | None = None,
+        steps: int | None = None,
     ) -> tuple[StopTarget, float] | None:
         if map_ is None:
             return None
         query = SemanticMapQuery(map_)
-        start = reference_path.cartesian_to_frenet(agent.x, agent.y)
+        start = reference_path.cartesian_to_frenet(
+            agent.x, agent.y, hint_s=reference_path.initial_s
+        )
+        planning_steps = self.config.horizon_steps if steps is None else max(1, int(steps))
         max_s = min(
             reference_path.path.length,
-            start.s + max(agent.speed * self.config.horizon_steps * self.config.dt, 5.0),
+            start.s + max(agent.speed * planning_steps * self.config.dt, 5.0),
         )
 
         candidates = []
@@ -580,51 +788,20 @@ class FrenetTrajectoryPlanner:
         time_ms: int | None = None,
         conflict_points_cache: dict[tuple[str, str], list[Point]] | None = None,
         obstacle_footprints: list[list[object]] | None = None,
+        steps: int | None = None,
     ) -> FrenetCandidate:
         _, stop_s = stop_target_info
         target_s = max(start.s, stop_s - self.config.frenet_stop_distance_buffer)
-        distance_to_stop = max(target_s - start.s, 0.0)
-        if distance_to_stop <= 1e-6:
-            deceleration = self.config.frenet_stop_deceleration
-        else:
-            deceleration = min(
-                self.config.frenet_stop_deceleration,
-                max(agent.speed**2 / (2.0 * distance_to_stop), 0.0),
-            )
-
-        states = []
-        current_s = start.s
-        previous_speed = agent.speed
-        accel_cost = 0.0
-        for _ in range(1, self.config.horizon_steps + 1):
-            speed = max(previous_speed - deceleration * self.config.dt, 0.0)
-            travel = 0.5 * (previous_speed + speed) * self.config.dt
-            current_s = min(current_s + travel, target_s)
-            if current_s >= target_s - 1e-6:
-                speed = 0.0
-            x, y, heading = reference_path.frenet_to_cartesian(current_s, 0.0)
-            states.append(
-                agent.with_updates(
-                    x=x,
-                    y=y,
-                    heading=heading,
-                    speed=speed,
-                    lane_id=agent.lane_id,
-                    route_lane_ids=reference_path.lane_ids,
-                    route_progress=current_s,
-                    lateral_offset=0.0,
-                    action=action,
-                )
-            )
-            accel_cost += deceleration**2
-            previous_speed = speed
+        states, accel_cost, jerk_cost = self._build_deceleration_states(
+            agent, action, reference_path, start, target_s=target_s, lateral_offset=0.0, steps=steps
+        )
 
         cost = self._cost(
             states,
             target_speed=0.0,
             nominal_d=0.0,
             accel_cost=accel_cost,
-            jerk_cost=0.0,
+            jerk_cost=jerk_cost,
             obstacle_trajectories=obstacle_trajectories,
             reference_path=reference_path,
             map_=map_,
@@ -634,6 +811,65 @@ class FrenetTrajectoryPlanner:
             obstacle_footprints=obstacle_footprints,
         )
         return FrenetCandidate(states=states, cost=cost)
+
+    def _build_deceleration_states(
+        self,
+        agent: AgentDecisionState,
+        action: LimSimAction,
+        reference_path: ReferencePath,
+        start: FrenetPoint,
+        target_s: float | None = None,
+        lateral_offset: float | None = None,
+        steps: int | None = None,
+    ) -> tuple[list[AgentDecisionState], float, float]:
+        """Roll out a physically continuous braking trajectory."""
+
+        if target_s is None:
+            deceleration = self.config.frenet_stop_deceleration
+        else:
+            distance_to_stop = max(target_s - start.s, 0.0)
+            deceleration = (
+                self.config.frenet_stop_deceleration
+                if distance_to_stop <= 1e-6
+                else min(
+                    self.config.frenet_stop_deceleration, agent.speed**2 / (2.0 * distance_to_stop)
+                )
+            )
+
+        offset = agent.lateral_offset if lateral_offset is None else lateral_offset
+        states = []
+        current_s = start.s
+        previous_speed = agent.speed
+        previous_acceleration = self._action_acceleration(action)
+        accel_cost = 0.0
+        jerk_cost = 0.0
+        planning_steps = self.config.horizon_steps if steps is None else max(1, int(steps))
+        for _ in range(planning_steps):
+            speed = max(previous_speed - deceleration * self.config.dt, 0.0)
+            travel = 0.5 * (previous_speed + speed) * self.config.dt
+            if reference_path.terminal and current_s + travel > reference_path.path.length:
+                break
+            current_s += travel
+            x, y, heading = reference_path.frenet_to_cartesian(current_s, offset)
+            acceleration = (speed - previous_speed) / self.config.dt
+            jerk = (acceleration - previous_acceleration) / self.config.dt
+            accel_cost += acceleration**2
+            jerk_cost += jerk**2
+            states.append(
+                agent.with_updates(
+                    x=x,
+                    y=y,
+                    heading=heading,
+                    speed=speed,
+                    lane_id=agent.lane_id,
+                    route_progress=current_s,
+                    lateral_offset=offset,
+                    action=action,
+                )
+            )
+            previous_speed = speed
+            previous_acceleration = acceleration
+        return states, accel_cost, jerk_cost
 
     def _stop_rule_cost(
         self,
@@ -656,7 +892,9 @@ class FrenetTrajectoryPlanner:
         stop_s = max(0.0, stop_s - self.config.frenet_stop_distance_buffer)
         cost = 0.0
         for state in states:
-            frenet = reference_path.cartesian_to_frenet(state.x, state.y)
+            frenet = reference_path.cartesian_to_frenet(
+                state.x, state.y, hint_s=state.route_progress
+            )
             if frenet.s >= stop_s and state.speed > self.config.frenet_stop_speed_threshold:
                 cost += self.config.frenet_stop_line_penalty * (
                     1.0 + state.speed - self.config.frenet_stop_speed_threshold
@@ -737,70 +975,69 @@ def reference_path_from_agent(
     if map_ is None or agent.lane_id is None or agent.lane_id not in map_.lanes:
         return None
 
-    # --- use pre-extracted route when available ---
-    if len(agent.route_lane_ids) > 1:
-        try:
-            idx = agent.route_lane_ids.index(agent.lane_id)
-        except ValueError:
-            idx = -1
-        if idx >= 0:
-            route_lanes = list(agent.route_lane_ids[idx : idx + config.max_routes_per_agent])
-        else:
-            route_lanes = [agent.lane_id]
-            current_lane_id = agent.lane_id
-            while len(route_lanes) < config.max_routes_per_agent:
-                current_lane = map_.lanes.get(current_lane_id)
-                if current_lane is None or not current_lane.successors:
-                    break
-                candidates = sorted(current_lane.successors)
-                picked = candidates[0]
-                for c in candidates:
-                    if c in agent.route_lane_ids:
-                        picked = c
-                        break
-                if picked in route_lanes or picked not in map_.lanes:
-                    break
-                route_lanes.append(picked)
-                current_lane_id = picked
-    else:
-        route_lanes = [agent.lane_id]
-        current_lane_id = agent.lane_id
-        while len(route_lanes) < config.max_routes_per_agent:
-            current_lane = map_.lanes.get(current_lane_id)
-            if current_lane is None or not current_lane.successors:
-                break
-            next_lane_id = sorted(current_lane.successors)[0]
-            if next_lane_id in route_lanes or next_lane_id not in map_.lanes:
-                break
-            route_lanes.append(next_lane_id)
-            current_lane_id = next_lane_id
+    # A known multi-lane route is the low-level navigation constraint.  The
+    # local available-lane approximation can lag on short lanelets, so it must
+    # not truncate that route.  Topology-only fallback remains constrained.
+    route_agent = (
+        agent.with_updates(available_lane_ids=frozenset())
+        if len(agent.route_lane_ids) > 1
+        else agent
+    )
+    route_lanes = route_lanes_from_agent(route_agent, map_, config.max_routes_per_agent)
 
+    # Never concatenate disconnected lane centerlines.  A missing or
+    # incorrect topology relation must shorten the reference path rather than
+    # create a long straight bridge across the map.
+    route_lanes = _continuous_route_lanes(route_lanes, map_, agent.route_lane_ids)
     route_lanes_tuple = tuple(route_lanes)
     lane_width = _lane_width(map_.lanes[agent.lane_id], config.default_lane_width)
 
     # --- check cache for pre-built centerline concatenation ---
-    cache_key = (id(map_), route_lanes_tuple)
+    cache_key = (id(map_), route_lanes_tuple, tuple(agent.route_lane_ids))
     if cache is not None and cache_key in cache:
         cached_array, _, cached_width = cache[cache_key]
         path_array = cached_array.copy()  # copy before alignment may reverse
         lane_width = cached_width
     else:
-        centerlines = []
-        for lane_id in route_lanes:
-            centerline = map_.lanes[lane_id].centerline()
-            centerlines.append(
-                np.asarray(centerline.coords, dtype=float) if centerline is not None else None
-            )
-        path_array = polyline.concatenate(centerlines)
+        path_array = _route_path_from_lanes(route_lanes, map_, agent.route_lane_ids)
         if path_array is None or len(path_array) < 2:
             return None
         if cache is not None:
             cache[cache_key] = (path_array.copy(), route_lanes_tuple, lane_width)
 
-    path_array = frenet.align_path_with_heading(path_array, agent.x, agent.y, agent.heading)
+    path_line = LineString(path_array)
+    initial_s = None
+    if route_lanes and route_lanes[0] == agent.lane_id:
+        current_lane = map_.lanes.get(agent.lane_id)
+        current_centerline = current_lane.centerline() if current_lane is not None else None
+        if current_centerline is not None and current_centerline.length > 1e-6:
+            prefix_limit = min(path_line.length, float(current_centerline.length) + 4.0)
+            prefix = substring(path_line, 0.0, prefix_limit)
+            initial_s = float(prefix.project(Point(agent.x, agent.y)))
 
-    return frenet.ReferencePath(LineString(path_array), route_lanes_tuple, lane_width=lane_width)
+    aligned = frenet.align_path_with_heading(
+        path_array, agent.x, agent.y, agent.heading, progress_hint=initial_s
+    )
+    if initial_s is not None and np.allclose(aligned, path_array[::-1]):
+        initial_s = float(path_line.length - initial_s)
+
+    terminal = not route_has_continuation(
+        route_lanes, map_, agent.route_lane_ids, route_agent.available_lane_ids
+    )
+    return frenet.ReferencePath(
+        LineString(aligned),
+        route_lanes_tuple,
+        lane_width=lane_width,
+        initial_s=initial_s,
+        terminal=terminal,
+    )
 
 
-def _footprint(state: AgentDecisionState):
-    return spatial.oriented_box(state.x, state.y, state.heading, state.length, state.width)
+def _footprint(state: AgentDecisionState, length: float | None = None, width: float | None = None):
+    return spatial.oriented_box(
+        state.x,
+        state.y,
+        state.heading,
+        state.length if length is None else length,
+        state.width if width is None else width,
+    )

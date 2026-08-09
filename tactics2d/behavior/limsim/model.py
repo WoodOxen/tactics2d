@@ -3,7 +3,7 @@
 
 """Public LimSim-style behavior model entry point."""
 
-from typing import Dict, Iterable, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -17,12 +17,17 @@ from .action import LimSimAction
 from .config import LimSimConfig
 from .decision_search import LimSimDecisionSearch
 from .frenet_planner import FrenetTrajectoryPlanner
-from .interaction import InteractionGraph, first_collision_info
+from .interaction import InteractionGraph
 from .lane_follower import LaneFollower
-from .prediction import LimSimPredictor
 from .roi import RoISelector
 from .scene import SceneBuilder
-from .schema import AgentDecisionState, PlanningResult, states_to_trajectory
+from .schema import (
+    AgentDecisionState,
+    DecisionStep,
+    PlanningResult,
+    decision_sequence_covers_horizon,
+    states_to_trajectory,
+)
 
 
 class LimSimBehaviorModel(BehaviorModelBase):
@@ -40,7 +45,14 @@ class LimSimBehaviorModel(BehaviorModelBase):
         self.decision_search = LimSimDecisionSearch(self.config)
         self.follower = LaneFollower(self.config)
         self.trajectory_planner = FrenetTrajectoryPlanner(self.config)
-        self.predictor = LimSimPredictor(self.config)
+        try:
+            decision_interval_ms = int(round(float(self.config.decision_interval) * 1000))
+        except (TypeError, ValueError) as error:
+            raise ValueError("decision_interval must be a positive number of seconds.") from error
+        if decision_interval_ms <= 0:
+            raise ValueError("decision_interval must be positive.")
+        self._decision_interval_ms = decision_interval_ms
+        self._reset_decision_cache()
 
     def plan(
         self,
@@ -65,13 +77,14 @@ class LimSimBehaviorModel(BehaviorModelBase):
             route_map: ``{agent_id: (lane_id_0, lane_id_1, ...)}`` mapping
                 each vehicle to its ordered lane sequence.  Pass an empty
                 dict to fall back to pure lane-topology routing (successors
-                are chosen arbitrarily — not recommended).
+                are chosen arbitrarily; not recommended).
             agent_ids: Optional explicit ids to control. If omitted, all active
                 vehicles are considered unless an RoI is requested.
             roi_center: Center point used with ``roi_radius`` when no ``ego_id``
                 is provided.
             roi_radius: Inner RoI radius. Vehicles inside this region are
-                controlled by LimSim.
+                planning candidates for LimSim. A replay controller may apply
+                an additional interaction-based takeover policy.
             roi_outer_radius: Optional outer RoI radius. Vehicles between the
                 inner and outer radii are treated as background obstacles.
             ego_id: Optional participant id whose current position defines the
@@ -129,13 +142,6 @@ class LimSimBehaviorModel(BehaviorModelBase):
             background_states,
             last_planned_trajectories=last_planned_trajectories,
         )
-        scene_predictions = self._predict_obstacle_trajectories(
-            participants,
-            map_,
-            frame,
-            scene_states,
-            last_planned_trajectories=last_planned_trajectories,
-        )
         groups = self.interaction_graph.build_groups(scene_states, map_)
         result = PlanningResult(
             groups=groups,
@@ -143,46 +149,62 @@ class LimSimBehaviorModel(BehaviorModelBase):
             background_agent_ids=background_ids,
         )
         rough_trajectories = {}
-        decided_trajectories = {}
-        decided_ids: set = set()
-
-        for group in groups:
-            agents = [scene_states[agent_id] for agent_id in group]
-            group_obstacles = list(background_trajectories.values())
-            # previously decided groups: use actual MCTS decisions (original paper §3.2)
-            group_obstacles.extend(decided_trajectories.values())
-            # not-yet-decided groups: use constant-speed predictions as placeholders
-            group_obstacles.extend(
-                scene_predictions[other_id]
-                for other_id in scene_states
-                if other_id not in group
-                and other_id in scene_predictions
-                and other_id not in decided_ids
-            )
-            if len(agents) <= 1:
-                agent = agents[0]
-                action = self._choose_single_agent_action(
-                    agent, map_, group_obstacles, time_ms=frame
+        if self._decision_refresh_due(frame):
+            refreshed_decisions = {}
+            for group in groups:
+                agents = [scene_states[agent_id] for agent_id in group]
+                _, trajectories, decisions, root = self.decision_search._plan_with_decisions(
+                    agents,
+                    map_,
+                    obstacle_trajectories=tuple(background_trajectories.values()),
+                    start_frame=frame,
+                    obstacle_initial_states=tuple(background_states.values()),
+                    completed_decisions=tuple(
+                        sequence for sequence in refreshed_decisions.values() if sequence
+                    ),
                 )
-                result.actions[agent.agent_id] = action
-                rough_trajectories[agent.agent_id] = self.follower.rollout(agent, action, map_)
-                decided_trajectories[agent.agent_id] = rough_trajectories[agent.agent_id]
-                decided_ids.add(agent.agent_id)
-                continue
+                result.root_nodes[tuple(group)] = root
+                for agent in agents:
+                    agent_decisions = decisions.get(agent.agent_id, [])
+                    refreshed_decisions[agent.agent_id] = agent_decisions
+                    if agent_decisions:
+                        rough_trajectories[agent.agent_id] = trajectories[agent.agent_id]
 
-            actions, trajectories, root = self.decision_search.plan(
-                agents, map_, obstacle_trajectories=group_obstacles
+            self._decision_sequences = refreshed_decisions
+            self._last_decision_frame = frame
+
+        active_decisions = {}
+        for agent in scene_states.values():
+            cached_decisions = self._remaining_decisions(agent.agent_id, frame)
+            decisions = (
+                cached_decisions
+                if decision_sequence_covers_horizon(
+                    cached_decisions, frame, self.config.horizon_steps, self.config.step_ms
+                )
+                else []
             )
-            result.root_nodes[tuple(group)] = root
-            for agent in agents:
-                result.actions[agent.agent_id] = actions[agent.agent_id]
-                rough_trajectories[agent.agent_id] = trajectories[agent.agent_id]
-                decided_trajectories[agent.agent_id] = trajectories[agent.agent_id]
-                decided_ids.add(agent.agent_id)
+            active_decisions[agent.agent_id] = decisions
+            action = (
+                decisions[0].action
+                if decisions
+                else self.decision_search._fallback_action(agent, map_)
+            )
+            result.actions[agent.agent_id] = action
+            if not decisions:
+                rough_trajectories[agent.agent_id] = self.follower.rollout(agent, action, map_)
+            elif agent.agent_id not in rough_trajectories:
+                rough_trajectories[agent.agent_id] = self.decision_search._dense_rough_trajectory(
+                    agent,
+                    decisions,
+                    frame,
+                    map_,
+                    fallback_action=action,
+                )
 
         final_state_trajectories = {}
         for agent in scene_states.values():
             action = result.actions[agent.agent_id]
+            decisions = active_decisions[agent.agent_id]
             rough = rough_trajectories.get(agent.agent_id, [])
 
             if not self.config.use_frenet_refinement:
@@ -207,22 +229,8 @@ class LimSimBehaviorModel(BehaviorModelBase):
                 if other_id != agent.agent_id and other_id not in final_state_trajectories
             )
 
-            # --- skip expensive Frenet refinement when the MCTS rough trajectory
-            #     is already collision-free and not a lane change ---
-            obstacles = [obs for obs in planning_obstacles if obs]
-            if (
-                action not in {LimSimAction.LCL, LimSimAction.LCR}
-                and rough
-                and not any(first_collision_info([rough, obs]) is not None for obs in obstacles)
-            ):
-                final_state_trajectories[agent.agent_id] = rough
-                result.trajectories[agent.agent_id] = states_to_trajectory(
-                    agent.agent_id, rough, frame, self.config.dt
-                )
-                continue
-
             planned_states = self.trajectory_planner.plan(
-                agent, action, map_, planning_obstacles, time_ms=frame
+                agent, action, map_, planning_obstacles, time_ms=frame, decision_sequence=decisions
             )
             final_state_trajectories[agent.agent_id] = planned_states
             result.trajectories[agent.agent_id] = states_to_trajectory(
@@ -230,6 +238,27 @@ class LimSimBehaviorModel(BehaviorModelBase):
             )
 
         return result
+
+    def _reset_decision_cache(self):
+        """Clear high-level decisions at the boundary of one simulation run."""
+
+        self._last_decision_frame = None
+        self._decision_sequences = {}
+
+    def _decision_refresh_due(self, frame: int) -> bool:
+        if self._last_decision_frame is None:
+            return True
+        if frame < self._last_decision_frame:
+            self._reset_decision_cache()
+            return True
+        return frame - self._last_decision_frame >= self._decision_interval_ms
+
+    def _remaining_decisions(self, agent_id, frame: int) -> List[DecisionStep]:
+        return [
+            decision
+            for decision in self._decision_sequences.get(agent_id, ())
+            if decision.expected_frame > frame
+        ]
 
     def predict(
         self,
@@ -261,6 +290,38 @@ class LimSimBehaviorModel(BehaviorModelBase):
             route_map=route_map if route_map is not None else {},
             agent_ids=agent_ids,
         ).trajectories
+
+    def predict_batch(
+        self,
+        participants: Dict[object, object],
+        map_: Optional[Map],
+        frames: List[int],
+        agent_ids: Optional[Iterable[object]] = None,
+        max_workers: Optional[int] = None,
+        route_map: Optional[Dict[object, Tuple[str, ...]]] = None,
+    ) -> Dict[int, Dict[object, Trajectory]]:
+        """Predict an ordered frame batch in an isolated LimSim session.
+
+        LimSim's high-level decisions, route cursor, and MCTS expansion cache
+        are temporal state. A batch therefore runs chronologically on one fresh
+        model instead of sharing this instance across worker threads.
+        ``max_workers`` is retained for interface compatibility but ignored.
+        """
+
+        del max_workers
+        batch_model = type(self)(config=self.config, parallel_workers=0)
+        selected_ids = None if agent_ids is None else tuple(agent_ids)
+        kwargs = {"agent_ids": selected_ids}
+        if route_map is not None:
+            kwargs["route_map"] = route_map
+
+        result = {}
+        for frame in sorted(set(frames)):
+            try:
+                result[frame] = batch_model.predict(participants, map_, frame, **kwargs)
+            except Exception:
+                result[frame] = {}
+        return result
 
     def _filter_controlled_vehicle_ids(
         self, participants: Dict[object, object], agent_ids: Optional[Iterable[object]]
@@ -347,31 +408,3 @@ class LimSimBehaviorModel(BehaviorModelBase):
                 )
             )
         return states
-
-    def _choose_single_agent_action(
-        self, agent, map_: Optional[Map], background_trajectories, time_ms: Optional[int] = None
-    ) -> LimSimAction:
-        candidates = [
-            action
-            for action in self.config.candidate_actions
-            if action in {LimSimAction.KS, LimSimAction.AC, LimSimAction.DC}
-        ]
-        if not background_trajectories:
-            return LimSimAction.KS
-
-        best_action = LimSimAction.KS
-        best_reward = float("-inf")
-        for action in candidates:
-            if self.config.use_frenet_refinement:
-                trajectory = self.trajectory_planner.plan(
-                    agent, action, map_, background_trajectories, time_ms=time_ms
-                )
-            else:
-                trajectory = self.follower.rollout(agent, action, map_)
-            reward = self.decision_search.reward.evaluate(
-                [agent], {agent.agent_id: trajectory}, background_trajectories
-            )
-            if reward > best_reward:
-                best_reward = reward
-                best_action = action
-        return best_action

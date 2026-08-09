@@ -3,6 +3,8 @@
 
 """Frenet coordinate helpers for reference-path based planning."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Tuple
 
@@ -23,16 +25,30 @@ class FrenetPoint:
 class ReferencePath:
     """A route reference path with Cartesian/Frenet conversion helpers."""
 
-    def __init__(self, path: LineString, lane_ids: Tuple[str, ...] = (), lane_width: float = 0.0):
+    def __init__(
+        self,
+        path: LineString,
+        lane_ids: Tuple[str, ...] = (),
+        lane_width: float = 0.0,
+        initial_s: float | None = None,
+        terminal: bool = False,
+    ):
         self.path = path
         self.lane_ids = lane_ids
         self.lane_width = lane_width
+        self.initial_s = initial_s
+        self.terminal = terminal
 
-    def cartesian_to_frenet(self, x: float, y: float) -> FrenetPoint:
+    def cartesian_to_frenet(
+        self, x: float, y: float, hint_s: float | None = None
+    ) -> FrenetPoint:
         """Project a Cartesian point to Frenet coordinates on this reference path."""
 
         point = Point(x, y)
-        s = float(self.path.project(point))
+        if hint_s is None:
+            s = float(self.path.project(point))
+        else:
+            s = float(np.clip(hint_s, 0.0, self.path.length))
         ref_point = self.path.interpolate(s)
         heading = self.heading_at(s)
         dx = x - ref_point.x
@@ -43,11 +59,14 @@ class ReferencePath:
     def frenet_to_cartesian(self, s: float, d: float) -> Tuple[float, float, float]:
         """Convert Frenet coordinates to Cartesian pose on this reference path."""
 
-        s = float(np.clip(s, 0.0, self.path.length))
-        point = self.path.interpolate(s)
-        heading = self.heading_at(s)
-        x = float(point.x - d * np.sin(heading))
-        y = float(point.y + d * np.cos(heading))
+        requested_s = float(s)
+        path_s = float(np.clip(requested_s, 0.0, self.path.length))
+        point = self.path.interpolate(path_s)
+        heading = self.heading_at(path_s)
+        center_x = point.x
+        center_y = point.y
+        x = float(center_x - d * np.sin(heading))
+        y = float(center_y + d * np.cos(heading))
         return x, y, heading
 
     def heading_at(self, s: float) -> float:
@@ -60,7 +79,11 @@ class ReferencePath:
 
 
 def align_path_with_heading(
-    path_array: np.ndarray, x: float, y: float, heading: float
+    path_array: np.ndarray,
+    x: float,
+    y: float,
+    heading: float,
+    progress_hint: float | None = None,
 ) -> np.ndarray:
     """Ensure a polyline path direction is consistent with a given heading.
 
@@ -73,12 +96,19 @@ def align_path_with_heading(
         x: Reference x-coordinate.
         y: Reference y-coordinate.
         heading: Desired heading in radians.
+        progress_hint: Optional path progress to use instead of projecting to
+            the entire route. This avoids selecting a later occurrence on a
+            self-near route.
 
     Returns:
         The path array, reversed if the local tangent opposes *heading*.
     """
     line = LineString(path_array)
-    progress = float(line.project(Point(x, y)))
+    progress = (
+        float(np.clip(progress_hint, 0.0, line.length))
+        if progress_hint is not None
+        else float(line.project(Point(x, y)))
+    )
     point = line.interpolate(progress)
     ahead = line.interpolate(min(progress + 0.5, line.length))
     if ahead.distance(point) < 1e-6:

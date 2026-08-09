@@ -14,7 +14,12 @@ from .parse_levelx import LevelXParser
 from .parse_ngsim import NGSIMParser
 from .parse_nuplan import NuPlanParser
 from .parse_womd import WOMDParser
-from .route_extractor import extract_all_lane_sequences, extract_lane_sequence, match_lane_for_state
+from .route_extractor import (
+    extract_all_lane_sequences,
+    extract_lane_sequence,
+    infer_lane_topology,
+    match_lane_for_state,
+)
 
 __all__ = [
     "Argoverse2Parser",
@@ -29,5 +34,6 @@ __all__ = [
     "LEVELX_DATASETS",
     "extract_lane_sequence",
     "extract_all_lane_sequences",
+    "infer_lane_topology",
     "match_lane_for_state",
 ]

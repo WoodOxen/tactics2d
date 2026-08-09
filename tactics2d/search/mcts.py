@@ -114,8 +114,9 @@ class MCTS:
             node.total_reward += reward
             node = node.parent
 
-    def plan(self, start: ArrayLike, max_try: int = 1e2):
-        root = self.Node(state=start)
+    def search(self, root, max_try: int = 1e2):
+        """Run additional simulations from an existing tree node."""
+
         for _ in range(int(max_try)):
             node = self._select(root)
             if not self.terminal_fn(node.state):
@@ -125,6 +126,11 @@ class MCTS:
                 child = node
                 reward = self.reward_fn(child.state)
             self._back_propagate(child, reward)
+        return root
+
+    def plan(self, start: ArrayLike, max_try: int = 1e2):
+        root = self.Node(state=start)
+        self.search(root, max_try)
 
         best_child = self._get_best_child(root)
         if best_child is None:

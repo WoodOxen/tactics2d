@@ -472,7 +472,7 @@ def cut(line: LineString, pt: Point, keep: str) -> np.ndarray:
 def smooth_joint(
     prev_tail: np.ndarray, next_head: np.ndarray, kink_angle_threshold_deg: float = 15.0
 ) -> np.ndarray | None:
-    """Return interpolated arc points when two segments meet at a kink.
+    """Return a replacement arc when two segments meet at a kink.
 
     ``prev_tail`` is the last *k* points of the previous polyline (k >= 2).
     ``next_head`` is the first *k* points of the next polyline (k >= 2).
@@ -485,9 +485,14 @@ def smooth_joint(
             smoothing arc is inserted. Defaults to 15.0.
 
     Returns:
-        Interpolated arc points with shape ``(M, 2)``, or ``None`` if the
-        joint is smooth enough.
+        Interpolated arc points with shape ``(M, 2)``.  The first and last
+        points lie on the incoming and outgoing segments respectively, so
+        callers must replace the original joint rather than append the arc
+        after it.  Returns ``None`` if the joint is smooth enough.
     """
+    if len(prev_tail) < 2 or len(next_head) < 2:
+        return None
+
     p_joint = prev_tail[-1]
     q_joint = next_head[0]
 
@@ -516,12 +521,7 @@ def smooth_joint(
     arc = cubic_hermite_points(
         p_start, v_in_unit * arc_len, p_end, v_out_unit * arc_len, num_points
     )
-
-    mask = (np.linalg.norm(arc - p_joint, axis=1) >= 0.01) & (
-        np.linalg.norm(arc - q_joint, axis=1) >= 0.01
-    )
-    interior = arc[mask]
-    return interior if len(interior) >= 2 else None
+    return arc if len(arc) >= 2 else None
 
 
 def concatenate(
@@ -554,12 +554,29 @@ def concatenate(
             n_head = min(3, len(polyline))
             arc = smooth_joint(previous[-n_tail:], polyline[:n_head], kink_angle_threshold_deg)
             if arc is not None:
+                # ``arc`` starts before the common joint and ends after it.
+                # Keeping the joint here would make the path travel backwards
+                # to the start of the arc and produce a 180-degree heading
+                # discontinuity.  Remove the old joint so the arc replaces
+                # the adjacent ends of both polylines.
+                merged[-1] = previous[:-1]
                 merged.append(arc)
-            merged.append(polyline[1:].copy())
+            if len(polyline) > 1:
+                merged.append(polyline[1:].copy())
         else:
             merged.append(polyline.copy())
 
     if not merged:
         return None
 
-    return np.vstack(merged)
+    path = np.vstack([part for part in merged if len(part) > 0])
+    if len(path) < 2:
+        return path
+
+    # The replacement arc may start or end exactly on a sampled point of an
+    # adjacent segment.  Remove only consecutive duplicates; retaining them
+    # would leave a zero-length step with an undefined heading.
+    keep = np.concatenate(
+        ([True], np.linalg.norm(np.diff(path, axis=0), axis=1) > 1e-8)
+    )
+    return path[keep]

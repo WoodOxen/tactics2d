@@ -3,6 +3,7 @@
 
 """Configuration for the LimSim-style interactive behavior model."""
 
+import math
 from dataclasses import dataclass, field
 from typing import Tuple
 
@@ -39,8 +40,12 @@ class LimSimConfig:
     default_vehicle_width: float = 1.9
     default_lane_width: float = 3.6
     lateral_speed: float = 1.17
-    frenet_target_speed_offsets: Tuple[float, ...] = (-1.0, 0.0, 1.0)
-    frenet_lateral_offsets: Tuple[float, ...] = (-0.3, 0.0, 0.3)
+    # Empty uses LimSim's native current/desired-speed sampling range.  A
+    # non-empty tuple remains an explicit override around the sampled target.
+    frenet_target_speed_offsets: Tuple[float, ...] = ()
+    # Empty uses LimSim's native decision/nudge lateral samples.  A non-empty
+    # tuple remains an explicit offset override around the target position.
+    frenet_lateral_offsets: Tuple[float, ...] = ()
     frenet_collision_penalty: float = 5000.0
     frenet_obstacle_buffer: float = 2.0
     frenet_proximity_weight: float = 30.0
@@ -76,6 +81,10 @@ class LimSimConfig:
             LimSimAction.LCR,
         )
     )
+    planning_interval: float = 0.5
+    decision_interval: float = 3.0
+    max_decision_time: float = 7.0
+    default_target_speed: float = 30.0 / 3.6
 
     @property
     def step_ms(self) -> int:
@@ -88,3 +97,13 @@ class LimSimConfig:
         """Return the number of future planning states."""
 
         return self.horizon_steps
+
+    @property
+    def max_flowstate_depth(self) -> int:
+        """Return the number of transitions before official FlowState termination."""
+
+        if self.decision_resolution <= 0.0:
+            raise ValueError("decision_resolution must be positive.")
+        if self.max_decision_time <= 0.0:
+            raise ValueError("max_decision_time must be positive.")
+        return max(1, int(math.ceil(self.max_decision_time / self.decision_resolution)))

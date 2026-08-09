@@ -5,7 +5,7 @@
 
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, FrozenSet, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -90,6 +90,9 @@ class AgentDecisionState:
     length: float = 4.8
     width: float = 1.9
     action: LimSimAction = LimSimAction.KS
+    available_lane_ids: FrozenSet[str] = frozenset()
+    behaviour: LimSimAction = LimSimAction.KS
+    target_speed: float = 30.0 / 3.6
 
     @property
     def location(self) -> Tuple[float, float]:
@@ -116,11 +119,33 @@ class AgentDecisionState:
             lane_id=kwargs.pop("lane_id", self.lane_id),
             lateral_offset=kwargs.pop("lateral_offset", self.lateral_offset),
             route_lane_ids=kwargs.pop("route_lane_ids", self.route_lane_ids),
+            available_lane_ids=kwargs.pop("available_lane_ids", self.available_lane_ids),
             route_progress=kwargs.pop("route_progress", self.route_progress),
             length=kwargs.pop("length", self.length),
             width=kwargs.pop("width", self.width),
             action=kwargs.pop("action", self.action),
+            behaviour=kwargs.pop("behaviour", self.behaviour),
+            target_speed=kwargs.pop("target_speed", self.target_speed),
         )
+
+
+@dataclass(frozen=True)
+class DecisionStep:
+    """One timed high-level target selected by chained MCTS."""
+
+    action: LimSimAction
+    expected_state: AgentDecisionState
+    expected_frame: int
+
+
+def decision_sequence_covers_horizon(
+    decisions: Sequence[DecisionStep], start_frame: int, horizon_steps: int, step_ms: int
+) -> bool:
+    """Return whether a timed decision list covers the full planning horizon."""
+
+    return bool(decisions) and max(step.expected_frame for step in decisions) >= (
+        start_frame + horizon_steps * step_ms
+    )
 
 
 @dataclass(frozen=True)
@@ -130,10 +155,27 @@ class JointDecisionState:
     agents: Tuple[AgentDecisionState, ...]
     depth: int = 0
     trajectories: Tuple[Tuple[AgentDecisionState, ...], ...] = ()
+    active_agent_ids: Optional[FrozenSet[object]] = None
+    has_collision: bool = False
 
     @property
     def agent_ids(self) -> Tuple[object, ...]:
         return tuple(agent.agent_id for agent in self.agents)
+
+    @property
+    def resolved_active_agent_ids(self) -> FrozenSet[object]:
+        """Resolve the compatibility default where every vehicle is active."""
+
+        if self.active_agent_ids is None:
+            return frozenset(self.agent_ids)
+        return self.active_agent_ids
+
+    @property
+    def active_agents(self) -> Tuple[AgentDecisionState, ...]:
+        """Return vehicles that remain in the local FlowState corridor."""
+
+        active_agent_ids = self.resolved_active_agent_ids
+        return tuple(agent for agent in self.agents if agent.agent_id in active_agent_ids)
 
     def trajectory_dict(self) -> Dict[object, List[AgentDecisionState]]:
         """Return accumulated rollout states keyed by agent id."""

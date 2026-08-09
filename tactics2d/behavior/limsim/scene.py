@@ -14,7 +14,10 @@ from tactics2d.map.element import Map
 from tactics2d.participant.trajectory import State
 
 from .config import LimSimConfig
+from .lane_follower import available_lanes_from_route
 from .schema import AgentDecisionState
+
+ROUTE_MATCH_LOOKAHEAD_LANES = 3
 
 
 class SceneBuilder:
@@ -23,6 +26,7 @@ class SceneBuilder:
     def __init__(self, config: LimSimConfig):
         self.config = config
         self._lane_index_cache = {}  # {id(map_): (strtree, lane_ids, centerlines)}
+        self._route_cursor_cache = {}  # {agent_id: (route_tuple, current_index)}
 
     def build(
         self,
@@ -52,15 +56,16 @@ class SceneBuilder:
             if not isinstance(raw_state, State):
                 continue
 
-            lane_id = self._match_lane(map_, raw_state)
+            full_route_lane_ids = tuple(route_map.get(agent_id, ())) if route_map else tuple()
+            matching_route_lane_ids = self._route_suffix_for_matching(agent_id, full_route_lane_ids)
+            lane_id = self._match_lane(map_, raw_state, matching_route_lane_ids)
             route_progress, lateral_offset = self._project_on_lane(
                 map_, lane_id, raw_state.location
             )
-            if route_map and agent_id in route_map:
-                route_lane_ids = route_map[agent_id]
-            else:
+            route_lane_ids = self._advance_route_cursor(agent_id, full_route_lane_ids, lane_id)
+            if not route_lane_ids:
                 route_lane_ids = tuple([lane_id]) if lane_id is not None else tuple()
-            states[agent_id] = AgentDecisionState(
+            decision_state = AgentDecisionState(
                 agent_id=agent_id,
                 x=raw_state.x,
                 y=raw_state.y,
@@ -72,14 +77,50 @@ class SceneBuilder:
                 route_progress=route_progress,
                 length=participant.length or self.config.default_vehicle_length,
                 width=participant.width or self.config.default_vehicle_width,
+                target_speed=self.config.default_target_speed,
             )
+            available_lane_ids = (
+                available_lanes_from_route(decision_state, map_)
+                if full_route_lane_ids
+                else frozenset()
+            )
+            states[agent_id] = decision_state.with_updates(available_lane_ids=available_lane_ids)
         return states
 
-    def _match_lane(self, map_: Optional[Map], state: State) -> Optional[str]:
+    def _route_suffix_for_matching(
+        self, agent_id, route_lane_ids: Tuple[str, ...]
+    ) -> Tuple[str, ...]:
+        if not route_lane_ids:
+            return tuple()
+        cached_route, cursor = self._route_cursor_cache.get(agent_id, (route_lane_ids, 0))
+        if cached_route != route_lane_ids:
+            cursor = 0
+        return route_lane_ids[cursor:]
+
+    def _advance_route_cursor(
+        self, agent_id, route_lane_ids: Tuple[str, ...], lane_id: Optional[str]
+    ) -> Tuple[str, ...]:
+        if not route_lane_ids:
+            self._route_cursor_cache.pop(agent_id, None)
+            return tuple()
+        cached_route, cursor = self._route_cursor_cache.get(agent_id, (route_lane_ids, 0))
+        if cached_route != route_lane_ids:
+            cursor = 0
+        if lane_id is not None:
+            try:
+                cursor = route_lane_ids.index(lane_id, cursor)
+            except ValueError:
+                pass
+        self._route_cursor_cache[agent_id] = (route_lane_ids, cursor)
+        return route_lane_ids[cursor:]
+
+    def _match_lane(
+        self, map_: Optional[Map], state: State, route_lane_ids: Tuple[str, ...] = tuple()
+    ) -> Optional[str]:
         if map_ is None or len(map_.lanes) == 0:
             return None
 
-        lane_id = self._find_heading_consistent_lane(map_, state)
+        lane_id = self._find_heading_consistent_lane(map_, state, route_lane_ids=route_lane_ids)
         if lane_id is None:
             return None
 
@@ -94,7 +135,9 @@ class SceneBuilder:
             return None
         return lane_id
 
-    def _find_heading_consistent_lane(self, map_: Map, state: State) -> Optional[str]:
+    def _find_heading_consistent_lane(
+        self, map_: Map, state: State, route_lane_ids: Tuple[str, ...] = tuple()
+    ) -> Optional[str]:
         point = Point(state.location)
 
         # find candidate lanes via STRtree — no brute-force scan
@@ -107,10 +150,18 @@ class SceneBuilder:
         if len(hit_indices) == 0:
             return None
 
-        best_lane_id = indexed_lane_ids[hit_indices[0]]
+        allowed_lane_ids = set(route_lane_ids[:ROUTE_MATCH_LOOKAHEAD_LANES])
+        for route_lane_id in route_lane_ids[:ROUTE_MATCH_LOOKAHEAD_LANES]:
+            route_lane = map_.lanes.get(route_lane_id)
+            if route_lane is not None:
+                allowed_lane_ids.update(route_lane.left_neighbors)
+                allowed_lane_ids.update(route_lane.right_neighbors)
+        best_lane_id = None
         best_score = np.inf
         for idx in hit_indices:
             lane_id = indexed_lane_ids[idx]
+            if allowed_lane_ids and lane_id not in allowed_lane_ids:
+                continue
             lane = map_.lanes.get(lane_id)
             if lane is None:
                 continue
@@ -123,7 +174,6 @@ class SceneBuilder:
             heading_error = 0.0
             if lane_heading is not None:
                 heading_error = abs(spatial.normalize_angle(state.heading - lane_heading))
-                heading_error = min(heading_error, abs(np.pi - heading_error))
             score = distance + self.config.lane_heading_match_weight * heading_error
             if score < best_score:
                 best_score = score
