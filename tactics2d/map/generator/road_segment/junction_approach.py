@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 
 from tactics2d.geometry import cumulative_s
@@ -17,52 +19,15 @@ from tactics2d.map.generator.rules.module_types import RoadModuleResult, RoadPor
 
 from .element_builder import (
     add_ordered_lane_neighbors,
+    apply_lane_side_shift,
     build_lane_from_boundaries,
     build_roadline_from_points,
+    lane_role,
+    variable_offset_polyline,
 )
 from .road_segment import RoadSegment
 
-
-def _variable_offset_polyline(
-    centerline: np.ndarray, start_offset: float, end_offset: float
-) -> np.ndarray:
-    """Offset a polyline with a smoothly varying lateral offset.
-
-    The offset transitions from ``start_offset`` to ``end_offset`` via a
-    smoothstep (zero-slope Hermite cubic) function of arc length, producing
-    zero first derivative at both ends.
-
-    Args:
-        centerline: Centreline points with shape ``(N, 2)``.
-        start_offset: Lateral offset at the entry end in metres.
-            Positive = left of travel direction.
-        end_offset: Lateral offset at the exit end in metres.
-            Positive = left of travel direction.
-
-    Returns:
-        Offset polyline with shape ``(N, 2)``.
-    """
-    pts = np.asarray(centerline, dtype=float)
-
-    if len(pts) < 2:
-        return pts.copy()
-
-    cum = cumulative_s(pts)
-    total = cum[-1]
-    t = np.zeros(len(pts)) if total < 1e-9 else cum / total
-    t = t * t * (3.0 - 2.0 * t)
-
-    tangents = np.empty_like(pts)
-    tangents[0] = pts[1] - pts[0]
-    tangents[-1] = pts[-1] - pts[-2]
-    if len(pts) > 2:
-        tangents[1:-1] = pts[2:] - pts[:-2]
-    norms = np.linalg.norm(tangents, axis=1, keepdims=True)
-    tangents /= np.where(norms < 1e-9, 1.0, norms)
-    normals = np.column_stack([-tangents[:, 1], tangents[:, 0]])
-
-    offsets = float(start_offset) + (float(end_offset) - float(start_offset)) * t
-    return pts + offsets[:, None] * normals
+logger = logging.getLogger(__name__)
 
 
 def _heading_at(pts: np.ndarray, at_end: bool = False) -> float:
@@ -78,6 +43,7 @@ def _approach_boundary_offsets(
     end_lane_num: int,
     lane_width: float,
     end_boundary_offsets: np.ndarray,
+    change_side: str = "both",
 ) -> tuple[np.ndarray, np.ndarray]:
     """Compute start and end lateral boundary offsets for the junction approach.
 
@@ -92,6 +58,10 @@ def _approach_boundary_offsets(
         end_boundary_offsets: Lateral offsets of the junction port's M lanes'
             boundaries, sorted from leftmost to rightmost in travel direction.
             Shape ``(M + 1,)``.
+        change_side: Which side lane-count changes happen on.
+            ``"left"`` — extra lane(s) on the left (innermost).
+            ``"right"`` — extra lane(s) on the right (outermost).
+            ``"both"`` — symmetric (default, matches the old behaviour).
 
     Returns:
         Tuple ``(start_offsets, end_offsets)`` each of shape ``(max(N, M) + 1,)``.
@@ -105,11 +75,19 @@ def _approach_boundary_offsets(
         [half - i * lane_width for i in range(start_lane_num + 1)], dtype=float
     )
 
+    def _pad_side(n_extra: int, side: str) -> tuple[int, int]:
+        if side == "left":
+            return (n_extra, 0)
+        if side == "right":
+            return (0, n_extra)
+        # "both" — symmetric
+        left = n_extra // 2
+        return (left, n_extra - left)
+
     # ---- end offsets: pad to max_n + 1 boundaries -----
     if len(end_offsets_arr) < max_n + 1:
         n_extra = max_n - end_lane_num
-        n_left = n_extra // 2
-        n_right = n_extra - n_left
+        n_left, n_right = _pad_side(n_extra, change_side)
 
         padded = np.empty(max_n + 1, dtype=float)
         padded[n_left : n_left + len(end_offsets_arr)] = end_offsets_arr
@@ -120,8 +98,7 @@ def _approach_boundary_offsets(
     # ---- pad start offsets if N < M -------------------
     if len(start_offsets) < max_n + 1:
         n_extra = max_n - start_lane_num
-        n_left = n_extra // 2
-        n_right = n_extra - n_left
+        n_left, n_right = _pad_side(n_extra, change_side)
 
         padded = np.empty(max_n + 1, dtype=float)
         padded[n_left : n_left + len(start_offsets)] = start_offsets
@@ -144,20 +121,60 @@ class JunctionApproach(RoadSegment):
 
     Attributes:
         step_size: Reference-line sampling interval in metres.
+        change_side: Which side lane-count changes happen on.
+        lane_side: Which side of the centreline the road-end lane group
+            occupies.  ``"center"`` (default) places lanes symmetrically;
+            ``"right"`` pins the leftmost boundary to the centreline (TwoWay
+            forward convention); ``"left"`` pins the rightmost boundary
+            (TwoWay backward convention).  The junction-end boundaries are
+            controlled by ``end_boundary_offsets`` and are never shifted.
+        min_taper_length: Minimum centreline length for the taper transition in
+            metres.  When the provided centreline is shorter a warning is emitted
+            but generation continues.
     """
 
-    def __init__(self, step_size: float = 0.1) -> None:
+    def __init__(
+        self,
+        step_size: float = 0.1,
+        change_side: str = "both",
+        lane_side: str = "center",
+        min_taper_length: float | None = None,
+        centerline_marking_token: str | None = None,
+    ) -> None:
         """Initialise the generator.
 
         Args:
             step_size: Reference-line sampling interval in metres.
+            change_side: Which side lane-count changes happen on.
+                ``"left"`` — extra lane(s) on the left (innermost side, towards
+                the junction centre).  ``"right"`` — extra lane(s) on the right
+                (outermost side).  ``"both"`` — symmetric padding.
+            lane_side: Which side of the centreline the road-end lane group
+                occupies.  ``"center"`` (default), ``"left"``, or ``"right"``.
+            min_taper_length: Minimum centreline length in metres for smooth
+                width transitions.  When ``None``, the minimum is computed
+                automatically as ``max(lane_width * |Δlane| * 3, 10)``.
+            centerline_marking_token: When ``lane_side`` is ``"right"`` or
+                ``"left"``, the road-end boundary pinned to the centreline
+                continues a TwoWay centre divider.  Pass a marking token string
+                to use that marking for the centreline boundary instead of the
+                default one-way edge rule.
 
         Raises:
-            ValueError: If ``step_size <= 0``.
+            ValueError: If ``step_size <= 0``, ``change_side`` is invalid, or
+                ``lane_side`` is invalid.
         """
         if step_size <= 0.0:
             raise ValueError("step_size must be positive.")
+        if change_side not in ("left", "right", "both"):
+            raise ValueError("change_side must be 'left', 'right', or 'both'.")
+        if lane_side not in ("center", "left", "right"):
+            raise ValueError("lane_side must be 'center', 'left', or 'right'.")
         self.step_size = step_size
+        self.change_side = change_side
+        self.lane_side = lane_side
+        self.min_taper_length = min_taper_length
+        self.centerline_marking_token = centerline_marking_token
 
     def build(  # type: ignore[override]
         self,
@@ -167,6 +184,9 @@ class JunctionApproach(RoadSegment):
         end_boundary_offsets: np.ndarray,
         lane_width: float = 3.5,
         speed_limit: float = 50.0,
+        change_side: str | None = None,
+        start_lane_side: str | None = None,
+        centerline_marking_token: str | None = None,
         *,
         id_offset: int = 0,
     ) -> RoadModuleResult:
@@ -182,6 +202,12 @@ class JunctionApproach(RoadSegment):
                 (leftmost to rightmost in travel direction), shape ``(M + 1,)``.
             lane_width: Uniform lane width in metres at the road side.
             speed_limit: Speed limit in km/h for the approach lanes.
+            change_side: Per-call override for ``self.change_side``.
+                ``None`` uses the generator default.
+            start_lane_side: Per-call override for ``self.lane_side``.
+                ``None`` uses the generator default.  Only affects the road-end
+                boundary offsets; the junction end is controlled by
+                ``end_boundary_offsets`` and is never shifted.
             id_offset: First element id.
 
         Returns:
@@ -206,22 +232,73 @@ class JunctionApproach(RoadSegment):
             raise ValueError("lane_width must be positive.")
 
         end_offs_arr = np.asarray(end_boundary_offsets, dtype=float)
-        if len(end_offs_arr) != end_n + 1:
+        if end_offs_arr.ndim != 1 or len(end_offs_arr) != end_n + 1:
             raise ValueError(
                 f"end_boundary_offsets must have end_lane_num + 1 = {end_n + 1} "
                 f"elements, got {len(end_offs_arr)}."
             )
+        if not np.all(np.isfinite(end_offs_arr)):
+            raise ValueError("end_boundary_offsets must contain only finite values.")
+        if np.any(np.diff(end_offs_arr) >= -1e-6):
+            raise ValueError(
+                "end_boundary_offsets must be strictly decreasing from leftmost to rightmost."
+            )
 
         center_pts = np.asarray(centerline, dtype=float)
+        if center_pts.ndim != 2 or center_pts.shape[1] != 2:
+            raise ValueError(f"centreline must have shape (N, 2), got {center_pts.shape}.")
         if len(center_pts) < 2:
             raise ValueError("centreline must have at least 2 points.")
+        if not np.all(np.isfinite(center_pts)):
+            raise ValueError("centreline must contain only finite values.")
+
+        # ---- resolve change_side ---------------------------------------
+        side = self.change_side if change_side is None else change_side
+        if side not in ("left", "right", "both"):
+            raise ValueError(f"change_side must be 'left', 'right', or 'both', got {side!r}.")
+
+        # ---- resolve lane_side -----------------------------------------
+        road_side = start_lane_side if start_lane_side is not None else self.lane_side
+        if road_side not in ("center", "left", "right"):
+            raise ValueError(f"lane_side must be 'center', 'left', or 'right', got {road_side!r}")
+        cl_token = (
+            centerline_marking_token
+            if centerline_marking_token is not None
+            else self.centerline_marking_token
+        )
+
+        # ---- minimum taper length check --------------------------------
+        lane_delta = abs(end_n - start_n)
+        min_len = self.min_taper_length
+        if min_len is None:
+            min_len = max(lane_w * lane_delta * 3, 10.0)
+
+        center_len = float(cumulative_s(center_pts)[-1])
+        if lane_delta > 0 and center_len < min_len:
+            logger.warning(
+                "Taper centreline length %.1f m is shorter than recommended "
+                "minimum %.1f m for a %d→%d lane transition (Δ=%d×%.1f m). "
+                "The resulting boundaries may be noticeably stiff.",
+                center_len,
+                min_len,
+                start_n,
+                end_n,
+                lane_delta,
+                lane_w,
+            )
 
         # ---- boundary offsets ------------------------------------------
-        start_offsets, end_offsets = _approach_boundary_offsets(
+        raw_start_offsets, end_offsets = _approach_boundary_offsets(
             start_lane_num=start_n,
             end_lane_num=end_n,
             lane_width=lane_w,
             end_boundary_offsets=end_offs_arr,
+            change_side=side,
+        )
+
+        # ---- apply lane-side shift to road end only --------------------
+        start_offsets = np.asarray(
+            apply_lane_side_shift(raw_start_offsets.tolist(), road_side), dtype=float
         )
 
         max_n = max(start_n, end_n)
@@ -248,6 +325,13 @@ class JunctionApproach(RoadSegment):
                     )
             center_pts = resampled
 
+        # ---- identify centreline boundary (road-end only) ---------------
+        cl_boundary_idx: int | None = None
+        if road_side == "right":
+            cl_boundary_idx = 0
+        elif road_side == "left":
+            cl_boundary_idx = boundary_num - 1
+
         # ---- generate boundaries and roadlines -------------------------
         boundary_points: list[np.ndarray] = []
         roadlines: list[RoadLine] = []
@@ -255,14 +339,17 @@ class JunctionApproach(RoadSegment):
         id_counter = id_offset
 
         for b_idx in range(boundary_num):
-            pts = _variable_offset_polyline(
+            pts = variable_offset_polyline(
                 centerline=center_pts,
                 start_offset=float(start_offsets[b_idx]),
                 end_offset=float(end_offsets[b_idx]),
             )
             boundary_points.append(pts)
 
-            marking_token = one_way_boundary_token(b_idx, boundary_num)
+            if b_idx == cl_boundary_idx and cl_token is not None:
+                marking_token = cl_token
+            else:
+                marking_token = one_way_boundary_token(b_idx, boundary_num)
 
             roadline = build_roadline_from_points(
                 id_=id_counter,
@@ -284,7 +371,7 @@ class JunctionApproach(RoadSegment):
         for lane_idx in range(max_n):
             left_pts = boundary_points[lane_idx]
             right_pts = boundary_points[lane_idx + 1]
-            role = _lane_role(
+            role = lane_role(
                 abs(start_offsets[lane_idx] - start_offsets[lane_idx + 1]),
                 abs(end_offsets[lane_idx] - end_offsets[lane_idx + 1]),
             )
@@ -331,11 +418,7 @@ class JunctionApproach(RoadSegment):
             speed_limit=speed,
         )
         exit_port = RoadPort(
-            point=end_pt,
-            heading=end_heading,
-            lane_num=end_n,
-            lane_width=lane_w,
-            speed_limit=speed,
+            point=end_pt, heading=end_heading, lane_num=end_n, lane_width=lane_w, speed_limit=speed
         )
 
         ports = {
@@ -358,13 +441,3 @@ class JunctionApproach(RoadSegment):
         return RoadModuleResult(
             lanes=lanes, roadlines=roadlines, ports=ports, id_counter=id_counter
         )
-
-
-def _lane_role(start_width: float, end_width: float) -> str:
-    """Classify a lane's role in the approach transition."""
-    eps = 1e-3
-    if start_width <= eps and end_width > eps:
-        return "added"
-    if start_width > eps and end_width <= eps:
-        return "dropped"
-    return "through"
