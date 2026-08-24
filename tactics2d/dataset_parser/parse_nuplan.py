@@ -149,7 +149,7 @@ class NuPlanParser:
                 }
 
             cursor.execute(
-                """
+                f"""
                 SELECT
                     lidar_box.track_token AS track_token,
                     lidar_box.x AS x,
