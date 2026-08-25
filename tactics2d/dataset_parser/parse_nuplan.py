@@ -107,6 +107,19 @@ class NuPlanParser:
         if time_range is None:
             time_range = (-float("inf"), float("inf"))
 
+        # Bound the lidar_box scan to the requested time window when it is finite
+        # (raw lidar_pc.timestamp is in microseconds since 2021-01-01; the
+        # ``time_range`` is in milliseconds relative to ``_DATETIME``).
+        if np.isfinite(time_range[0]) and np.isfinite(time_range[1]):
+            where = " WHERE lidar_pc.timestamp BETWEEN ? AND ?"
+            bound_args = (
+                (int(time_range[0]) + self._DATETIME) * 1000,
+                (int(time_range[1]) + self._DATETIME) * 1000,
+            )
+        else:
+            where = ""
+            bound_args = ()
+
         with sqlite3.connect(file_path) as connection:
             connection.row_factory = sqlite3.Row
             cursor = connection.cursor()
@@ -136,7 +149,7 @@ class NuPlanParser:
                 }
 
             cursor.execute(
-                """
+                f"""
                 SELECT
                     lidar_box.track_token AS track_token,
                     lidar_box.x AS x,
@@ -152,11 +165,12 @@ class NuPlanParser:
                     lidar_box.confidence AS confidence,
                     lidar_pc.timestamp AS timestamp
                 FROM lidar_box
-                INNER JOIN lidar_pc ON lidar_pc.token = lidar_box.lidar_pc_token
+                INNER JOIN lidar_pc ON lidar_pc.token = lidar_box.lidar_pc_token{where}
                 ORDER BY lidar_pc.timestamp
-                """
+                """,
+                bound_args,
             )
-            for row in cursor.fetchall():
+            for row in cursor:
                 time_stamp = int(row["timestamp"] / 1000 - self._DATETIME)
                 if time_stamp < time_range[0] or time_stamp > time_range[1]:
                     continue

@@ -46,6 +46,7 @@
 
 ### Fixed
 
+- Fixed `NuPlanParser.parse_trajectory` crashing with `sqlite3.OperationalError: unrecognized token: "{"` on every database: the lidar-box query was built as a plain string literal containing an unexpanded `{where}` placeholder, so the conditional time-window clause was never interpolated. The query is now an f-string, so `time_range` filtering (and the plain full-database scan) works as intended.
 - Fixed browser-frontend dataset discovery emitting backslash-separated relative paths on Windows: entries are now normalized with `as_posix()`, which also unbreaks WOMD and Argoverse 2 scenario selection there (both split the `file` value on `/`).
 - Fixed `Argoverse2Parser` crashing with `KeyError: 'construction'` on real motion-forecasting scenarios: the `construction` and `unknown` object categories were missing from the type mappings, and unseen future categories now degrade to `Other` instead of aborting the parse. Found by loading official validation scenarios from the public Argoverse S3 bucket.
 - Fixed screen recordings failing to play in strict players (e.g. GNOME Videos): with the compatibility-mode toggle enabled (default), captures are finalized server-side via ffmpeg (`POST /api/record/export`) into constant-frame-rate H.264 MP4, since raw MediaRecorder output declares a variable (0/1) frame rate; unticking the toggle (or a server without ffmpeg) downloads the raw recording unchanged.
