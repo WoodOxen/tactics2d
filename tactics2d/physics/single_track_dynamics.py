@@ -4,6 +4,7 @@
 """Single track dynamics implementation."""
 
 
+import math
 from typing import Tuple, Union
 
 import numpy as np
@@ -153,22 +154,28 @@ class SingleTrackDynamics(PhysicsModelBase):
         cf_factor_f = self.cf * factor_f
         cr_factor_r = self.cr * factor_r
 
+        # Loop-invariant terms: delta is constant across sub-steps.
+        tan_delta = math.tan(delta)
+        cos_delta = math.cos(delta)
+        cos2_delta = cos_delta**2
+        denom2 = (1 + tan_delta * self.lr / self.wheel_base) ** 2
+        speed_range = self.speed_range
+
         x, y = state.location
         phi = state.heading
         v = state.speed
-        d_phi = v / self.wheel_base * np.tan(delta)
-        beta = np.arctan(self.lr / self.lf * np.tan(delta))  # slip angle
+        d_phi = v / self.wheel_base * tan_delta
+        beta = math.atan(self.lr / self.lf * tan_delta)  # slip angle
 
         # Main steps with standard delta_t
         for _ in range(n_steps):
-            dx = v * np.cos(phi + beta)
-            dy = v * np.sin(phi + beta)
-            dv = accel
+            dx = v * math.cos(phi + beta)
+            dy = v * math.sin(phi + beta)
 
             # Use a safe velocity to avoid division by zero
-            v_safe = v if np.abs(v) > 1e-6 else (1e-6 if v >= 0 else -1e-6)
+            v_safe = v if abs(v) > 1e-6 else (1e-6 if v >= 0 else -1e-6)
 
-            if np.abs(v) >= 0.1:
+            if abs(v) >= 0.1:
                 dd_phi = (
                     self.mu
                     * self.mass
@@ -191,37 +198,37 @@ class SingleTrackDynamics(PhysicsModelBase):
                 )
                 d_phi += dd_phi * dt
             else:
-                d_beta = (
-                    self.lr
-                    / (1 + np.tan(delta) * self.lr / self.wheel_base) ** 2
-                    / self.wheel_base
-                    / np.cos(delta) ** 2
-                    * delta
-                )
+                cos_beta = math.cos(beta)
+                sin_beta = math.sin(beta)
+                d_beta = self.lr / denom2 / self.wheel_base / cos2_delta * delta
                 dd_phi = (
                     1
                     / self.wheel_base
                     * (
-                        accel * np.cos(beta) * np.tan(delta)
-                        - v * np.sin(beta) * np.tan(delta) * d_beta
-                        + v * np.cos(beta) / np.cos(delta) ** 2 * delta
+                        accel * cos_beta * tan_delta
+                        - v * sin_beta * tan_delta * d_beta
+                        + v * cos_beta / cos2_delta * delta
                     )
                 )
-                d_phi += v * np.cos(beta) / self.wheel_base * np.tan(delta) * dt
+                d_phi += v * cos_beta / self.wheel_base * tan_delta * dt
 
             x += dx * dt
             y += dy * dt
-            v += dv * dt
+            v += accel * dt
             phi += d_phi * dt
             beta += d_beta * dt
 
-            v = np.clip(v, *self.speed_range) if self.speed_range is not None else v
+            if speed_range is not None:
+                if v < speed_range[0]:
+                    v = speed_range[0]
+                elif v > speed_range[1]:
+                    v = speed_range[1]
 
         state = State(
             frame=state.frame + interval,
             x=x,
             y=y,
-            heading=np.mod(phi, 2 * np.pi),
+            heading=phi % (2 * math.pi),
             speed=v,
             accel=accel,
         )

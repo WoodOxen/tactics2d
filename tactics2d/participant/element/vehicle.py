@@ -108,6 +108,8 @@ class Vehicle(ParticipantBase):
 
         super().__init__(id_, type_, trajectory, **kwargs)
 
+        self._pose_cache = None  # (frame, pose) cached per frame; see get_pose
+
         self.max_steer = np.round(np.pi / 6, 3) if self.max_steer is None else self.max_steer
         self.max_speed = 55.56 if self.max_speed is None else self.max_speed
         self.max_accel = 3.0 if self.max_accel is None else self.max_accel
@@ -219,6 +221,17 @@ class Vehicle(ParticipantBase):
                     [-0.5 * self.length, -0.5 * self.width],
                 ]
             )
+        self._pose_cache = None
+
+    def reset(self, state: State = None, keep_history: bool = False):
+        """Reset the vehicle and invalidate its cached pose.
+
+        Args:
+            state (State, optional): The initial state of the object.
+            keep_history (bool, optional): Whether to keep the record of history trajectory.
+        """
+        super().reset(state, keep_history)
+        self._pose_cache = None
 
     def add_state(self, state: State):
         """This function adds a state to the vehicle.
@@ -235,6 +248,7 @@ class Vehicle(ParticipantBase):
                 "Invalid state checked by the physics model %s."
                 % (self.physics_model.__class__.__name__)
             )
+        self._pose_cache = None
 
     def bind_trajectory(self, trajectory: Trajectory):
         """This function binds a trajectory to the vehicle.
@@ -259,9 +273,15 @@ class Vehicle(ParticipantBase):
         else:
             self.trajectory = trajectory
             logging.debug(f"Vehicle {self.id_} is bound to a trajectory without verification.")
+        self._pose_cache = None
 
     def get_pose(self, frame: int = None) -> LinearRing:
         """This function gets the pose of the vehicle at the requested frame.
+
+        The pose is cached per frame and invalidated whenever the trajectory is
+        mutated (``add_state`` / ``bind_trajectory`` / ``reset``) or the bounding
+        box is rebuilt (``load_from_template``), so repeated queries within one
+        simulation step reuse the same Shapely ``affine_transform``.
 
         Args:
             frame (int, optional): The frame to get the vehicle's pose.
@@ -269,6 +289,9 @@ class Vehicle(ParticipantBase):
         Returns:
             pose (LinearRing): The vehicle's bounding box which is rotated and moved based on the current state.
         """
+        if self._pose_cache is not None and self._pose_cache[0] == frame:
+            return self._pose_cache[1]
+
         state = self.trajectory.get_state(frame)
         transform_matrix = [
             np.cos(state.heading),
@@ -278,7 +301,9 @@ class Vehicle(ParticipantBase):
             state.location[0],
             state.location[1],
         ]
-        return affine_transform(self._bbox, transform_matrix)
+        pose = affine_transform(self._bbox, transform_matrix)
+        self._pose_cache = (frame, pose)
+        return pose
 
     def get_trace(self, frame_range: Tuple[int, int] = None) -> LinearRing:
         """This function gets the trace of the vehicle within the requested frame range.

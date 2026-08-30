@@ -229,7 +229,30 @@ class PygameRenderer:
         point_size = max(1, int(point_cloud.get("point_size", 1)))
         a, b, d, e, x_off, y_off = transform
 
-        for pt in point_cloud.get("points", []):
-            px = a * pt[0] + b * pt[1] + x_off
-            py = d * pt[0] + e * pt[1] + y_off
-            pygame.draw.circle(self._surface, colour, (px, py), point_size)
+        points = point_cloud.get("points", [])
+        if not points:
+            return
+        arr = np.asarray(points, dtype=float)
+        px = (arr[:, 0] * a + arr[:, 1] * b + x_off).astype(int)
+        py = (arr[:, 0] * d + arr[:, 1] * e + y_off).astype(int)
+
+        # Clip to the surface bounds before drawing.
+        height, width = self._surface.get_height(), self._surface.get_width()
+        in_bounds = (px >= 0) & (px < width) & (py >= 0) & (py < height)
+        px, py = px[in_bounds], py[in_bounds]
+        if len(px) == 0:
+            return
+
+        if point_size <= 1:
+            # Fast path: write 1 px dots directly through the surface pixel view
+            # (one vectorized assignment instead of one draw call per point).
+            try:
+                pixels = pygame.surfarray.pixels3d(self._surface)
+                pixels[px, py] = (colour.r, colour.g, colour.b)
+                del pixels  # release the surface lock
+            except (ValueError, pygame.error):
+                for x, y in zip(px.tolist(), py.tolist()):
+                    pygame.draw.circle(self._surface, colour, (x, y), point_size)
+        else:
+            for x, y in zip(px.tolist(), py.tolist()):
+                pygame.draw.circle(self._surface, colour, (x, y), point_size)

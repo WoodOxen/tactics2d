@@ -4,6 +4,7 @@
 """Single track kinematics implementation."""
 
 
+import math
 from typing import Tuple, Union
 
 import numpy as np
@@ -124,10 +125,15 @@ class SingleTrackKinematics(PhysicsModelBase):
                 self.delta_t = min(self.delta_t, self.interval)
 
     def _step(self, state: State, accel: float, delta: float, interval: int) -> State:
-        beta = np.arctan(self.lr / self.wheel_base * np.tan(delta))  # slip angle
+        beta = math.atan(self.lr / self.wheel_base * math.tan(delta))  # slip angle
         dt = float(self.delta_t) / 1000
         n_steps = interval // self.delta_t
         remainder = interval % self.delta_t
+
+        # Loop-invariant terms: delta and beta are constant across sub-steps.
+        cos_beta = math.cos(beta)
+        k_phi = math.tan(delta) * cos_beta / self.wheel_base
+        speed_range = self.speed_range
 
         x, y = state.location
         phi = state.heading
@@ -135,40 +141,46 @@ class SingleTrackKinematics(PhysicsModelBase):
 
         # Main steps with standard delta_t
         for _ in range(n_steps):
-            dx = v * np.cos(phi + beta)
-            dy = v * np.sin(phi + beta)
-            dv = accel
-            dphi = v / self.wheel_base * np.tan(delta) * np.cos(beta)
+            dx = v * math.cos(phi + beta)
+            dy = v * math.sin(phi + beta)
+            dphi = v * k_phi
 
             x += dx * dt
             y += dy * dt
             phi += dphi * dt
-            v += dv * dt
+            v += accel * dt
 
-            v = np.clip(v, *self.speed_range) if self.speed_range is not None else v
+            if speed_range is not None:
+                if v < speed_range[0]:
+                    v = speed_range[0]
+                elif v > speed_range[1]:
+                    v = speed_range[1]
 
         # Remainder step if any
         if remainder > 0:
             dt_rem = float(remainder) / 1000
-            dx = v * np.cos(phi + beta)
-            dy = v * np.sin(phi + beta)
-            dv = accel
-            dphi = v / self.wheel_base * np.tan(delta) * np.cos(beta)
+            dx = v * math.cos(phi + beta)
+            dy = v * math.sin(phi + beta)
+            dphi = v * k_phi
 
             x += dx * dt_rem
             y += dy * dt_rem
             phi += dphi * dt_rem
-            v += dv * dt_rem
+            v += accel * dt_rem
 
-            v = np.clip(v, *self.speed_range) if self.speed_range is not None else v
+            if speed_range is not None:
+                if v < speed_range[0]:
+                    v = speed_range[0]
+                elif v > speed_range[1]:
+                    v = speed_range[1]
 
         state = State(
             frame=state.frame + interval,
             x=x,
             y=y,
-            heading=np.mod(phi, 2 * np.pi),
-            vx=v * np.cos(phi),
-            vy=v * np.sin(phi),
+            heading=phi % (2 * math.pi),
+            vx=v * math.cos(phi),
+            vy=v * math.sin(phi),
             speed=v,
             accel=accel,
         )

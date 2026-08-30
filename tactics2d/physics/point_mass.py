@@ -5,6 +5,7 @@
 
 
 import logging
+import math
 from typing import Tuple, Union
 
 import numpy as np
@@ -87,7 +88,7 @@ class PointMass(PhysicsModelBase):
 
         next_vx = vx + ax * dt
         next_vy = vy + ay * dt
-        next_speed = np.linalg.norm([next_vx, next_vy])
+        next_speed = math.hypot(next_vx, next_vy)
 
         # When the speed has not exceeded the constraint, the next state can be calculated directly.
         if self.speed_range is None or self.speed_range[0] <= next_speed <= self.speed_range[1]:
@@ -95,7 +96,7 @@ class PointMass(PhysicsModelBase):
                 frame=state.frame + interval,
                 x=state.x + vx * dt + 0.5 * ax * dt**2,
                 y=state.y + vy * dt + 0.5 * ay * dt**2,
-                heading=np.arctan2(next_vy, next_vx),
+                heading=math.atan2(next_vy, next_vx),
                 vx=next_vx,
                 vy=next_vy,
             )
@@ -108,23 +109,23 @@ class PointMass(PhysicsModelBase):
             c_ = vx**2 + vy**2 - self.speed_range[0] ** 2
 
             # Handle cases where a_ is very small (acceleration near zero)
-            if np.abs(a_) < 1e-12:
+            if abs(a_) < 1e-12:
                 # When acceleration is zero, use linear motion
-                if np.abs(b_) < 1e-12:
+                if abs(b_) < 1e-12:
                     # Both a_ and b_ are zero, velocity already at minimum speed
                     t1 = 0.0
                 else:
                     # Solve linear equation: b_ * t + c_ = 0
-                    t1 = -c_ / b_ if np.abs(b_) > 1e-12 else 0.0
+                    t1 = -c_ / b_ if abs(b_) > 1e-12 else 0.0
             else:
                 # Solve quadratic equation: a_ * t^2 + b_ * t + c_ = 0
                 discriminant = b_**2 - 4 * a_ * c_
                 # Ensure discriminant is non-negative (handle numerical errors)
                 discriminant = max(0.0, discriminant)
-                t1 = (-b_ - np.sqrt(discriminant)) / (2 * a_)
+                t1 = (-b_ - math.sqrt(discriminant)) / (2 * a_)
 
             # Ensure t1 is within [0, dt]
-            t1 = np.clip(t1, 0.0, dt)
+            t1 = max(0.0, min(t1, dt))
             t2 = dt - t1
             vx_min = vx + ax * t1
             vy_min = vy + ay * t1
@@ -133,7 +134,7 @@ class PointMass(PhysicsModelBase):
                 frame=state.frame + interval,
                 x=state.x + vx * t1 + 0.5 * ax * t1**2 + vx_min * t2,
                 y=state.y + vy * t1 + 0.5 * ay * t1**2 + vy_min * t2,
-                heading=np.arctan2(vy_min, vx_min),
+                heading=math.atan2(vy_min, vx_min),
                 vx=vx_min,
                 vy=vy_min,
             )
@@ -143,23 +144,23 @@ class PointMass(PhysicsModelBase):
             c_ = vx**2 + vy**2 - self.speed_range[1] ** 2
 
             # Handle cases where a_ is very small (acceleration near zero)
-            if np.abs(a_) < 1e-12:
+            if abs(a_) < 1e-12:
                 # When acceleration is zero, use linear motion
-                if np.abs(b_) < 1e-12:
+                if abs(b_) < 1e-12:
                     # Both a_ and b_ are zero, velocity already at maximum speed
                     t1 = 0.0
                 else:
                     # Solve linear equation: b_ * t + c_ = 0
-                    t1 = -c_ / b_ if np.abs(b_) > 1e-12 else 0.0
+                    t1 = -c_ / b_ if abs(b_) > 1e-12 else 0.0
             else:
                 # Solve quadratic equation: a_ * t^2 + b_ * t + c_ = 0
                 discriminant = b_**2 - 4 * a_ * c_
                 # Ensure discriminant is non-negative (handle numerical errors)
                 discriminant = max(0.0, discriminant)
-                t1 = (-b_ + np.sqrt(discriminant)) / (2 * a_)
+                t1 = (-b_ + math.sqrt(discriminant)) / (2 * a_)
 
             # Ensure t1 is within [0, dt]
-            t1 = np.clip(t1, 0.0, dt)
+            t1 = max(0.0, min(t1, dt))
             t2 = dt - t1
             vx_max = vx + ax * t1
             vy_max = vy + ay * t1
@@ -168,7 +169,7 @@ class PointMass(PhysicsModelBase):
                 frame=state.frame + interval,
                 x=state.x + vx * t1 + 0.5 * ax * t1**2 + vx_max * t2,
                 y=state.y + vy * t1 + 0.5 * ay * t1**2 + vy_max * t2,
-                heading=np.arctan2(vy_max, vx_max),
+                heading=math.atan2(vy_max, vx_max),
                 vx=vx_max,
                 vy=vy_max,
             )
@@ -184,21 +185,23 @@ class PointMass(PhysicsModelBase):
         if remainder > 0:
             dts.append(float(remainder) / 1000)
 
+        speed_range = self.speed_range
         for dt in dts:
             vx += ax * dt
             vy += ay * dt
-            speed = np.linalg.norm([vx, vy])
-            speed_clipped = (
-                np.clip(speed, *self.speed_range) if self.speed_range is not None else speed
-            )
+            speed = math.hypot(vx, vy)
+            if speed_range is not None:
+                speed_clipped = max(speed_range[0], min(speed, speed_range[1]))
+            else:
+                speed_clipped = speed
             # Use tolerance for floating point comparison
-            if np.abs(speed - speed_clipped) > 1e-12:
-                vx = speed_clipped * np.cos(heading)
-                vy = speed_clipped * np.sin(heading)
+            if abs(speed - speed_clipped) > 1e-12:
+                vx = speed_clipped * math.cos(heading)
+                vy = speed_clipped * math.sin(heading)
 
             x += vx * dt
             y += vy * dt
-            heading = np.arctan2(vy, vx)
+            heading = math.atan2(vy, vx)
 
         next_state = State(
             frame=state.frame + interval, x=x, y=y, heading=heading, vx=vx, vy=vy, ax=ax, ay=ay

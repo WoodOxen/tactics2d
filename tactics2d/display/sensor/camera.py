@@ -10,6 +10,7 @@ import numpy as np
 from shapely.geometry import Point, Polygon
 
 from tactics2d.map.element import Area, Junction, Lane, Map, RoadLine
+from tactics2d.map.element.map import HAS_STRTREE
 from tactics2d.participant.element import Cyclist, Obstacle, Other, Pedestrian, Vehicle
 
 from .sensor_base import SensorBase
@@ -141,8 +142,18 @@ class BEVCamera(SensorBase):
         road_element_list = []
         white = "white"
 
+        # Broad-phase: when a position is set and the map has a spatial index,
+        # restrict the per-element distance filter to candidates near the camera.
+        candidate_ids = None
+        if self._position is not None and HAS_STRTREE and self._map._element_geometries:
+            candidate_ids = set(
+                self._map.query_point(self._position, buffer=self.max_perception_distance * 1.5)
+            )
+
         for area in self._map.areas.values():
             if area.geometry is None:
+                continue
+            if candidate_ids is not None and area.id_ not in candidate_ids:
                 continue
             if not self._in_perception_range(area.geometry):
                 continue
@@ -180,6 +191,8 @@ class BEVCamera(SensorBase):
         for lane in self._map.lanes.values():
             if lane.geometry is None:
                 continue
+            if candidate_ids is not None and lane.id_ not in candidate_ids:
+                continue
             if not self._in_perception_range(lane.geometry):
                 continue
 
@@ -208,6 +221,8 @@ class BEVCamera(SensorBase):
 
         for roadline in self._map.roadlines.values():
             if roadline.geometry is None:
+                continue
+            if candidate_ids is not None and roadline.id_ not in candidate_ids:
                 continue
             if roadline.type_ == "virtual" or not self._in_perception_range(roadline.geometry):
                 continue

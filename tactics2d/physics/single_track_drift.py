@@ -4,6 +4,7 @@
 """Single track drift implementation."""
 
 
+import math
 from typing import Tuple, Union
 
 import numpy as np
@@ -195,8 +196,8 @@ class SingleTrackDrift(PhysicsModelBase):
         K_x = self.tire.p_kx1 * F_z
         B_x = K_x / (C_x * D_x + 1e-6)
 
-        F_x = D_x * np.sin(
-            C_x * np.arctan(B_x * kappa_x - E_x * (B_x * kappa_x - np.arctan(B_x * kappa_x))) + S_vx
+        F_x = D_x * math.sin(
+            C_x * math.atan(B_x * kappa_x - E_x * (B_x * kappa_x - math.atan(B_x * kappa_x))) + S_vx
         )
 
         return F_x
@@ -204,7 +205,8 @@ class SingleTrackDrift(PhysicsModelBase):
     def _pure_slip_lateral_tire_forces(
         self, alpha: float, gamma: float, F_z: float
     ) -> Tuple[float, float]:
-        S_hy = np.sign(gamma) * (self.tire.p_hy1 + self.tire.p_hy3 * np.abs(gamma))
+        sign_gamma = (gamma > 0) - (gamma < 0)  # np.sign semantics (0 for 0)
+        S_hy = sign_gamma * (self.tire.p_hy1 + self.tire.p_hy3 * abs(gamma))
         S_vy = S_hy * F_z
 
         alpha_y = alpha + S_hy
@@ -216,8 +218,8 @@ class SingleTrackDrift(PhysicsModelBase):
         K_y = self.tire.p_ky1 * F_z
         B_y = K_y / (C_y * D_y + 1e-6)
 
-        F_y = D_y * np.sin(
-            C_y * np.arctan(B_y * alpha_y - E_y * (B_y * alpha_y - np.arctan(B_y * alpha_y))) + S_vy
+        F_y = D_y * math.sin(
+            C_y * math.atan(B_y * alpha_y - E_y * (B_y * alpha_y - math.atan(B_y * alpha_y))) + S_vy
         )
 
         return F_y, mu_y
@@ -228,22 +230,22 @@ class SingleTrackDrift(PhysicsModelBase):
         S_hx_alpha = self.tire.r_hx1
         alpha_s = alpha + S_hx_alpha
 
-        B_x_alpha = self.tire.r_bx1 * np.cos(np.arctan(self.tire.r_bx2 * kappa))
+        B_x_alpha = self.tire.r_bx1 * math.cos(math.atan(self.tire.r_bx2 * kappa))
         C_x_alpha = self.tire.r_cx1
         E_x_alpha = self.tire.r_ex1
-        D_x_alpha = F0_x / np.cos(
+        D_x_alpha = F0_x / math.cos(
             C_x_alpha
-            * np.arctan(
+            * math.atan(
                 B_x_alpha * S_hx_alpha
-                - E_x_alpha * (B_x_alpha * S_hx_alpha - np.arctan(B_x_alpha * S_hx_alpha))
+                - E_x_alpha * (B_x_alpha * S_hx_alpha - math.atan(B_x_alpha * S_hx_alpha))
             )
         )
 
-        F_x = D_x_alpha * np.cos(
+        F_x = D_x_alpha * math.cos(
             C_x_alpha
-            * np.arctan(
+            * math.atan(
                 B_x_alpha * alpha_s
-                - E_x_alpha * (B_x_alpha * alpha_s - np.arctan(B_x_alpha * alpha_s))
+                - E_x_alpha * (B_x_alpha * alpha_s - math.atan(B_x_alpha * alpha_s))
             )
         )
 
@@ -253,14 +255,16 @@ class SingleTrackDrift(PhysicsModelBase):
         S_hy_kappa = self.tire.r_hy1
         kappa_s = kappa + S_hy_kappa
 
-        B_y_kappa = self.tire.r_by1 * np.cos(np.arctan(self.tire.r_by2 * (alpha - self.tire.r_by3)))
+        B_y_kappa = self.tire.r_by1 * math.cos(
+            math.atan(self.tire.r_by2 * (alpha - self.tire.r_by3))
+        )
         C_y_kappa = self.tire.r_cy1
         E_y_kappa = self.tire.r_ey1
-        D_y_kappa = F0_y / np.cos(
+        D_y_kappa = F0_y / math.cos(
             C_y_kappa
-            * np.arctan(
+            * math.atan(
                 B_y_kappa * S_hy_kappa
-                - E_y_kappa * (B_y_kappa * S_hy_kappa - np.arctan(B_y_kappa * S_hy_kappa))
+                - E_y_kappa * (B_y_kappa * S_hy_kappa - math.atan(B_y_kappa * S_hy_kappa))
             )
         )
 
@@ -268,17 +272,17 @@ class SingleTrackDrift(PhysicsModelBase):
             mu_y
             * F_z
             * (self.tire.r_vy1 + self.tire.r_vy3 * gamma)
-            * np.cos(np.arctan(self.tire.r_vy4 * alpha))
+            * math.cos(math.atan(self.tire.r_vy4 * alpha))
         )
-        S_vy_kappa = D_vy_kappa * np.sin(self.tire.r_vy5 * np.arctan(self.tire.r_vy6 * kappa))
+        S_vy_kappa = D_vy_kappa * math.sin(self.tire.r_vy5 * math.atan(self.tire.r_vy6 * kappa))
 
         F_y = (
             D_y_kappa
-            * np.cos(
+            * math.cos(
                 C_y_kappa
-                * np.arctan(
+                * math.atan(
                     B_y_kappa * kappa_s
-                    - E_y_kappa * (B_y_kappa * kappa_s - np.arctan(B_y_kappa * kappa_s))
+                    - E_y_kappa * (B_y_kappa * kappa_s - math.atan(B_y_kappa * kappa_s))
                 )
             )
             + S_vy_kappa
@@ -290,29 +294,30 @@ class SingleTrackDrift(PhysicsModelBase):
         self, v: float, delta: float, d_phi: float, beta: float, omega_wf: float, omega_wr: float
     ) -> Tuple[float, float, float, float]:
         # Use safe values to avoid division by zero
-        v_safe = v if np.abs(v) > 1e-6 else (1e-6 if v >= 0 else -1e-6)
-        cos_beta = np.cos(beta)
-        cos_beta_safe = cos_beta if np.abs(cos_beta) > 1e-6 else (1e-6 if cos_beta >= 0 else -1e-6)
+        v_safe = v if abs(v) > 1e-6 else (1e-6 if v >= 0 else -1e-6)
+        cos_beta = math.cos(beta)
+        cos_beta_safe = cos_beta if abs(cos_beta) > 1e-6 else (1e-6 if cos_beta >= 0 else -1e-6)
+        sin_beta = math.sin(beta)
 
         # compute lateral tire slip angles:
         alpha_f = (
-            np.arctan((v_safe * np.sin(beta) + d_phi * self.lf) / (v_safe * cos_beta_safe)) - delta
+            math.atan((v_safe * sin_beta + d_phi * self.lf) / (v_safe * cos_beta_safe)) - delta
         )
-        alpha_r = np.arctan((v_safe * np.sin(beta) - d_phi * self.lr) / (v_safe * cos_beta_safe))
+        alpha_r = math.atan((v_safe * sin_beta - d_phi * self.lr) / (v_safe * cos_beta_safe))
 
         # compute vertical tire forces
         F_zf = (self.mass * self._G * self.lr) / self.wheel_base
         F_zr = (self.mass * self._G * self.lf) / self.wheel_base
 
         # compute front and rear tire speeds with safe values
-        u_wf = v_safe * cos_beta_safe * np.cos(delta) + (
-            v_safe * np.sin(beta) + self.lf * d_phi
-        ) * np.sin(delta)
+        u_wf = v_safe * cos_beta_safe * math.cos(delta) + (
+            v_safe * sin_beta + self.lf * d_phi
+        ) * math.sin(delta)
         u_wr = v_safe * cos_beta_safe
 
         # protect against division by zero
-        u_wf_safe = u_wf if np.abs(u_wf) > 1e-6 else (1e-6 if u_wf >= 0 else -1e-6)
-        u_wr_safe = u_wr if np.abs(u_wr) > 1e-6 else (1e-6 if u_wr >= 0 else -1e-6)
+        u_wf_safe = u_wf if abs(u_wf) > 1e-6 else (1e-6 if u_wf >= 0 else -1e-6)
+        u_wr_safe = u_wr if abs(u_wr) > 1e-6 else (1e-6 if u_wr >= 0 else -1e-6)
 
         # compute longitudinal tire slip
         s_f = 1 - self.radius * omega_wf / u_wf_safe
@@ -353,11 +358,18 @@ class SingleTrackDrift(PhysicsModelBase):
         if remainder > 0:
             dts.append(float(remainder) / 1000)
 
+        # Loop-invariant terms: delta is constant across sub-steps.
+        tan_delta = math.tan(delta)
+        cos_delta = math.cos(delta)
+        sin_delta = math.sin(delta)
+        cos2_delta = cos_delta**2
+        denom2 = (1 + tan_delta * self.lr / self.wheel_base) ** 2
+
         x, y = state.location
         v = state.speed
         phi = state.heading
-        d_phi = v / self.wheel_base * np.tan(delta)
-        beta = np.arctan(self.lr / self.lf * np.tan(delta))  # slip angle
+        d_phi = v / self.wheel_base * tan_delta
+        beta = math.atan(self.lr / self.lf * tan_delta)  # slip angle
 
         if accel > 0:
             T_B = 0
@@ -366,42 +378,43 @@ class SingleTrackDrift(PhysicsModelBase):
             T_B = self.mass * self.radius * accel
             T_E = 0
 
+        speed_range = self.speed_range
         for dt in dts:
             # Use a safe velocity to avoid division by zero
-            v_safe = v if np.abs(v) > 1e-6 else (1e-6 if v >= 0 else -1e-6)
+            v_safe = v if abs(v) > 1e-6 else (1e-6 if v >= 0 else -1e-6)
 
             F_lf, F_lr, F_sf, F_sr = self._tire_forces(
                 v_safe, delta, d_phi, beta, omega_wf, omega_wr
             )
 
-            dx = v * np.cos(phi + beta)
-            dy = v * np.sin(phi + beta)
+            dx = v * math.cos(phi + beta)
+            dy = v * math.sin(phi + beta)
 
-            if np.abs(v) >= 0.1:
+            if abs(v) >= 0.1:
+                cos_delta_beta = math.cos(delta - beta)
+                sin_delta_beta = math.sin(delta - beta)
+                sin_beta = math.sin(beta)
+                cos_beta = math.cos(beta)
                 dv = (
                     1
                     / self.mass
                     * (
-                        -F_sf * np.sin(delta - beta)
-                        + F_sr * np.sin(beta)
-                        + F_lr * np.cos(beta)
-                        + F_lf * np.cos(delta - beta)
+                        -F_sf * sin_delta_beta
+                        + F_sr * sin_beta
+                        + F_lr * cos_beta
+                        + F_lf * cos_delta_beta
                     )
                 )
                 d_beta = -d_phi + 1 / (self.mass * v_safe) * (
-                    F_sf * np.cos(delta - beta)
-                    + F_sr * np.cos(beta)
-                    - F_lr * np.sin(beta)
-                    + F_lf * np.sin(delta - beta)
+                    F_sf * cos_delta_beta
+                    + F_sr * cos_beta
+                    - F_lr * sin_beta
+                    + F_lf * sin_delta_beta
                 )
                 dd_phi = (
                     1
                     / self.I_z
-                    * (
-                        F_sf * np.cos(delta) * self.lf
-                        - F_sr * self.lr
-                        + F_lf * np.sin(delta) * self.lf
-                    )
+                    * (F_sf * cos_delta * self.lf - F_sr * self.lr + F_lf * sin_delta * self.lf)
                 )
                 d_phi += dd_phi * dt
                 d_omega_wf = (
@@ -414,33 +427,25 @@ class SingleTrackDrift(PhysicsModelBase):
                 )
             else:
                 dv = accel
-                d_beta = (
-                    self.lr
-                    / (1 + np.tan(delta) * self.lr / self.wheel_base) ** 2
-                    / self.wheel_base
-                    / np.cos(delta) ** 2
-                    * delta
-                )
+                cos_beta = math.cos(beta)
+                sin_beta = math.sin(beta)
+                d_beta = self.lr / denom2 / self.wheel_base / cos2_delta * delta
                 dd_phi = (
                     1
                     / self.wheel_base
                     * (
-                        accel * np.cos(beta) * np.tan(delta)
-                        - v * np.sin(beta) * np.tan(delta) * d_beta
-                        + v * np.cos(beta) / np.cos(delta) ** 2 * delta
+                        accel * cos_beta * tan_delta
+                        - v * sin_beta * tan_delta * d_beta
+                        + v * cos_beta / cos2_delta * delta
                     )
                 )
-                d_phi += v * np.cos(beta) / self.wheel_base * np.tan(delta) * dt
+                d_phi += v * cos_beta / self.wheel_base * tan_delta * dt
                 d_omega_wf = (
                     1
-                    / (np.cos(delta) * self.radius)
-                    * (
-                        accel * np.cos(beta)
-                        - v * np.sin(beta) * d_beta
-                        + v * np.cos(beta) * np.tan(delta) * delta
-                    )
+                    / (cos_delta * self.radius)
+                    * (accel * cos_beta - v * sin_beta * d_beta + v * cos_beta * tan_delta * delta)
                 )
-                d_omega_wr = 1 / self.radius * (accel * np.cos(beta) - v * np.sin(beta) * d_beta)
+                d_omega_wr = 1 / self.radius * (accel * cos_beta - v * sin_beta * d_beta)
 
             x += dx * dt
             y += dy * dt
@@ -451,13 +456,17 @@ class SingleTrackDrift(PhysicsModelBase):
             omega_wf += d_omega_wf * dt
             omega_wr += d_omega_wr * dt
 
-            v = np.clip(v, *self.speed_range) if self.speed_range is not None else v
+            if speed_range is not None:
+                if v < speed_range[0]:
+                    v = speed_range[0]
+                elif v > speed_range[1]:
+                    v = speed_range[1]
 
         state = State(
             frame=state.frame + interval,
             x=x,
             y=y,
-            heading=np.mod(phi, 2 * np.pi),
+            heading=phi % (2 * math.pi),
             speed=v,
             accel=accel,
         )

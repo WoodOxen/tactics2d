@@ -74,22 +74,39 @@ class State:
         Raises:
             ValueError: If the type of the input value cannot be converted to the expected type, the function will raise a ValueError.
         """
-        setattr(self, "frame", frame)
-        setattr(self, "x", x)
-        setattr(self, "y", y)
-        setattr(self, "heading", heading)
-        setattr(self, "vx", vx)
-        setattr(self, "vy", vy)
-        setattr(self, "_speed", speed)
-        setattr(self, "ax", ax)
-        setattr(self, "ay", ay)
-        setattr(self, "_accel", accel)
+        # Assign fields directly, bypassing the __setattr__ validation machinery
+        # (which guards post-construction attribute sets). Type coercion is done
+        # here once: None is preserved, values already of the declared type are
+        # kept as-is, everything else is converted.
+        annotations = self.__annotations__
+        values = (
+            ("frame", frame),
+            ("x", x),
+            ("y", y),
+            ("heading", heading),
+            ("vx", vx),
+            ("vy", vy),
+            ("_speed", speed),
+            ("ax", ax),
+            ("ay", ay),
+            ("_accel", accel),
+        )
+        for name, value in values:
+            expected = annotations[name]
+            if value is not None and not isinstance(value, expected):
+                try:
+                    value = expected(value)
+                except Exception:
+                    raise ValueError(
+                        f"Failed to convert {value} to the expected type of {name}: ({expected})."
+                    )
+            object.__setattr__(self, name, value)
 
         # Initialize cache variables
-        super().__setattr__("_cached_speed", None)
-        super().__setattr__("_cached_velocity", None)
-        super().__setattr__("_cached_accel", None)
-        super().__setattr__("_cached_acceleration", None)
+        object.__setattr__(self, "_cached_speed", None)
+        object.__setattr__(self, "_cached_velocity", None)
+        object.__setattr__(self, "_cached_accel", None)
+        object.__setattr__(self, "_cached_acceleration", None)
 
     def _invalidate_cache(self, attr_name: str) -> None:
         """Invalidate cache based on which attribute changed."""

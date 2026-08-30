@@ -1,9 +1,7 @@
-#! python3
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
-# @File: parse_driveinsightd.py
-# @Description: This file implements a parser of the DriveInsight Dataset.
-# @Author: Zexi Chen
-# @Version: 1.0.0
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""DriveInsightD parser implementation."""
 
 import logging
 import xml.etree.ElementTree as ET
