@@ -373,6 +373,47 @@ def build_segmented_roadline(
     return roadlines, roadline_ids, id_counter
 
 
+def resolve_arm_lane_counts(arm: dict[str, Any]) -> tuple[int, int]:
+    """Resolve an arm dict's per-direction lane counts.
+
+    The symmetric ``"lane_num"`` shorthand remains supported.  Callers can
+    instead provide both ``"in_lane_num"`` and ``"out_lane_num"`` to define
+    the two travel directions independently.
+
+    Args:
+        arm: Arm descriptor dictionary.
+
+    Returns:
+        Tuple ``(in_lane_num, out_lane_num)``.
+
+    Raises:
+        ValueError: If only one explicit count is supplied, the symmetric and
+            explicit forms are mixed, or neither form is supplied.
+    """
+    has_in = "in_lane_num" in arm
+    has_out = "out_lane_num" in arm
+
+    if has_in != has_out:
+        given = "in_lane_num" if has_in else "out_lane_num"
+        raise ValueError(
+            "Arm dicts must contain both 'in_lane_num' and 'out_lane_num' "
+            f"(only '{given}' provided)."
+        )
+    if has_in:
+        if "lane_num" in arm:
+            raise ValueError(
+                "Arm dicts must not combine 'lane_num' with 'in_lane_num'/'out_lane_num'."
+            )
+        return int(arm["in_lane_num"]), int(arm["out_lane_num"])
+    if "lane_num" not in arm:
+        raise ValueError(
+            "Arm dicts must contain 'lane_num' or both of 'in_lane_num' and 'out_lane_num'."
+        )
+
+    lane_num = int(arm["lane_num"])
+    return lane_num, lane_num
+
+
 def build_junction_arm_ports(
     normalized_arms: list[dict[str, Any]],
     outgoing_lane_ids: list[list[str]],
@@ -387,7 +428,11 @@ def build_junction_arm_ports(
 
     Args:
         normalized_arms: Arm records with keys ``point``, ``heading_inward``,
-            ``heading_outward``, ``lane_num``, ``lane_width``, ``speed_limit``.
+            ``heading_outward``, ``in_lane_num``, ``out_lane_num``,
+            ``lane_width``, ``speed_limit``. The inward port exposes
+            ``in_lane_num`` and the outward port exposes ``out_lane_num``;
+            either count can differ from the number of associated connector
+            lane ids.
         outgoing_lane_ids: Per-arm list of lane ids that leave the junction
             toward the connected road.
         incoming_lane_ids: Per-arm list of lane ids that enter the junction
@@ -406,14 +451,14 @@ def build_junction_arm_ports(
         inward_port = RoadPort(
             point=np.asarray(arm["point"], dtype=float),
             heading=float(arm["heading_inward"]),
-            lane_num=int(arm["lane_num"]),
+            lane_num=int(arm["in_lane_num"]),
             lane_width=float(arm["lane_width"]),
             speed_limit=float(arm["speed_limit"]),
         )
         outward_port = RoadPort(
             point=np.asarray(arm["point"], dtype=float),
             heading=float(arm["heading_outward"]),
-            lane_num=int(arm["lane_num"]),
+            lane_num=int(arm["out_lane_num"]),
             lane_width=float(arm["lane_width"]),
             speed_limit=float(arm["speed_limit"]),
         )

@@ -5,16 +5,11 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from pathlib import Path
 
 import numpy as np
 import pytest
-
-logging.basicConfig(level=logging.INFO)
-
-_RENDER_MAPS = os.environ.get("TACTICS2D_RENDER_MAPS", "0") == "1"
 
 from tactics2d.display.renderers import MatplotlibRenderer
 from tactics2d.display.sensor import BEVCamera
@@ -34,6 +29,8 @@ from tactics2d.map.generator.road_segment import (
 )
 from tactics2d.map.generator.rules.module_types import RoadModuleResult, RoadPort
 from tactics2d.participant.trajectory import State
+
+_RENDER_MAPS = os.environ.get("TACTICS2D_RENDER_MAPS", "0") == "1"
 
 
 def _render(map_: Map, save_to: os.PathLike) -> None:
@@ -127,7 +124,9 @@ def _port_from_start_length(
     return start_port, end_port
 
 
-def _two_way_from_port(port: RoadPort, *, length: float, id_offset: int) -> RoadModuleResult:
+def _two_way_from_port(
+    port: RoadPort, *, length: float, id_offset: int, backward_lane_num: int | None = None
+) -> RoadModuleResult:
     """Attach a two-way road to an intersection/roundabout outward port."""
     end_port = RoadPort(
         point=port.point + length * heading_unit(port.heading),
@@ -140,11 +139,28 @@ def _two_way_from_port(port: RoadPort, *, length: float, id_offset: int) -> Road
         port,
         end_port,
         forward_lane_num=port.lane_num,
-        backward_lane_num=port.lane_num,
+        backward_lane_num=port.lane_num if backward_lane_num is None else backward_lane_num,
         lane_width=port.lane_width,
         speed_limit=port.speed_limit,
         id_offset=id_offset,
     )
+
+
+def _attach_outgoing_two_way_roads(
+    map_: Map, result: RoadModuleResult, length: float = 30.0
+) -> None:
+    """Attach a short two-way road to every outward port of a junction module."""
+    id_offset = result.id_counter + 1000
+    for key, port in sorted(result.ports.items()):
+        if key.endswith("_out"):
+            parts = key.split("_")
+            sibling = f"arm_{parts[1]}_in" if len(parts) == 3 and parts[0] == "arm" else None
+            backward_lane_num = result.ports[sibling].lane_num if sibling in result.ports else None
+            road_result = _two_way_from_port(
+                port, length=length, id_offset=id_offset, backward_lane_num=backward_lane_num
+            )
+            id_offset = road_result.id_counter
+            _add_result(map_, road_result)
 
 
 def _assert_ramp_ports(result: RoadModuleResult) -> None:
@@ -373,37 +389,228 @@ def test_merge_tail(runtime_dir) -> None:
 
 
 @pytest.mark.map_generator
-def test_intersection_cross(runtime_dir):
-    map_ = Map(name="intersection_cross")
-    arms = [{"heading": h, "lane_num": 2} for h in [0.0, np.pi / 2, np.pi, 3 * np.pi / 2]]
+@pytest.mark.parametrize(
+    "name,headings",
+    [
+        ("intersection_cross", [0.0, np.pi / 2, np.pi, 3 * np.pi / 2]),
+        ("intersection_t", [0.0, np.pi / 2, np.pi]),
+    ],
+    ids=["cross", "t"],
+)
+def test_intersection_uniform_arms(runtime_dir, name: str, headings: list[float]) -> None:
+    """Build the two supported intersection layouts and assemble their approaches."""
+    map_ = Map(name=name)
+    arms = [{"heading": h, "lane_num": 2} for h in headings]
     result = Intersection(radius=10.0).build(center=np.array([0.0, 0.0]), arms=arms, id_offset=0)
     _add_result(map_, result)
-    id_off = result.id_counter + 1000
-    for key, port in sorted(result.ports.items()):
-        if key.endswith("_out"):
-            road_result = _two_way_from_port(port, length=30.0, id_offset=id_off)
-            id_off = road_result.id_counter
-            _add_result(map_, road_result)
-    _render(map_, runtime_dir / "intersection_cross.png")
-    assert sum(1 for k in result.ports if k.endswith("_out")) == 4
+    _attach_outgoing_two_way_roads(map_, result)
+    _render(map_, runtime_dir / f"{name}.png")
+    assert sum(1 for key in result.ports if key.endswith("_out")) == len(arms)
     assert len(map_.junctions) == 1
 
 
 @pytest.mark.map_generator
-def test_intersection_t(runtime_dir):
-    map_ = Map(name="intersection_t")
-    arms = [{"heading": h, "lane_num": 2} for h in [0.0, np.pi / 2, np.pi]]
-    result = Intersection(radius=10.0).build(center=np.array([0.0, 0.0]), arms=arms, id_offset=0)
+def test_intersection_mixed_arm_lane_counts(runtime_dir) -> None:
+    """Assemble a cross intersection whose connected arms have unequal widths."""
+    map_ = Map(name="intersection_mixed_arm_lane_counts")
+    lane_counts = [1, 2, 3, 1]
+    arms = [
+        {"heading": heading, "lane_num": lane_num, "lane_width": 3.5}
+        for heading, lane_num in zip([0.0, np.pi / 2, np.pi, 3 * np.pi / 2], lane_counts)
+    ]
+    result = Intersection(radius=12.0).build(center=np.array([0.0, 0.0]), arms=arms, id_offset=0)
     _add_result(map_, result)
-    id_off = result.id_counter + 1000
-    for key, port in sorted(result.ports.items()):
-        if key.endswith("_out"):
-            road_result = _two_way_from_port(port, length=30.0, id_offset=id_off)
-            id_off = road_result.id_counter
-            _add_result(map_, road_result)
-    _render(map_, runtime_dir / "intersection_t.png")
-    assert sum(1 for k in result.ports if k.endswith("_out")) == 3
+    _attach_outgoing_two_way_roads(map_, result)
+    _render(map_, runtime_dir / "intersection_mixed_arm_lane_counts.png")
+
+    for arm_idx, lane_num in enumerate(lane_counts):
+        assert result.ports[f"arm_{arm_idx}_in"].lane_num == lane_num
+        assert result.ports[f"arm_{arm_idx}_out"].lane_num == lane_num
+    assert len(result.lanes) == 12
     assert len(map_.junctions) == 1
+
+
+def _asymmetric_cross_arms() -> list[dict[str, float | int]]:
+    """Return four arms with independently configured incoming and outgoing lanes."""
+    lane_counts = [(3, 2), (2, 3), (2, 2), (1, 1)]
+    headings = [0.0, np.pi / 2, np.pi, 3 * np.pi / 2]
+    return [
+        {"heading": heading, "in_lane_num": in_lane_num, "out_lane_num": out_lane_num}
+        for heading, (in_lane_num, out_lane_num) in zip(headings, lane_counts)
+    ]
+
+
+@pytest.mark.map_generator
+@pytest.mark.parametrize(
+    "name,headings,lane_counts,expected_lane_count,expected_map_lane_count",
+    [
+        (
+            "intersection_asymmetric_cross",
+            [0.0, np.pi / 2, np.pi, 3 * np.pi / 2],
+            [(3, 2), (2, 3), (2, 2), (1, 1)],
+            12,
+            28,
+        ),
+        ("intersection_asymmetric_t", [0.0, np.pi / 2, np.pi], [(2, 1), (3, 2), (1, 2)], 6, 17),
+    ],
+    ids=["cross", "t"],
+)
+def test_intersection_asymmetric_arms(
+    runtime_dir,
+    name: str,
+    headings: list[float],
+    lane_counts: list[tuple[int, int]],
+    expected_lane_count: int,
+    expected_map_lane_count: int,
+) -> None:
+    """Build asymmetric arms and verify directional port and connector contracts."""
+    map_ = Map(name=name)
+    arms = [
+        {"heading": heading, "in_lane_num": in_lane_num, "out_lane_num": out_lane_num}
+        for heading, (in_lane_num, out_lane_num) in zip(headings, lane_counts)
+    ]
+    result = Intersection(radius=12.0).build(center=np.array([0.0, 0.0]), arms=arms, id_offset=0)
+    _add_result(map_, result)
+    _attach_outgoing_two_way_roads(map_, result)
+    _render(map_, runtime_dir / f"{name}.png")
+
+    assert len(result.lanes) == expected_lane_count
+    assert len(map_.lanes) == expected_map_lane_count
+    for arm_idx, (in_lane_num, out_lane_num) in enumerate(lane_counts):
+        assert result.ports[f"arm_{arm_idx}_in"].lane_num == in_lane_num
+        assert result.ports[f"arm_{arm_idx}_out"].lane_num == out_lane_num
+        assert len(result.ports[f"arm_{arm_idx}_in"].lane_ids) == len(headings) - 1
+        assert len(result.ports[f"arm_{arm_idx}_out"].lane_ids) == len(headings) - 1
+
+    for lane in result.lanes:
+        tags = lane.custom_tags
+        assert tags["incoming_lane_index"] < lane_counts[tags["from_arm"]][0]
+        assert tags["outgoing_lane_index"] < lane_counts[tags["to_arm"]][1]
+
+
+@pytest.mark.map_generator
+def test_intersection_asymmetric_arm_geometry() -> None:
+    """Keep asymmetric arm edges aligned with their attached two-way road."""
+    arms = _asymmetric_cross_arms()
+    result = Intersection(radius=12.0).build(center=np.array([0.0, 0.0]), arms=arms, id_offset=0)
+    map_ = Map(name="intersection_asymmetric_arm_geometry")
+    _add_result(map_, result)
+    _attach_outgoing_two_way_roads(map_, result)
+
+    arm_idx = 0
+    in_port = result.ports[f"arm_{arm_idx}_in"]
+    out_port = result.ports[f"arm_{arm_idx}_out"]
+    normal = np.array([-np.sin(in_port.heading), np.cos(in_port.heading)])
+    out_edge = out_port.point + out_port.lane_num * out_port.lane_width * normal
+    in_edge = in_port.point - in_port.lane_num * in_port.lane_width * normal
+    shape = np.asarray(result.junctions[0].custom_tags["shape"], dtype=float)
+
+    assert np.any(np.all(np.isclose(shape, out_edge), axis=1))
+    assert np.any(np.all(np.isclose(shape, in_edge), axis=1))
+
+    forward_edge = next(
+        roadline
+        for roadline in map_.roadlines.values()
+        if roadline.custom_tags.get("module") == "two_way"
+        and roadline.custom_tags.get("direction") == "forward"
+        and roadline.custom_tags.get("boundary_index") == out_port.lane_num
+        and np.allclose(np.asarray(roadline.geometry.coords)[0], out_edge)
+    )
+    backward_edge = next(
+        roadline
+        for roadline in map_.roadlines.values()
+        if roadline.custom_tags.get("module") == "two_way"
+        and roadline.custom_tags.get("direction") == "backward"
+        and roadline.custom_tags.get("boundary_index") == in_port.lane_num
+        and np.allclose(np.asarray(roadline.geometry.coords)[-1], in_edge)
+    )
+    assert forward_edge is not None
+    assert backward_edge is not None
+
+
+@pytest.mark.map_generator
+@pytest.mark.parametrize(
+    "ring_lane_num,expected_lane_count", [(1, 12), (2, 22)], ids=["one_ring_lane", "two_ring_lanes"]
+)
+def test_roundabout_asymmetric_arms(
+    runtime_dir, ring_lane_num: int, expected_lane_count: int
+) -> None:
+    """Use independent arm directions when linking to the roundabout ring."""
+    arms = _asymmetric_cross_arms()
+    lane_counts = [(arm["in_lane_num"], arm["out_lane_num"]) for arm in arms]
+    map_ = Map(name=f"roundabout_asymmetric_{ring_lane_num}")
+    result = Roundabout(ring_radius=12.0, ring_lane_num=ring_lane_num).build(
+        center=np.array([0.0, 0.0]), arms=arms, id_offset=0
+    )
+    _add_result(map_, result)
+    _attach_outgoing_two_way_roads(map_, result)
+    _render(map_, runtime_dir / f"roundabout_asymmetric_{ring_lane_num}.png")
+
+    assert len(result.lanes) == expected_lane_count
+    for arm_idx, (in_lane_num, out_lane_num) in enumerate(lane_counts):
+        in_port = result.ports[f"arm_{arm_idx}_in"]
+        out_port = result.ports[f"arm_{arm_idx}_out"]
+        assert in_port.lane_num == in_lane_num
+        assert out_port.lane_num == out_lane_num
+        assert len(in_port.lane_ids) == min(in_lane_num, ring_lane_num)
+        assert len(out_port.lane_ids) == min(out_lane_num, ring_lane_num)
+
+
+@pytest.mark.map_generator
+@pytest.mark.parametrize(
+    "arm,match",
+    [
+        ({"heading": 0.0, "in_lane_num": 2}, "both 'in_lane_num'"),
+        ({"heading": 0.0, "out_lane_num": 2}, "both 'in_lane_num'"),
+        ({"heading": 0.0, "lane_num": 2, "in_lane_num": 2, "out_lane_num": 2}, "not combine"),
+        ({"heading": 0.0}, "lane_num' or both"),
+        ({"heading": 0.0, "in_lane_num": 0, "out_lane_num": 2}, "in_lane_num must be"),
+        ({"heading": 0.0, "in_lane_num": 2, "out_lane_num": -1}, "out_lane_num must be"),
+    ],
+    ids=["only_in", "only_out", "mixed_forms", "missing_counts", "zero_in", "negative_out"],
+)
+def test_junction_invalid_asymmetric_arm_keys(arm: dict[str, int | float], match: str) -> None:
+    """Intersection and roundabout reject ambiguous or invalid arm counts consistently."""
+    arms = [arm, {"heading": np.pi / 2, "lane_num": 2}, {"heading": np.pi, "lane_num": 2}]
+
+    for generator in (Intersection(), Roundabout()):
+        with pytest.raises(ValueError, match=match):
+            generator.build(center=np.array([0.0, 0.0]), arms=arms, id_offset=0)
+
+
+@pytest.mark.map_generator
+def test_roadport_arms_remain_symmetric() -> None:
+    """RoadPort arms retain their single-count, bidirectional contract."""
+    ports = [
+        _make_port(12.0, 0.0, 0.0, 1),
+        _make_port(0.0, 12.0, np.pi / 2, 2),
+        _make_port(-12.0, 0.0, np.pi, 3),
+        _make_port(0.0, -12.0, 3 * np.pi / 2, 2),
+    ]
+    for generator in (Intersection(), Roundabout()):
+        result = generator.build(center=np.array([0.0, 0.0]), arms=ports, id_offset=0)
+        for arm_idx, port in enumerate(ports):
+            assert result.ports[f"arm_{arm_idx}_in"].lane_num == port.lane_num
+            assert result.ports[f"arm_{arm_idx}_out"].lane_num == port.lane_num
+
+
+@pytest.mark.map_generator
+@pytest.mark.parametrize("module", ["intersection", "roundabout"])
+def test_asymmetric_junction_has_no_id_collision(module: str) -> None:
+    """Repeated asymmetric modules must allocate disjoint element identifiers."""
+    arms = _asymmetric_cross_arms()
+    if module == "intersection":
+        generator = Intersection(radius=12.0)
+    else:
+        generator = Roundabout(ring_radius=12.0, ring_lane_num=2)
+
+    first = generator.build(center=np.array([0.0, 0.0]), arms=arms, id_offset=0)
+    second = generator.build(center=np.array([100.0, 0.0]), arms=arms, id_offset=first.id_counter)
+    first_ids = {element.id_ for element in [*first.lanes, *first.roadlines, *first.junctions]}
+    second_ids = {element.id_ for element in [*second.lanes, *second.roadlines, *second.junctions]}
+
+    assert first_ids.isdisjoint(second_ids)
+    assert second.id_counter > first.id_counter
 
 
 @pytest.mark.map_generator
@@ -417,12 +624,7 @@ def test_intersection_cross_curved(runtime_dir):
     ]
     result = Intersection().build(center=np.array([0.0, 0.0]), arms=arms, id_offset=0)
     _add_result(map_, result)
-    id_off = result.id_counter + 1000
-    for key, port in sorted(result.ports.items()):
-        if key.endswith("_out"):
-            road_result = _two_way_from_port(port, length=30.0, id_offset=id_off)
-            id_off = road_result.id_counter
-            _add_result(map_, road_result)
+    _attach_outgoing_two_way_roads(map_, result)
     _render(map_, runtime_dir / "intersection_cross_curved.png")
     assert sum(1 for k in result.ports if k.endswith("_out")) == 4
     assert len(map_.junctions) == 1
@@ -441,12 +643,7 @@ def test_roundabout(runtime_dir, arm_headings: list, arm_num: int) -> None:
         center=np.array([0.0, 0.0]), arms=arms, id_offset=0
     )
     _add_result(map_, result)
-    id_off = result.id_counter + 1000
-    for key, port in sorted(result.ports.items()):
-        if key.endswith("_out"):
-            road_result = _two_way_from_port(port, length=30.0, id_offset=id_off)
-            id_off = road_result.id_counter
-            _add_result(map_, road_result)
+    _attach_outgoing_two_way_roads(map_, result)
     _render(map_, runtime_dir / f"roundabout_{arm_num}arm.png")
     assert sum(1 for k in result.ports if k.endswith("_out")) == arm_num
     assert len(result.junctions) == 1

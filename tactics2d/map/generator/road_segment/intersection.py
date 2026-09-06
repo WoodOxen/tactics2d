@@ -21,6 +21,7 @@ from .element_builder import (
     build_pavement_junction,
     build_roadline_from_points,
     merge_marking_kwargs,
+    resolve_arm_lane_counts,
 )
 from .reference_line import bezier_connection, sample_centerline
 from .road_segment import RoadSegment
@@ -88,9 +89,11 @@ def _normalize_intersection_arm(
 
     Args:
         center: Junction centre in world coordinates.
-        arm: Arm descriptor — either a :class:`RoadPort` or a ``dict`` with
-            keys ``"heading"`` and ``"lane_num"``, and optionally ``"radius"``,
-            ``"curvature"``, ``"lane_width"``, ``"speed_limit"``.
+        arm: Arm descriptor — either a symmetric :class:`RoadPort` or a
+            ``dict`` with ``"heading"`` and either ``"lane_num"`` or both
+            ``"in_lane_num"`` and ``"out_lane_num"``. It may additionally
+            contain ``"radius"``, ``"curvature"``, ``"lane_width"``, and
+            ``"speed_limit"``.
         default_radius: Fallback arm boundary radius in metres for dict arms.
         default_lane_width: Fallback lane width in metres for dict arms.
         default_speed_limit: Fallback speed limit in km/h for dict arms.
@@ -98,11 +101,12 @@ def _normalize_intersection_arm(
 
     Returns:
         Dict with keys ``"point"``, ``"heading_outward"``, ``"heading_inward"``,
-        ``"lane_num"``, ``"lane_width"``, ``"speed_limit"``, ``"curvature"``,
-        and ``"radius"``.
+        ``"in_lane_num"``, ``"out_lane_num"``, ``"lane_width"``,
+        ``"speed_limit"``, ``"curvature"``, and ``"radius"``.
 
     Raises:
-        ValueError: If a dict arm is missing ``"heading"`` or ``"lane_num"``.
+        ValueError: If a dict arm is missing ``"heading"`` or a valid lane
+            count specification.
     """
     if isinstance(arm, RoadPort):
         point = np.asarray(arm.point, dtype=float)
@@ -112,17 +116,19 @@ def _normalize_intersection_arm(
             "point": point,
             "heading_outward": heading_outward,
             "heading_inward": heading_outward + np.pi,
-            "lane_num": int(arm.lane_num),
+            "in_lane_num": int(arm.lane_num),
+            "out_lane_num": int(arm.lane_num),
             "lane_width": float(arm.lane_width),
             "speed_limit": float(arm.speed_limit),
             "curvature": 0.0,
             "radius": float(np.linalg.norm(point - center)),
         }
 
-    if "heading" not in arm or "lane_num" not in arm:
-        raise ValueError("Each arm dict must contain 'heading' and 'lane_num'.")
+    if "heading" not in arm:
+        raise ValueError("Each arm dict must contain 'heading'.")
 
     heading_outward = float(arm["heading"])
+    in_lane_num, out_lane_num = resolve_arm_lane_counts(arm)
     arm_radius = float(arm.get("radius", default_radius))
     curvature = float(arm.get("curvature", 0.0))
 
@@ -138,7 +144,8 @@ def _normalize_intersection_arm(
         "point": point,
         "heading_outward": heading_inward + np.pi,
         "heading_inward": heading_inward,
-        "lane_num": int(arm["lane_num"]),
+        "in_lane_num": in_lane_num,
+        "out_lane_num": out_lane_num,
         "lane_width": float(arm.get("lane_width", default_lane_width)),
         "speed_limit": float(arm.get("speed_limit", default_speed_limit)),
         "curvature": curvature,
@@ -147,38 +154,42 @@ def _normalize_intersection_arm(
 
 
 def _arm_boundary_lines(
-    boundary_pt: np.ndarray, heading_inward: float, lane_num: int, lane_width: float
+    boundary_pt: np.ndarray,
+    heading_inward: float,
+    in_lane_num: int,
+    out_lane_num: int,
+    lane_width: float,
 ) -> list[np.ndarray]:
     """Return the lateral boundary points across an intersection arm throat.
 
-    Points are ordered from the left extreme (incoming side) to the right
-    extreme (outgoing side), centred on ``boundary_pt``.
+    Points are ordered from the outgoing-side outer edge to the incoming-side
+    outer edge, with ``boundary_pt`` separating the two travel directions.
 
     Args:
         boundary_pt: Arm socket position in world coordinates.
         heading_inward: Heading pointing from the arm into the junction.
-        lane_num: Number of lanes in the arm.
+        in_lane_num: Number of lanes entering the junction.
+        out_lane_num: Number of lanes leaving the junction.
         lane_width: Width per lane in metres.
 
     Returns:
-        List of ``2 * lane_num + 1`` points spanning the full arm throat width.
+        List of ``in_lane_num + out_lane_num + 1`` points spanning the arm
+        throat width.
     """
     normal = _left_normal(heading_inward)
-    points: list[np.ndarray] = []
-
-    for i in range(lane_num, 0, -1):
-        points.append(boundary_pt + i * lane_width * normal)
-
+    points = [boundary_pt + i * lane_width * normal for i in range(out_lane_num, 0, -1)]
     points.append(boundary_pt)
-
-    for i in range(1, lane_num + 1):
-        points.append(boundary_pt - i * lane_width * normal)
+    points.extend(boundary_pt - i * lane_width * normal for i in range(1, in_lane_num + 1))
 
     return points
 
 
 def _arm_lane_centers(
-    boundary_pt: np.ndarray, heading_inward: float, lane_num: int, lane_width: float
+    boundary_pt: np.ndarray,
+    heading_inward: float,
+    in_lane_num: int,
+    out_lane_num: int,
+    lane_width: float,
 ) -> tuple[list[np.ndarray], list[np.ndarray]]:
     """Return incoming and outgoing lane centre points at an arm throat.
 
@@ -188,16 +199,18 @@ def _arm_lane_centers(
     Args:
         boundary_pt: Arm socket position in world coordinates.
         heading_inward: Heading pointing from the arm into the junction.
-        lane_num: Number of lanes in the arm.
+        in_lane_num: Number of lanes entering the junction.
+        out_lane_num: Number of lanes leaving the junction.
         lane_width: Width per lane in metres.
 
     Returns:
-        Tuple ``(incoming_pts, outgoing_pts)`` each of length ``lane_num``.
+        Tuple ``(incoming_pts, outgoing_pts)`` with lengths ``in_lane_num``
+        and ``out_lane_num`` respectively.
     """
     normal = _left_normal(heading_inward)
 
-    incoming_pts = [boundary_pt - (i + 0.5) * lane_width * normal for i in range(lane_num)]
-    outgoing_pts = [boundary_pt + (i + 0.5) * lane_width * normal for i in range(lane_num)]
+    incoming_pts = [boundary_pt - (i + 0.5) * lane_width * normal for i in range(in_lane_num)]
+    outgoing_pts = [boundary_pt + (i + 0.5) * lane_width * normal for i in range(out_lane_num)]
 
     return incoming_pts, outgoing_pts
 
@@ -364,10 +377,11 @@ def _intersection_build(
 
     Args:
         center: Junction centre in world coordinates.
-        arms: 3 or 4 arm descriptors; each element is a :class:`RoadPort`
-            or a ``dict`` with keys ``"heading"``, ``"lane_num"``, and
-            optionally ``"radius"``, ``"curvature"``, ``"lane_width"``,
-            ``"speed_limit"``.
+        arms: 3 or 4 arm descriptors; each element is a symmetric
+            :class:`RoadPort` or a dict with ``"heading"`` and either
+            ``"lane_num"`` or both ``"in_lane_num"`` and ``"out_lane_num"``.
+            It may additionally contain ``"radius"``, ``"curvature"``,
+            ``"lane_width"``, and ``"speed_limit"``.
         lane_width: Default lane width in metres for dict arms that omit it.
         radius: Default arm boundary radius in metres.
         speed_limit: Default speed limit in km/h.
@@ -380,7 +394,8 @@ def _intersection_build(
 
     Raises:
         ValueError: If ``arms`` does not contain exactly 3 or 4 elements,
-            ``step_size <= 0``, or any arm has an invalid lane count or width.
+            ``step_size <= 0``, or any arm has an invalid directional lane
+            count or width.
     """
     center = np.asarray(center, dtype=float)
 
@@ -403,8 +418,10 @@ def _intersection_build(
     ]
 
     for i, arm in enumerate(normalized_arms):
-        if arm["lane_num"] < 1:
-            raise ValueError(f"arm[{i}] lane_num must be >= 1.")
+        if arm["in_lane_num"] < 1:
+            raise ValueError(f"arm[{i}] in_lane_num must be >= 1.")
+        if arm["out_lane_num"] < 1:
+            raise ValueError(f"arm[{i}] out_lane_num must be >= 1.")
         if arm["lane_width"] <= 0.0:
             raise ValueError(f"arm[{i}] lane_width must be positive.")
 
@@ -419,7 +436,8 @@ def _intersection_build(
         incoming_pts, outgoing_pts = _arm_lane_centers(
             boundary_pt=arm["point"],
             heading_inward=arm["heading_inward"],
-            lane_num=arm["lane_num"],
+            in_lane_num=arm["in_lane_num"],
+            out_lane_num=arm["out_lane_num"],
             lane_width=arm["lane_width"],
         )
         arm_incoming_pts.append(incoming_pts)
@@ -429,7 +447,8 @@ def _intersection_build(
             _arm_boundary_lines(
                 boundary_pt=arm["point"],
                 heading_inward=arm["heading_inward"],
-                lane_num=arm["lane_num"],
+                in_lane_num=arm["in_lane_num"],
+                out_lane_num=arm["out_lane_num"],
                 lane_width=arm["lane_width"],
             )
         )
@@ -451,8 +470,8 @@ def _intersection_build(
             turn = _turn_direction(h_in, h_out)
             pairs = _lane_pairs_for_turn(
                 turn=turn,
-                incoming_lane_num=inc_arm["lane_num"],
-                outgoing_lane_num=out_arm["lane_num"],
+                incoming_lane_num=inc_arm["in_lane_num"],
+                outgoing_lane_num=out_arm["out_lane_num"],
             )
 
             for inc_lane_idx, out_lane_idx in pairs:
@@ -593,10 +612,11 @@ class Intersection(RoadSegment):
 
         Args:
             center: Junction centre point as a 2-D world coordinate.
-            arms: List of arm descriptors. Each element is either a
-                :class:`RoadPort` or a plain ``dict`` with keys ``"heading"``,
-                ``"lane_num"``, and optionally ``"radius"``, ``"curvature"``,
-                ``"lane_width"``, ``"speed_limit"``.
+            arms: List of arm descriptors. Each element is either a symmetric
+                :class:`RoadPort` or a dict with ``"heading"`` and either
+                ``"lane_num"`` or both ``"in_lane_num"`` and
+                ``"out_lane_num"``. It may also contain ``"radius"``,
+                ``"curvature"``, ``"lane_width"``, and ``"speed_limit"``.
             id_offset: First element id.
 
         Returns:
@@ -605,7 +625,7 @@ class Intersection(RoadSegment):
 
         Raises:
             ValueError: If ``arms`` does not contain exactly 3 or 4 elements,
-                or any arm has ``lane_num < 1`` or ``lane_width <= 0``.
+                or any arm has an invalid directional lane count or width.
         """
         return _intersection_build(
             center=center,

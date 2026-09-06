@@ -27,6 +27,7 @@ from .element_builder import (
     build_lane_from_boundaries,
     build_pavement_junction,
     build_roadline_from_points,
+    resolve_arm_lane_counts,
 )
 from .reference_line import arc_pts, bezier_connection
 from .road_segment import RoadSegment
@@ -101,20 +102,23 @@ def _normalize_roundabout_arm(
 
     Args:
         center: Roundabout centre in world coordinates.
-        arm: Arm descriptor — either a :class:`RoadPort` or a ``dict`` with
-            keys ``"heading"`` and ``"lane_num"``, and optionally ``"radius"``,
-            ``"curvature"``, ``"lane_width"``, ``"speed_limit"``.
+        arm: Arm descriptor — either a symmetric :class:`RoadPort` or a dict
+            with ``"heading"`` and either ``"lane_num"`` or both
+            ``"in_lane_num"`` and ``"out_lane_num"``. It may additionally
+            contain ``"radius"``, ``"curvature"``, ``"lane_width"``, and
+            ``"speed_limit"``.
         default_radius: Fallback outer-ring boundary radius in metres.
         default_lane_width: Fallback lane width in metres.
         default_speed_limit: Fallback speed limit in km/h.
 
     Returns:
         Dict with keys ``"point"``, ``"heading_outward"``, ``"heading_inward"``,
-        ``"lane_num"``, ``"lane_width"``, ``"speed_limit"``, ``"curvature"``,
-        and ``"radius"``.
+        ``"in_lane_num"``, ``"out_lane_num"``, ``"lane_width"``,
+        ``"speed_limit"``, ``"curvature"``, and ``"radius"``.
 
     Raises:
-        ValueError: If a dict arm is missing ``"heading"`` or ``"lane_num"``.
+        ValueError: If a dict arm is missing ``"heading"`` or a valid lane
+            count specification.
     """
     if isinstance(arm, RoadPort):
         point = np.asarray(arm.point, dtype=float)
@@ -124,17 +128,19 @@ def _normalize_roundabout_arm(
             "point": point,
             "heading_outward": heading_outward,
             "heading_inward": heading_outward + np.pi,
-            "lane_num": int(arm.lane_num),
+            "in_lane_num": int(arm.lane_num),
+            "out_lane_num": int(arm.lane_num),
             "lane_width": float(arm.lane_width),
             "speed_limit": float(arm.speed_limit),
             "curvature": 0.0,
             "radius": float(np.linalg.norm(point - center)),
         }
 
-    if "heading" not in arm or "lane_num" not in arm:
-        raise ValueError("Each arm dict must contain 'heading' and 'lane_num'.")
+    if "heading" not in arm:
+        raise ValueError("Each arm dict must contain 'heading'.")
 
     heading_outward = float(arm["heading"])
+    in_lane_num, out_lane_num = resolve_arm_lane_counts(arm)
     arm_radius = float(arm.get("radius", default_radius))
     lane_width = float(arm.get("lane_width", default_lane_width))
     point = center + arm_radius * heading_unit(heading_outward)
@@ -143,7 +149,8 @@ def _normalize_roundabout_arm(
         "point": point,
         "heading_outward": heading_outward,
         "heading_inward": heading_outward + np.pi,
-        "lane_num": int(arm["lane_num"]),
+        "in_lane_num": in_lane_num,
+        "out_lane_num": out_lane_num,
         "lane_width": lane_width,
         "speed_limit": float(arm.get("speed_limit", default_speed_limit)),
         "curvature": float(arm.get("curvature", 0.0)),
@@ -278,13 +285,13 @@ def _arm_opening_half_angle(arm: dict[str, Any], outer_ring_radius: float) -> fl
     is reserved for each arm opening.
 
     Args:
-        arm: Normalised arm record with ``"lane_num"`` and ``"lane_width"`` keys.
+        arm: Normalised arm record with directional lane counts and a lane width.
         outer_ring_radius: Outer edge radius of the ring road in metres.
 
     Returns:
         Half-angle in radians subtended by the arm throat on the outer ring.
     """
-    throat_width = int(arm["lane_num"]) * float(arm["lane_width"])
+    throat_width = max(int(arm["in_lane_num"]), int(arm["out_lane_num"])) * float(arm["lane_width"])
 
     if outer_ring_radius <= 1e-9:
         return np.pi / 8.0
@@ -361,13 +368,14 @@ def _arm_outer_edge_roadlines(
     h_in = float(arm["heading_inward"])
     h_out = float(arm["heading_outward"])
 
-    lane_num = int(arm["lane_num"])
+    in_lane_num = int(arm["in_lane_num"])
+    out_lane_num = int(arm["out_lane_num"])
     lane_width = float(arm["lane_width"])
 
     normal = np.array([-np.sin(h_in), np.cos(h_in)], dtype=float)
 
-    positive_edge_start = boundary_pt + lane_num * lane_width * normal
-    negative_edge_start = boundary_pt - lane_num * lane_width * normal
+    positive_edge_start = boundary_pt + out_lane_num * lane_width * normal
+    negative_edge_start = boundary_pt - in_lane_num * lane_width * normal
 
     inward_direction = -heading_unit(h_out)
 
@@ -434,10 +442,11 @@ def _roundabout_build(
 
     Args:
         center: Roundabout centre in world coordinates.
-        arms: At least 2 arm descriptors; each element is a :class:`RoadPort`
-            or a ``dict`` with keys ``"heading"``, ``"lane_num"``, and
-            optionally ``"radius"``, ``"curvature"``, ``"lane_width"``,
-            ``"speed_limit"``.
+        arms: At least 2 arm descriptors; each element is a symmetric
+            :class:`RoadPort` or a dict with ``"heading"`` and either
+            ``"lane_num"`` or both ``"in_lane_num"`` and ``"out_lane_num"``.
+            It may additionally contain ``"radius"``, ``"curvature"``,
+            ``"lane_width"``, and ``"speed_limit"``.
         ring_radius: Inner edge radius of the ring road in metres.
         ring_lane_num: Number of circulating lanes in the ring.
         lane_width: Lane width in metres for both ring and arm connectors.
@@ -479,8 +488,10 @@ def _roundabout_build(
     ]
 
     for i, arm in enumerate(normalized_arms):
-        if arm["lane_num"] < 1:
-            raise ValueError(f"arm[{i}] lane_num must be >= 1.")
+        if arm["in_lane_num"] < 1:
+            raise ValueError(f"arm[{i}] in_lane_num must be >= 1.")
+        if arm["out_lane_num"] < 1:
+            raise ValueError(f"arm[{i}] out_lane_num must be >= 1.")
         if arm["lane_width"] <= 0.0:
             raise ValueError(f"arm[{i}] lane_width must be positive.")
 
@@ -610,15 +621,15 @@ def _roundabout_build(
         h_in = float(arm["heading_inward"])
         h_out = float(arm["heading_outward"])
         boundary_pt = np.asarray(arm["point"], dtype=float)
-        arm_lane_num = int(arm["lane_num"])
+        in_lane_num = int(arm["in_lane_num"])
+        out_lane_num = int(arm["out_lane_num"])
         arm_lane_width = float(arm["lane_width"])
         arm_speed = float(arm["speed_limit"])
-        pair_num = min(arm_lane_num, ring_lane_num)
 
         normal = np.array([-np.sin(h_in), np.cos(h_in)], dtype=float)
         arm_angle = h_out % (2.0 * np.pi)
 
-        for lane_i in range(pair_num):
+        for lane_i in range(min(in_lane_num, ring_lane_num)):
             ring_center_radius = ring_radius + (lane_i + 0.5) * lane_width
 
             entry_angle = arm_angle + entry_offsets[arm_idx]
@@ -646,6 +657,8 @@ def _roundabout_build(
             roadlines.extend(entry_rls)
             outgoing_lane_ids[arm_idx].append(entry_lane.id_)
 
+        for lane_i in range(min(out_lane_num, ring_lane_num)):
+            ring_center_radius = ring_radius + (lane_i + 0.5) * lane_width
             exit_angle = arm_angle - exit_offsets[arm_idx]
             exit_contact = center + ring_center_radius * np.array(
                 [np.cos(exit_angle), np.sin(exit_angle)], dtype=float
@@ -768,20 +781,21 @@ class Roundabout(RoadSegment):
 
         Args:
             center: 2-D world coordinate of the roundabout centre.
-            arms: List of arm descriptors. Each element is either a
-                :class:`RoadPort` or a plain ``dict`` with keys ``"heading"``,
-                ``"lane_num"``, and optionally ``"lane_width"``,
+            arms: List of arm descriptors. Each element is either a symmetric
+                :class:`RoadPort` or a dict with ``"heading"`` and either
+                ``"lane_num"`` or both ``"in_lane_num"`` and
+                ``"out_lane_num"``. It may also contain ``"lane_width"`` and
                 ``"speed_limit"``.
             id_offset: First element id.
 
         Returns:
             :class:`RoadModuleResult` containing ring-road lanes, arm-stub
             lanes, roadlines, a junction polygon, and one named port per arm
-            keyed as ``"arm_0"``, ``"arm_1"``, ….
+            keyed as ``"arm_{i}_in"`` and ``"arm_{i}_out"``.
 
         Raises:
             ValueError: If fewer than 2 arms are supplied, or any arm has
-                invalid ``lane_num`` or ``lane_width``.
+                invalid directional lane counts or lane width.
         """
         return _roundabout_build(
             center=center,
