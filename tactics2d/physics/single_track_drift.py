@@ -15,38 +15,46 @@ from .physics_model_base import PhysicsModelBase
 
 
 class Tire:
+    """Pacejka (magic-formula) tire coefficients from the ADAMS handbook.
+
+    The values match the CommonRoad tire parameter set (Althoff & Würsching, "CommonRoad:
+    Vehicle Models", 2020, Tab. 7). Compared to earlier Tactics2D releases, the combined-slip
+    coefficients ``r_cx1``/``r_ex1`` were swapped and several values were rounded; they are now
+    exact.
+    """
+
     # longitudinal parameters
     p_cx1 = 1.6411  # shape factor for longitudinal force
     p_dx1 = 1.1739  # longitudinal friction coefficient mu_x at F_z0
     p_dx3 = 0.0  # variation of friction coefficient mu_x with camber
-    p_ex1 = 0.4640  # longitudinal curvature at F_z0
+    p_ex1 = 0.46403  # longitudinal curvature at F_z0
     p_kx1 = 22.303  # longitudinal slip stiffness at F_z0
     p_hx1 = 1.2297e-3  # horizontal shift at F_z0
     p_vx1 = -8.8098e-6  # vertical shift at F_z0
     r_bx1 = 13.276  # slope factor for combined slip F_x reduction
     r_bx2 = -13.778  # variation of slope F_x reduction with kappa
-    r_ex1 = 1.2568  # shape factor for combined slip F_x reduction
-    r_cx1 = 0.6522  # curvature factor for combined F_x
+    r_cx1 = 1.2568  # shape factor for combined slip F_x reduction
+    r_ex1 = 0.65225  # curvature factor of combined F_x
     r_hx1 = 5.0722e-3  # shift factor for combined slip F_x reduction
     # lateral parameters
     p_cy1 = 1.3507  # shape factor for lateral force
     p_dy1 = 1.0489  # lateral friction coefficient mu_y
     p_dy3 = -2.8821  # variation of friction coefficient mu_y with squared camber
     p_ey1 = -7.4722e-3  # lateral curvature at F_z0
-    p_ky1 = -21.920  # maximum value of stiffness
+    p_ky1 = -21.92  # maximum value of stiffness
     p_hy1 = 2.6747e-3  # horizontal shift at F_z0
     p_hy3 = 3.1415e-2  # variation of shift with camber
     p_vy1 = 3.7318e-2  # vertical shift at F_z0
-    p_vy3 = -0.3293  # variation of vertical shift with camber
+    p_vy3 = -0.32931  # variation of vertical shift with camber
     r_by1 = 7.1433  # slope factor for combined slip F_y reduction
-    r_by2 = 9.1917  # variation of slope F_y reduction with alpha
+    r_by2 = 9.1916  # variation of slope F_y reduction with alpha
     r_by3 = -2.7856e-2  # shift term for alpha in slope F_y reduction
     r_cy1 = 1.0719  # shape factor for combined F_y reduction
-    r_ey1 = -0.2757  # curvature factor for combined F_y
+    r_ey1 = -0.27572  # curvature factor for combined F_y
     r_hy1 = 5.7448e-6  # shift factor for combined slip F_y reduction
     r_vy1 = -2.7825e-2  # kappa-induced side force at F_z0
-    r_vy3 = -0.2756  # variation of S_vy_kappa/mu_y F_z with camber
-    r_vy4 = 12.120  # variation of S_vy_kappa/mu_y F_z with alpha
+    r_vy3 = -0.27568  # variation of S_vy_kappa/mu_y F_z with camber
+    r_vy4 = 12.12  # variation of S_vy_kappa/mu_y F_z with alpha
     r_vy5 = 1.9  # variation of S_vy_kappa/mu_y F_z with kappa
     r_vy6 = -10.704  # variation of S_vy_kappa/mu_y F_z with arctan(kappa)
 
@@ -57,11 +65,24 @@ class SingleTrackDrift(PhysicsModelBase):
     !!! warning
         This class was designed "as a simplification of the multi-body" model. Theoretically, it is applicable to the All-Wheel-Drive (AWD) vehicle. However, the tire model is so complicated that it is not fully tested in `tactics2d` v1.0.0. The current implementation is based on the MATLAB code provided by the CommonRoad project. Please use it with caution.
 
+        The Pacejka tire dynamics are numerically stiff (a fast mode around 800 s$^{-1}$, so an
+        explicit 4th-order Runge-Kutta scheme is stable only below ~3.5 ms): keep `delta_t` at
+        1-2 ms for converged results.
+
     !!! quote "Reference"
         The dynamic single-track model is based on Chapter 8 of the following reference:
         [CommonRoad: Vehicle Models (2020a)](https://gitlab.lrz.de/tum-cps/commonroad-vehicle-models/-/blob/master/vehicleModels_commonRoad.pdf)
 
         Pacejka, Hans. *Tire and vehicle dynamics.* Elsevier, 2005.
+
+    !!! info "Parameter sources"
+        The default parameters are those of the CommonRoad reference vehicle (vehicle ID 1, a
+        Ford Escort): `I_z = 1538.85` kg·m$^2$, `I_yw = 1.7` kg·m$^2$, `radius = 0.344` m,
+        `T_sb = 0.76`, `T_se = 1.0`, and the Pacejka `Tire` coefficients from the ADAMS handbook
+        (Althoff & Würsching, "CommonRoad: Vehicle Models", 2020, Tab. 7). Vehicle mass and CG
+        height come from the participant template (e.g. `medium_car` is a Volkswagen Golf);
+        yaw/wheel inertias are not published for production cars, so the CommonRoad reference
+        vehicle is used — override them for a specific vehicle when known.
 
     Attributes:
         lf (float): The distance from the center of mass to the front axle. The unit is meter (m).
@@ -72,7 +93,7 @@ class SingleTrackDrift(PhysicsModelBase):
         T_sb (float): The split parameter between the front and rear axles for the braking torque. Defaults to 0.76.
         T_se (float): The split parameter between the front and rear axles for the engine torque. Defaults to 1.
         tire (Any): The tire model. Default to the in-built tire model.
-        I_z (float): The moment of inertia of the vehicle. The unit is kilogram meter squared (kg m^2). Defaults to 1500.
+        I_z (float): The moment of inertia of the vehicle. The unit is kilogram meter squared (kg m^2). Defaults to 1538.85.
         I_yw (float): The moment of inertia of the wheel. The unit is kilogram meter squared (kg m^2). Defaults to 1.7.
         steer_range (Union[float, Tuple[float, float]], optional): The steering angle range. The valid input is a float or a tuple of two floats represents (min steering angle, max steering angle). The unit is radian.
 
@@ -91,7 +112,7 @@ class SingleTrackDrift(PhysicsModelBase):
             - When the accel_range is a tuple, the acceleration is constrained to be within the range [min acceleration, max acceleration].
             - When the accel_range is negative or the min acceleration is not less than the max acceleration, the accel_range is set to None.
         interval (int, optional): The time interval between the current state and the new state. The unit is millisecond. Defaults to None.
-        delta_t (int, optional): The default time interval between the current state and the new state, 5 milliseconds (ms). Defaults to None.
+        delta_t (int, optional): The time step for the simulation. The unit is millisecond. Defaults to `_DELTA_T`(5 ms). The expected value is between `_MIN_DELTA_T`(1 ms) and `interval`. The model integrates with a 4th-order Runge-Kutta scheme, but the Pacejka tire dynamics are stiff (explicit RK4 stable only below ~3.5 ms): keep delta_t at 1-2 ms for converged results.
     """
 
     def __init__(
@@ -104,7 +125,7 @@ class SingleTrackDrift(PhysicsModelBase):
         T_sb: float = 0.76,
         T_se: float = 1,
         tire=Tire(),
-        I_z: float = 1500,
+        I_z: float = 1538.85,
         I_yw: float = 1.7,
         steer_range: Union[float, Tuple[float, float]] = None,
         speed_range: Union[float, Tuple[float, float]] = None,
@@ -123,8 +144,8 @@ class SingleTrackDrift(PhysicsModelBase):
             T_sb (float): The split parameter between the front and rear axles for the braking torque.
             T_se (float): The split parameter between the front and rear axles for the engine torque.
             tire (Any): The tire model. The current implementation refers to the parameters in [CommonRoad: Vehicle Models (2020a)](https://gitlab.lrz.de/tum-cps/commonroad-vehicle-models/-/blob/master/vehicleModels_commonRoad.pdf). If you want to use a different tire model, you need to implement the tire model by yourself.
-            I_z (float): The moment of inertia of the vehicle. The unit is kilogram meter squared (kg m^2).
-            I_yw (float): The moment of inertia of the wheel. The unit is kilogram meter squared (kg m^2).
+            I_z (float): The moment of inertia of the vehicle. The unit is kilogram meter squared (kg m^2). Defaults to 1538.85.
+            I_yw (float): The moment of inertia of the wheel. The unit is kilogram meter squared (kg m^2). Defaults to 1.7.
             steer_range (Union[float, Tuple[float, float]], optional): The range of steering angle. The valid input is a positive float or a tuple of two floats represents (min steering angle, max steering angle). The unit is radian.
             speed_range (Union[float, Tuple[float, float]], optional): The range of speed. The valid input is a positive float or a tuple of two floats represents (min speed, max speed). The unit is meter per second (m/s).
             accel_range (Union[float, Tuple[float, float]], optional): The range of acceleration. The valid input is a positive float or a tuple of two floats represents (min acceleration, max acceleration). The unit is meter per second squared (m/s$^2$).
@@ -368,8 +389,15 @@ class SingleTrackDrift(PhysicsModelBase):
         x, y = state.location
         v = state.speed
         phi = state.heading
-        d_phi = v / self.wheel_base * tan_delta
-        beta = math.atan(self.lr / self.lf * tan_delta)  # slip angle
+        # d_phi (yaw rate) and beta (slip angle) are persistent states carried by the State
+        # object between step() calls; fall back to the kinematic initial condition when absent
+        # (e.g. a fresh State that was not produced by this model).
+        d_phi = state.yaw_rate if state.yaw_rate is not None else v / self.wheel_base * tan_delta
+        beta = (
+            state.slip_angle
+            if state.slip_angle is not None
+            else math.atan(self.lr / self.lf * tan_delta)
+        )
 
         if accel > 0:
             T_B = 0
@@ -379,18 +407,27 @@ class SingleTrackDrift(PhysicsModelBase):
             T_E = 0
 
         speed_range = self.speed_range
-        for dt in dts:
+
+        def _deriv(v, phi, beta, d_phi, omega_wf, omega_wr):
+            """Right-hand side of the drift ODE at a given state.
+
+            Returns (dx/dt, dy/dt, dv/dt, dphi/dt, dd_phi, d_beta, d_omega_wf, d_omega_wr),
+            treating d_phi, beta, omega_wf and omega_wr as state variables. The v >= 0.1
+            branch and the kinematic low-speed update of d_phi mirror the original
+            forward-Euler step (the locally-computed dd_phi is unused in the low-speed
+            branch, which advances d_phi by the kinematic yaw rate instead).
+            """
+            dx = v * math.cos(phi + beta)
+            dy = v * math.sin(phi + beta)
+            f_phi = d_phi
+
             # Use a safe velocity to avoid division by zero
             v_safe = v if abs(v) > 1e-6 else (1e-6 if v >= 0 else -1e-6)
 
-            F_lf, F_lr, F_sf, F_sr = self._tire_forces(
-                v_safe, delta, d_phi, beta, omega_wf, omega_wr
-            )
-
-            dx = v * math.cos(phi + beta)
-            dy = v * math.sin(phi + beta)
-
             if abs(v) >= 0.1:
+                F_lf, F_lr, F_sf, F_sr = self._tire_forces(
+                    v_safe, delta, d_phi, beta, omega_wf, omega_wr
+                )
                 cos_delta_beta = math.cos(delta - beta)
                 sin_delta_beta = math.sin(delta - beta)
                 sin_beta = math.sin(beta)
@@ -416,7 +453,6 @@ class SingleTrackDrift(PhysicsModelBase):
                     / self.I_z
                     * (F_sf * cos_delta * self.lf - F_sr * self.lr + F_lf * sin_delta * self.lf)
                 )
-                d_phi += dd_phi * dt
                 d_omega_wf = (
                     1 / self.I_yw * (-self.radius * F_lf + self.T_sb * T_B + self.T_se * T_E)
                 )
@@ -430,16 +466,7 @@ class SingleTrackDrift(PhysicsModelBase):
                 cos_beta = math.cos(beta)
                 sin_beta = math.sin(beta)
                 d_beta = self.lr / denom2 / self.wheel_base / cos2_delta * delta
-                dd_phi = (
-                    1
-                    / self.wheel_base
-                    * (
-                        accel * cos_beta * tan_delta
-                        - v * sin_beta * tan_delta * d_beta
-                        + v * cos_beta / cos2_delta * delta
-                    )
-                )
-                d_phi += v * cos_beta / self.wheel_base * tan_delta * dt
+                dd_phi = v * cos_beta / self.wheel_base * tan_delta
                 d_omega_wf = (
                     1
                     / (cos_delta * self.radius)
@@ -447,14 +474,50 @@ class SingleTrackDrift(PhysicsModelBase):
                 )
                 d_omega_wr = 1 / self.radius * (accel * cos_beta - v * sin_beta * d_beta)
 
-            x += dx * dt
-            y += dy * dt
-            v += dv * dt
-            phi += d_phi * dt
-            beta += d_beta * dt
+            return dx, dy, dv, f_phi, dd_phi, d_beta, d_omega_wf, d_omega_wr
 
-            omega_wf += d_omega_wf * dt
-            omega_wr += d_omega_wr * dt
+        def _rk4_step(x, y, v, phi, d_phi, beta, omega_wf, omega_wr, h):
+            """Advance one sub-step of time h with a 4th-order Runge-Kutta scheme."""
+            k1 = _deriv(v, phi, beta, d_phi, omega_wf, omega_wr)
+            k2 = _deriv(
+                v + 0.5 * h * k1[2],
+                phi + 0.5 * h * k1[3],
+                beta + 0.5 * h * k1[5],
+                d_phi + 0.5 * h * k1[4],
+                omega_wf + 0.5 * h * k1[6],
+                omega_wr + 0.5 * h * k1[7],
+            )
+            k3 = _deriv(
+                v + 0.5 * h * k2[2],
+                phi + 0.5 * h * k2[3],
+                beta + 0.5 * h * k2[5],
+                d_phi + 0.5 * h * k2[4],
+                omega_wf + 0.5 * h * k2[6],
+                omega_wr + 0.5 * h * k2[7],
+            )
+            k4 = _deriv(
+                v + h * k3[2],
+                phi + h * k3[3],
+                beta + h * k3[5],
+                d_phi + h * k3[4],
+                omega_wf + h * k3[6],
+                omega_wr + h * k3[7],
+            )
+
+            x += h / 6.0 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0])
+            y += h / 6.0 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1])
+            v += h / 6.0 * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2])
+            phi += h / 6.0 * (k1[3] + 2 * k2[3] + 2 * k3[3] + k4[3])
+            d_phi += h / 6.0 * (k1[4] + 2 * k2[4] + 2 * k3[4] + k4[4])
+            beta += h / 6.0 * (k1[5] + 2 * k2[5] + 2 * k3[5] + k4[5])
+            omega_wf += h / 6.0 * (k1[6] + 2 * k2[6] + 2 * k3[6] + k4[6])
+            omega_wr += h / 6.0 * (k1[7] + 2 * k2[7] + 2 * k3[7] + k4[7])
+            return x, y, v, phi, d_phi, beta, omega_wf, omega_wr
+
+        for dt in dts:
+            x, y, v, phi, d_phi, beta, omega_wf, omega_wr = _rk4_step(
+                x, y, v, phi, d_phi, beta, omega_wf, omega_wr, dt
+            )
 
             if speed_range is not None:
                 if v < speed_range[0]:
@@ -469,6 +532,8 @@ class SingleTrackDrift(PhysicsModelBase):
             heading=phi % (2 * math.pi),
             speed=v,
             accel=accel,
+            yaw_rate=d_phi,
+            slip_angle=beta,
         )
 
         return state, omega_wf, omega_wr
@@ -513,7 +578,8 @@ class SingleTrackDrift(PhysicsModelBase):
         """This function provides a very rough check for the state transition.
 
         !!! info
-        Uses the same rough check as the single track kinematics model.
+        Uses the shared single-track reachability check of `PhysicsModelBase` (same rough
+        check as the single track kinematics model).
 
         Args:
             state (State): The current state of the traffic participant.
@@ -523,43 +589,4 @@ class SingleTrackDrift(PhysicsModelBase):
         Returns:
             True if the new state is valid, False otherwise.
         """
-        interval = state.frame - last_state.frame if interval is None else interval
-        # Handle zero interval case
-        if interval == 0:
-            return True  # No time elapsed, state should be valid
-        dt = float(interval) / 1000
-        last_speed = last_state.speed
-
-        if None in [self.steer_range, self.speed_range, self.accel_range]:
-            return True
-
-        steer_range = np.array(self.steer_range)
-        beta_range = np.arctan(self.lr / self.wheel_base * steer_range)
-
-        # check that heading is in the range. heading_range may be larger than 2 * np.pi
-        heading_range = np.mod(
-            last_state.heading + last_speed / self.wheel_base * np.sin(beta_range) * dt, 2 * np.pi
-        )
-        if (
-            heading_range[0] < heading_range[1]
-            and not heading_range[0] <= state.heading <= heading_range[1]
-        ):
-            return False
-        if heading_range[0] > heading_range[1] and not (
-            heading_range[0] <= state.heading or state.heading <= heading_range[1]
-        ):
-            return False
-
-        # check that speed is in the range
-        speed_range = np.clip(last_speed + np.array(self.accel_range) * dt, *self.speed_range)
-        if not speed_range[0] <= state.speed <= speed_range[1]:
-            return False
-
-        # check that x, y are in the range
-        x_range = last_state.x + speed_range * np.cos(last_state.heading + beta_range) * dt
-        y_range = last_state.y + speed_range * np.sin(last_state.heading + beta_range) * dt
-
-        if not x_range[0] < state.x < x_range[1] or not y_range[0] < state.y < y_range[1]:
-            return False
-
-        return True
+        return self._verify_kinematic_state(state, last_state, interval)

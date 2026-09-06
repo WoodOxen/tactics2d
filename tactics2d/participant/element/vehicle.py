@@ -12,7 +12,7 @@ from shapely.affinity import affine_transform
 from shapely.geometry import LinearRing, LineString
 
 from tactics2d.participant.trajectory import State, Trajectory
-from tactics2d.physics import SingleTrackKinematics
+from tactics2d.physics import SingleTrackDrift, SingleTrackDynamics, SingleTrackKinematics
 
 from .participant_base import ParticipantBase
 from .participant_template import EPA_MAPPING, EURO_SEGMENT_MAPPING, NCAP_MAPPING, VEHICLE_TEMPLATE
@@ -147,25 +147,116 @@ class Vehicle(ParticipantBase):
     def geometry(self) -> LinearRing:
         return self._bbox
 
+    def build_physics_model(
+        self,
+        model_class=SingleTrackKinematics,
+        *,
+        mu: float = None,
+        I_z: float = None,
+        cf: float = None,
+        cr: float = None,
+        radius: float = None,
+        mass_height: float = None,
+        interval: int = 100,
+        delta_t: int = None,
+        **kwargs,
+    ):
+        """Build a physics model from this vehicle's template parameters.
+
+        The real geometry and mass of the participant (``lf``/``lr`` from the overhangs or
+        half length, ``mass`` from the kerb weight, ``mass_height`` from half the height) and
+        its steer/speed/accel ranges are filled in automatically, so only vehicle/road
+        specific knobs need to be passed explicitly. This method does not assign
+        ``self.physics_model``; callers that want verification can assign the return value.
+
+        Note that the vehicle template carries geometry, mass and performance only - it has no
+        real ``I_z`` (not published for production cars), so dynamics/drift keep the
+        CommonRoad reference-vehicle defaults (Ford Escort) unless overridden. ``mu`` is a
+        tire-road property (not a vehicle property): use the same value for every model that
+        shares a road surface.
+
+        Args:
+            model_class (type, optional): A physics model class, one of
+                ``SingleTrackKinematics`` (default), ``SingleTrackDynamics`` or
+                ``SingleTrackDrift``.
+            mu (float, optional): Tire-road friction coefficient. Applied to the kinematics
+                (grip-limit cap) and the dynamics (friction coefficient) models. ``SingleTrackDrift``
+                derives friction from its Pacejka tire, so ``mu`` is ignored for it.
+            I_z (float, optional): Yaw moment of inertia (kg/m^2). None keeps the class default.
+            cf (float, optional): Front cornering stiffness (1/rad). Dynamics only; None keeps the class default.
+            cr (float, optional): Rear cornering stiffness (1/rad). Dynamics only; None keeps the class default.
+            radius (float, optional): Effective wheel radius (m). Drift only; None keeps the class default.
+            mass_height (float, optional): Center-of-mass height (m). Defaults to half the vehicle height.
+            interval (int, optional): Physics step interval (ms). Defaults to 100.
+            delta_t (int, optional): Internal sub-step (ms). None uses the class default.
+
+        Keyword Args:
+            **kwargs: Extra keyword arguments passed to the model constructor, e.g.
+                ``friction_ellipse=True`` for ``SingleTrackDynamics``.
+
+        Returns:
+            physics_model (PhysicsModelBase): The constructed physics model.
+
+        Raises:
+            ValueError: If the model requires ``mass_height`` but the vehicle has no height
+                and none was provided.
+        """
+        if self.length is None:
+            raise ValueError("The vehicle has no length; cannot derive the wheel base.")
+        if None not in [self.front_overhang, self.rear_overhang]:
+            lf = self.length / 2 - self.front_overhang
+            lr = self.length / 2 - self.rear_overhang
+        else:
+            lf = self.length / 2
+            lr = self.length / 2
+
+        params = dict(
+            lf=lf,
+            lr=lr,
+            steer_range=self.steer_range,
+            speed_range=self.speed_range,
+            accel_range=self.accel_range,
+            interval=interval,
+            delta_t=delta_t,
+            **kwargs,
+        )
+
+        needs_mass = issubclass(model_class, (SingleTrackDynamics, SingleTrackDrift))
+        if needs_mass:
+            params["mass"] = self.kerb_weight
+            if mass_height is None:
+                if self.height is None:
+                    raise ValueError(
+                        "The model needs mass_height but the vehicle has no height; pass mass_height explicitly."
+                    )
+                mass_height = self.height / 2
+            params["mass_height"] = mass_height
+
+        if issubclass(model_class, SingleTrackDynamics):
+            if mu is not None:
+                params["mu"] = mu
+            if I_z is not None:
+                params["I_z"] = I_z
+            if cf is not None:
+                params["cf"] = cf
+            if cr is not None:
+                params["cr"] = cr
+        elif issubclass(model_class, SingleTrackDrift):
+            if I_z is not None:
+                params["I_z"] = I_z
+            if radius is not None:
+                params["radius"] = radius
+        elif mu is not None:
+            # SingleTrackKinematics: grip-limit cap is opt-in via mu.
+            params["mu"] = mu
+
+        return model_class(**params)
+
     def _auto_construct_physics_model(self):
         # Auto-construct the physics model for front-wheel-drive (FWD) vehicles.
         if self.driven_mode == "FWD":
-            if None not in [self.front_overhang, self.rear_overhang]:
-                self.physics_model = SingleTrackKinematics(
-                    lf=self.length / 2 - self.front_overhang,
-                    lr=self.length / 2 - self.rear_overhang,
-                    steer_range=self.steer_range,
-                    speed_range=self.speed_range,
-                    accel_range=self.accel_range,
-                )
-            elif self.length is not None:
-                self.physics_model = SingleTrackKinematics(
-                    lf=self.length / 2,
-                    lr=self.length / 2,
-                    steer_range=self.steer_range,
-                    speed_range=self.speed_range,
-                    accel_range=self.accel_range,
-                )
+            if self.length is not None:
+                self.physics_model = self.build_physics_model(SingleTrackKinematics)
             else:
                 self.verify = False
                 logging.info(
