@@ -16,6 +16,7 @@ from shapely.geometry import LineString, Point
 
 from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
+from tactics2d.map.query._lane_semantics import is_vehicle_lane
 from tactics2d.participant.element import Vehicle
 
 
@@ -23,6 +24,8 @@ DEFAULT_ENDPOINT_TOLERANCE = 2.0
 DEFAULT_SUCCESSOR_HEADING_TOLERANCE_DEG = 45.0
 DEFAULT_NEIGHBOR_HEADING_TOLERANCE_DEG = 30.0
 MAX_ROUTE_CANDIDATES = 8
+LANE_MATCH_BOUNDARY_SEARCH_MARGIN = 2.0
+LANE_MATCH_BOUNDARY_TOLERANCE = 1.0
 
 
 def _centerline_array(lane):
@@ -42,6 +45,66 @@ def _lane_end_heading(points: np.ndarray) -> float:
 
 def _lane_start_heading(points: np.ndarray) -> float:
     return float(np.arctan2(points[1, 1] - points[0, 1], points[1, 0] - points[0, 0]))
+
+
+def _route_connection_is_valid(
+    first_id, second_id, map_: Map, max_gap: float = 4.0, max_heading_error_deg: float = 45.0
+) -> bool:
+    """Validate a recorded lane transition without mutating map topology.
+
+    A lanelet exit may begin in the interior of the incoming lane.  Projecting
+    the outgoing start onto that centerline keeps valid recorded turns usable
+    while rejecting unsupported nearest-lane jumps.
+    """
+
+    first = map_.lanes.get(first_id)
+    second = map_.lanes.get(second_id)
+    if (
+        first is None
+        or second is None
+        or not is_vehicle_lane(first)
+        or not is_vehicle_lane(second)
+    ):
+        return False
+    first_centerline = first.centerline()
+    second_centerline = second.centerline()
+    if first_centerline is None or second_centerline is None:
+        return False
+    first_points = np.asarray(first_centerline.coords, dtype=float)
+    second_points = np.asarray(second_centerline.coords, dtype=float)
+    if len(first_points) < 2 or len(second_points) < 2:
+        return False
+    first_line = LineString(first_points)
+    second_start = Point(second_points[0])
+    join_progress = float(first_line.project(second_start))
+    join_point = first_line.interpolate(join_progress)
+    gap = float(join_point.distance(second_start))
+
+    tangent_before = first_line.interpolate(max(0.0, join_progress - 0.5))
+    tangent_after = first_line.interpolate(min(first_line.length, join_progress + 0.5))
+    first_heading = np.arctan2(
+        tangent_after.y - tangent_before.y, tangent_after.x - tangent_before.x
+    )
+    second_heading = np.arctan2(
+        second_points[1, 1] - second_points[0, 1],
+        second_points[1, 0] - second_points[0, 0],
+    )
+    heading_error = abs(spatial.normalize_angle(second_heading - first_heading))
+    if gap <= 0.5:
+        return heading_error <= np.deg2rad(max_heading_error_deg)
+
+    connector_heading = np.arctan2(
+        second_points[0, 1] - join_point.y, second_points[0, 0] - join_point.x
+    )
+    connector_error = max(
+        abs(spatial.normalize_angle(connector_heading - first_heading)),
+        abs(spatial.normalize_angle(second_heading - connector_heading)),
+    )
+    return (
+        gap <= max_gap
+        and heading_error <= np.deg2rad(max_heading_error_deg)
+        and connector_error <= np.deg2rad(max_heading_error_deg)
+    )
 
 
 def infer_lane_topology(
@@ -82,6 +145,8 @@ def infer_lane_topology(
 
     lane_data = {}
     for lane_id, lane in map_.lanes.items():
+        if not is_vehicle_lane(lane):
+            continue
         points = _centerline_array(lane)
         if points is None:
             continue
@@ -204,7 +269,7 @@ def _rank_lane_candidates(
     ranked = []
     for lane_id in candidate_ids:
         lane = map_.lanes.get(lane_id)
-        if lane is None or lane.geometry is None:
+        if lane is None or not is_vehicle_lane(lane) or lane.geometry is None:
             continue
         centerline = lane.centerline()
         centerline = (
@@ -217,7 +282,11 @@ def _rank_lane_candidates(
         distance = line.distance(point) if line is not None else lane.geometry.distance(point)
         if projection is not None:
             distance = projection.distance
-        if distance > lane_match_radius:
+        boundary_match = (
+            distance <= lane_match_radius + LANE_MATCH_BOUNDARY_SEARCH_MARGIN
+            and lane.geometry.distance(point) <= LANE_MATCH_BOUNDARY_TOLERANCE
+        )
+        if distance > lane_match_radius and not boundary_match:
             continue
         lane_heading = _lane_heading_at(
             lane, projection.s if projection is not None else None
@@ -288,6 +357,8 @@ def _transition_penalty(
         return 0.5
     if second_id in first.left_neighbors or second_id in first.right_neighbors:
         return 2.0
+    if _route_connection_is_valid(first_id, second_id, map_):
+        return 4.0
     first_points = _centerline_array(first)
     second_points = _centerline_array(second)
     if first_points is not None and second_points is not None:

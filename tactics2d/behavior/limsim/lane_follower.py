@@ -13,6 +13,8 @@ from shapely.ops import substring
 from tactics2d.geometry import polyline, spatial
 from tactics2d.map.element import Map
 from tactics2d.map.query import SemanticMapQuery
+from tactics2d.map.query._lane_semantics import is_vehicle_lane
+from tactics2d.dataset_parser.route_extractor import _route_connection_is_valid
 
 from .action import LimSimAction
 from .config import LimSimConfig
@@ -23,61 +25,22 @@ _AVAILABLE_LANE_NO_CHANGE = 5.0
 _AVAILABLE_LANE_MAX_SUCCESSOR_DEPTH = 8
 
 
-def _route_connection_is_valid(
-    first_id, second_id, map_: Map, max_gap: float = 4.0, max_heading_error_deg: float = 45.0
-) -> bool:
-    """Validate a recorded route-local transition without mutating topology.
+def _choose_vehicle_neighbor_lane(agent: AgentDecisionState, lane_ids, map_: Map):
+    """Choose the nearest valid vehicle lane from a neighbor collection."""
 
-    Lanelet exits can start from the interior of an incoming lane.  In that
-    case comparing only the incoming endpoint with the outgoing start rejects
-    a valid recorded turn and makes the planner choose a different successor.
-    """
-
-    first = map_.lanes.get(first_id)
-    second = map_.lanes.get(second_id)
-    if first is None or second is None:
-        return False
-    first_centerline = first.centerline()
-    second_centerline = second.centerline()
-    if first_centerline is None or second_centerline is None:
-        return False
-    first_points = np.asarray(first_centerline.coords, dtype=float)
-    second_points = np.asarray(second_centerline.coords, dtype=float)
-    if len(first_points) < 2 or len(second_points) < 2:
-        return False
-    first_line = LineString(first_points)
-    second_start = Point(second_points[0])
-    join_progress = float(first_line.project(second_start))
-    join_point = first_line.interpolate(join_progress)
-    gap = float(join_point.distance(second_start))
-
-    tangent_before = first_line.interpolate(max(0.0, join_progress - 0.5))
-    tangent_after = first_line.interpolate(min(first_line.length, join_progress + 0.5))
-    first_heading = np.arctan2(
-        tangent_after.y - tangent_before.y, tangent_after.x - tangent_before.x
-    )
-    second_heading = np.arctan2(
-        second_points[1, 1] - second_points[0, 1], second_points[1, 0] - second_points[0, 0]
-    )
-    heading_error = abs(spatial.normalize_angle(second_heading - first_heading))
-    # At an interior lanelet exit the projected centerline and outgoing start
-    # can differ slightly because the two lane polygons were sampled
-    # independently.  The tangent agreement is the meaningful direction test
-    # for this sub-lane-width gap.
-    if gap <= 0.5:
-        return heading_error <= np.deg2rad(max_heading_error_deg)
-    connector_heading = np.arctan2(
-        second_points[0, 1] - join_point.y, second_points[0, 0] - join_point.x
-    )
-    connector_error = max(
-        abs(spatial.normalize_angle(connector_heading - first_heading)),
-        abs(spatial.normalize_angle(second_heading - connector_heading)),
-    )
-    return (
-        gap <= max_gap
-        and heading_error <= np.deg2rad(max_heading_error_deg)
-        and connector_error <= np.deg2rad(max_heading_error_deg)
-    )
+    candidates = []
+    point = Point(agent.x, agent.y)
+    for lane_id in lane_ids:
+        lane = map_.lanes.get(lane_id)
+        if lane is None or not is_vehicle_lane(lane):
+            continue
+        centerline = lane.centerline()
+        if centerline is None or centerline.length <= 1e-6:
+            continue
+        candidates.append((float(centerline.distance(point)), str(lane_id), lane_id))
+    if not candidates:
+        return None
+    return min(candidates)[2]
 
 
 def _lane_is_internal(lane_id, map_: Map) -> bool:
@@ -112,7 +75,7 @@ def _lateral_lane_section(lane_id, map_: Map) -> FrozenSet[str]:
     """Return the parallel lanes that represent one road section."""
 
     lane = map_.lanes.get(lane_id)
-    if lane is None:
+    if lane is None or not is_vehicle_lane(lane):
         return frozenset()
     if _lane_is_internal(lane_id, map_):
         return frozenset({lane_id})
@@ -122,7 +85,7 @@ def _lateral_lane_section(lane_id, map_: Map) -> FrozenSet[str]:
         return frozenset(
             candidate_id
             for candidate_id, candidate in map_.lanes.items()
-            if _sumo_edge_id(candidate) == edge_id
+            if is_vehicle_lane(candidate) and _sumo_edge_id(candidate) == edge_id
         )
 
     section = {lane_id}
@@ -133,7 +96,12 @@ def _lateral_lane_section(lane_id, map_: Map) -> FrozenSet[str]:
         if current is None:
             continue
         for neighbor_id in current.left_neighbors | current.right_neighbors:
-            if neighbor_id in map_.lanes and neighbor_id not in section:
+            neighbor = map_.lanes.get(neighbor_id)
+            if (
+                neighbor is not None
+                and is_vehicle_lane(neighbor)
+                and neighbor_id not in section
+            ):
                 section.add(neighbor_id)
                 pending.append(neighbor_id)
     return frozenset(section)
@@ -150,6 +118,9 @@ def _successor_paths_to_section(
             route_successors.setdefault(first_id, set()).add(second_id)
 
     paths = []
+    source = map_.lanes.get(source_id)
+    if source is None or not is_vehicle_lane(source):
+        return paths
     queue = deque([(source_id, (source_id,))])
     while queue:
         lane_id, path = queue.popleft()
@@ -164,7 +135,12 @@ def _successor_paths_to_section(
         successors = set(lane.successors)
         successors.update(route_successors.get(lane_id, ()))
         for successor_id in sorted(successors, key=str):
-            if successor_id in map_.lanes and successor_id not in path:
+            successor = map_.lanes.get(successor_id)
+            if (
+                successor is not None
+                and is_vehicle_lane(successor)
+                and successor_id not in path
+            ):
                 queue.append((successor_id, path + (successor_id,)))
     return paths
 
@@ -177,12 +153,21 @@ def available_lanes_from_route(agent: AgentDecisionState, map_: Optional[Map]) -
     topology-preserving equivalent.
     """
 
-    if map_ is None or agent.lane_id is None or agent.lane_id not in map_.lanes:
+    if (
+        map_ is None
+        or agent.lane_id is None
+        or agent.lane_id not in map_.lanes
+        or not is_vehicle_lane(map_.lanes[agent.lane_id])
+    ):
         return frozenset()
 
     current_id = agent.lane_id
     current_section = _lateral_lane_section(current_id, map_)
-    route_lane_ids = tuple(lane_id for lane_id in agent.route_lane_ids if lane_id in map_.lanes)
+    route_lane_ids = tuple(
+        lane_id
+        for lane_id in agent.route_lane_ids
+        if lane_id in map_.lanes and is_vehicle_lane(map_.lanes[lane_id])
+    )
     try:
         route_start = route_lane_ids.index(current_id)
     except ValueError:
@@ -280,11 +265,18 @@ def _continuous_route_lanes(route_lanes, map_: Map, recorded_route_lanes=(), max
 
     if not route_lanes:
         return []
+    if not is_vehicle_lane(map_.lanes.get(route_lanes[0])):
+        return []
     continuous = [route_lanes[0]]
     for lane_id in route_lanes[1:]:
         previous = map_.lanes.get(continuous[-1])
         current = map_.lanes.get(lane_id)
-        if previous is None or current is None:
+        if (
+            previous is None
+            or current is None
+            or not is_vehicle_lane(previous)
+            or not is_vehicle_lane(current)
+        ):
             break
         route_local = any(
             first_id == continuous[-1] and second_id == lane_id
@@ -316,7 +308,7 @@ def _next_route_successor(
     """Choose an unambiguous successor without inventing a branch choice."""
 
     current_lane = map_.lanes.get(current_lane_id)
-    if current_lane is None:
+    if current_lane is None or not is_vehicle_lane(current_lane):
         return None
     available = set(available_lane_ids)
 
@@ -329,6 +321,7 @@ def _next_route_successor(
             candidate = route_lane_ids[index + 1]
             if (
                 candidate in map_.lanes
+                and is_vehicle_lane(map_.lanes[candidate])
                 and is_available(candidate)
                 and (
                     candidate in current_lane.successors
@@ -343,7 +336,10 @@ def _next_route_successor(
     candidates = [
         lane_id
         for lane_id in current_lane.successors
-        if lane_id in map_.lanes and lane_id not in visited_lane_ids and is_available(lane_id)
+        if lane_id in map_.lanes
+        and is_vehicle_lane(map_.lanes[lane_id])
+        and lane_id not in visited_lane_ids
+        and is_available(lane_id)
     ]
     route_candidates = [lane_id for lane_id in candidates if lane_id in route_lane_ids]
     if len(route_candidates) == 1:
@@ -354,7 +350,11 @@ def _next_route_successor(
 def route_lanes_from_agent(agent: AgentDecisionState, map_: Map, max_routes: int) -> List[str]:
     """Build a route prefix from known topology and local route evidence."""
 
-    if agent.lane_id is None or agent.lane_id not in map_.lanes:
+    if (
+        agent.lane_id is None
+        or agent.lane_id not in map_.lanes
+        or not is_vehicle_lane(map_.lanes[agent.lane_id])
+    ):
         return []
     route_lanes = [agent.lane_id]
     while len(route_lanes) < max_routes:
@@ -748,21 +748,7 @@ class LaneFollower:
     def _choose_neighbor_lane(
         self, agent: AgentDecisionState, lane_ids, map_: Map
     ) -> Optional[str]:
-        candidates = [lane_id for lane_id in lane_ids if lane_id in map_.lanes]
-        if not candidates:
-            return None
-        point = Point(agent.x, agent.y)
-
-        def _lane_centerline_distance(lid: str) -> float:
-            centerline = map_.lanes[lid].centerline()
-            centerline = (
-                np.asarray(centerline.coords, dtype=float) if centerline is not None else None
-            )
-            return (
-                LineString(centerline).distance(point) if centerline is not None else float("inf")
-            )
-
-        return min(candidates, key=_lane_centerline_distance)
+        return _choose_vehicle_neighbor_lane(agent, lane_ids, map_)
 
     def _lane_width(self, lane) -> float:
         width = lane.get_width(default=self.config.default_lane_width)
@@ -832,12 +818,22 @@ def is_action_valid(agent: AgentDecisionState, action: LimSimAction, map_: Optio
     if map_ is None or agent.lane_id is None or agent.lane_id not in map_.lanes:
         return False
     lane = map_.lanes[agent.lane_id]
+    if not is_vehicle_lane(lane):
+        return False
     if action == LimSimAction.LCL:
-        return len(lane.left_neighbors) > 0 and SemanticMapQuery(map_).get_lane_change_permission(
+        has_vehicle_neighbor = any(
+            neighbor_id in map_.lanes and is_vehicle_lane(map_.lanes[neighbor_id])
+            for neighbor_id in lane.left_neighbors
+        )
+        return has_vehicle_neighbor and SemanticMapQuery(map_).get_lane_change_permission(
             agent.lane_id, "left", s=agent.route_progress
         )
     if action == LimSimAction.LCR:
-        return len(lane.right_neighbors) > 0 and SemanticMapQuery(map_).get_lane_change_permission(
+        has_vehicle_neighbor = any(
+            neighbor_id in map_.lanes and is_vehicle_lane(map_.lanes[neighbor_id])
+            for neighbor_id in lane.right_neighbors
+        )
+        return has_vehicle_neighbor and SemanticMapQuery(map_).get_lane_change_permission(
             agent.lane_id, "right", s=agent.route_progress
         )
     return False
