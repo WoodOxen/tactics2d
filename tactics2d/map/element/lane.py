@@ -84,6 +84,21 @@ class Lane:
     )
 
     _speed_units = ["km/h", "mi/h", "m/s", "mph"]
+    _non_vehicle_subtypes = frozenset(
+        {
+            "bicycle_lane",
+            "crosswalk",
+            "cycleway",
+            "exit",
+            "footway",
+            "pedestrian",
+            "shared_walkway",
+            "sidewalk",
+            "stairs",
+            "stairway",
+            "walkway",
+        }
+    )
 
     def __init__(
         self,
@@ -248,6 +263,12 @@ class Lane:
         return LaneProjection(
             s=progress, d=sign * distance, point=projected, heading=heading, distance=distance
         )
+
+    def is_vehicle_lane(self) -> bool:
+        """Return whether the lane is suitable for vehicle routing."""
+
+        subtype = str(self.subtype or "").strip().lower()
+        return subtype not in self._non_vehicle_subtypes
 
     def is_related(self, id_: str) -> LaneRelationship:
         """Check if a given lane is related to the lane
