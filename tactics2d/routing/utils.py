@@ -60,27 +60,37 @@ def concatenate_centerlines(centerlines: Iterable[np.ndarray]) -> Optional[np.nd
 
 
 def find_nearest_lane(
-    map_: Map, point_xy: Sequence[float], candidate_lane_ids: Optional[Iterable[str]] = None
+    map_: Map,
+    point_xy: Sequence[float],
+    candidate_lane_ids: Optional[Iterable[str]] = None,
+    search_radius: float = 20.0,
 ) -> Optional[str]:
-    """Find the nearest lane to a point."""
+    """Find the nearest lane to a point.
+
+    When ``candidate_lane_ids`` is not given, the map's spatial index narrows
+    the search to lanes whose geometry lies within ``search_radius`` of the
+    point; a full scan is used as a fallback when no index is available or no
+    lane is that close (so a far-away nearest lane is still found).
+    """
 
     point = Point(point_xy[0], point_xy[1])
     best_lane_id = None
     best_distance = np.inf
 
-    if candidate_lane_ids is None:
-        lane_ids = list(map_.lanes.keys())
-    else:
+    if candidate_lane_ids is not None:
         lane_ids = list(candidate_lane_ids)
+    else:
+        candidates = map_.query_point(point_xy, buffer=search_radius)
+        lane_ids = candidates if candidates else list(map_.lanes.keys())
 
     for lane_id in lane_ids:
         lane = map_.lanes.get(lane_id)
         if lane is None or lane.geometry is None:
             continue
 
-        centerline = get_lane_centerline(lane)
+        centerline = lane.centerline()
         if centerline is not None:
-            distance = LineString(centerline).distance(point)
+            distance = centerline.distance(point)
         else:
             distance = lane.geometry.distance(point)
 

@@ -462,11 +462,7 @@ def discover_interaction_datasets() -> list[dict[str, Any]]:
                             files.append(f"{scenario_dir.name}/{int(match.group(1))}")
                 if files:
                     return [
-                        {
-                            "dataset": INTERACTION_DATASET,
-                            "folder": str(tracks_root),
-                            "files": files,
-                        }
+                        {"dataset": INTERACTION_DATASET, "folder": str(tracks_root), "files": files}
                     ]
     return []
 
@@ -832,6 +828,13 @@ def _shift_map_origin(map_: Any) -> tuple[float, float]:
         boundary[2] - origin_y,
         boundary[3] - origin_y,
     )
+
+    # Re-sync the spatial index so broad-phase queries (e.g. the BEV camera
+    # prefilter) see the translated geometry, not the original UTM coordinates.
+    for elements in (map_.roadlines, map_.lanes, map_.areas, map_.junctions):
+        for element in elements.values():
+            map_._add_element_to_spatial_index(element.id_, element)
+
     return origin_x, origin_y
 
 

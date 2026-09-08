@@ -81,6 +81,7 @@ class Lane:
         "successors",
         "left_neighbors",
         "right_neighbors",
+        "_centerline",
     )
 
     _speed_units = ["km/h", "mi/h", "m/s", "mph"]
@@ -134,6 +135,7 @@ class Lane:
         self.inferred_participants = inferred_participants
         self.speed_limit_mandatory = speed_limit_mandatory
         self.custom_tags = custom_tags
+        self._centerline = None
 
         if None not in [left_side, right_side]:
             self.geometry = LinearRing(
@@ -179,12 +181,22 @@ class Lane:
         return list(self.geometry.coords)
 
     def centerline(self) -> Optional[LineString]:
-        """Return the lane centerline if it can be obtained."""
+        """Return the lane centerline if it can be obtained.
+
+        The result is cached on first access. In the parsers and generators the
+        side boundaries are set once at construction, so the cache is safe;
+        code that reassigns ``left_side`` / ``right_side`` / ``custom_tags``
+        afterwards must clear ``lane._centerline``.
+        """
+
+        if self._centerline is not None:
+            return self._centerline
 
         if self.custom_tags is not None and "centerline" in self.custom_tags:
             centerline = np.asarray(self.custom_tags["centerline"], dtype=float)
             if centerline.ndim == 2 and centerline.shape[1] == 2 and len(centerline) >= 2:
-                return LineString(centerline)
+                self._centerline = LineString(centerline)
+                return self._centerline
 
         if self.left_side is None or self.right_side is None:
             return None
@@ -202,7 +214,8 @@ class Lane:
             points.append(
                 (0.5 * (left_point.x + right_point.x), 0.5 * (left_point.y + right_point.y))
             )
-        return LineString(points)
+        self._centerline = LineString(points)
+        return self._centerline
 
     def get_width(self, samples: int = 5, default: Optional[float] = None) -> Optional[float]:
         """Estimate lane width by sampling distances between left and right boundaries."""

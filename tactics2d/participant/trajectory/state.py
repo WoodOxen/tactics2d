@@ -26,6 +26,8 @@ class State:
         ax (float): The acceleration in the x-axis. The unit is meter per second squared (m/s$^2$).
         ay (float): The acceleration in the y-axis. The unit is meter per second squared (m/s$^2$).
         accel (float): The scalar acceleration value. The unit is meter per second squared (m/s$^2$). This attribute can be set while initialization or by `set_accel`. If it is not set while ax and ay are available, accel will be obtained by sqrt(ax$^2$+ay$^2$). Otherwise, the accel will be None.
+        yaw_rate (float, optional): The yaw rate (angular velocity of the heading). The unit is radian per second (rad/s). Defaults to None. Used by the single-track dynamics/drift models to carry the yaw rate between integration steps; other participants leave it None.
+        slip_angle (float, optional): The slip angle at the center of the vehicle. The unit is radian. Defaults to None. Used by the single-track dynamics/drift models to carry the slip angle between integration steps; other participants leave it None.
         location (Tuple[float, float]): The location. The unit is meter. This attribute is **read-only**.
         velocity (Tuple[float, float]): The velocity vector (vx, vy). The unit is meter per second (m/s). If vx and vy are not available but speed and heading are available, the velocity will be obtained by (speed * cos(heading), speed * sin(heading)). Otherwise, the velocity will be None. This attribute is **read-only**.
         acceleration (Tuple[float, float]): The acceleration vector (ax, ay). The unit is meter per second squared (m/s$^2$). If ax and ay are not available, the acceleration will be None. This attribute is **read-only**.
@@ -42,6 +44,8 @@ class State:
         "ax": float,
         "ay": float,
         "_accel": float,
+        "yaw_rate": float,
+        "slip_angle": float,
     }
 
     def __init__(
@@ -56,6 +60,8 @@ class State:
         ax: float = None,
         ay: float = None,
         accel: float = None,
+        yaw_rate: float = None,
+        slip_angle: float = None,
     ):
         """Initialize the state of a traffic participant.
 
@@ -70,26 +76,47 @@ class State:
             ax (float, optional): The acceleration in the x-axis. The unit is meter per second squared (m/s$^2$).
             ay (float, optional): The acceleration in the y-axis. The unit is meter per second squared (m/s$^2$).
             accel (float, optional): The scalar acceleration value. The unit is meter per second squared (m/s$^2$).
+            yaw_rate (float, optional): The yaw rate. The unit is radian per second (rad/s).
+            slip_angle (float, optional): The slip angle at the vehicle center. The unit is radian.
 
         Raises:
             ValueError: If the type of the input value cannot be converted to the expected type, the function will raise a ValueError.
         """
-        setattr(self, "frame", frame)
-        setattr(self, "x", x)
-        setattr(self, "y", y)
-        setattr(self, "heading", heading)
-        setattr(self, "vx", vx)
-        setattr(self, "vy", vy)
-        setattr(self, "_speed", speed)
-        setattr(self, "ax", ax)
-        setattr(self, "ay", ay)
-        setattr(self, "_accel", accel)
+        # Assign fields directly, bypassing the __setattr__ validation machinery
+        # (which guards post-construction attribute sets). Type coercion is done
+        # here once: None is preserved, values already of the declared type are
+        # kept as-is, everything else is converted.
+        annotations = self.__annotations__
+        values = (
+            ("frame", frame),
+            ("x", x),
+            ("y", y),
+            ("heading", heading),
+            ("vx", vx),
+            ("vy", vy),
+            ("_speed", speed),
+            ("ax", ax),
+            ("ay", ay),
+            ("_accel", accel),
+            ("yaw_rate", yaw_rate),
+            ("slip_angle", slip_angle),
+        )
+        for name, value in values:
+            expected = annotations[name]
+            if value is not None and not isinstance(value, expected):
+                try:
+                    value = expected(value)
+                except Exception:
+                    raise ValueError(
+                        f"Failed to convert {value} to the expected type of {name}: ({expected})."
+                    )
+            object.__setattr__(self, name, value)
 
         # Initialize cache variables
-        super().__setattr__("_cached_speed", None)
-        super().__setattr__("_cached_velocity", None)
-        super().__setattr__("_cached_accel", None)
-        super().__setattr__("_cached_acceleration", None)
+        object.__setattr__(self, "_cached_speed", None)
+        object.__setattr__(self, "_cached_velocity", None)
+        object.__setattr__(self, "_cached_accel", None)
+        object.__setattr__(self, "_cached_acceleration", None)
 
     def _invalidate_cache(self, attr_name: str) -> None:
         """Invalidate cache based on which attribute changed."""
