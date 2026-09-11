@@ -53,6 +53,9 @@ class Router:
         cost_fn: Optional[RoutingCostFunction] = None,
         cost_kwargs: Optional[Dict[str, float]] = None,
         heuristic_builder: Optional[Callable[[Map, object], Callable[[int, int], float]]] = None,
+        close_gaps: bool = False,
+        max_gap: float = 2.5,
+        max_heading_diff_deg: float = 45.0,
     ):
         self.algorithm = algorithm
         self.include_neighbors = include_neighbors
@@ -61,6 +64,9 @@ class Router:
         self.cost_fn = cost_fn
         self.cost_kwargs = cost_kwargs or {}
         self.heuristic_builder = heuristic_builder
+        self.close_gaps = close_gaps
+        self.max_gap = max_gap
+        self.max_heading_diff_deg = max_heading_diff_deg
 
     def plan(self, map_: Map, start: Sequence[float], goal: Sequence[float]) -> Route:
         graph_builder = GraphBuilder(
@@ -69,6 +75,9 @@ class Router:
             cost_mode=self.cost_mode,
             cost_fn=self.cost_fn,
             cost_kwargs=self.cost_kwargs,
+            close_gaps=self.close_gaps,
+            max_gap=self.max_gap,
+            max_heading_diff_deg=self.max_heading_diff_deg,
         )
         routing_graph = graph_builder.build(map_)
 

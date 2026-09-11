@@ -5,12 +5,15 @@
 
 from .base import BehaviorModelBase
 from .bits import BitsBehaviorModel, BitsConfig
+from .intersim import InterSimBehaviorModel, InterSimConfig
 from .limsim import LimSimBehaviorModel, LimSimConfig
 
 __all__ = [
     "BehaviorModelBase",
     "BitsBehaviorModel",
     "BitsConfig",
+    "InterSimBehaviorModel",
+    "InterSimConfig",
     "LimSimBehaviorModel",
     "LimSimConfig",
 ]

@@ -8,6 +8,7 @@ from shapely.geometry import LineString
 
 from tactics2d.map.element import Lane, LaneRelationship, Map
 from tactics2d.routing import Router
+from tactics2d.routing.utils import augment_lane_successors, find_lane_at_pose
 
 
 def _build_lane(lane_id: str, x_left: float, x_right: float, y_start: float, y_end: float) -> Lane:
@@ -119,3 +120,51 @@ def test_router_rejects_unknown_cost_mode():
         assert "Unsupported cost mode" in str(exc)
     else:
         raise AssertionError("Router should reject unsupported cost modes.")
+
+
+def _build_broken_chain_map() -> Map:
+    """Two collinear lanes with a small physical gap but no explicit link."""
+    map_ = Map(name="gap_map")
+    lane_a = _build_lane("A", 0.0, 1.0, 0.0, 10.0)
+    lane_b = _build_lane("B", 0.0, 1.0, 10.3, 40.0)
+    for lane in [lane_a, lane_b]:
+        map_.add_lane(lane)
+    return map_
+
+
+def test_router_close_gaps_links_heading_continuous_lanes():
+    map_ = _build_broken_chain_map()
+
+    plain = Router(algorithm="dijkstra", include_neighbors=False, close_gaps=False)
+    assert plain.plan(map_, start=(0.5, 1.0), goal=(0.5, 35.0)).is_empty
+
+    gapped = Router(algorithm="dijkstra", include_neighbors=False, close_gaps=True)
+    route = gapped.plan(map_, start=(0.5, 1.0), goal=(0.5, 35.0))
+    assert route.lane_ids == ["A", "B"]
+
+
+def test_augment_lane_successors_closes_map_gaps_in_place():
+    map_ = _build_broken_chain_map()
+    assert "B" not in map_.lanes["A"].successors
+
+    augment_lane_successors(map_)
+    assert "B" in map_.lanes["A"].successors
+
+    # Idempotent: a second pass does not duplicate or add spurious links.
+    augment_lane_successors(map_)
+    assert map_.lanes["A"].successors == {"B"}
+
+
+def test_find_lane_at_pose_respects_driving_direction():
+    map_ = Map(name="two_way_map")
+    north = _build_lane("N", 0.0, 1.0, 0.0, 10.0)  # heading +y
+    south = _build_lane("S", 1.0, 2.0, 10.0, 0.0)  # heading -y, same x-range
+    for lane in [north, south]:
+        map_.add_lane(lane)
+
+    matched = find_lane_at_pose(map_, x=0.5, y=1.0, heading=0.5 * np.pi)
+    assert matched is not None
+    assert matched[0] == "N"
+    matched_down = find_lane_at_pose(map_, x=1.5, y=9.0, heading=-0.5 * np.pi)
+    assert matched_down is not None
+    assert matched_down[0] == "S"
