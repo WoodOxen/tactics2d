@@ -18,7 +18,7 @@ _RENDER_MAPS = os.environ.get("TACTICS2D_RENDER_MAPS", "0") == "1"
 
 from tactics2d.display.renderers import MatplotlibRenderer
 from tactics2d.display.sensor import BEVCamera
-from tactics2d.geometry import heading_unit
+from tactics2d.geometry.spatial import heading_unit
 from tactics2d.map.element import Area, Map
 from tactics2d.map.generator import ParkingLotGenerator, RacingTrackGenerator
 from tactics2d.map.generator.road_segment import (
