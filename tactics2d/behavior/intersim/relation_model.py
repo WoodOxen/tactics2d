@@ -72,7 +72,9 @@ class _SubGraph(nn.Module):
         for i in range(batch_size):
             attention_mask[i][vector_num[i]:max_vector_num].fill_(-10000.0)
         for layer in self.layers:
-            new_hidden_states = torch.zeros([batch_size, max_vector_num, hidden_size], device=device)
+            new_hidden_states = torch.zeros(
+                [batch_size, max_vector_num, hidden_size], device=device
+            )
             encoded_hidden_states = layer(hidden_states)
             for j in range(max_vector_num):
                 attention_mask[:, j] += -10000.0
@@ -226,7 +228,8 @@ class RelationVectorNet(nn.Module):
         agent_states = element_states[:map_start_polyline_idx]
         lane_states = element_states[map_start_polyline_idx:]
         lanes = lane_states.unsqueeze(0)
-        lanes = lanes + self.laneGCN_A2L(lanes, torch.cat([lanes, agent_states[0:1].unsqueeze(0)], dim=1))
+        lane_query = torch.cat([lanes, agent_states[0:1].unsqueeze(0)], dim=1)
+        lanes = lanes + self.laneGCN_A2L(lanes, lane_query)
         element_states = torch.cat([agent_states, lanes.squeeze(0)])
 
         inputs, lengths = _merge_tensors([element_states], device)

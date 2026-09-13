@@ -5,6 +5,5 @@
 
 from .config import InterSimConfig
 from .model import InterSimBehaviorModel
-from .rolling import InterSimRollingRunner
 
-__all__ = ["InterSimBehaviorModel", "InterSimConfig", "InterSimRollingRunner"]
+__all__ = ["InterSimBehaviorModel", "InterSimConfig"]

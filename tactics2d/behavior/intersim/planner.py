@@ -271,12 +271,6 @@ def straight_path(x: float, y: float, heading: float, distance: float) -> ArcPat
     return ArcPath(points)
 
 
-def baseline_speeds(v0: float, steps: int) -> np.ndarray:
-    """Return a constant-velocity per-step speed profile."""
-
-    return np.full(steps + 1, max(0.0, v0), dtype=float)
-
-
 def deceleration_speeds(
     v0: float,
     stop_distance: float,
@@ -436,15 +430,3 @@ def _plain_cruise(v0, target, accel, max_target, dt, horizon) -> np.ndarray:
         speed = min(speed, max_target)
         speeds.append(speed)
     return np.asarray(speeds, dtype=float)
-
-
-def poses_from_path(
-    path: ArcPath,
-    arcs: np.ndarray,
-    fallback_x: float,
-    fallback_y: float,
-    fallback_yaw: float,
-) -> np.ndarray:
-    """Sample poses ``[x, y, 0, yaw]`` at arc lengths along a path."""
-
-    return path.sample_poses(arcs)

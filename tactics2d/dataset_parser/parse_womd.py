@@ -81,6 +81,20 @@ class WOMDParser:
                 self._offsets[file_path] = offsets
         return self._offsets[file_path]
 
+    def scenario_count(self, file: str, folder: str) -> int:
+        """Return the number of scenarios recorded in one tfrecord file.
+
+        Args:
+            file (str): The tfrecord file name.
+            folder (str): The folder holding the file.
+
+        Returns:
+            The record count. Note that index-based reads wrap around past this
+            bound, so callers iterating over a shard should clamp their range.
+        """
+
+        return len(self._offsets_for(str(Path(folder) / file)))
+
     @staticmethod
     def _read_record_at(file, offset: int) -> bytes:
         """Raw bytes of one tfrecord record at a byte offset."""

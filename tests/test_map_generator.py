@@ -18,7 +18,7 @@ _RENDER_MAPS = os.environ.get("TACTICS2D_RENDER_MAPS", "0") == "1"
 
 from tactics2d.display.renderers import MatplotlibRenderer
 from tactics2d.display.sensor import BEVCamera
-from tactics2d.geometry import heading_unit
+from tactics2d.geometry import spatial
 from tactics2d.map.element import Area, Map
 from tactics2d.map.generator import ParkingLotGenerator, RacingTrackGenerator
 from tactics2d.map.generator.road_segment import (
@@ -118,7 +118,7 @@ def _port_from_start_length(
         speed_limit=speed_limit,
     )
     end_port = RoadPort(
-        point=start + length * heading_unit(heading),
+        point=start + length * spatial.heading_unit(heading),
         heading=heading,
         lane_num=lane_num,
         lane_width=lane_width,
@@ -130,7 +130,7 @@ def _port_from_start_length(
 def _two_way_from_port(port: RoadPort, *, length: float, id_offset: int) -> RoadModuleResult:
     """Attach a two-way road to an intersection/roundabout outward port."""
     end_port = RoadPort(
-        point=port.point + length * heading_unit(port.heading),
+        point=port.point + length * spatial.heading_unit(port.heading),
         heading=port.heading,
         lane_num=port.lane_num,
         lane_width=port.lane_width,
@@ -473,7 +473,7 @@ def test_roundabout_curved_approach(runtime_dir):
         normal = np.array([-np.sin(h), np.cos(h)], dtype=float)
         curve_sign = 1.0 if i % 2 == 0 else -1.0
         end_port = RoadPort(
-            point=port.point + 32.0 * heading_unit(h) + curve_sign * 7.0 * normal,
+            point=port.point + 32.0 * spatial.heading_unit(h) + curve_sign * 7.0 * normal,
             heading=h + curve_sign * 0.22,
             lane_num=port.lane_num,
             lane_width=port.lane_width,
