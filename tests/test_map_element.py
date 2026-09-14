@@ -65,6 +65,24 @@ def test_lane():
 
 
 @pytest.mark.map_element
+@pytest.mark.parametrize(
+    ("subtype", "expected"),
+    [
+        (None, True),
+        ("road", True),
+        (" Highway ", True),
+        ("bicycle_lane", False),
+        ("WALKWAY", False),
+        ("crosswalk", False),
+    ],
+)
+def test_lane_vehicle_semantics(subtype, expected):
+    lane = map_element.Lane(id_="lane", subtype=subtype)
+
+    assert lane.is_vehicle_lane() is expected
+
+
+@pytest.mark.map_element
 def test_junction():
     connection1 = map_element.Junction(
         id_="1", incoming_road="2", connecting_road="3", contact_point="start", lane_links=[]
