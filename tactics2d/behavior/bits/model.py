@@ -235,8 +235,26 @@ def _state_dict_from_checkpoint(checkpoint, map_location=None) -> Mapping[str, o
     raise TypeError("checkpoint must be a path or a mapping containing tensor weights.")
 
 
-def _extract_planner_state(checkpoint, map_location=None) -> Dict[str, object]:
-    """Extract only ``planner.*`` and ``shared_encoder.*`` tensors from a BITS checkpoint."""
+def _extract_planner_state(
+    checkpoint, map_location=None, separate_planner_encoder: bool = False
+) -> Dict[str, object]:
+    """Extract ``planner.*`` and ``shared_encoder.*`` tensors from a BITS checkpoint.
+
+    Args:
+        checkpoint: A checkpoint path or an already loaded mapping.
+        map_location (optional): Device mapping used when loading from a path. Defaults to None.
+        separate_planner_encoder (bool, optional): Also expose the checkpoint's
+            ``shared_encoder`` as the planner's own ``standalone_encoder``, for
+            planners that keep their trained encoder rather than sharing the
+            predictor's. Defaults to False.
+
+    Returns:
+        The planner-owned tensors, keyed by the target model's parameter names.
+
+    Raises:
+        ValueError: If the checkpoint holds no planner or encoder weights.
+    """
+
     if isinstance(checkpoint, Mapping):
         payload = checkpoint
     else:
@@ -252,6 +270,15 @@ def _extract_planner_state(checkpoint, map_location=None) -> Dict[str, object]:
         raise ValueError(
             "Tactics2D planner checkpoint does not contain planner.* or shared_encoder.* weights."
         )
+
+    if separate_planner_encoder:
+        prefix = "shared_encoder.encoder_heads."
+        owned = {
+            "planner.standalone_encoder." + str(key)[len(prefix) :]: value
+            for key, value in planner_state.items()
+            if str(key).startswith(prefix)
+        }
+        planner_state.update(owned)
     return planner_state
 
 
@@ -619,6 +646,7 @@ class BitsBiLevelTorchModel(nn.Module):
         history_conditioning: bool = False,
         use_transformer: bool = False,
         config: Optional[BitsConfig] = None,
+        separate_planner_encoder: bool = False,
     ):
         super().__init__()
         self.image_channels = int(image_channels)
@@ -634,9 +662,17 @@ class BitsBiLevelTorchModel(nn.Module):
         self.shared_encoder = SharedRasterEncoder(
             image_channels=image_channels, model_arch=model_arch, feature_dim=hidden_dim
         )
-        self.planner = BitsSpatialPlannerModule(
-            encoder_channels=self.shared_encoder.feature_channels
-        )
+        # A planner trained with its own (unfrozen) encoder keeps it here instead
+        # of following whatever encoder the predictor checkpoint supplies.
+        self.separate_planner_encoder = bool(separate_planner_encoder)
+        if self.separate_planner_encoder:
+            self.planner = BitsSpatialPlannerModule(
+                image_channels=image_channels, model_arch=model_arch
+            )
+        else:
+            self.planner = BitsSpatialPlannerModule(
+                encoder_channels=self.shared_encoder.feature_channels
+            )
         self.predictor = BitsAgentAwareTrajectoryModule(
             future_steps=future_steps,
             image_channels=image_channels,
@@ -667,11 +703,14 @@ class BitsBiLevelTorchModel(nn.Module):
         feature_context = self.predictor.extract_features(
             tensors, return_encoder_features=True, encoder_features=encoder_features
         )
+        # A planner that owns its encoder must not reuse the predictor's features.
         plan = self.planner(
             tensors,
             num_samples=num_samples,
             mask_drivable=mask_drivable,
-            encoder_features=encoder_features,
+            encoder_features=(
+                None if self.planner.standalone_encoder is not None else encoder_features
+            ),
         )
         if use_ground_truth_goal:
             if goal_tensors is None:
@@ -853,6 +892,7 @@ class BitsBehaviorModel(BehaviorModelBase):
         map_location=None,
         device=None,
         dtype=None,
+        separate_planner_encoder: bool = True,
         **extra_arch_kwargs,
     ) -> "BitsBehaviorModel":
         """Load a trained planner checkpoint merged with an official predictor.
@@ -862,6 +902,20 @@ class BitsBehaviorModel(BehaviorModelBase):
         architecture parameters and override explicit arguments.  When loading
         an official TBSIM checkpoint that has no metadata, explicit ``**``
         arguments serve as fallback.
+
+        Args:
+            planner_checkpoint: Trained spatial planner checkpoint.
+            predictor_checkpoint (optional): Official TBSIM predictor checkpoint. Defaults to None.
+            separate_planner_encoder (bool, optional): Keep the planner's own
+                trained encoder instead of letting the official predictor's
+                encoder overwrite it. A planner whose encoder was trained jointly
+                (even while nominally frozen) is otherwise fed features it was
+                never trained on. Costs one extra encoder forward per step, and
+                matches the upstream layout of two independent checkpoints.
+                Defaults to True.
+
+        Returns:
+            A ready-to-use behavior model.
         """
         resolved_config = config or BitsConfig(future_steps=int(future_steps))
 
@@ -930,10 +984,15 @@ class BitsBehaviorModel(BehaviorModelBase):
             history_conditioning=bool(history_conditioning),
             use_transformer=bool(use_transformer),
             config=resolved_config,
+            separate_planner_encoder=bool(separate_planner_encoder),
         )
 
         # --- Merge weights ---
-        mapped_state_dict = _extract_planner_state(planner_checkpoint, map_location=map_location)
+        mapped_state_dict = _extract_planner_state(
+            planner_checkpoint,
+            map_location=map_location,
+            separate_planner_encoder=bool(separate_planner_encoder),
+        )
 
         if predictor_checkpoint is not None:
             predictor_sd = _state_dict_from_checkpoint(

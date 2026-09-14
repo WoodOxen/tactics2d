@@ -11,25 +11,31 @@ import numpy as np
 from tactics2d.behavior.base import BehaviorModelBase
 from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
-from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
+from tactics2d.routing.utils import augment_lane_successors
 
+from . import relation_decider, replay, scene
 from .config import InterSimConfig
 from .planner import (
-    ArcPath,
     arcs_from_speeds,
     cruise_with_corner_caps,
     deceleration_speeds,
-    lane_chain_points,
-    match_lane,
     polyline_nearest_s,
-    straight_path,
     yield_speeds,
 )
-from .relation import AgentBody, Edge, check_body_collision, detect_relation_edges
+from .relation_geometry import AgentBody, Edge, check_body_collision, detect_relation_edges
+from .replay import RollingSimulationResult
+from .scene import AgentRecord
 
 # Adapted from InterSim (github.com/Tsinghua-MARS-Lab/InterSim), MIT,
 # Copyright (c) 2022 Tsinghua MARS Lab.
+
+__all__ = [
+    "AgentRecord",
+    "InterSimBehaviorModel",
+    "InterSimPlanResult",
+    "RollingSimulationResult",
+]
 
 # A reactor yields to any conflict inside the planning horizon (upstream scans
 # the whole horizon for the earliest collision rather than gating on a
@@ -60,30 +66,6 @@ class InterSimPlanResult:
     scene_agent_ids: List[object] = field(default_factory=list)
 
 
-@dataclass
-class _AgentRecord:
-    """Per-agent state plus its forward reference path."""
-
-    agent_id: object
-    is_vehicle: bool
-    length: float
-    width: float
-    x: float
-    y: float
-    heading: float
-    v0: float
-    path: Optional[ArcPath] = None
-    s0: float = 0.0
-    goal: Optional[np.ndarray] = None
-    speed_limit: Optional[float] = None
-    intent_speed: Optional[float] = None
-    lane_id: Optional[object] = None
-    # Braking/acceleration limits taken from the participant (Vehicle defaults:
-    # max_decel 10.0, max_accel 3.0 m/s^2) instead of a hard-coded constant.
-    max_accel: float = 3.0
-    max_decel: float = 10.0
-
-
 class InterSimBehaviorModel(BehaviorModelBase):
     """Plan interactions with explicit directed relations on Tactics2D data.
 
@@ -106,10 +88,6 @@ class InterSimBehaviorModel(BehaviorModelBase):
                 "relation_mode must be 'directed', 'directed_tie', 'yield_all', or 'nn', "
                 f"got {self.config.relation_mode!r}."
             )
-        self._relations_override = None
-        # Optional learned direction arbiter: callable(reactor, influencer) ->
-        # True/False/None, used by relation_mode="nn" (see rolling runner).
-        self._relation_decider = None
 
     # -- public interface -------------------------------------------------
 
@@ -119,10 +97,26 @@ class InterSimBehaviorModel(BehaviorModelBase):
         map_: Optional[Map],
         frame: int,
         agent_ids: Optional[Iterable[object]] = None,
+        decider=None,
     ) -> InterSimPlanResult:
-        """Plan collision-free future trajectories for the requested agents."""
+        """Plan collision-free future trajectories for the requested agents.
 
-        records = self._build_scene_records(participants, map_, frame, agent_ids)
+        Args:
+            participants (Dict): All participants in the scenario.
+            map_ (Optional[Map]): The map. None falls back to straight paths.
+            frame (int): The current frame number. The unit is millisecond (ms).
+            agent_ids (Iterable, optional): The agents to plan; all vehicles when
+                None. Defaults to None.
+            decider (Callable, optional): Direction arbiter for
+                ``relation_mode="nn"``, used by the closed-loop runner. Defaults
+                to None.
+
+        Returns:
+            The planned trajectories together with the detected relations and
+            per-agent follow/yield actions.
+        """
+
+        records = scene.build_scene_records(self.config, participants, frame, agent_ids)
         result = InterSimPlanResult(
             scene_agent_ids=[record.agent_id for record in records.values()]
         )
@@ -130,35 +124,27 @@ class InterSimBehaviorModel(BehaviorModelBase):
             return result
 
         for record in records.values():
-            record.path, record.s0 = self._reference_path(record, map_)
+            record.path, record.s0 = scene.reference_path(self.config, record, map_)
 
         baseline = {agent_id: self._baseline_speeds(record) for agent_id, record in records.items()}
-        poses = {agent_id: self._poses(record, baseline[agent_id]) for agent_id, record in records.items()}
+        poses = {
+            agent_id: self._poses(record, baseline[agent_id])
+            for agent_id, record in records.items()
+        }
         shapes = {agent_id: (record.length, record.width) for agent_id, record in records.items()}
         is_vehicle = {agent_id: record.is_vehicle for agent_id, record in records.items()}
 
-        if self._relations_override is not None:
-            # The override may have been computed over a wider agent set than the
-            # records of this call (ego-only vs env planning), so keep only edges
-            # whose endpoints are actually modeled here.
-            edges = [
-                edge
-                for edge in self._relations_override
-                if edge.influencer in records and edge.reactor in records
-            ]
-        else:
-            edges = detect_relation_edges(poses, shapes, is_vehicle, max_gap=_COLLISION_GAP)
+        edges = detect_relation_edges(poses, shapes, is_vehicle, max_gap=_COLLISION_GAP)
         result.relations = list(edges)
 
-        final_speeds = self._resolve_conflicts(records, baseline, edges)
-        self._apply_traffic_lights(records, final_speeds, frame, map_)
+        final_speeds, yielded = self._resolve_conflicts(records, baseline, edges, decider=decider)
+        self._apply_traffic_lights(records, final_speeds, yielded, frame, map_)
         final_poses = {
-            agent_id: self._poses(records[agent_id], final_speeds[agent_id])
-            for agent_id in records
+            agent_id: self._poses(records[agent_id], final_speeds[agent_id]) for agent_id in records
         }
 
         for agent_id in records:
-            result.actions[agent_id] = "yield" if agent_id in self._yielded else "follow"
+            result.actions[agent_id] = "yield" if agent_id in yielded else "follow"
 
         for agent_id, record in records.items():
             if not record.is_vehicle:
@@ -180,6 +166,7 @@ class InterSimBehaviorModel(BehaviorModelBase):
         map_: Optional[Map],
         frame: int,
         agent_ids: Optional[Iterable[object]] = None,
+        decider=None,
     ) -> Dict[object, Trajectory]:
         """Plan future trajectories for selected agents.
 
@@ -188,127 +175,13 @@ class InterSimBehaviorModel(BehaviorModelBase):
         needed.
         """
 
-        return self.plan(participants, map_, frame, agent_ids=agent_ids).trajectories
-
-    # -- scene construction ----------------------------------------------
-
-    def _build_scene_records(self, participants, map_, frame, agent_ids):
-        requested_ids = self._select_vehicle_ids(participants, agent_ids)
-        records: Dict[object, _AgentRecord] = {}
-        for agent_id in requested_ids:
-            record = self._make_record(participants.get(agent_id), frame)
-            if record is not None:
-                records[agent_id] = record
-
-        requested_positions = [(record.x, record.y) for record in records.values()]
-        for participant_id, participant in participants.items():
-            if participant_id in records:
-                continue
-            state = self._current_state(participant, frame)
-            if state is None:
-                continue
-            if not any(
-                np.hypot(state.x - x, state.y - y) <= self.config.interaction_distance
-                for x, y in requested_positions
-            ):
-                continue
-            record = self._make_record(participant, frame, state=state)
-            if record is not None:
-                records[participant_id] = record
-        return records
-
-    def _select_vehicle_ids(self, participants, agent_ids) -> List[object]:
-        if agent_ids is None:
-            return [agent_id for agent_id, participant in participants.items() if isinstance(participant, Vehicle)]
-        selected = []
-        for agent_id in agent_ids:
-            participant = participants.get(agent_id)
-            if participant is not None and isinstance(participant, Vehicle):
-                selected.append(agent_id)
-        return selected
-
-    def _make_record(self, participant, frame, state=None) -> Optional[_AgentRecord]:
-        if participant is None:
-            return None
-        state = state if state is not None else self._current_state(participant, frame)
-        if state is None:
-            return None
-        is_vehicle = isinstance(participant, Vehicle)
-        length = participant.length
-        width = participant.width
-        if length is None or length <= 0.0:
-            length = self.config.default_vehicle_length if is_vehicle else 0.6
-        if width is None or width <= 0.0:
-            width = self.config.default_vehicle_width if is_vehicle else 0.5
-        speed = state.speed
-        if speed is None:
-            if state.vx is not None and state.vy is not None:
-                speed = float(np.hypot(state.vx, state.vy))
-            else:
-                speed = 0.0
-        goal_xy = getattr(participant, "goal_xy", None)
-        goal = None
-        if goal_xy is not None:
-            goal_array = np.asarray(goal_xy, dtype=float)
-            if goal_array.shape == (2,):
-                goal = goal_array
-        return _AgentRecord(
-            agent_id=participant.id_,
-            is_vehicle=is_vehicle,
-            length=float(length),
-            width=float(width),
-            x=float(state.x),
-            y=float(state.y),
-            heading=spatial.normalize_angle(float(state.heading)),
-            v0=float(max(0.0, speed)),
-            goal=goal,
-            intent_speed=float(getattr(participant, "intent_speed", 0.0) or 0.0),
-            max_accel=float(getattr(participant, "max_accel", 0.0) or 3.0),
-            max_decel=float(
-                self.config.vehicle_decel_limit
-                or getattr(participant, "max_decel", 0.0)
-                or 10.0
-            ),
-        )
-
-    def _current_state(self, participant, frame):
-        trajectory = participant.trajectory
-        observed = [frame_ms for frame_ms in trajectory.frames if frame_ms <= frame]
-        if not observed:
-            return None
-        return trajectory.get_state(observed[-1])
-
-    def _reference_path(self, record: _AgentRecord, map_: Optional[Map]) -> Tuple[ArcPath, float]:
-        config = self.config
-        lookahead = record.v0 * config.horizon_steps * config.dt + record.length + config.stop_margin + 10.0
-        path = None
-        s0 = 0.0
-        if map_ is not None:
-            matched = match_lane(
-                map_,
-                record.x,
-                record.y,
-                record.heading,
-                config.lane_match_radius,
-                config.lane_heading_tolerance_deg,
-                lookahead,
-            )
-            if matched is not None:
-                lane_id, s0 = matched
-                lane = map_.lanes[lane_id]
-                record.lane_id = lane_id
-                record.speed_limit = lane.speed_limit
-                chain = lane_chain_points(map_, lane_id, lookahead, goal=record.goal)
-                if chain is not None:
-                    path = ArcPath(chain)
-        if path is None:
-            path = straight_path(record.x, record.y, record.heading, max(lookahead, 20.0))
-            s0 = 0.0
-        return path, s0
+        return self.plan(
+            participants, map_, frame, agent_ids=agent_ids, decider=decider
+        ).trajectories
 
     # -- rollout and conflict resolution ---------------------------------
 
-    def _baseline_speeds(self, record: _AgentRecord) -> np.ndarray:
+    def _baseline_speeds(self, record: AgentRecord) -> np.ndarray:
         """Return a cruise profile accelerating toward the target speed.
 
         A free vehicle cruises toward ``max(v0, cruise_speed)`` instead of
@@ -350,22 +223,36 @@ class InterSimBehaviorModel(BehaviorModelBase):
             config.horizon_steps,
         )
 
-    def _poses(self, record: _AgentRecord, speeds: np.ndarray) -> np.ndarray:
+    def _poses(self, record: AgentRecord, speeds: np.ndarray) -> np.ndarray:
         arcs = record.s0 + arcs_from_speeds(speeds, self.config.dt)
         return record.path.sample_poses(arcs)
 
-    def _resolve_conflicts(self, records, baseline, edges):
+    def _resolve_conflicts(self, records, baseline, edges, decider=None):
+        """Return the braked speed profiles and the set of yielding agents.
+
+        Args:
+            records (Dict): The scene records keyed by agent id.
+            baseline (Dict): The unbraked speed profiles.
+            edges (List): The directed relations detected on the baselines.
+            decider (Callable, optional): Direction arbiter used when
+                ``relation_mode="nn"``. Defaults to None.
+
+        Returns:
+            A tuple of the final speed profiles and the ids of the agents that
+            braked for a conflict.
+        """
+
         config = self.config
         horizon = config.horizon_steps
         final_speeds = dict(baseline)
-        self._yielded = set()
+        yielded: set = set()
 
         # Map each potential reactor to the influencers it must brake for.
         # "directed" only brakes the later arrival; "yield_all" (all-yield
         # reference) brakes both sides of every imminent conflict. In "nn" mode
-        # an optional ``_relation_decider`` (the learned predictor plus upstream
-        # rule prefilter) overrides the direction per vehicle-vehicle pair, with
-        # the geometric edge kept whenever the predictor is not confident.
+        # an optional ``decider`` (the learned predictor plus upstream rule
+        # prefilter) overrides the direction per vehicle-vehicle pair, with the
+        # geometric edge kept whenever the predictor is not confident.
         yield_edges = {(edge.influencer, edge.reactor) for edge in edges}
         reactor_influencers: Dict[object, List[object]] = {}
         handled_pairs = set()
@@ -383,11 +270,14 @@ class InterSimBehaviorModel(BehaviorModelBase):
                 first, second = pair
                 actor_yields = (second, first) in yield_edges
                 partner_yields = (first, second) in yield_edges
-                if config.relation_mode == "directed_tie" and abs(edge.frame_diff) <= _NO_EDGE_TIE_FRAMES:
+                if (
+                    config.relation_mode == "directed_tie"
+                    and abs(edge.frame_diff) <= _NO_EDGE_TIE_FRAMES
+                ):
                     actor_yields = partner_yields = True
-                elif config.relation_mode == "nn" and self._relation_decider is not None:
-                    first_yields = self._relation_decider(first, second)
-                    second_yields = self._relation_decider(second, first)
+                elif config.relation_mode == "nn" and decider is not None:
+                    first_yields = decider(first, second)
+                    second_yields = decider(second, first)
                     if first_yields is not None and second_yields is not None:
                         actor_yields, partner_yields = first_yields, second_yields
                 if actor_yields:
@@ -395,7 +285,10 @@ class InterSimBehaviorModel(BehaviorModelBase):
                 if partner_yields:
                     reactor_influencers.setdefault(second, []).append(first)
             else:
-                for agent_id, counter_id in ((edge.influencer, edge.reactor), (edge.reactor, edge.influencer)):
+                for agent_id, counter_id in (
+                    (edge.influencer, edge.reactor),
+                    (edge.reactor, edge.influencer),
+                ):
                     if records[agent_id].is_vehicle and records[counter_id].is_vehicle:
                         reactor_influencers.setdefault(agent_id, []).append(counter_id)
 
@@ -433,7 +326,7 @@ class InterSimBehaviorModel(BehaviorModelBase):
                 push = record.length / 2.0 + config.stop_margin
                 arcs = arcs_from_speeds(final_speeds[reactor_id], config.dt)
                 distance = max(0.0, arcs[overlap_step] - push)
-                self._yielded.add(reactor_id)
+                yielded.add(reactor_id)
                 if (
                     end_targets[reactor_id] <= 0.5
                     or distance <= _MIN_DISTANCE_TO_TRAVEL
@@ -456,10 +349,18 @@ class InterSimBehaviorModel(BehaviorModelBase):
                 changed = True
             if not changed:
                 break
-        return final_speeds
+        return final_speeds, yielded
 
-    def _apply_traffic_lights(self, records, final_speeds, frame, map_):
-        """Stop free-running vehicles before a red traffic light stop point."""
+    def _apply_traffic_lights(self, records, final_speeds, yielded, frame, map_):
+        """Stop free-running vehicles before a red traffic light stop point.
+
+        Args:
+            records (Dict): The scene records keyed by agent id.
+            final_speeds (Dict): The speed profiles, updated in place.
+            yielded (set): The ids of agents already braking for a conflict.
+            frame (int): The current frame number. The unit is millisecond (ms).
+            map_ (Optional[Map]): The map carrying the traffic light regulations.
+        """
 
         config = self.config
         if not config.respect_traffic_light or map_ is None:
@@ -469,7 +370,7 @@ class InterSimBehaviorModel(BehaviorModelBase):
             return
         red_states = {"stop", "arrow_stop", "flashing_stop"}
         for agent_id, record in records.items():
-            if not record.is_vehicle or record.lane_id is None or agent_id in self._yielded:
+            if not record.is_vehicle or record.lane_id is None or agent_id in yielded:
                 continue
             for reg in lights:
                 lane_ref = (reg.custom_tags or {}).get("lane_id")
@@ -497,8 +398,8 @@ class InterSimBehaviorModel(BehaviorModelBase):
         self,
         poses_a: np.ndarray,
         poses_b: np.ndarray,
-        record_a: _AgentRecord,
-        record_b: _AgentRecord,
+        record_a: AgentRecord,
+        record_b: AgentRecord,
         margin: float = 0.7,
     ) -> Optional[int]:
         for step in range(len(poses_a)):
@@ -509,10 +410,18 @@ class InterSimBehaviorModel(BehaviorModelBase):
             if pose_a[0] == -1 or pose_b[0] == -1:
                 continue
             body_a = AgentBody(
-                float(pose_a[0]), float(pose_a[1]), float(pose_a[3]), record_a.length, record_a.width
+                float(pose_a[0]),
+                float(pose_a[1]),
+                float(pose_a[3]),
+                record_a.length,
+                record_a.width,
             )
             body_b = AgentBody(
-                float(pose_b[0]), float(pose_b[1]), float(pose_b[3]), record_b.length, record_b.width
+                float(pose_b[0]),
+                float(pose_b[1]),
+                float(pose_b[3]),
+                record_b.length,
+                record_b.width,
             )
             if check_body_collision(body_a, body_b, margin):
                 return step
@@ -522,13 +431,15 @@ class InterSimBehaviorModel(BehaviorModelBase):
 
     def _to_trajectory(
         self,
-        record: _AgentRecord,
+        record: AgentRecord,
         speeds: np.ndarray,
         poses: np.ndarray,
         frame: int,
     ) -> Trajectory:
         config = self.config
-        trajectory = Trajectory(id_=record.agent_id, fps=round(1.0 / config.dt, 3), stable_freq=True)
+        trajectory = Trajectory(
+            id_=record.agent_id, fps=round(1.0 / config.dt, 3), stable_freq=True
+        )
         for step in range(1, config.horizon_steps + 1):
             pose = poses[step]
             speed = float(speeds[step - 1])
@@ -544,3 +455,132 @@ class InterSimBehaviorModel(BehaviorModelBase):
                 )
             )
         return trajectory
+
+    # -- closed-loop replay ------------------------------------------------
+
+    def run_closed_loop(
+        self,
+        participants: Dict[object, object],
+        map_: Optional[Map],
+        ego_id: object,
+        frame_ms0: int = 0,
+    ) -> RollingSimulationResult:
+        """Replay the scenario closed-loop and return its outcome.
+
+        The runner mirrors the upstream InterSim cadence: the scenario is carried
+        by per-agent pose arrays that start from the parsed ground truth and are
+        overwritten with committed plans at planning frames. Only an ego-centric
+        relevant set (ego plus vehicles whose future conflicts with it) is
+        re-planned; the remaining vehicles keep their ground-truth motion, so the
+        ego can collide with exactly the same kind of imperfectly predicted agents
+        the original closed loop collided with.
+
+        Args:
+            participants (Dict): All participants in the scenario.
+            map_ (Optional[Map]): The map. None falls back to straight paths.
+            ego_id (object): The agent the loop is centred on.
+            frame_ms0 (int, optional): Time stamp of index 0. Defaults to 0.
+
+        Returns:
+            The closed-loop outcome, carrying the upstream-aligned metrics and
+            the final per-index poses.
+        """
+
+        step_ms = self.config.step_ms
+        poses, dims, types = replay.extract_arrays(self.config, participants, step_ms, frame_ms0)
+        goals: Dict[object, Optional[Tuple[float, float]]] = {
+            agent_id: (
+                (participant.trajectory.last_state.x, participant.trajectory.last_state.y)
+                if participant.trajectory.last_state is not None
+                else None
+            )
+            for agent_id, participant in participants.items()
+        }
+        if self.config.augment_lane_graph and map_ is not None:
+            augment_lane_successors(map_)
+        steps = self.config.scenario_steps
+        warmup = self.config.planning_warmup_steps
+        interval = self.config.planning_interval
+
+        relevant_union: List[object] = []
+        collided = False
+        collision_kind = [0, 0, 0]  # front, side, rear
+        end_index = min(89, steps - 1)
+
+        current = 1
+        while current <= end_index:
+            if (current - warmup) >= 0 and (current - warmup) % interval == 0:
+                relevant = self._plan_once(
+                    poses, dims, types, participants, map_, ego_id, current, frame_ms0, goals
+                )
+                for agent_id in relevant:
+                    if agent_id not in relevant_union:
+                        relevant_union.append(agent_id)
+            kind = replay.ego_collision_at(poses, dims, ego_id, current)
+            if kind is not None:
+                collision_kind[kind] += 1
+                collided = True
+                end_index = current
+                break
+            current += 1
+
+        progress, controlled = replay.progress(
+            self.config, poses, ego_id, relevant_union, end_index
+        )
+        return RollingSimulationResult(
+            front_collisions=collision_kind[0],
+            side_collisions=collision_kind[1],
+            rear_collisions=collision_kind[2],
+            progress=progress,
+            total_agents_controlled=controlled,
+            collided=collided,
+            end_index=end_index,
+            ego_id=ego_id,
+            relevant_ids=list(relevant_union),
+            poses={agent_id: poses[agent_id].copy() for agent_id in poses},
+        )
+
+    def _plan_once(self, poses, dims, types, participants, map_, ego_id, current, frame_ms0, goals):
+        """Plan ego first, then its relevant environment, and commit both.
+
+        Mirroring the upstream ordering (ego base planner commits before the env
+        relevant detection), the ego is planned alone, its newly committed
+        future is used to grow the relevant set, and only then are the relevant
+        environment vehicles re-planned so they brake for the ego.
+        """
+
+        horizon = self.config.horizon_steps
+        steps = self.config.scenario_steps
+        frame_ms = frame_ms0 + current * self.config.step_ms
+        snapshot, _ = replay.snapshot(
+            self.config, poses, dims, types, participants, ego_id, current, frame_ms0, goals
+        )
+        if not snapshot:
+            return []
+
+        relevant = replay.relevant_ids(poses, dims, ego_id, current, horizon, steps)
+        decider = None
+        if self.config.relation_mode == "nn":
+            decider = relation_decider.make_decider(
+                self.config, poses, dims, types, map_, ego_id, current
+            )
+
+        planned = []
+        ego_trajectories = self.predict(
+            snapshot, map_, frame_ms, agent_ids=[ego_id], decider=decider
+        )
+        if ego_id in ego_trajectories:
+            replay.commit(
+                self.config, poses, ego_id, ego_trajectories[ego_id], current, steps, frame_ms0
+            )
+            planned.append(ego_id)
+
+        env_ids = [agent_id for agent_id in relevant if agent_id != ego_id and agent_id in snapshot]
+        if env_ids:
+            env_trajectories = self.predict(
+                snapshot, map_, frame_ms, agent_ids=env_ids, decider=decider
+            )
+            for agent_id, trajectory in env_trajectories.items():
+                replay.commit(self.config, poses, agent_id, trajectory, current, steps, frame_ms0)
+                planned.append(agent_id)
+        return planned

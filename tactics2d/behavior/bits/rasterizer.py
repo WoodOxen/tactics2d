@@ -88,40 +88,58 @@ class BitsRasterizer:
         other_extents: np.ndarray,
         raster_from_agent: Optional[np.ndarray] = None,
     ) -> np.ndarray:
-        """Rasterize ego and neighboring agents' history in the current ego frame."""
+        """Rasterize ego and neighboring agents' history as single pixels.
+
+        This mirrors the upstream TBSIM rendering, which marks one rounded pixel
+        per agent and timestep (``tbsim/utils/trajdata_utils.py``). ``ego_extent``,
+        ``other_extents`` and the history yaws are accepted but unused, matching
+        the upstream signature.
+        """
 
         transform = raster_from_agent if raster_from_agent is not None else self.raster_from_agent()
         time_steps = ego_history_positions.shape[0]
         size = self.config.raster_size
         dynamic_image = np.zeros((time_steps, size, size), dtype=np.float32)
 
-        for step in range(time_steps):
-            for agent_index in range(other_history_positions.shape[0]):
-                if not bool(other_history_availabilities[agent_index, step]):
-                    continue
-                extent = other_extents[agent_index]
-                if not np.any(extent):
-                    continue
-                self._paint_agent_box(
-                    dynamic_image[step],
-                    other_history_positions[agent_index, step],
-                    self._yaw_scalar(other_history_yaws[agent_index, step]),
-                    extent,
-                    transform,
-                    value=-1.0,
-                )
-
-            if bool(ego_history_availabilities[step]):
-                self._paint_agent_box(
-                    dynamic_image[step],
-                    ego_history_positions[step],
-                    self._yaw_scalar(ego_history_yaws[step]),
-                    ego_extent,
-                    transform,
-                    value=1.0,
-                )
-
+        # Neighbors first so the ego marker wins when both land on one pixel.
+        self._scatter_agents(
+            dynamic_image, other_history_positions, other_history_availabilities, transform, -1.0
+        )
+        self._scatter_agents(
+            dynamic_image,
+            np.asarray(ego_history_positions)[None],
+            np.asarray(ego_history_availabilities)[None],
+            transform,
+            1.0,
+        )
         return dynamic_image
+
+    def _scatter_agents(
+        self,
+        image: np.ndarray,
+        positions: np.ndarray,
+        availabilities: np.ndarray,
+        transform: np.ndarray,
+        value: float,
+    ) -> None:
+        """Mark one rounded pixel per available agent and timestep."""
+
+        positions = np.asarray(positions, dtype=float)
+        availabilities = np.asarray(availabilities).astype(bool)
+        if positions.ndim != 3 or positions.shape[0] == 0:
+            return
+
+        size = image.shape[-1]
+        time_steps = positions.shape[1]
+        pixels = np.rint(self._transform_coords(positions.reshape(-1, 2), transform)).astype(int)
+        columns = np.clip(pixels[:, 0], 0, size - 1)
+        rows = np.clip(pixels[:, 1], 0, size - 1)
+
+        for agent_index in range(positions.shape[0]):
+            offset = agent_index * time_steps
+            steps = np.nonzero(availabilities[agent_index])[0]
+            if steps.size:
+                image[steps, rows[offset + steps], columns[offset + steps]] = value
 
     def attach_agent_history(
         self,
@@ -165,6 +183,12 @@ class BitsRasterizer:
         Agent coordinates use x forward and y left. Raster coordinates use
         column right and row down, with the ego position placed at one quarter
         of the image width and halfway down the image.
+
+        Both axes keep a positive scale, so agent-frame ``+y`` (the agent's
+        left) maps to a larger row. This matches upstream TBSIM, whose raster
+        transform is built from a positive-scaled ``raster_from_local``
+        (``trajdata/utils/raster_utils.py``) that later translations and
+        rotations leave untouched.
         """
 
         size = float(self.config.raster_size)
@@ -172,7 +196,7 @@ class BitsRasterizer:
         return np.asarray(
             [
                 [pixels_per_meter, 0.0, 0.25 * size],
-                [0.0, -pixels_per_meter, 0.5 * size],
+                [0.0, pixels_per_meter, 0.5 * size],
                 [0.0, 0.0, 1.0],
             ],
             dtype=float,
@@ -252,42 +276,6 @@ class BitsRasterizer:
             pixel_rows = np.rint(samples[:, 1]).astype(int)
             self._paint_pixels(mask, pixel_cols, pixel_rows, radius)
 
-    def _paint_agent_box(
-        self,
-        mask: np.ndarray,
-        position: Sequence[float],
-        yaw: float,
-        extent: Sequence[float],
-        raster_from_agent: np.ndarray,
-        value: float,
-    ) -> None:
-        box = self._agent_box_corners(position, yaw, extent)
-        raster_box = self._transform_coords(box, raster_from_agent)
-        box_mask = np.zeros_like(mask, dtype=bool)
-        self._fill_polygon(box_mask, raster_box)
-        mask[box_mask] = value
-
-    @staticmethod
-    def _agent_box_corners(
-        position: Sequence[float], yaw: float, extent: Sequence[float]
-    ) -> np.ndarray:
-        length, width = float(extent[0]), float(extent[1])
-        half_length = max(0.0, length) * 0.5
-        half_width = max(0.0, width) * 0.5
-        corners = np.asarray(
-            [
-                [half_length, half_width],
-                [half_length, -half_width],
-                [-half_length, -half_width],
-                [-half_length, half_width],
-            ],
-            dtype=float,
-        )
-        cos_yaw = float(np.cos(yaw))
-        sin_yaw = float(np.sin(yaw))
-        rotation = np.asarray([[cos_yaw, -sin_yaw], [sin_yaw, cos_yaw]], dtype=float)
-        return corners @ rotation.T + np.asarray(position, dtype=float)[:2]
-
     @staticmethod
     def _paint_pixels(mask: np.ndarray, cols: np.ndarray, rows: np.ndarray, radius: int) -> None:
         height, width = mask.shape[-2:]
@@ -313,7 +301,3 @@ class BitsRasterizer:
         if width_meters is None:
             return 1
         return max(1, int(round(float(width_meters) / self.config.pixel_size)))
-
-    @staticmethod
-    def _yaw_scalar(yaw) -> float:
-        return float(np.asarray(yaw, dtype=float).reshape(-1)[0])
