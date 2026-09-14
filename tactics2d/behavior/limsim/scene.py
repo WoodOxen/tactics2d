@@ -12,6 +12,7 @@ from shapely.strtree import STRtree
 from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 from tactics2d.participant.trajectory import State
+from tactics2d.routing.utils import get_lane_centerline
 
 from .config import LimSimConfig
 from .schema import AgentDecisionState
@@ -97,7 +98,7 @@ class SceneBuilder:
     def _find_heading_consistent_lane(self, map_: Map, state: State) -> Optional[str]:
         point = Point(state.location)
 
-        # find candidate lanes via STRtree — no brute-force scan
+        # broad phase: the cached STRtree of lane centerlines, no brute-force scan
         strtree, indexed_lane_ids, indexed_centerlines = self._get_lane_index(map_)
         if strtree is None:
             return None
@@ -107,19 +108,24 @@ class SceneBuilder:
         if len(hit_indices) == 0:
             return None
 
-        best_lane_id = indexed_lane_ids[hit_indices[0]]
+        # narrow phase: score the nearest hit together with its topology neighbours
+        nearest_idx = min(hit_indices, key=lambda idx: indexed_centerlines[idx].distance(point))
+        best_lane_id = indexed_lane_ids[nearest_idx]
         best_score = np.inf
-        for idx in hit_indices:
-            lane_id = indexed_lane_ids[idx]
+        for lane_id in self._candidate_lane_ids(map_, best_lane_id, point):
             lane = map_.lanes.get(lane_id)
             if lane is None:
                 continue
-            distance = indexed_centerlines[idx].distance(point)
+            centerline = get_lane_centerline(lane)
+            if centerline is None:
+                continue
+            distance = LineString(centerline).distance(point)
             if distance > self.config.lane_match_radius:
                 continue
             projection = lane.project_point(state.location)
-            s = projection.s if projection is not None else None
-            lane_heading = self._lane_heading_at(lane, s)
+            lane_heading = self._lane_heading_at(
+                lane, projection.s if projection is not None else None
+            )
             heading_error = 0.0
             if lane_heading is not None:
                 heading_error = abs(spatial.normalize_angle(state.heading - lane_heading))
@@ -130,6 +136,40 @@ class SceneBuilder:
                 best_lane_id = lane_id
 
         return best_lane_id
+
+    def _candidate_lane_ids(self, map_: Map, lane_id: str, point_xy) -> List[str]:
+        """Nearby lane ids: STRtree hits within the match radius plus topology neighbours.
+
+        Args:
+            map_ (Map): The map holding the lanes.
+            lane_id (str): The lane whose neighbours join the candidate set.
+            point_xy: The query point as an ``(x, y)`` pair.
+
+        Returns:
+            The candidate lane ids, always including ``lane_id``.
+        """
+        point = Point(point_xy)
+        lane = map_.lanes.get(lane_id)
+        strtree, indexed_lane_ids, indexed_centerlines = self._get_lane_index(map_)
+
+        lane_ids = set()
+        if strtree is not None:
+            for idx in strtree.query(point.buffer(self.config.lane_match_radius)):
+                if indexed_centerlines[idx].distance(point) <= self.config.lane_match_radius:
+                    lane_ids.add(indexed_lane_ids[idx])
+
+        if lane is None:
+            return list(lane_ids or {lane_id})
+        lane_ids.update(
+            {
+                lane_id,
+                *lane.left_neighbors,
+                *lane.right_neighbors,
+                *lane.predecessors,
+                *lane.successors,
+            }
+        )
+        return list(lane_ids)
 
     def _get_lane_index(self, map_: Map):
         """Build or retrieve a cached STRtree of lane centerlines.
@@ -166,8 +206,7 @@ class SceneBuilder:
         return result
 
     def _lane_heading_at(self, lane, s: Optional[float]) -> Optional[float]:
-        centerline = lane.centerline()
-        centerline = np.asarray(centerline.coords, dtype=float) if centerline is not None else None
+        centerline = get_lane_centerline(lane)
         if centerline is None or len(centerline) < 2:
             return None
         line = LineString(centerline)

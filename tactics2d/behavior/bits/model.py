@@ -30,6 +30,7 @@ from tactics2d.participant.trajectory import State, Trajectory
 
 from .config import BitsConfig
 from .dataset import BitsBatchBuilder
+from .encoder import RNNEncoder
 from .heads import FutureStatePredictorHead, GoalConditionalPolicyHead
 from .policy import BitsPolicy, TorchBitsPolicy
 from .predictor import BitsPrediction
@@ -480,8 +481,6 @@ class BitsAgentAwareTrajectoryModule(nn.Module):
         )
         history_feature_dim = 16 if self.history_conditioning else 0
         if self.history_conditioning:
-            from .encoder import RNNEncoder
-
             self.history_encoder = RNNEncoder(
                 trajectory_dim=3,
                 rnn_hidden_size=100,

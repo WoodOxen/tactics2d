@@ -108,7 +108,7 @@ class ParkingEnv(gym.Env):
 
         Args:
             type_proportion (float, optional): The proportion of "bay" parking scenario in all generated scenarios. It should be in the range of [0, 1]. If the input is out of the range, it will be clipped to the range. When it is 0, the generator only generates "parallel" parking scenarios. When it is 1, the generator only generates "bay" parking scenarios.
-            render_mode (str, optional): The mode of the rendering. It can be "human", "rgb_array", "none" or None.
+            render_mode (str, optional): The mode of the rendering. It can be "human", "rgb_array", "browser", "matplotlib", "none" or None.
             render_fps (int, optional): The frame rate of the rendering.
             max_step (int, optional): The maximum time step of the scenario.
             continuous (bool, optional): Whether to use continuous action space.

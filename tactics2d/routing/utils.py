@@ -59,21 +59,48 @@ def concatenate_centerlines(centerlines: Iterable[np.ndarray]) -> Optional[np.nd
     if not merged:
         return None
 
-    point = Point(location[0], location[1])
-    best_lane_id = None
-    best_dist = float("inf")
+    return np.vstack(merged)
 
-    for lane_id, lane in map_.lanes.items():
-        centerline = lane.centerline()
-        if centerline is None:
-            geometry = getattr(lane, "geometry", None)
-            if geometry is None:
-                continue
-            dist = geometry.distance(point)
+
+def find_nearest_lane(
+    map_: Map,
+    point_xy: Sequence[float],
+    candidate_lane_ids: Optional[Iterable[str]] = None,
+    search_radius: float = 20.0,
+) -> Optional[str]:
+    """Find the nearest lane to a point.
+
+    When ``candidate_lane_ids`` is not given, the map's spatial index narrows
+    the search to lanes whose geometry lies within ``search_radius`` of the
+    point; a full scan is used as a fallback when no index is available or no
+    lane is that close (so a far-away nearest lane is still found).
+    """
+
+    point = Point(point_xy[0], point_xy[1])
+    best_lane_id = None
+    best_distance = np.inf
+
+    if candidate_lane_ids is not None:
+        lane_ids = list(candidate_lane_ids)
+    else:
+        candidates = map_.query_point(point_xy, buffer=search_radius)
+        lane_ids = candidates if candidates else list(map_.lanes.keys())
+
+    for lane_id in lane_ids:
+        lane = map_.lanes.get(lane_id)
+        if lane is None:
+            continue
+
+        centerline = get_lane_centerline(lane)
+        if centerline is not None:
+            distance = LineString(centerline).distance(point)
+        elif lane.geometry is not None:
+            distance = lane.geometry.distance(point)
         else:
-            dist = centerline.distance(point)
-        if dist < best_dist:
-            best_dist = dist
+            continue
+
+        if distance < best_distance:
+            best_distance = distance
             best_lane_id = lane_id
 
     return best_lane_id

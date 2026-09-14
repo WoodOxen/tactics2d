@@ -4,6 +4,7 @@
 """Single track dynamics implementation."""
 
 
+import math
 from typing import Tuple, Union
 
 import numpy as np
@@ -24,6 +25,13 @@ class SingleTrackDynamics(PhysicsModelBase):
         The dynamic single-track model is based on Chapter 7 of the following reference:
         [CommonRoad: Vehicle Models (2020a)](https://gitlab.lrz.de/tum-cps/commonroad-vehicle-models/-/blob/master/vehicleModels_commonRoad.pdf)
 
+    !!! info "Parameter sources"
+        Defaults follow CommonRoad: Vehicle Models (2020a), vehicle ID 1 (Ford Escort):
+        `I_z = 1538.85` kg·m$^2$; cornering stiffness `cf = cr = 20.89` rad$^{-1}$ is derived
+        from the Pacejka tire data as `-p_ky1 / p_dy1`; `mu` is a physical tire-road friction
+        coefficient (see the attribute docs). `lf`, `lr`, `mass` and `mass_height` come from the
+        participant template.
+
     Attributes:
         lf (float): The distance from the geometry center to the front axle center. The unit is meter.
         lr (float): The distance from the geometry center to the rear axle center. The unit is meter.
@@ -35,10 +43,11 @@ class SingleTrackDynamics(PhysicsModelBase):
 
         mass (float): The mass of the vehicle. The unit is kilogram.
         mass_height (float): The height of the center of mass from the ground. The unit is meter.
-        mu (float): The friction coefficient. It is a dimensionless quantity. Defaults to 0.7.
-        I_z (float): The moment of inertia of the vehicle. The unit is kilogram per meter squared (kg/m$^2$). Defaults to 1500.
-        cf (float): The cornering stiffness of the front wheel. The unit is 1/rad. Defaults to 20.89.
-        cr (float): The cornering stiffness of the rear wheel. The unit is 1/rad. Defaults to 20.89.
+        mu (float): The friction coefficient. It is a dimensionless quantity. Defaults to 0.7. This is a physical tire-road friction coefficient (dry asphalt ≈ 0.7–0.9); the CommonRoad ST model this class is based on uses the magic-formula ``p_dy1`` (1.0489) in its place, so set ``mu = p_dy1`` to match the reference exactly.
+        friction_ellipse (bool): Whether to couple longitudinal and lateral grip through a friction ellipse. Defaults to False. When enabled, the lateral-response coefficient used by the high-speed branch is reduced to ``mu * sqrt(1 - (a / (mu * g))**2)``, so accelerating or braking consumes part of the available friction and full-throttle/hard-brake manoeuvres (|a| >= mu * g) leave no lateral capability; at a = 0 the behaviour is unchanged.
+        I_z (float): The moment of inertia of the vehicle. The unit is kilogram per meter squared (kg/m$^2$). Defaults to 1538.85 (CommonRoad vehicle ID 1, Ford Escort).
+        cf (float): The cornering stiffness of the front wheel. The unit is 1/rad. Defaults to 20.89 (= -p_ky1/p_dy1 derived from the Pacejka tire data).
+        cr (float): The cornering stiffness of the rear wheel. The unit is 1/rad. Defaults to 20.89 (= -p_ky1/p_dy1 derived from the Pacejka tire data).
 
         speed_range (Union[float, Tuple[float, float]], optional): The speed range. The valid input is a float or a tuple of two floats represents (min speed, max speed). The unit is meter per second (m/s).
             - When the speed_range is a non-negative float, the speed is constrained to be within the range [-speed_range, speed_range].
@@ -52,7 +61,7 @@ class SingleTrackDynamics(PhysicsModelBase):
             - When the accel_range is negative or the min acceleration is not less than the max acceleration, the accel_range is set to None.
 
         interval (int, optional): The time interval between the current state and the new state. The unit is millisecond. Defaults to None.
-        delta_t (int, optional): The time step for the simulation. The unit is millisecond. Defaults to `_DELTA_T`(5 ms). The expected value is between `_MIN_DELTA_T`(1 ms) and `interval`. It is recommended to keep delta_t smaller than 5 ms.
+        delta_t (int, optional): The time step for the simulation. The unit is millisecond. Defaults to `_DELTA_T`(5 ms). The expected value is between `_MIN_DELTA_T`(1 ms) and `interval`. The model integrates with a 4th-order Runge-Kutta scheme, so discretization error stays negligible up to ~20 ms; the default 5 ms is retained for backward compatibility.
     """
 
     def __init__(
@@ -62,7 +71,8 @@ class SingleTrackDynamics(PhysicsModelBase):
         mass: float,
         mass_height: float,
         mu: float = 0.7,
-        I_z: float = 1500,
+        friction_ellipse: bool = False,
+        I_z: float = 1538.85,
         cf: float = 20.89,
         cr: float = 20.89,
         steer_range: Union[float, Tuple[float, float]] = None,
@@ -79,6 +89,7 @@ class SingleTrackDynamics(PhysicsModelBase):
             mass (float): The mass of the vehicle. The unit is kilogram. You can use the curb weight of the vehicle as an approximation.
             mass_height (float): The height of the center of mass from the ground. The unit is meter. You can use half of the vehicle height as an approximation.
             mu (float): The friction coefficient. It is a dimensionless quantity.
+            friction_ellipse (bool): Whether to couple longitudinal and lateral grip through a friction ellipse. Defaults to False. When True, the lateral-response coefficient used by the high-speed branch is reduced to ``mu * sqrt(1 - (a / (mu * g))**2)``.
             I_z (float): The moment of inertia of the vehicle. The unit is kilogram per meter squared (kg/m$^2$).
             cf (float): The cornering stiffness of the front wheel. The unit is 1/rad.
             cr (float): The cornering stiffness of the rear wheel. The unit is 1/rad.
@@ -94,6 +105,7 @@ class SingleTrackDynamics(PhysicsModelBase):
         self.mass = mass
         self.mass_height = mass_height
         self.mu = mu
+        self.friction_ellipse = friction_ellipse
         self.I_z = I_z
         self.cf = cf
         self.cr = cr
@@ -145,6 +157,16 @@ class SingleTrackDynamics(PhysicsModelBase):
         factor_f = (self._G * self.lr - accel * self.mass_height) / self.wheel_base
         factor_r = (self._G * self.lf + accel * self.mass_height) / self.wheel_base
 
+        # Friction-ellipse coupling: when enabled, longitudinal acceleration consumes part of
+        # the available friction, so the lateral-response coefficient is reduced to
+        #   mu * sqrt(1 - (a / (mu * g))^2)
+        # (0 when |a| >= mu * g). accel is constant within one step(), so mu_lat is constant.
+        if self.friction_ellipse and self.mu > 0:
+            _ratio = accel / (self.mu * self._G)
+            mu_lat = self.mu * math.sqrt(max(0.0, 1.0 - _ratio * _ratio))
+        else:
+            mu_lat = self.mu
+
         # Precompute constant combinations for efficiency
         lf_cf_factor_f = self.lf * self.cf * factor_f
         lr_cr_factor_r = self.lr * self.cr * factor_r
@@ -153,24 +175,42 @@ class SingleTrackDynamics(PhysicsModelBase):
         cf_factor_f = self.cf * factor_f
         cr_factor_r = self.cr * factor_r
 
+        # Loop-invariant terms: delta is constant across sub-steps.
+        tan_delta = math.tan(delta)
+        cos_delta = math.cos(delta)
+        cos2_delta = cos_delta**2
+        denom2 = (1 + tan_delta * self.lr / self.wheel_base) ** 2
+        speed_range = self.speed_range
+
         x, y = state.location
         phi = state.heading
         v = state.speed
-        d_phi = v / self.wheel_base * np.tan(delta)
-        beta = np.arctan(self.lr / self.lf * np.tan(delta))  # slip angle
+        # d_phi (yaw rate) and beta (slip angle) are persistent states carried by the State
+        # object between step() calls; fall back to the kinematic initial condition when absent.
+        d_phi = state.yaw_rate if state.yaw_rate is not None else v / self.wheel_base * tan_delta
+        beta = (
+            state.slip_angle
+            if state.slip_angle is not None
+            else math.atan(self.lr / self.lf * tan_delta)
+        )
 
-        # Main steps with standard delta_t
-        for _ in range(n_steps):
-            dx = v * np.cos(phi + beta)
-            dy = v * np.sin(phi + beta)
-            dv = accel
+        def _deriv(v, phi, beta, d_phi):
+            """Right-hand side of the dynamics ODE at a given state.
+
+            Returns (dx/dt, dy/dt, dphi/dt, dv/dt, dd_phi, d_beta), treating d_phi and beta
+            as state variables with time derivatives dd_phi and d_beta.
+            """
+            dx = v * math.cos(phi + beta)
+            dy = v * math.sin(phi + beta)
+            f_phi = d_phi
+            f_v = accel
 
             # Use a safe velocity to avoid division by zero
-            v_safe = v if np.abs(v) > 1e-6 else (1e-6 if v >= 0 else -1e-6)
+            v_safe = v if abs(v) > 1e-6 else (1e-6 if v >= 0 else -1e-6)
 
-            if np.abs(v) >= 0.1:
+            if abs(v) >= 0.1:
                 dd_phi = (
-                    self.mu
+                    mu_lat
                     * self.mass
                     / self.I_z
                     * (
@@ -180,7 +220,7 @@ class SingleTrackDynamics(PhysicsModelBase):
                     )
                 )
                 d_beta = (
-                    self.mu
+                    mu_lat
                     / v_safe
                     * (
                         cf_factor_f * delta
@@ -189,41 +229,78 @@ class SingleTrackDynamics(PhysicsModelBase):
                     )
                     - d_phi
                 )
-                d_phi += dd_phi * dt
             else:
-                d_beta = (
-                    self.lr
-                    / (1 + np.tan(delta) * self.lr / self.wheel_base) ** 2
-                    / self.wheel_base
-                    / np.cos(delta) ** 2
-                    * delta
-                )
+                cos_beta = math.cos(beta)
+                sin_beta = math.sin(beta)
+                d_beta = self.lr / denom2 / self.wheel_base / cos2_delta * delta
                 dd_phi = (
                     1
                     / self.wheel_base
                     * (
-                        accel * np.cos(beta) * np.tan(delta)
-                        - v * np.sin(beta) * np.tan(delta) * d_beta
-                        + v * np.cos(beta) / np.cos(delta) ** 2 * delta
+                        accel * cos_beta * tan_delta
+                        - v * sin_beta * tan_delta * d_beta
+                        + v * cos_beta / cos2_delta * delta
                     )
                 )
-                d_phi += v * np.cos(beta) / self.wheel_base * np.tan(delta) * dt
 
-            x += dx * dt
-            y += dy * dt
-            v += dv * dt
-            phi += d_phi * dt
-            beta += d_beta * dt
+            return dx, dy, f_phi, f_v, dd_phi, d_beta
 
-            v = np.clip(v, *self.speed_range) if self.speed_range is not None else v
+        def _rk4_step(x, y, phi, v, d_phi, beta, h):
+            """Advance one sub-step of time h with a 4th-order Runge-Kutta scheme."""
+            k1 = _deriv(v, phi, beta, d_phi)
+            k2 = _deriv(
+                v + 0.5 * h * k1[3],
+                phi + 0.5 * h * k1[2],
+                beta + 0.5 * h * k1[5],
+                d_phi + 0.5 * h * k1[4],
+            )
+            k3 = _deriv(
+                v + 0.5 * h * k2[3],
+                phi + 0.5 * h * k2[2],
+                beta + 0.5 * h * k2[5],
+                d_phi + 0.5 * h * k2[4],
+            )
+            k4 = _deriv(v + h * k3[3], phi + h * k3[2], beta + h * k3[5], d_phi + h * k3[4])
+
+            x += h / 6.0 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0])
+            y += h / 6.0 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1])
+            phi += h / 6.0 * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2])
+            v += h / 6.0 * (k1[3] + 2 * k2[3] + 2 * k3[3] + k4[3])
+            d_phi += h / 6.0 * (k1[4] + 2 * k2[4] + 2 * k3[4] + k4[4])
+            beta += h / 6.0 * (k1[5] + 2 * k2[5] + 2 * k3[5] + k4[5])
+            return x, y, phi, v, d_phi, beta
+
+        # Main steps with standard delta_t
+        for _ in range(n_steps):
+            x, y, phi, v, d_phi, beta = _rk4_step(x, y, phi, v, d_phi, beta, dt)
+
+            if speed_range is not None:
+                if v < speed_range[0]:
+                    v = speed_range[0]
+                elif v > speed_range[1]:
+                    v = speed_range[1]
+
+        # Remainder step if any
+        if remainder > 0:
+            x, y, phi, v, d_phi, beta = _rk4_step(
+                x, y, phi, v, d_phi, beta, float(remainder) / 1000
+            )
+
+            if speed_range is not None:
+                if v < speed_range[0]:
+                    v = speed_range[0]
+                elif v > speed_range[1]:
+                    v = speed_range[1]
 
         state = State(
             frame=state.frame + interval,
             x=x,
             y=y,
-            heading=np.mod(phi, 2 * np.pi),
+            heading=phi % (2 * math.pi),
             speed=v,
             accel=accel,
+            yaw_rate=d_phi,
+            slip_angle=beta,
         )
 
         return state
@@ -254,7 +331,8 @@ class SingleTrackDynamics(PhysicsModelBase):
         """This function provides a very rough check for the state transition.
 
         !!! info
-        Uses the same rough check as the single track kinematics model.
+        Uses the shared single-track reachability check of `PhysicsModelBase` (same rough
+        check as the single track kinematics model).
 
         Args:
             state (State): The current state of the traffic participant.
@@ -264,43 +342,4 @@ class SingleTrackDynamics(PhysicsModelBase):
         Returns:
             True if the new state is valid, False otherwise.
         """
-        interval = state.frame - last_state.frame if interval is None else interval
-        # Handle zero interval case
-        if interval == 0:
-            return True  # No time elapsed, state should be valid
-        dt = float(interval) / 1000
-        last_speed = last_state.speed
-
-        if None in [self.steer_range, self.speed_range, self.accel_range]:
-            return True
-
-        steer_range = np.array(self.steer_range)
-        beta_range = np.arctan(self.lr / self.wheel_base * steer_range)
-
-        # check that heading is in the range. heading_range may be larger than 2 * np.pi
-        heading_range = np.mod(
-            last_state.heading + last_speed / self.wheel_base * np.sin(beta_range) * dt, 2 * np.pi
-        )
-        if (
-            heading_range[0] < heading_range[1]
-            and not heading_range[0] <= state.heading <= heading_range[1]
-        ):
-            return False
-        if heading_range[0] > heading_range[1] and not (
-            heading_range[0] <= state.heading or state.heading <= heading_range[1]
-        ):
-            return False
-
-        # check that speed is in the range
-        speed_range = np.clip(last_speed + np.array(self.accel_range) * dt, *self.speed_range)
-        if not speed_range[0] <= state.speed <= speed_range[1]:
-            return False
-
-        # check that x, y are in the range
-        x_range = last_state.x + speed_range * np.cos(last_state.heading + beta_range) * dt
-        y_range = last_state.y + speed_range * np.sin(last_state.heading + beta_range) * dt
-
-        if not x_range[0] < state.x < x_range[1] or not y_range[0] < state.y < y_range[1]:
-            return False
-
-        return True
+        return self._verify_kinematic_state(state, last_state, interval)

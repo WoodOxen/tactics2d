@@ -15,14 +15,14 @@ import tfrecord
 from shapely.geometry import LineString, Point, Polygon
 
 from tactics2d.dataset_parser.womd_proto import scenario_pb
+from tactics2d.map.element import Area, Lane, LaneRelationship, Map, Regulatory, RoadLine
+from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
+from tactics2d.participant.trajectory import State, Trajectory
 
 # Per-shard byte-offset index cached to disk once, so the framing scan (which
 # reads every record header) runs once per shard globally instead of once per
 # parser instance / worker.
 _OFFSET_CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "tactics2d", "waymo_offsets")
-from tactics2d.map.element import Area, Lane, LaneRelationship, Map, Regulatory, RoadLine
-from tactics2d.participant.element import Cyclist, Other, Pedestrian, Vehicle
-from tactics2d.participant.trajectory import State, Trajectory
 
 
 class WOMDParser:
@@ -275,11 +275,8 @@ class WOMDParser:
         participants = dict()
         time_stamps = set()
 
-        if isinstance(scenario_id, (int, np.integer)) and "file" in kwargs and "folder" in kwargs:
-            scenario = self._scenario_by_index(int(scenario_id), kwargs["file"], kwargs["folder"])
-        else:
-            dataset = self._get_dataset(**kwargs)
-            scenario, _ = self._resolve_scenario_data(scenario_id, dataset)
+        dataset = self._get_dataset(**kwargs)
+        scenario, _ = self._resolve_scenario_data(scenario_id, dataset)
         fill_invalid_gaps = kwargs.get("fill_invalid_gaps", False)
         max_gap_frames = kwargs.get("max_gap_frames", 1)
 

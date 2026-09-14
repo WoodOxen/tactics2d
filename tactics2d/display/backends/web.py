@@ -49,7 +49,19 @@ class BrowserBackend(DisplayBackend):
         open_browser: bool = False,
         pid_file: Path | None = None,
         timeout: float = 5.0,
+        sensor_id: str = "camera_0",
+        exclusive: bool = True,
     ):
+        """Initialize the browser backend.
+
+        Args:
+            sensor_id: The id of the sensor view this backend publishes. Give
+                each environment its own id when several stream to one server.
+            exclusive: Whether this backend owns the whole browser view. When
+                ``True`` (single environment), sensors missing from a frame are
+                removed browser-side; set ``False`` so concurrent environments
+                do not remove each other's views.
+        """
         self._host = host
         self._port = port
         self._max_fps = max_fps
@@ -57,6 +69,8 @@ class BrowserBackend(DisplayBackend):
         self._open_browser = open_browser
         self._pid_file = pid_file
         self._timeout = timeout
+        self._sensor_id = sensor_id
+        self._exclusive = exclusive
 
         self._renderer: FrontendRenderer | None = None
         self._server_process = None
@@ -90,7 +104,9 @@ class BrowserBackend(DisplayBackend):
             return None
 
         sensor_data = self._snapshot_to_sensors(snapshot)
-        self._renderer.send_frame(sensor_data, frame=snapshot.frame)
+        self._renderer.send_frame(
+            sensor_data, frame=snapshot.frame, remove_missing_sensors=self._exclusive
+        )
         return None
 
     def close(self) -> None:
@@ -98,6 +114,18 @@ class BrowserBackend(DisplayBackend):
 
         If this backend started the server, it will be stopped as well.
         """
+        if self._renderer is not None and not self._exclusive:
+            # Shared server: remove only this backend's view and leave the rest.
+            try:
+                self._renderer.send_frame(
+                    [],
+                    sensor_id_to_remove=[self._sensor_id],
+                    remove_missing_sensors=False,
+                    wait_ack=False,
+                    drop_if_busy=False,
+                )
+            except Exception:
+                LOGGER.warning("Could not remove sensor %s from the frontend.", self._sensor_id)
         self._renderer = None
         if self._did_start_server and self._pid_file:
             try:
@@ -154,8 +182,7 @@ class BrowserBackend(DisplayBackend):
             f"and auto_start_server is False."
         )
 
-    @staticmethod
-    def _snapshot_to_sensors(snapshot: SceneSnapshot) -> list[dict[str, Any]]:
+    def _snapshot_to_sensors(self, snapshot: SceneSnapshot) -> list[dict[str, Any]]:
         """Convert a SceneSnapshot to the sensor data list expected by FrontendRenderer.send_frame()."""
         sensors = []
 
@@ -223,7 +250,7 @@ class BrowserBackend(DisplayBackend):
             metadata["perception_range"] = cam.perception_range
 
         sensor_entry = {
-            "id": "camera_0",
+            "id": self._sensor_id,
             "perception_range": metadata["perception_range"] or 80,
             "position": metadata["sensor_position"],
             "yaw": metadata["sensor_yaw"],

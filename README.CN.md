@@ -10,7 +10,7 @@
 [![Downloads](https://img.shields.io/pypi/dm/tactics2d)](https://pypi.org/project/tactics2d/)
 [![Discord](https://img.shields.io/discord/1209363816912126003)](https://discordapp.com/widget?id=1209363816912126003&theme=system)
 
-![python-version](https://img.shields.io/badge/Python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)
+![python-version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Github license](https://img.shields.io/github/license/WoodOxen/tactics2d)](https://github.com/WoodOxen/tactics2d/blob/master/LICENSE)
 
@@ -21,7 +21,7 @@
 > [!note]
 > 这个仓库为上海交通大学研究生课程AU7043提供了支持。
 >
-> **请各位同学切换到AU7043分支。使用`git clone`指令安装Tactics2D。在上课期间，仓库会实时更新！**
+> **请各位同学切换到AU7043分支。使用`git clone`指令安装Tactics2D。在上课期间，仓库可能更新！**
 
 `tactics2d` 是一个开源的 Python 库，专为自动驾驶中的强化学习决策模型开发与评估提供多样且具有挑战性的交通场景。tactics2d 具备以下核心特性：
 
@@ -52,14 +52,18 @@
 
 > 说明：下表与 `test_modules` CI 工作流的覆盖版本保持一致。
 
-| System | 3.8 | 3.9 | 3.10 | 3.11 | 3.12 | 3.13 |
-| --- | --- | --- | --- | --- | --- | --- |
-| Ubuntu 18.04 | :white_check_mark: | - | - | - | - | - |
-| Ubuntu 20.04 | :white_check_mark: | :white_check_mark: | - | - | - | - |
-| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Windows | - | - | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| macOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| System | 3.10 | 3.11 | 3.12 | 3.13 |
+| --- | --- | --- | --- | --- |
+| Ubuntu 22.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Ubuntu 24.04 | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Windows | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| macOS | :white_check_mark: | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+
+#### Python 支持策略
+
+Tactics2D 支持仍处于 CPython 上游支持周期内的 Python 版本。我们通常支持最新的四个 Python 小版本。当某个 Python 版本达到上游 EOL 后，我们可能移除对其的支持。
+
+**当前支持的 Python 版本：3.10–3.13**：暂时不支持 Python 3.14，因为核心依赖 `pygame` 和 `polars-runtime-32` 尚未发布 cp314 wheel；待其发布后我们会重新启用。
 
 ### 1. 安装
 
@@ -67,7 +71,7 @@
 
 ```bash
 # 创建一个新的conda环境
-conda create -n tactics2d python=3.9
+conda create -n tactics2d python=3.10
 conda activate tactics2d
 ```
 

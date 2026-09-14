@@ -5,7 +5,9 @@
 
 import asyncio
 import json
+import re
 import signal
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -68,6 +70,52 @@ def test_frontend_frame_drop_when_browser_is_busy():
     health = client.get("/health").json()
     assert health["last_ack"] == 10
     assert health["render_busy"] is False
+
+
+def test_concurrent_streams_ack_by_sequence_and_merge_snapshots():
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    def stream_frame(sensor_id, frame):
+        return {
+            "frame": frame,
+            "sensors": [{"id": sensor_id, "perception_range": 50, "position": [0, 0]}],
+            "remove_missing_sensors": False,
+        }
+
+    client = TestClient(server_module.create_app())
+    with client.websocket_connect("/ws") as websocket:
+        assert websocket.receive_json()["type"] == "client.count"
+
+        # Two environments both number their frames from zero.
+        client.post("/api/frame", json=stream_frame("env-a", 0))
+        client.post("/api/frame", json=stream_frame("env-b", 0))
+        message_a = websocket.receive_json()
+        message_b = websocket.receive_json()
+        assert message_a["frame_id"] == message_b["frame_id"] == 0
+        assert message_a["seq"] != message_b["seq"]
+
+        # Acking env-a's frame must not clear env-b's in-flight frame.
+        websocket.send_json({"type": "render.ack", "frame_id": 0, "seq": message_a["seq"]})
+        response = client.post(
+            "/api/frame", json={**stream_frame("env-a", 1), "drop_if_busy": True}
+        )
+        assert response.json()["status"] == "dropped"
+
+        websocket.send_json({"type": "render.ack", "frame_id": 0, "seq": message_b["seq"]})
+        for _ in range(100):
+            if not client.get("/health").json()["render_busy"]:
+                break
+        assert client.get("/health").json()["render_busy"] is False
+
+    # A new browser receives the merged snapshot with both environments.
+    with client.websocket_connect("/ws") as websocket:
+        assert websocket.receive_json()["type"] == "client.count"
+        snapshot = websocket.receive_json()
+
+    sensor_ids = {sensor["id"] for sensor in snapshot["payload"]["sensors"]}
+    assert sensor_ids == {"env-a", "env-b"}
 
 
 def test_frontend_replays_latest_frame_to_new_browser():
@@ -150,17 +198,293 @@ def test_frontend_replays_snapshot_to_new_browser():
     assert sensor["participant_data"]["participants"][0]["position"] == [1, 0]
 
 
-def test_preview_options_endpoint_contains_levelx_defaults():
+def test_preview_options_endpoint_derives_defaults_from_discovery(monkeypatch, tmp_path):
     pytest.importorskip("fastapi")
     pytest.importorskip("httpx")
     from fastapi.testclient import TestClient
+
+    folder = tmp_path / "rounD" / "data"
+    folder.mkdir(parents=True)
+    (folder / "00_tracks.csv").touch()
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(tmp_path))
 
     client = TestClient(server_module.create_app())
     response = client.get("/api/preview/options")
 
     assert response.status_code == 200
-    assert "highD" in response.json()["levelx_datasets"]
-    assert response.json()["defaults"]["folder"] == "/mnt/server_data/Datasets/highD/data"
+    payload = response.json()
+    assert "highD" in payload["levelx_datasets"]
+    assert str(tmp_path.resolve()) in payload["data_roots"]
+    assert payload["defaults"]["dataset"] == "rounD"
+    assert payload["defaults"]["folder"] == str(folder)
+    assert payload["defaults"]["file"] == "0"
+
+
+def test_get_data_roots_reads_environment(monkeypatch, tmp_path):
+    root = tmp_path / "roots"
+    root.mkdir()
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(root))
+
+    assert preview.get_data_roots()[0] == root.resolve()
+
+
+def test_get_data_roots_skips_missing_directories(monkeypatch, tmp_path):
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(tmp_path / "missing"))
+
+    assert (tmp_path / "missing").resolve() not in preview.get_data_roots()
+
+
+def test_discover_levelx_datasets_finds_official_layout(monkeypatch, tmp_path):
+    folder = tmp_path / "highD" / "data"
+    folder.mkdir(parents=True)
+    (folder / "07_tracks.csv").touch()
+    (folder / "12_tracks.csv").touch()
+    (folder / "12_tracksMeta.csv").touch()
+    (folder / "notes.txt").touch()
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(tmp_path))
+
+    discovered = preview.discover_levelx_datasets()
+
+    entry = next(item for item in discovered if item["dataset"] == "highD")
+    assert entry["folder"] == str(folder)
+    assert entry["files"] == [7, 12]
+
+
+def test_discover_levelx_datasets_supports_flat_layout(monkeypatch, tmp_path):
+    folder = tmp_path / "uniD"
+    folder.mkdir(parents=True)
+    (folder / "03_tracks.csv").touch()
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(tmp_path))
+
+    discovered = preview.discover_levelx_datasets()
+
+    entry = next(item for item in discovered if item["dataset"] == "uniD")
+    assert entry["folder"] == str(folder)
+    assert entry["files"] == [3]
+
+
+def test_record_endpoints_write_jsonl(monkeypatch, tmp_path):
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("TACTICS2D_RECORD_DIR", str(tmp_path))
+    client = TestClient(server_module.create_app())
+
+    response = client.post("/api/record/start", json={"name": "test-rec"})
+    assert response.status_code == 200
+    assert response.json()["status"] == "recording"
+
+    client.post("/api/frame", json={"frame": 1, "sensors": []})
+    client.post("/api/frame", json={"frame": 2, "sensors": []})
+
+    response = client.post("/api/record/stop")
+    assert response.status_code == 200
+    assert response.json()["status"] == "saved"
+    assert response.json()["frames"] == 2
+
+    recording_file = tmp_path / "test-rec.jsonl"
+    assert recording_file.is_file()
+    lines = [line for line in recording_file.read_text().splitlines() if line.strip()]
+    assert len(lines) == 2
+    assert json.loads(lines[0])["frame_id"] == 1
+
+    response = client.get("/api/recordings")
+    assert any(item["name"] == "test-rec" for item in response.json()["recordings"])
+
+
+def test_record_start_twice_returns_conflict(monkeypatch, tmp_path):
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("TACTICS2D_RECORD_DIR", str(tmp_path))
+    client = TestClient(server_module.create_app())
+
+    assert client.post("/api/record/start", json={"name": "first"}).status_code == 200
+    response = client.post("/api/record/start", json={"name": "second"})
+    assert response.status_code == 409
+    assert response.json()["name"] == "first"
+
+
+def test_record_export_transcodes_to_mp4(tmp_path):
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    ffmpeg = server_module._find_ffmpeg()
+    if ffmpeg is None:
+        pytest.skip("ffmpeg is not available")
+
+    source = tmp_path / "input.mp4"
+    subprocess.run(
+        [
+            ffmpeg,
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=0.4:size=64x64:rate=10",
+            str(source),
+        ],
+        check=True,
+    )
+
+    client = TestClient(server_module.create_app())
+    response = client.post(
+        "/api/record/export",
+        content=source.read_bytes(),
+        headers={"Content-Type": "video/mp4"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "video/mp4"
+    assert response.content[4:8] == b"ftyp"
+
+
+def test_publish_frame_serializes_numpy_payload(tmp_path):
+    """Parser-built payloads (e.g. inD pedestrians) may carry numpy scalars."""
+    np = pytest.importorskip("numpy")
+
+    manager = server_module.ConnectionManager()
+    manager.start_recording(tmp_path / "numpy.jsonl")
+    payload = {
+        "frame": np.int64(1600),
+        "sensors": [
+            {
+                "id": "cam",
+                "position": [np.float64(1.5), np.float64(-2.5)],
+                "participant_data": {"participants": [{"id": 9, "position": np.array([1.0, 2.0])}]},
+            }
+        ],
+    }
+    asyncio.run(manager.publish_frame(payload, frame_id=np.int64(1600)))
+    manager.stop_recording()
+
+    lines = [json.loads(line) for line in (tmp_path / "numpy.jsonl").read_text().splitlines()]
+    sensor = lines[-1]["payload"]["sensors"][0]
+    assert lines[-1]["frame_id"] == 1600
+    assert sensor["position"] == [1.5, -2.5]
+    assert sensor["participant_data"]["participants"][0]["position"] == [1.0, 2.0]
+
+
+def test_record_export_pads_to_aligned_dimensions(tmp_path):
+    """Widths that are not a multiple of 4 crash buggy hardware H.264 decoders."""
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    ffmpeg = server_module._find_ffmpeg()
+    if ffmpeg is None:
+        pytest.skip("ffmpeg is not available")
+
+    source = tmp_path / "input.mp4"
+    subprocess.run(
+        [
+            ffmpeg,
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc=duration=0.4:size=62x30:rate=10",
+            str(source),
+        ],
+        check=True,
+    )
+
+    client = TestClient(server_module.create_app())
+    response = client.post(
+        "/api/record/export",
+        content=source.read_bytes(),
+        headers={"Content-Type": "video/mp4"},
+    )
+    assert response.status_code == 200
+
+    output = tmp_path / "output.mp4"
+    output.write_bytes(response.content)
+    probe = subprocess.run(
+        [ffmpeg, "-hide_banner", "-i", str(output)], capture_output=True, text=True
+    )
+    match = re.search(r" (\d{2,5})x(\d{2,5})[ ,]", probe.stderr)
+    assert match is not None, probe.stderr
+    width, height = int(match.group(1)), int(match.group(2))
+    assert width % 4 == 0 and height % 4 == 0
+    assert (width, height) == (64, 32)
+
+
+def test_record_export_rejects_invalid_video():
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    if server_module._find_ffmpeg() is None:
+        pytest.skip("ffmpeg is not available")
+
+    client = TestClient(server_module.create_app())
+    response = client.post(
+        "/api/record/export",
+        content=b"not a video",
+        headers={"Content-Type": "video/mp4"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_replay_endpoint_requires_name(monkeypatch, tmp_path):
+    pytest.importorskip("fastapi")
+    pytest.importorskip("httpx")
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("TACTICS2D_RECORD_DIR", str(tmp_path))
+    client = TestClient(server_module.create_app())
+
+    response = client.post("/api/preview/replay", json={})
+    assert response.status_code == 400
+
+
+def test_replay_task_streams_recording(monkeypatch, tmp_path):
+    monkeypatch.setenv("TACTICS2D_RECORD_DIR", str(tmp_path))
+    recording_file = tmp_path / "clip.jsonl"
+    frames = [
+        {"frame_id": index, "time": 0.0, "payload": {"frame": index, "sensors": []}}
+        for index in range(3)
+    ]
+    recording_file.write_text("\n".join(json.dumps(frame) for frame in frames) + "\n")
+
+    manager = server_module.ConnectionManager()
+    status = {}
+
+    # On Python <= 3.9 asyncio primitives bind to a loop at construction, so
+    # the Event must be created inside the coroutine run by asyncio.run.
+    async def run_replay():
+        pause_event = asyncio.Event()
+        pause_event.set()
+        await server_module._run_recording_replay(
+            manager, status, {"name": "clip", "max_fps": 100}, pause_event
+        )
+
+    asyncio.run(run_replay())
+
+    assert status["status"] == "complete"
+    assert status["total_frames"] == 3
+    assert status["sent_frames"] == 3
+
+
+def test_discover_maps_includes_scanned_osm_files(monkeypatch, tmp_path):
+    osm = tmp_path / "custom" / "my_map.osm"
+    osm.parent.mkdir(parents=True)
+    osm.touch()
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(tmp_path))
+
+    maps = preview.discover_maps()
+
+    entry = next(item for item in maps if item["osm_path"] == str(osm.resolve()))
+    assert entry["dataset"] is None
+    assert entry["name"] == "custom/my_map.osm"
 
 
 def test_preview_map_endpoint_publishes_frame():
@@ -526,6 +850,637 @@ def test_levelx_preview_resolves_map_config_from_recording():
 
     assert name == "highD_1"
     assert config["osm_file"] == "highD_1.osm"
+
+
+def test_resolve_osm_path_official_levelx_maps_layout(tmp_path, monkeypatch):
+    """levelXdata ships maps as <dataset>/maps/lanelet2/<location>_<site>.osm."""
+    # The resolver prefers repo-bundled maps under cwd; chdir so a checked-out
+    # tactics2d/data (present on CI) cannot shadow the official layout under test.
+    monkeypatch.chdir(tmp_path)
+    maps_dir = tmp_path / "exiD" / "maps" / "lanelet2"
+    maps_dir.mkdir(parents=True)
+    osm = maps_dir / "0_cologne_butzweiler.osm"
+    osm.write_text("<osm/>")
+    folder = tmp_path / "exiD" / "data"
+    folder.mkdir()
+
+    resolved = preview.resolve_levelx_osm_path("exiD", folder, {"osm_file": "exiD_0.osm"})
+
+    assert resolved == osm.resolve()
+
+
+def _write_nuplan_db(path, location="sg-one-north", stamps_ms=(0, 50, 99)):
+    """Create a minimal NuPlan sqlite log covering the tables the parser reads."""
+    import sqlite3
+
+    epoch_us = int(dataset_parser.NuPlanParser._DATETIME * 1000)
+    connection = sqlite3.connect(path)
+    connection.executescript("""
+        CREATE TABLE log (location TEXT);
+        CREATE TABLE category (token BLOB, name TEXT);
+        CREATE TABLE track (token BLOB, category_token BLOB, width REAL, length REAL, height REAL);
+        CREATE TABLE lidar_pc (token BLOB, timestamp INTEGER);
+        CREATE TABLE lidar_box (
+            track_token BLOB, lidar_pc_token BLOB, x REAL, y REAL, z REAL,
+            width REAL, length REAL, height REAL, yaw REAL,
+            vx REAL, vy REAL, vz REAL, confidence REAL
+        );
+        """)
+    connection.execute("INSERT INTO log VALUES (?)", (location,))
+    connection.execute("INSERT INTO category VALUES (?, ?)", (b"cat0", "vehicle"))
+    connection.execute("INSERT INTO track VALUES (?, ?, 2.0, 4.5, 1.6)", (b"trk0", b"cat0"))
+    connection.execute("INSERT INTO category VALUES (?, ?)", (b"cat1", "traffic_cone"))
+    connection.execute("INSERT INTO track VALUES (?, ?, 0.4, 0.4, 0.8)", (b"trk1", b"cat1"))
+    for index, stamp in enumerate(stamps_ms):
+        pc_token = f"pc{index}".encode()
+        connection.execute(
+            "INSERT INTO lidar_pc VALUES (?, ?)", (pc_token, epoch_us + stamp * 1000)
+        )
+        connection.execute(
+            "INSERT INTO lidar_box VALUES (?, ?, ?, ?, 0, 2.0, 4.5, 1.6, 0.1, 1.0, 0.0, 0.0, 0.9)",
+            (b"trk0", pc_token, 365000.0 + index, 143000.0),
+        )
+        connection.execute(
+            "INSERT INTO lidar_box VALUES (?, ?, ?, ?, 0, 0.4, 0.4, 0.8, 0.0, 0.0, 0.0, 0.0, 0.9)",
+            (b"trk1", pc_token, 365005.0, 143005.0),
+        )
+    connection.commit()
+    connection.close()
+
+
+def _fake_nuplan_map():
+    """Build a small map in UTM-scale coordinates like a NuPlan geopackage."""
+    from shapely.geometry import LineString, Polygon
+
+    from tactics2d.map.element import Area, Junction, Map, RoadLine
+
+    map_ = Map(name="fake-nuplan")
+    map_.add_area(
+        Area(
+            id_="2",
+            geometry=Polygon(
+                [(364900, 142900), (365100, 142900), (365100, 143100), (364900, 143100)]
+            ),
+            subtype="drivable_area",
+        )
+    )
+    map_.add_roadline(
+        RoadLine(
+            id_="1",
+            geometry=LineString([(364900, 142950), (365100, 142950)]),
+            type_="line_thin",
+            subtype="solid",
+        )
+    )
+    map_.add_junction(
+        Junction(
+            id_="3", custom_tags={"shape": [(364950, 142950), (365050, 142950), (365000, 143050)]}
+        )
+    )
+    return map_
+
+
+def test_discover_nuplan_datasets_official_layout(monkeypatch, tmp_path):
+    cache = tmp_path / "nuPlan" / "data" / "cache" / "mini"
+    cache.mkdir(parents=True)
+    (cache / "b.db").write_bytes(b"")
+    (cache / "a.db").write_bytes(b"")
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(tmp_path))
+
+    catalog = preview.discover_nuplan_datasets()
+
+    assert catalog == [
+        {
+            "dataset": "NuPlan",
+            "folder": str((tmp_path / "nuPlan" / "data" / "cache").resolve()),
+            "files": ["mini/a.db", "mini/b.db"],
+        }
+    ]
+
+
+def test_resolve_nuplan_maps_root_official_layout(monkeypatch, tmp_path):
+    monkeypatch.delenv(preview.DATA_ROOT_ENV, raising=False)
+    gpkg = tmp_path / "nuPlan" / "maps" / "sg-one-north" / "9.17.1964" / "map.gpkg"
+    gpkg.parent.mkdir(parents=True)
+    gpkg.write_bytes(b"")
+    folder = tmp_path / "nuPlan" / "data" / "cache"
+    folder.mkdir(parents=True)
+
+    assert preview.resolve_nuplan_maps_root(folder) == (tmp_path / "nuPlan" / "maps").resolve()
+
+    empty = tmp_path / "elsewhere"
+    empty.mkdir()
+    with pytest.raises(FileNotFoundError):
+        preview.resolve_nuplan_maps_root(empty)
+
+
+def test_shift_map_origin_translates_map_and_participants():
+    map_ = _fake_nuplan_map()
+
+    origin = preview._shift_map_origin(map_)
+
+    assert origin == (365000.0, 143000.0)
+    assert map_.boundary == (-100.0, 100.0, -100.0, 100.0)
+    assert list(map_.roadlines["1"].geometry.coords)[0] == (-100.0, -50.0)
+    assert map_.junctions["3"].custom_tags["shape"][0] == (-50.0, -50.0)
+
+    from tactics2d.participant.element import Vehicle
+    from tactics2d.participant.trajectory import State, Trajectory
+
+    vehicle = Vehicle(id_=1, type_="vehicle", trajectory=Trajectory(id_=1), length=4.5, width=2.0)
+    vehicle.trajectory.add_state(State(frame=0, x=365010.0, y=143020.0, heading=0.0))
+    preview._shift_participants({1: vehicle}, origin)
+
+    assert vehicle.trajectory.get_state(0).location == (10.0, 20.0)
+
+
+def test_bev_camera_renders_other_participants():
+    from shapely.geometry import Point
+
+    from tactics2d.participant.element import Other
+    from tactics2d.participant.trajectory import State, Trajectory
+
+    cone = Other(id_=1, type_="traffic_cone", trajectory=Trajectory(id_=1), length=0.4, width=0.4)
+    # The constructor drops type_ (ParticipantBase overwrites it with the kwargs default);
+    # parsers such as NuPlanParser assign it after construction, mirrored here.
+    cone.type_ = "traffic_cone"
+    cone.trajectory.add_state(State(frame=0, x=5.0, y=6.0, heading=0.3))
+    # No dimensions and no type_: the pose degenerates to a point rendered as a small circle.
+    marker = Other(id_=2, trajectory=Trajectory(id_=2))
+    marker.trajectory.add_state(State(frame=0, x=-3.0, y=4.0, heading=0.0))
+
+    camera = sensor_module.BEVCamera(0, preview._blank_map("blank"), perception_range=30)
+    geometry_data, _, participant_id_set = camera.update(
+        frame=0,
+        participants={1: cone, 2: marker},
+        participant_ids=[1, 2],
+        position=Point(0, 0),
+    )
+
+    payloads = {p["id"]: p for p in geometry_data["participant_data"]["participants"]}
+    assert participant_id_set == {1, 2}
+    assert payloads[1]["shape"] == "polygon"
+    assert payloads[1]["type"] == "traffic_cone"
+    assert payloads[1]["position"] == [5.0, 6.0]
+    assert payloads[1]["rotation"] == 0.3
+    assert payloads[2]["shape"] == "circle"
+    assert payloads[2]["type"] == "other"
+    assert payloads[2]["position"] == [-3.0, 4.0]
+    assert payloads[2]["radius"] == 0.5
+
+
+def test_load_nuplan_preview_scene_synthetic(monkeypatch, tmp_path):
+    import orjson
+
+    cache = tmp_path / "nuPlan" / "data" / "cache" / "mini"
+    cache.mkdir(parents=True)
+    _write_nuplan_db(cache / "log.db")
+    gpkg = tmp_path / "nuPlan" / "maps" / "sg-one-north" / "9.17.1964" / "map.gpkg"
+    gpkg.parent.mkdir(parents=True)
+    gpkg.write_bytes(b"")
+
+    monkeypatch.setattr(
+        dataset_parser.NuPlanParser, "parse_map", lambda self, file, folder=None: _fake_nuplan_map()
+    )
+
+    scene = preview.load_nuplan_preview_scene(
+        folder=tmp_path / "nuPlan" / "data" / "cache", file="mini/log.db", frames=2
+    )
+
+    # The third sweep (99 ms) falls outside the two-frame window.
+    assert scene.frame_ids == [0, 50]
+    assert scene.actual_time_range == (0, 50)
+    assert scene.sensor_id == "NuPlan-log"
+    assert scene.follow_id is not None
+
+    sensor = scene.sensor_for_frame(scene.frame_ids[0])
+    orjson.dumps(sensor)
+    # Trajectories follow the map into origin-local coordinates.
+    assert abs(sensor["position"][0]) <= 200
+    assert abs(sensor["position"][1]) <= 200
+    road_types = {element["type"] for element in sensor["map_data"]["road_elements"]}
+    assert "drivable_area" in road_types
+    participant_types = {
+        element["type"] for element in sensor["participant_data"]["participants"]
+    }
+    assert "traffic_cone" in participant_types
+
+
+def test_load_preview_scene_dispatches_stamped_datasets(monkeypatch, tmp_path):
+    calls = {}
+
+    def fake_loader(**kwargs):
+        calls.update(kwargs)
+        return "stamped-scene"
+
+    monkeypatch.setattr(preview, "load_dataset_preview_scene", fake_loader)
+
+    scene = asyncio.run(
+        server_module._load_preview_scene(
+            {"dataset": "nuplan", "folder": str(tmp_path), "file": "mini/a.db", "frames": 12}
+        )
+    )
+
+    assert scene == "stamped-scene"
+    assert calls["dataset"] == "nuplan"
+    assert calls["file"] == "mini/a.db"
+    assert calls["frames"] == 12
+
+    assert preview.is_stamped_dataset("NGSIM")
+    assert preview.is_stamped_dataset("driveinsightd")
+    assert not preview.is_stamped_dataset("highD")
+
+
+def test_discover_stamped_dataset_layouts(monkeypatch, tmp_path):
+    """Every non-LevelX dataset family is discovered from its official layout."""
+    (tmp_path / "NGSIM" / "I-80").mkdir(parents=True)
+    (tmp_path / "NGSIM" / "I-80" / "trajectories-0500-0515.csv").touch()
+
+    scenario = (
+        tmp_path / "INTERACTION-Dataset-DR-v1_2" / "recorded_trackfiles" / "DR_DEU_Merging_MT"
+    )
+    scenario.mkdir(parents=True)
+    (scenario / "vehicle_tracks_000.csv").touch()
+    (scenario / "vehicle_tracks_007.csv").touch()
+
+    (tmp_path / "DLP" / "data").mkdir(parents=True)
+    (tmp_path / "DLP" / "data" / "DJI_0012_frames.json").touch()
+
+    (tmp_path / "CitySim" / "Intersection A").mkdir(parents=True)
+    (tmp_path / "CitySim" / "Intersection A" / "trajectory.csv").touch()
+
+    (tmp_path / "Argoverse2" / "val" / "scenario-uuid-1").mkdir(parents=True)
+    (tmp_path / "Argoverse2" / "val" / "scenario-uuid-1" / "scenario_1.parquet").touch()
+
+    (tmp_path / "DriveInsightD").mkdir()
+    (tmp_path / "DriveInsightD" / "42_scenario.xosc").touch()
+
+    (tmp_path / "WOMD").mkdir()
+    _write_womd_shard(tmp_path / "WOMD" / "sample.tfrecord")
+
+    monkeypatch.setenv(preview.DATA_ROOT_ENV, str(tmp_path))
+
+    catalog = {entry["dataset"]: entry for entry in preview.discover_stamped_datasets()}
+
+    assert catalog["NGSIM"]["files"] == ["I-80/trajectories-0500-0515.csv"]
+    assert catalog["INTERACTION"]["files"] == ["DR_DEU_Merging_MT/0", "DR_DEU_Merging_MT/7"]
+    assert catalog["DLP"]["files"] == [12]
+    assert catalog["CitySim"]["files"] == ["Intersection A/trajectory.csv"]
+    assert catalog["Argoverse2"]["files"] == ["val/scenario-uuid-1"]
+    assert catalog["DriveInsightD"]["files"] == ["42"]
+    # Small WOMD shards are enumerated per scenario.
+    assert catalog["WOMD"]["files"] == ["sample.tfrecord/aaaa1111", "sample.tfrecord/bbbb2222"]
+
+
+def _write_moving_vehicle_csv(path, header, row_format, count=12):
+    lines = [header]
+    for vehicle_id in (1, 2):
+        for step in range(count):
+            lines.append(row_format.format(vid=vehicle_id, step=step))
+    path.write_text("\n".join(lines) + "\n")
+
+
+def test_load_ngsim_preview_scene_synthetic(tmp_path):
+    import orjson
+
+    folder = tmp_path / "NGSIM" / "I-80"
+    folder.mkdir(parents=True)
+    # State-plane feet: 1.8e6 m scale after the parser's 0.3048 conversion.
+    _write_moving_vehicle_csv(
+        folder / "trajectories-0500-0515.csv",
+        "Vehicle_ID,Frame_ID,Global_X,Global_Y,v_Vel,v_Acc,v_Length,v_Width",
+        "{vid},{step},{x},6000000.0,30.0,0.0,14.7,6.2".format(
+            vid="{vid}", step="{step}", x="{x}"
+        ).replace("{x}", "60000{step}0.0"),
+    )
+
+    scene = preview.load_ngsim_preview_scene(
+        folder=tmp_path / "NGSIM", file="I-80/trajectories-0500-0515.csv", frames=10
+    )
+
+    assert scene.dataset_name == "NGSIM"
+    assert len(scene.frame_ids) == 10
+    sensor = scene.sensor_for_frame(scene.frame_ids[0])
+    orjson.dumps(sensor)
+    # Coordinates are shifted near the origin and headings derived from motion.
+    assert abs(sensor["position"][0]) < 1e4
+    state = scene.participants[1].trajectory.get_state(scene.frame_ids[1])
+    assert abs(state.heading) < 0.1  # moving in +x
+
+
+def test_load_ngsim_preview_scene_builds_gis_base_map(tmp_path):
+    import geopandas
+    import pyogrio
+    from shapely.geometry import LineString
+
+    folder = tmp_path / "NGSIM" / "I-80"
+    folder.mkdir(parents=True)
+    _write_moving_vehicle_csv(
+        folder / "trajectories-0500-0515.csv",
+        "Vehicle_ID,Frame_ID,Global_X,Global_Y,v_Vel,v_Acc,v_Length,v_Width",
+        "{vid},{step},{x},6000000.0,30.0,0.0,14.7,6.2".format(
+            vid="{vid}", step="{step}", x="{x}"
+        ).replace("{x}", "60000{step}0.0"),
+    )
+    gis = folder / "gis-files"
+    gis.mkdir()
+    # Coordinates in state-plane feet like the trajectory Global_X/Y columns.
+    layer = geopandas.GeoDataFrame(
+        {
+            "TYPE": ["Arterial", "Detector", "Highway"],
+            "geometry": [
+                LineString([(5999500, 6000000), (6000500, 6000000)]),  # near trajectory
+                LineString([(5999500, 6000100), (6000500, 6000100)]),  # skipped by TYPE
+                LineString([(7000000, 7000000), (7000500, 7000000)]),  # clipped away
+            ],
+        }
+    )
+    pyogrio.write_dataframe(layer, gis / "streets.shp")
+    # Camera layers are skipped entirely.
+    pyogrio.write_dataframe(layer.head(1), gis / "camera-coverage.shp")
+
+    scene = preview.load_ngsim_preview_scene(
+        folder=tmp_path / "NGSIM", file="I-80/trajectories-0500-0515.csv", frames=10
+    )
+
+    assert len(scene.map_.roadlines) == 1
+    sensor = scene.sensor_for_frame(scene.frame_ids[0])
+    lines = [e for e in sensor["map_data"]["road_elements"] if e["shape"] == "line"]
+    assert len(lines) == 1
+    # Dark stroke: NGSIM base-map lines sit on the near-white scene background.
+    assert lines[0]["color"] == "dark-gray"
+    # The clipped drawing follows the trajectory into origin-local coordinates.
+    assert all(abs(x) < 1e4 and abs(y) < 1e4 for x, y in lines[0]["geometry"])
+
+
+def test_load_interaction_preview_scene_synthetic(monkeypatch, tmp_path):
+    import orjson
+
+    scenario = tmp_path / "recorded_trackfiles" / "DR_DEU_Merging_MT"
+    scenario.mkdir(parents=True)
+    _write_moving_vehicle_csv(
+        scenario / "vehicle_tracks_000.csv",
+        "track_id,timestamp_ms,agent_type,length,width,x,y,vx,vy,psi_rad",
+        "{vid},{step}00,car,4.5,2.0,10{step}.0,50.0,10.0,0.0,0.0",
+        count=10,
+    )
+    monkeypatch.setattr(
+        preview, "_resolve_config_osm_map", lambda dataset, folder, name: _fake_nuplan_map()
+    )
+
+    scene = preview.load_interaction_preview_scene(
+        folder=tmp_path / "recorded_trackfiles", file="DR_DEU_Merging_MT/0", frames=8
+    )
+
+    assert scene.dataset_name == "INTERACTION"
+    assert len(scene.frame_ids) == 8
+    orjson.dumps(scene.sensor_for_frame(scene.frame_ids[0]))
+
+    with pytest.raises(ValueError):
+        preview.load_interaction_preview_scene(
+            folder=tmp_path / "recorded_trackfiles", file="0", frames=8
+        )
+
+
+def test_load_dlp_preview_scene_synthetic(monkeypatch, tmp_path):
+    import orjson
+
+    folder = tmp_path / "DLP" / "data"
+    folder.mkdir(parents=True)
+    frames = {}
+    instances = {}
+    for step in range(8):
+        instance_token = f"inst{step}"
+        frames[f"frame{step}"] = {"timestamp": step * 0.04, "instances": [instance_token]}
+        instances[instance_token] = {
+            "instance_token": instance_token,
+            "agent_token": "agent0",
+            "coords": [10.0 + step, 20.0],
+            "heading": 0.0,
+            "speed": 5.0,
+            "acceleration": [0.0, 0.0],
+        }
+    agents = {"agent0": {"agent_token": "agent0", "type": "Car", "size": [4.5, 2.0]}}
+    (folder / "DJI_0001_frames.json").write_text(json.dumps(frames))
+    (folder / "DJI_0001_agents.json").write_text(json.dumps(agents))
+    (folder / "DJI_0001_instances.json").write_text(json.dumps(instances))
+    obstacles = {
+        "obs0": {
+            "obstacle_token": "obs0",
+            "type": "Undefined",
+            "coords": [30.0, 25.0],
+            "size": [2.0, 1.0],
+            "heading": 0.0,
+        }
+    }
+    (folder / "DJI_0001_obstacles.json").write_text(json.dumps(obstacles))
+    monkeypatch.setattr(
+        preview, "_resolve_config_osm_map", lambda dataset, folder, name: _fake_nuplan_map()
+    )
+
+    scene = preview.load_dlp_preview_scene(folder=folder, file="1", frames=5)
+
+    assert scene.dataset_name == "DLP"
+    assert len(scene.frame_ids) == 5
+    # Token-keyed participants are renumbered to integers for the renderer.
+    assert all(isinstance(key, int) for key in scene.participants)
+    orjson.dumps(scene.sensor_for_frame(scene.frame_ids[0]))
+
+
+def test_load_citysim_preview_scene_synthetic(tmp_path):
+    import orjson
+
+    folder = tmp_path / "CitySim"
+    folder.mkdir()
+    header = (
+        "carId,frameNum,carCenterXft,carCenterYft,"
+        "boundingBox1Xft,boundingBox1Yft,boundingBox2Xft,boundingBox2Yft,"
+        "boundingBox3Xft,boundingBox3Yft,boundingBox4Xft,boundingBox4Yft,course,speed"
+    )
+    _write_moving_vehicle_csv(
+        folder / "intersection.csv",
+        header,
+        "{vid},{step},10{step}.0,50.0,"
+        "9{step}.0,45.0,11{step}.0,45.0,11{step}.0,55.0,9{step}.0,55.0,90.0,20.0",
+        count=10,
+    )
+
+    scene = preview.load_citysim_preview_scene(folder=folder, file="intersection.csv", frames=6)
+
+    assert scene.dataset_name == "CitySim"
+    assert len(scene.frame_ids) == 6
+    orjson.dumps(scene.sensor_for_frame(scene.frame_ids[0]))
+
+
+def test_load_argoverse2_preview_scene_synthetic(tmp_path):
+    import orjson
+
+    pd = pytest.importorskip("pandas")
+
+    scenario_dir = tmp_path / "Argoverse2" / "val" / "uuid-1"
+    scenario_dir.mkdir(parents=True)
+    rows = []
+    for track_id in ("AV", "1234"):
+        for step in range(10):
+            rows.append(
+                {
+                    "track_id": track_id,
+                    "object_type": "vehicle",
+                    "timestep": step,
+                    "position_x": 3000.0 + step,
+                    "position_y": 1500.0,
+                    "heading": 0.0,
+                    "velocity_x": 10.0,
+                    "velocity_y": 0.0,
+                }
+            )
+    pd.DataFrame(rows).to_parquet(scenario_dir / "scenario_uuid-1.parquet", engine="fastparquet")
+    map_data = {
+        "drivable_areas": {
+            "1": {
+                "id": 1,
+                "area_boundary": [
+                    {"x": 2990.0, "y": 1490.0},
+                    {"x": 3020.0, "y": 1490.0},
+                    {"x": 3020.0, "y": 1510.0},
+                    {"x": 2990.0, "y": 1510.0},
+                ],
+            }
+        }
+    }
+    (scenario_dir / "log_map_archive_uuid-1.json").write_text(json.dumps(map_data))
+
+    scene = preview.load_argoverse2_preview_scene(
+        folder=tmp_path / "Argoverse2", file="val/uuid-1", frames=6
+    )
+
+    assert scene.dataset_name == "Argoverse2"
+    assert len(scene.frame_ids) == 6
+    # String track ids (including "AV") are renumbered; the original is kept.
+    assert all(isinstance(key, int) for key in scene.participants)
+    assert {p.source_id for p in scene.participants.values()} == {"AV", "1234"}
+    orjson.dumps(scene.sensor_for_frame(scene.frame_ids[0]))
+
+
+def test_load_driveinsightd_preview_scene_synthetic(tmp_path):
+    import orjson
+
+    folder = tmp_path / "DriveInsightD"
+    folder.mkdir()
+    vertices = "".join(
+        f'<Vertex time="{step * 0.1:.1f}">'
+        f'<Position><WorldPosition x="{100 + step}" y="50" h="0"/></Position>'
+        f"</Vertex>"
+        for step in range(10)
+    )
+    (folder / "42_scenario.xosc").write_text(f"""<?xml version="1.0"?>
+<OpenSCENARIO>
+  <Entities>
+    <ScenarioObject name="ego">
+      <Vehicle vehicleCategory="car"><Dimensions length="4.6" width="1.9" height="1.5"/></Vehicle>
+    </ScenarioObject>
+  </Entities>
+  <Storyboard>
+    <ManeuverGroup><Actors><EntityRef entityRef="ego"/></Actors>{vertices}</ManeuverGroup>
+  </Storyboard>
+</OpenSCENARIO>
+""")
+
+    scene = preview.load_driveinsightd_preview_scene(folder=folder, file="42", frames=7)
+
+    assert scene.dataset_name == "DriveInsightD"
+    assert len(scene.frame_ids) == 7
+    # Name-keyed participants are renumbered; no map ships with the scenario.
+    assert list(scene.participants) == [0]
+    assert scene.participants[0].source_id == "ego"
+    orjson.dumps(scene.sensor_for_frame(scene.frame_ids[0]))
+
+
+def _write_womd_shard(path, scenario_ids=("aaaa1111", "bbbb2222")):
+    """Write a minimal WOMD tfrecord shard: two moving vehicles and a tiny map."""
+    import struct
+
+    from tfrecord.writer import TFRecordWriter
+
+    from tactics2d.dataset_parser.womd_proto import scenario_pb
+
+    with path.open("wb") as shard:
+        for index, scenario_id in enumerate(scenario_ids):
+            scenario = scenario_pb.Scenario()
+            scenario.scenario_id = scenario_id
+            scenario.timestamps_seconds.extend([step * 0.1 for step in range(10)])
+            for track_id in (1, 2):
+                track = scenario.tracks.add()
+                track.id = track_id
+                track.object_type = 1  # vehicle
+                for step in range(10):
+                    state = track.states.add()
+                    state.center_x = 1000.0 + index * 100 + step * (1.0 + track_id)
+                    state.center_y = 500.0 + track_id * 5.0
+                    state.heading = 0.0
+                    state.velocity_x = 10.0
+                    state.velocity_y = 0.0
+                    state.length = 4.5
+                    state.width = 2.0
+                    state.height = 1.6
+                    state.valid = True
+            roadline = scenario.map_features.add()
+            roadline.id = 7
+            roadline.road_line.type = 2  # solid white
+            for x in (990.0, 1150.0):
+                point = roadline.road_line.polyline.add()
+                point.x = x
+                point.y = 495.0
+            crossing = scenario.map_features.add()
+            crossing.id = 8
+            for x, y in ((1000, 490), (1010, 490), (1010, 510), (1000, 510)):
+                point = crossing.crosswalk.polygon.add()
+                point.x = x
+                point.y = y
+
+            record = scenario.SerializeToString()
+            length_bytes = struct.pack("<Q", len(record))
+            shard.write(length_bytes)
+            shard.write(TFRecordWriter.masked_crc(length_bytes))
+            shard.write(record)
+            shard.write(TFRecordWriter.masked_crc(record))
+
+
+def test_load_womd_preview_scene_synthetic(tmp_path):
+    import orjson
+
+    shard_dir = tmp_path / "WOMD" / "training"
+    shard_dir.mkdir(parents=True)
+    shard = "training/sample.tfrecord-00000-of-00001"
+    _write_womd_shard(tmp_path / "WOMD" / shard)
+
+    scene = preview.load_womd_preview_scene(
+        folder=tmp_path / "WOMD", file=f"{shard}/bbbb2222", frames=8
+    )
+
+    assert scene.dataset_name == "WOMD"
+    assert len(scene.frame_ids) == 8
+    assert scene.frame_ids[0] == 0
+    assert sorted(scene.participants) == [1, 2]
+    # The second scenario's coordinates confirm scenario selection by id.
+    assert scene.participants[1].trajectory.get_state(0).x == pytest.approx(1100.0)
+    sensor = scene.sensor_for_frame(scene.frame_ids[0])
+    orjson.dumps(sensor)
+    shapes = {element["shape"] for element in sensor["map_data"]["road_elements"]}
+    assert shapes == {"line", "polygon"}  # road_line + crosswalk
+
+    # A bare shard path previews the first scenario.
+    first = preview.load_womd_preview_scene(folder=tmp_path / "WOMD", file=shard, frames=5)
+    assert first.participants[1].trajectory.get_state(0).x == pytest.approx(1000.0)
+
+    # start_time_ms trims leading frames from the fixed scenario window.
+    trimmed = preview.load_womd_preview_scene(
+        folder=tmp_path / "WOMD", file=shard, frames=8, start_time_ms=300
+    )
+    assert trimmed.frame_ids[0] == 300
+
+    with pytest.raises(FileNotFoundError):
+        preview.load_womd_preview_scene(folder=tmp_path / "WOMD", file="missing.tfrecord")
 
 
 def test_levelx_preview_option_and_path_helpers(monkeypatch, tmp_path):
@@ -894,29 +1849,35 @@ def test_frontend_renderer_http_helpers_and_ready_loop(monkeypatch, tmp_path):
     with pytest.raises(TypeError):
         renderer_module._json_default(object())
 
-    class FakeResponse:
+    class FakeHTTPResponse:
         def __init__(self, payload):
-            self.payload = payload
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, exc_type, exc_value, traceback):
-            return None
+            self._payload = payload
+            self.status = 200
 
         def read(self):
-            return json.dumps(self.payload).encode("utf-8")
+            return json.dumps(self._payload).encode("utf-8")
 
     requests = []
 
-    def fake_urlopen(http_request, timeout):
-        requests.append((http_request, timeout))
-        if isinstance(http_request, str):
-            return FakeResponse({"status": "running"})
+    class FakeConnection:
+        def __init__(self, host, port, timeout=None):
+            requests.append(("connect", host, port, timeout))
+            self._pending = None
 
-        return FakeResponse({"payload": json.loads(http_request.data.decode("utf-8"))})
+        def request(self, method, path, body=None, headers=None):
+            requests.append((method, path))
+            if body is None:
+                self._pending = {"status": "running"}
+            else:
+                self._pending = {"payload": json.loads(body.decode("utf-8"))}
 
-    monkeypatch.setattr(renderer_module.request, "urlopen", fake_urlopen)
+        def getresponse(self):
+            return FakeHTTPResponse(self._pending)
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(renderer_module.http.client, "HTTPConnection", FakeConnection)
     renderer = frontend.FrontendRenderer("localhost", 9999, max_fps=500, timeout=0.2)
 
     assert renderer.health() == {"status": "running"}
@@ -926,7 +1887,10 @@ def test_frontend_renderer_http_helpers_and_ready_loop(monkeypatch, tmp_path):
     )
     assert response["payload"]["path"] == "map.osm"
     assert response["payload"]["point"] == [1, 2]
-    assert requests[0] == ("http://localhost:9999/health", 0.2)
+    assert requests[0] == ("connect", "localhost", 9999, 0.2)
+    # The keep-alive connection is opened once and reused across requests.
+    assert [entry for entry in requests if entry[0] == "connect"] == [requests[0]]
+    renderer.close()
 
     ready_renderer = frontend.FrontendRenderer()
     ready_renderer.health = lambda: {"status": "running"}
@@ -1030,11 +1994,11 @@ def test_connection_manager_stale_clients_and_ack_timeout():
         assert delivered == 1
         assert manager.client_count == 1
         assert good_client.messages
-        assert await manager.wait_for_ack("late-frame", 0) is False
+        assert await manager.wait_for_ack(99, 0) is False
 
-        wait_task = asyncio.create_task(manager.wait_for_ack("frame", 0.1))
+        wait_task = asyncio.create_task(manager.wait_for_ack(7, 0.1))
         await asyncio.sleep(0)
-        manager.record_ack("frame")
+        manager.record_ack("frame", 7)
         assert await wait_task is True
 
     asyncio.run(exercise())
@@ -1072,7 +2036,7 @@ def test_server_preview_control_endpoints(monkeypatch):
     async def fake_run_dataset_preview(manager, status, payload, pause_event):
         status.update({"status": "complete", "source": "dataset", "payload_file": payload["file"]})
 
-    monkeypatch.setattr(server_module, "_run_levelx_dataset_preview", fake_run_dataset_preview)
+    monkeypatch.setattr(server_module, "_run_dataset_preview", fake_run_dataset_preview)
     client = TestClient(server_module.create_app())
 
     assert client.get("/").status_code == 200
@@ -1135,7 +2099,7 @@ def test_server_run_server_and_main(monkeypatch):
     assert ("main", ("127.0.0.1", 9002, False, 30, False)) in calls
 
 
-def test_run_levelx_dataset_preview_updates_status(monkeypatch):
+def test_run_dataset_preview_updates_status(monkeypatch):
 
     class FakeScene:
         sensor_id = "highD-11"
@@ -1162,7 +2126,7 @@ def test_run_levelx_dataset_preview_updates_status(monkeypatch):
         pause_event = asyncio.Event()
         pause_event.set()
         manager = FakeManager()
-        await server_module._run_levelx_dataset_preview(
+        await server_module._run_dataset_preview(
             manager,
             status,
             {
@@ -1188,7 +2152,7 @@ def test_run_levelx_dataset_preview_updates_status(monkeypatch):
         status = {}
         pause_event = asyncio.Event()
         pause_event.set()
-        await server_module._run_levelx_dataset_preview(
+        await server_module._run_dataset_preview(
             FakeManager(),
             status,
             {"dataset": "highD", "folder": "data/highD", "file": "11"},

@@ -6,6 +6,7 @@
 import argparse
 import json
 import logging
+import os
 from pathlib import Path
 
 import tactics2d
@@ -28,6 +29,13 @@ def parse_args(argv=None):
     start_parser.add_argument("--no-open", action="store_false", dest="open_browser")
     start_parser.add_argument("--background", action="store_true")
     start_parser.add_argument("--pid-file", type=Path, default=None)
+    start_parser.add_argument(
+        "--data-root",
+        type=Path,
+        default=None,
+        help="Dataset root directory scanned for LevelX datasets and maps "
+        "(also configurable via the TACTICS2D_DATA_ROOT environment variable).",
+    )
 
     stop_parser = subparsers.add_parser("stop", help="Stop a background frontend.")
     stop_parser.add_argument("--pid-file", type=Path, default=None)
@@ -57,7 +65,21 @@ def parse_args(argv=None):
     map_parser.add_argument("--map-config", default=None)
 
     dataset_parser = preview_subparsers.add_parser("dataset", help="Preview a dataset scene.")
-    dataset_parser.add_argument("--dataset", choices=LEVELX_DATASETS, required=True)
+    dataset_parser.add_argument(
+        "--dataset",
+        choices=[
+            *LEVELX_DATASETS,
+            "NuPlan",
+            "NGSIM",
+            "INTERACTION",
+            "DLP",
+            "CitySim",
+            "Argoverse2",
+            "DriveInsightD",
+            "WOMD",
+        ],
+        required=True,
+    )
     dataset_parser.add_argument("--folder", type=Path, required=True)
     dataset_parser.add_argument("--file", required=True)
     dataset_parser.add_argument("--osm", type=Path, default=None)
@@ -154,6 +176,9 @@ def _preview(args):
 def main(argv=None):
     logging.basicConfig(level=logging.INFO)
     args = parse_args(argv)
+    if getattr(args, "data_root", None) is not None:
+        # The server subprocess and preview helpers read the root from the environment.
+        os.environ["TACTICS2D_DATA_ROOT"] = str(args.data_root)
     if args.command == "start":
         _start(args)
     elif args.command == "stop":
