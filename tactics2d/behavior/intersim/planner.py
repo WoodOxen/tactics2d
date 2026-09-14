@@ -185,7 +185,6 @@ def match_lane(
     heading: float,
     radius: float,
     heading_tolerance_deg: float,
-    lookahead: float,
 ) -> Optional[Tuple[object, float]]:
     """Match a pose to a map lane.
 

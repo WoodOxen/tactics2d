@@ -4,7 +4,7 @@
 """Scene construction and reference paths."""
 
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional
 
 import numpy as np
 
@@ -42,6 +42,92 @@ class AgentRecord:
     max_accel: float = 3.0
     max_decel: float = 10.0
 
+    @classmethod
+    def from_participant(
+        cls, config: InterSimConfig, participant, frame: int, state=None
+    ) -> Optional["AgentRecord"]:
+        """Build one agent record from its participant at ``frame``."""
+
+        if participant is None:
+            return None
+        state = state if state is not None else current_state(participant, frame)
+        if state is None:
+            return None
+        is_vehicle = isinstance(participant, Vehicle)
+        length = participant.length
+        width = participant.width
+        if length is None or length <= 0.0:
+            length = config.default_vehicle_length if is_vehicle else 0.6
+        if width is None or width <= 0.0:
+            width = config.default_vehicle_width if is_vehicle else 0.5
+        speed = state.speed
+        if speed is None:
+            if state.vx is not None and state.vy is not None:
+                speed = float(np.hypot(state.vx, state.vy))
+            else:
+                speed = 0.0
+        goal_xy = getattr(participant, "goal_xy", None)
+        goal = None
+        if goal_xy is not None:
+            goal_array = np.asarray(goal_xy, dtype=float)
+            if goal_array.shape == (2,):
+                goal = goal_array
+        return cls(
+            agent_id=participant.id_,
+            is_vehicle=is_vehicle,
+            length=float(length),
+            width=float(width),
+            x=float(state.x),
+            y=float(state.y),
+            heading=spatial.normalize_angle(float(state.heading)),
+            v0=float(max(0.0, speed)),
+            goal=goal,
+            intent_speed=float(getattr(participant, "intent_speed", 0.0) or 0.0),
+            max_accel=float(getattr(participant, "max_accel", 0.0) or 3.0),
+            max_decel=float(
+                config.vehicle_decel_limit or getattr(participant, "max_decel", 0.0) or 10.0
+            ),
+        )
+
+    def build_reference_path(self, config: InterSimConfig, map_: Optional[Map]) -> float:
+        """Build the lane-following path (or a straight fallback) in place.
+
+        Args:
+            config (InterSimConfig): The model configuration.
+            map_ (Optional[Map]): The map. None falls back to a straight path.
+
+        Returns:
+            The agent's arc-length offset on the path.
+        """
+
+        lookahead = (
+            self.v0 * config.horizon_steps * config.dt + self.length + config.stop_margin + 10.0
+        )
+        path = None
+        s0 = 0.0
+        if map_ is not None:
+            matched = match_lane(
+                map_,
+                self.x,
+                self.y,
+                self.heading,
+                config.lane_match_radius,
+                config.lane_heading_tolerance_deg,
+            )
+            if matched is not None:
+                lane_id, s0 = matched
+                lane = map_.lanes[lane_id]
+                self.lane_id = lane_id
+                self.speed_limit = lane.speed_limit
+                chain = lane_chain_points(map_, lane_id, lookahead, goal=self.goal)
+                if chain is not None:
+                    path = ArcPath(chain)
+        if path is None:
+            path = straight_path(self.x, self.y, self.heading, max(lookahead, 20.0))
+            s0 = 0.0
+        self.path = path
+        return s0
+
 
 def build_scene_records(
     config: InterSimConfig,
@@ -65,7 +151,7 @@ def build_scene_records(
     requested_ids = select_vehicle_ids(participants, agent_ids)
     records: Dict[object, AgentRecord] = {}
     for agent_id in requested_ids:
-        record = make_record(config, participants.get(agent_id), frame)
+        record = AgentRecord.from_participant(config, participants.get(agent_id), frame)
         if record is not None:
             records[agent_id] = record
 
@@ -81,7 +167,7 @@ def build_scene_records(
             for x, y in requested_positions
         ):
             continue
-        record = make_record(config, participant, frame, state=state)
+        record = AgentRecord.from_participant(config, participant, frame, state=state)
         if record is not None:
             records[participant_id] = record
     return records
@@ -104,55 +190,6 @@ def select_vehicle_ids(participants, agent_ids) -> List[object]:
     return selected
 
 
-def make_record(
-    config: InterSimConfig, participant, frame: int, state=None
-) -> Optional[AgentRecord]:
-    """Build one agent record from its participant at ``frame``."""
-
-    if participant is None:
-        return None
-    state = state if state is not None else current_state(participant, frame)
-    if state is None:
-        return None
-    is_vehicle = isinstance(participant, Vehicle)
-    length = participant.length
-    width = participant.width
-    if length is None or length <= 0.0:
-        length = config.default_vehicle_length if is_vehicle else 0.6
-    if width is None or width <= 0.0:
-        width = config.default_vehicle_width if is_vehicle else 0.5
-    speed = state.speed
-    if speed is None:
-        if state.vx is not None and state.vy is not None:
-            speed = float(np.hypot(state.vx, state.vy))
-        else:
-            speed = 0.0
-    goal_xy = getattr(participant, "goal_xy", None)
-    goal = None
-    if goal_xy is not None:
-        goal_array = np.asarray(goal_xy, dtype=float)
-        if goal_array.shape == (2,):
-            goal = goal_array
-    return AgentRecord(
-        agent_id=participant.id_,
-        is_vehicle=is_vehicle,
-        length=float(length),
-        width=float(width),
-        x=float(state.x),
-        y=float(state.y),
-        heading=spatial.normalize_angle(float(state.heading)),
-        v0=float(max(0.0, speed)),
-        goal=goal,
-        intent_speed=float(getattr(participant, "intent_speed", 0.0) or 0.0),
-        max_accel=float(getattr(participant, "max_accel", 0.0) or 3.0),
-        max_decel=float(
-            config.vehicle_decel_limit
-            or getattr(participant, "max_decel", 0.0)
-            or 10.0
-        ),
-    )
-
-
 def current_state(participant, frame: int):
     """Return the participant's latest state at or before ``frame``."""
 
@@ -161,42 +198,3 @@ def current_state(participant, frame: int):
     if not observed:
         return None
     return trajectory.get_state(observed[-1])
-
-
-def reference_path(
-    config: InterSimConfig, record: AgentRecord, map_: Optional[Map]
-) -> Tuple[ArcPath, float]:
-    """Build the lane-following path (or a straight fallback) for an agent.
-
-    Returns:
-        A tuple ``(path, s0)`` of the reference path and the agent's arc-length
-        offset on it.
-    """
-
-    lookahead = (
-        record.v0 * config.horizon_steps * config.dt + record.length + config.stop_margin + 10.0
-    )
-    path = None
-    s0 = 0.0
-    if map_ is not None:
-        matched = match_lane(
-            map_,
-            record.x,
-            record.y,
-            record.heading,
-            config.lane_match_radius,
-            config.lane_heading_tolerance_deg,
-            lookahead,
-        )
-        if matched is not None:
-            lane_id, s0 = matched
-            lane = map_.lanes[lane_id]
-            record.lane_id = lane_id
-            record.speed_limit = lane.speed_limit
-            chain = lane_chain_points(map_, lane_id, lookahead, goal=record.goal)
-            if chain is not None:
-                path = ArcPath(chain)
-    if path is None:
-        path = straight_path(record.x, record.y, record.heading, max(lookahead, 20.0))
-        s0 = 0.0
-    return path, s0

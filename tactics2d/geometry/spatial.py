@@ -115,6 +115,43 @@ def oriented_box(x: float, y: float, heading: float, length: float, width: float
     return Polygon(affine_transform(bbox, transform))
 
 
+def boxes_overlap(box_a, box_b, margin: float = 1.0) -> bool:
+    """Check whether two oriented boxes overlap.
+
+    Uses the separating-axis test over the four edge normals, so the answer is
+    exact for rectangles: overlapping is reported whenever the two boxes share
+    area, including the cross case where no corner of either box lies inside
+    the other. Each box is shrunk by ``margin`` before testing, so bodies that
+    merely graze are reported as collision-free.
+
+    Args:
+        box_a: First box as ``(x, y, yaw, length, width)``. Units are m and rad.
+        box_b: Second box as ``(x, y, yaw, length, width)``.
+        margin: Shrink factor applied to both boxes. Defaults to 1.0.
+
+    Returns:
+        True when the shrunken boxes overlap.
+    """
+
+    f1, l1, hl1, hw1 = _box_axes(box_a[2], box_a[3], box_a[4], margin)
+    f2, l2, hl2, hw2 = _box_axes(box_b[2], box_b[3], box_b[4], margin)
+    delta = np.array([box_b[0] - box_a[0], box_b[1] - box_a[1]])
+
+    for axis in (f1, l1, f2, l2):
+        half1 = hl1 * abs(float(np.dot(f1, axis))) + hw1 * abs(float(np.dot(l1, axis)))
+        half2 = hl2 * abs(float(np.dot(f2, axis))) + hw2 * abs(float(np.dot(l2, axis)))
+        if abs(float(np.dot(axis, delta))) > half1 + half2:
+            return False
+    return True
+
+
+def _box_axes(yaw: float, length: float, width: float, margin: float):
+    """Return the two separating-axis bases and half extents of one box."""
+    forward = np.array([np.cos(yaw), np.sin(yaw)])
+    lateral = np.array([-np.sin(yaw), np.cos(yaw)])
+    return forward, lateral, 0.5 * length * margin, 0.5 * width * margin
+
+
 def angle_between(v1: np.ndarray, v2: np.ndarray) -> float:
     """Return the absolute angle in radians between two 2D direction vectors.
 

@@ -44,70 +44,88 @@ class RollingSimulationResult:
     poses: Dict[object, np.ndarray] = field(default_factory=dict)
 
 
-def extract_arrays(config: InterSimConfig, participants, step_ms: int, frame_ms0: int):
-    """Lay every participant's ground truth into indexed pose arrays.
+@dataclass
+class ReplayState:
+    """The indexed pose arrays one closed-loop replay steps over.
 
-    Returns:
-        A tuple ``(poses, dims, types)`` of per-agent ``(steps, 4)`` pose arrays,
-        ``(length, width)`` pairs, and participant classes.
+    Ground truth is laid out per agent on a common frame grid, and ``poses`` is
+    overwritten in place as plans are committed, so a single state object
+    carries the whole replay.
     """
 
-    steps = config.scenario_steps
-    poses: Dict[object, np.ndarray] = {}
-    dims: Dict[object, Tuple[float, float]] = {}
-    types: Dict[object, type] = {}
-    for agent_id, participant in participants.items():
-        array = np.full((steps, 4), -1.0, dtype=float)
-        for frame_ms in participant.trajectory.frames:
-            index = int(round((frame_ms - frame_ms0) / step_ms))
-            if index < 0 or index >= steps:
-                continue
-            state = participant.trajectory.get_state(frame_ms)
-            array[index, :] = (
-                state.x,
-                state.y,
-                0.0,
-                spatial.normalize_angle(float(state.heading)),
-            )
-        poses[agent_id] = array
-        length = participant.length
-        width = participant.width
-        if isinstance(participant, Vehicle):
-            dims[agent_id] = (
-                float(length if length and length > 0 else config.default_vehicle_length),
-                float(width if width and width > 0 else config.default_vehicle_width),
-            )
-        else:
-            dims[agent_id] = (
-                float(length if length and length > 0 else 0.6),
-                float(width if width and width > 0 else 0.5),
-            )
-        types[agent_id] = type(participant)
-    return poses, dims, types
+    config: InterSimConfig
+    participants: Dict[object, object]
+    poses: Dict[object, np.ndarray]
+    dims: Dict[object, Tuple[float, float]]
+    types: Dict[object, type]
+    base_frame_ms: int = 0
+
+    @classmethod
+    def from_participants(
+        cls, config: InterSimConfig, participants, base_frame_ms: int
+    ) -> "ReplayState":
+        """Lay every participant's ground truth into indexed pose arrays."""
+
+        steps = config.scenario_steps
+        step_ms = config.step_ms
+        poses: Dict[object, np.ndarray] = {}
+        dims: Dict[object, Tuple[float, float]] = {}
+        types: Dict[object, type] = {}
+        for agent_id, participant in participants.items():
+            array = np.full((steps, 4), -1.0, dtype=float)
+            for frame_ms in participant.trajectory.frames:
+                index = int(round((frame_ms - base_frame_ms) / step_ms))
+                if index < 0 or index >= steps:
+                    continue
+                state = participant.trajectory.get_state(frame_ms)
+                array[index, :] = (
+                    state.x,
+                    state.y,
+                    0.0,
+                    spatial.normalize_angle(float(state.heading)),
+                )
+            poses[agent_id] = array
+            length = participant.length
+            width = participant.width
+            if isinstance(participant, Vehicle):
+                dims[agent_id] = (
+                    float(length if length and length > 0 else config.default_vehicle_length),
+                    float(width if width and width > 0 else config.default_vehicle_width),
+                )
+            else:
+                dims[agent_id] = (
+                    float(length if length and length > 0 else 0.6),
+                    float(width if width and width > 0 else 0.5),
+                )
+            types[agent_id] = type(participant)
+        return cls(
+            config=config,
+            participants=participants,
+            poses=poses,
+            dims=dims,
+            types=types,
+            base_frame_ms=base_frame_ms,
+        )
 
 
 def snapshot(
-    config: InterSimConfig,
-    poses,
-    dims,
-    types,
-    participants,
+    state: ReplayState,
     ego_id,
     current: int,
-    frame_ms0: int,
     goals: Dict[object, Optional[Tuple[float, float]]],
-) -> Tuple[Dict[object, object], List[object]]:
+) -> Dict[object, object]:
     """Build a one-state participant snapshot around the ego at a frame."""
 
+    config = state.config
+    poses = state.poses
     step_ms = config.step_ms
-    frame_ms = frame_ms0 + current * step_ms
+    frame_ms = state.base_frame_ms + current * step_ms
     ego_pose = poses[ego_id][current]
     if ego_pose[0] == -1:
-        return {}, []
+        return {}
     result = {}
-    order = []
-    for agent_id in participants:
-        if types[agent_id] not in _SNAP_CLASSES:
+    for agent_id in state.participants:
+        if state.types[agent_id] not in _SNAP_CLASSES:
             continue
         pose = poses[agent_id][current]
         if pose[0] == -1:
@@ -115,13 +133,12 @@ def snapshot(
         if agent_id != ego_id:
             if np.hypot(pose[0] - ego_pose[0], pose[1] - ego_pose[1]) > _SNAP_RADIUS:
                 continue
-        speed = speed_at(config, poses, agent_id, current)
-        intent_speed = recent_intent_speed(config, poses, agent_id, current)
-        participant = wrap_at(
-            config,
-            participants[agent_id],
+        speed = _speed_at(state, agent_id, current)
+        intent_speed = _recent_intent_speed(state, agent_id, current)
+        participant = _wrap_at(
+            state,
+            state.participants[agent_id],
             agent_id,
-            dims[agent_id],
             pose,
             frame_ms,
             speed,
@@ -129,99 +146,15 @@ def snapshot(
             goals.get(agent_id),
         )
         result[agent_id] = participant
-        order.append(agent_id)
-    return result, order
+    return result
 
 
-def recent_intent_speed(config: InterSimConfig, poses, agent_id, current: int) -> float:
-    """Return the agent's own recent cruising speed (no future used)."""
-
-    best = 0.0
-    for index in range(max(0, current - 10), current):
-        if index + 1 >= config.scenario_steps:
-            break
-        pose_i = poses[agent_id][index]
-        pose_j = poses[agent_id][index + 1]
-        if pose_i[0] == -1 or pose_j[0] == -1:
-            continue
-        speed = float(np.hypot(pose_j[0] - pose_i[0], pose_j[1] - pose_i[1])) / config.dt
-        best = max(best, speed)
-    return best
-
-
-def speed_at(config: InterSimConfig, poses, agent_id, current: int) -> float:
-    """Estimate current speed from a recent finite difference."""
-
-    for back in (5, 4, 3, 2, 1):
-        index = current - back
-        if index < 0:
-            continue
-        pose_past = poses[agent_id][index]
-        if pose_past[0] == -1:
-            continue
-        pose_now = poses[agent_id][current]
-        distance = float(np.hypot(pose_now[0] - pose_past[0], pose_now[1] - pose_past[1]))
-        return distance / (back * config.dt)
-    return 0.0
-
-
-def wrap_at(
-    config: InterSimConfig,
-    participant,
-    agent_id,
-    dims,
-    pose,
-    frame_ms: int,
-    speed: float,
-    intent_speed: float,
-    goal,
-):
-    """Rebuild one participant as a single-state wrapper at ``frame_ms``."""
-
-    length, width = dims
-    heading = spatial.normalize_angle(float(pose[3]))
-    trajectory = Trajectory(id_=agent_id, fps=round(1.0 / config.dt, 3), stable_freq=True)
-    trajectory.add_state(
-        State(
-            frame=int(frame_ms),
-            x=float(pose[0]),
-            y=float(pose[1]),
-            heading=heading,
-            vx=speed * np.cos(heading),
-            vy=speed * np.sin(heading),
-        )
-    )
-    cls = type(participant)
-    wrapper = cls(agent_id, participant.type_, trajectory=trajectory, length=length, width=width)
-    if goal is not None:
-        wrapper.goal_xy = goal
-    if intent_speed > 0.0:
-        wrapper.intent_speed = intent_speed
-    return wrapper
-
-
-def commit(
-    config: InterSimConfig,
-    poses,
-    agent_id,
-    trajectory,
-    current: int,
-    steps: int,
-    frame_ms0: int,
-) -> None:
-    """Write one planned trajectory into the pose arrays from ``current`` on."""
-
-    for frame_ms_future in trajectory.frames:
-        index = int(round((frame_ms_future - frame_ms0) / config.step_ms))
-        if index <= current or index >= steps:
-            continue
-        state = trajectory.get_state(frame_ms_future)
-        poses[agent_id][index] = (state.x, state.y, 0.0, float(state.heading))
-
-
-def relevant_ids(poses, dims, ego_id, current: int, horizon: int, steps: int) -> List[object]:
+def relevant_ids(state: ReplayState, ego_id, current: int, horizon: int) -> List[object]:
     """Grow a relevant set from the ego over future body collisions."""
 
+    poses = state.poses
+    dims = state.dims
+    steps = state.config.scenario_steps
     seen = {ego_id}
     queue = [ego_id]
     result = [ego_id]
@@ -251,7 +184,27 @@ def relevant_ids(poses, dims, ego_id, current: int, horizon: int, steps: int) ->
     return result
 
 
-def ego_collision_at(poses, dims, ego_id, index: int) -> Optional[int]:
+def commit(state: ReplayState, agent_id, trajectory, current: int) -> None:
+    """Write one planned trajectory into the pose arrays from ``current`` on."""
+
+    steps = state.config.scenario_steps
+    step_ms = state.config.step_ms
+    base_frame_ms = state.base_frame_ms
+    poses = state.poses
+    for frame_ms_future in trajectory.frames:
+        index = int(round((frame_ms_future - base_frame_ms) / step_ms))
+        if index <= current or index >= steps:
+            continue
+        trajectory_state = trajectory.get_state(frame_ms_future)
+        poses[agent_id][index] = (
+            trajectory_state.x,
+            trajectory_state.y,
+            0.0,
+            float(trajectory_state.heading),
+        )
+
+
+def ego_collision_at(state: ReplayState, ego_id, index: int) -> Optional[int]:
     """Classify a same-frame ego collision at one index, if any.
 
     Returns:
@@ -259,6 +212,8 @@ def ego_collision_at(poses, dims, ego_id, index: int) -> Optional[int]:
         ego does not overlap any other body at ``index``.
     """
 
+    poses = state.poses
+    dims = state.dims
     pose_ego = poses[ego_id][index]
     if pose_ego[0] == -1:
         return None
@@ -284,7 +239,7 @@ def ego_collision_at(poses, dims, ego_id, index: int) -> Optional[int]:
 
 
 def progress(
-    config: InterSimConfig, poses, ego_id, relevant_ids: List[object], end_index: int
+    state: ReplayState, ego_id, relevant_ids: List[object], end_index: int
 ) -> Tuple[float, int]:
     """Sum per-step displacements over frames 12..79 for controlled agents.
 
@@ -293,6 +248,8 @@ def progress(
         the number of controlled agents it was summed over.
     """
 
+    config = state.config
+    poses = state.poses
     controlled = [agent_id for agent_id in relevant_ids]
     if ego_id not in controlled:
         controlled.append(ego_id)
@@ -316,3 +273,73 @@ def progress(
         total_progress += total
         count += 1
     return total_progress, count
+
+
+def _recent_intent_speed(state: ReplayState, agent_id, current: int) -> float:
+    """Return the agent's own recent cruising speed (no future used)."""
+
+    config = state.config
+    poses = state.poses
+    best = 0.0
+    for index in range(max(0, current - 10), current):
+        if index + 1 >= config.scenario_steps:
+            break
+        pose_i = poses[agent_id][index]
+        pose_j = poses[agent_id][index + 1]
+        if pose_i[0] == -1 or pose_j[0] == -1:
+            continue
+        speed = float(np.hypot(pose_j[0] - pose_i[0], pose_j[1] - pose_i[1])) / config.dt
+        best = max(best, speed)
+    return best
+
+
+def _speed_at(state: ReplayState, agent_id, current: int) -> float:
+    """Estimate current speed from a recent finite difference."""
+
+    config = state.config
+    poses = state.poses
+    for back in (5, 4, 3, 2, 1):
+        index = current - back
+        if index < 0:
+            continue
+        pose_past = poses[agent_id][index]
+        if pose_past[0] == -1:
+            continue
+        pose_now = poses[agent_id][current]
+        distance = float(np.hypot(pose_now[0] - pose_past[0], pose_now[1] - pose_past[1]))
+        return distance / (back * config.dt)
+    return 0.0
+
+
+def _wrap_at(
+    state: ReplayState,
+    participant,
+    agent_id,
+    pose,
+    frame_ms: int,
+    speed: float,
+    intent_speed: float,
+    goal,
+):
+    """Rebuild one participant as a single-state wrapper at ``frame_ms``."""
+
+    length, width = state.dims[agent_id]
+    heading = spatial.normalize_angle(float(pose[3]))
+    trajectory = Trajectory(id_=agent_id, fps=round(1.0 / state.config.dt, 3), stable_freq=True)
+    trajectory.add_state(
+        State(
+            frame=int(frame_ms),
+            x=float(pose[0]),
+            y=float(pose[1]),
+            heading=heading,
+            vx=speed * np.cos(heading),
+            vy=speed * np.sin(heading),
+        )
+    )
+    cls = type(participant)
+    wrapper = cls(agent_id, participant.type_, trajectory=trajectory, length=length, width=width)
+    if goal is not None:
+        wrapper.goal_xy = goal
+    if intent_speed > 0.0:
+        wrapper.intent_speed = intent_speed
+    return wrapper

@@ -124,7 +124,7 @@ class InterSimBehaviorModel(BehaviorModelBase):
             return result
 
         for record in records.values():
-            record.path, record.s0 = scene.reference_path(self.config, record, map_)
+            record.s0 = record.build_reference_path(self.config, map_)
 
         baseline = {agent_id: self._baseline_speeds(record) for agent_id, record in records.items()}
         poses = {
@@ -463,7 +463,7 @@ class InterSimBehaviorModel(BehaviorModelBase):
         participants: Dict[object, object],
         map_: Optional[Map],
         ego_id: object,
-        frame_ms0: int = 0,
+        base_frame_ms: int = 0,
     ) -> RollingSimulationResult:
         """Replay the scenario closed-loop and return its outcome.
 
@@ -479,15 +479,14 @@ class InterSimBehaviorModel(BehaviorModelBase):
             participants (Dict): All participants in the scenario.
             map_ (Optional[Map]): The map. None falls back to straight paths.
             ego_id (object): The agent the loop is centred on.
-            frame_ms0 (int, optional): Time stamp of index 0. Defaults to 0.
+            base_frame_ms (int, optional): Time stamp of index 0. Defaults to 0.
 
         Returns:
             The closed-loop outcome, carrying the upstream-aligned metrics and
             the final per-index poses.
         """
 
-        step_ms = self.config.step_ms
-        poses, dims, types = replay.extract_arrays(self.config, participants, step_ms, frame_ms0)
+        state = replay.ReplayState.from_participants(self.config, participants, base_frame_ms)
         goals: Dict[object, Optional[Tuple[float, float]]] = {
             agent_id: (
                 (participant.trajectory.last_state.x, participant.trajectory.last_state.y)
@@ -510,13 +509,11 @@ class InterSimBehaviorModel(BehaviorModelBase):
         current = 1
         while current <= end_index:
             if (current - warmup) >= 0 and (current - warmup) % interval == 0:
-                relevant = self._plan_once(
-                    poses, dims, types, participants, map_, ego_id, current, frame_ms0, goals
-                )
+                relevant = self._plan_once(state, map_, ego_id, current, goals)
                 for agent_id in relevant:
                     if agent_id not in relevant_union:
                         relevant_union.append(agent_id)
-            kind = replay.ego_collision_at(poses, dims, ego_id, current)
+            kind = replay.ego_collision_at(state, ego_id, current)
             if kind is not None:
                 collision_kind[kind] += 1
                 collided = True
@@ -524,9 +521,7 @@ class InterSimBehaviorModel(BehaviorModelBase):
                 break
             current += 1
 
-        progress, controlled = replay.progress(
-            self.config, poses, ego_id, relevant_union, end_index
-        )
+        progress, controlled = replay.progress(state, ego_id, relevant_union, end_index)
         return RollingSimulationResult(
             front_collisions=collision_kind[0],
             side_collisions=collision_kind[1],
@@ -537,10 +532,10 @@ class InterSimBehaviorModel(BehaviorModelBase):
             end_index=end_index,
             ego_id=ego_id,
             relevant_ids=list(relevant_union),
-            poses={agent_id: poses[agent_id].copy() for agent_id in poses},
+            poses={agent_id: array.copy() for agent_id, array in state.poses.items()},
         )
 
-    def _plan_once(self, poses, dims, types, participants, map_, ego_id, current, frame_ms0, goals):
+    def _plan_once(self, state, map_, ego_id, current, goals):
         """Plan ego first, then its relevant environment, and commit both.
 
         Mirroring the upstream ordering (ego base planner commits before the env
@@ -550,19 +545,16 @@ class InterSimBehaviorModel(BehaviorModelBase):
         """
 
         horizon = self.config.horizon_steps
-        steps = self.config.scenario_steps
-        frame_ms = frame_ms0 + current * self.config.step_ms
-        snapshot, _ = replay.snapshot(
-            self.config, poses, dims, types, participants, ego_id, current, frame_ms0, goals
-        )
+        frame_ms = state.base_frame_ms + current * self.config.step_ms
+        snapshot = replay.snapshot(state, ego_id, current, goals)
         if not snapshot:
             return []
 
-        relevant = replay.relevant_ids(poses, dims, ego_id, current, horizon, steps)
+        relevant = replay.relevant_ids(state, ego_id, current, horizon)
         decider = None
         if self.config.relation_mode == "nn":
             decider = relation_decider.make_decider(
-                self.config, poses, dims, types, map_, ego_id, current
+                self.config, state.poses, state.types, map_, ego_id, current
             )
 
         planned = []
@@ -570,9 +562,7 @@ class InterSimBehaviorModel(BehaviorModelBase):
             snapshot, map_, frame_ms, agent_ids=[ego_id], decider=decider
         )
         if ego_id in ego_trajectories:
-            replay.commit(
-                self.config, poses, ego_id, ego_trajectories[ego_id], current, steps, frame_ms0
-            )
+            replay.commit(state, ego_id, ego_trajectories[ego_id], current)
             planned.append(ego_id)
 
         env_ids = [agent_id for agent_id in relevant if agent_id != ego_id and agent_id in snapshot]
@@ -581,6 +571,6 @@ class InterSimBehaviorModel(BehaviorModelBase):
                 snapshot, map_, frame_ms, agent_ids=env_ids, decider=decider
             )
             for agent_id, trajectory in env_trajectories.items():
-                replay.commit(self.config, poses, agent_id, trajectory, current, steps, frame_ms0)
+                replay.commit(state, agent_id, trajectory, current)
                 planned.append(agent_id)
         return planned

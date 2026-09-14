@@ -8,7 +8,9 @@ from typing import Optional
 import numpy as np
 
 from tactics2d.geometry import spatial
+from tactics2d.participant.element import Vehicle
 
+from . import m2i_features as features
 from .config import InterSimConfig
 
 # Adapted from InterSim (github.com/Tsinghua-MARS-Lab/InterSim), MIT,
@@ -71,7 +73,7 @@ def road_graph(map_, cx: float, cy: float):
     )
 
 
-def make_decider(config: InterSimConfig, poses, dims, types, map_, ego_id, current: int):
+def make_decider(config: InterSimConfig, poses, types, map_, ego_id, current: int):
     """Build the per-frame learned direction arbiter for relation_mode="nn".
 
     The model's own geometric detector still builds the conflict graph; this
@@ -81,8 +83,6 @@ def make_decider(config: InterSimConfig, poses, dims, types, map_, ego_id, curre
     """
 
     import torch
-
-    from tactics2d.participant.element import Vehicle
 
     ego_pose = poses[ego_id][current]
     road_points, road_types, road_ids = road_graph(map_, float(ego_pose[0]), float(ego_pose[1]))
@@ -136,8 +136,6 @@ def edge_yields(
     forced to yield, and the .bin predictor only arbitrates the rest.
     """
 
-    from . import m2i_features as features
-
     reactor_pose = poses[reactor_id][current]
     influencer_pose = poses[influencer_id][current]
     if reactor_pose[0] == -1 or influencer_pose[0] == -1:
@@ -153,7 +151,7 @@ def edge_yields(
     if not is_vehicle.get(influencer_id, True):
         return True
 
-    def window_7(agent_id):
+    def feature_window(agent_id):
         out = np.zeros((11, 7), dtype=np.float32)
         for j in range(11):
             index = current + j
@@ -164,10 +162,10 @@ def edge_yields(
             out[j, 4] = poses[agent_id][index, 3]
         return out
 
-    reactor = window_7(reactor_id)
-    influencer = window_7(influencer_id)
+    reactor = feature_window(reactor_id)
+    influencer = feature_window(influencer_id)
     angle = -float(reactor[0, 4]) + np.pi / 2
-    x0, y0 = float(reactor[0, 0]), float(reactor[0, 1])
+    origin_x, origin_y = float(reactor[0, 0]), float(reactor[0, 1])
     stacked = np.stack([reactor, influencer], axis=0)
     mapping = features.build_mapping(
         stacked,
@@ -175,7 +173,7 @@ def edge_yields(
         road_points,
         road_types,
         road_ids,
-        (x0, y0, angle),
+        (origin_x, origin_y, angle),
         [reactor_id, influencer_id],
         str(current),
     )
