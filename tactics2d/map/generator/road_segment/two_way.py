@@ -22,6 +22,7 @@ from .element_builder import (
     build_lane_from_boundaries,
     build_roadline_from_points,
     lane_ids,
+    pin_offset_polyline_endpoints,
 )
 from .reference_line import fit_reference_line
 from .road_segment import RoadSegment
@@ -115,7 +116,9 @@ class TwoWay(RoadSegment):
         forward_boundary_rls: list[RoadLine] = [center_roadline]
 
         for i in range(1, forward_n + 1):
-            pts = offset_polyline(center_pts, -i * lane_w)
+            offset = -i * lane_w
+            pts = offset_polyline(center_pts, offset)
+            pts = pin_offset_polyline_endpoints(pts, start_port, end_port, offset)
             rl = build_roadline_from_points(
                 id_=id_counter,
                 points=pts,
@@ -150,7 +153,10 @@ class TwoWay(RoadSegment):
         backward_boundary_rls: list[RoadLine] = [center_roadline]
 
         for i in range(1, backward_n + 1):
-            pts = offset_polyline(center_pts, i * lane_w)[::-1]
+            offset = i * lane_w
+            pts = offset_polyline(center_pts, offset)
+            pts = pin_offset_polyline_endpoints(pts, start_port, end_port, offset)
+            pts = pts[::-1]
             rl = build_roadline_from_points(
                 id_=id_counter,
                 points=pts,
