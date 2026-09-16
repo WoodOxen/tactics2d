@@ -5,11 +5,40 @@
 
 """Configuration for SMART-style joint behavior generation."""
 
+import pickle
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 
-_BUNDLED_TOKENS = Path(__file__).resolve().parent / "tokens"
+# SMART's codebooks are not redistributed with the package: download them
+# alongside the checkpoint and point ``asset_root`` (or the two explicit paths)
+# at that directory.
+MOTION_CODEBOOK_NAME = "motion_codebook.pkl"
+MAP_CODEBOOK_NAME = "map_codebook.pkl"
+
+
+def load_codebook(path: Optional[str], name: str) -> Dict[str, object]:
+    """Load one of SMART's downloadable codebooks.
+
+    Args:
+        path (Optional[str]): Configured codebook path.
+        name (str): Human-readable codebook name used in the message.
+
+    Returns:
+        The unpickled codebook.
+
+    Raises:
+        ValueError: If no path was configured.
+    """
+
+    if path is None:
+        raise ValueError(
+            f"The SMART {name} is not redistributed with the package. Download it "
+            f"together with the checkpoint and set SmartConfig(asset_root=...) or pass "
+            f"the path directly."
+        )
+    with open(path, "rb") as handle:
+        return pickle.load(handle)
 
 
 @dataclass(frozen=True)
@@ -24,10 +53,14 @@ class SmartConfig:
         future_steps (int): Number of predicted frames. Defaults to 80.
         dt (float): Sampling interval in seconds. Defaults to 0.1.
         shift (int): Frames covered by one motion token. Defaults to 5.
-        motion_codebook (Optional[str]): Motion codebook path. Defaults to None (bundled, by
-            ``token_size``).
-        map_codebook (Optional[str]): Map codebook path. Defaults to None (the bundled copy).
-        token_size (int): Number of motion tokens in the codebook.
+        asset_root (Optional[str]): Directory holding the downloaded SMART codebooks.
+            Defaults to None, which requires the two paths below to be set explicitly.
+        motion_codebook (Optional[str]): Motion codebook path. Defaults to None
+            (``asset_root``/``motion_codebook.pkl``).
+        map_codebook (Optional[str]): Map codebook path. Defaults to None
+            (``asset_root``/``map_codebook.pkl``).
+        token_size (int): Number of motion tokens in the codebook. Validated against the
+            loaded codebook.
         map_token_size (int): Number of map tokens in the codebook.
         hidden_dim (int): Transformer hidden width.
         num_heads (int): Number of attention heads.
@@ -58,6 +91,7 @@ class SmartConfig:
     dt: float = 0.1
     shift: int = 5
     # codebooks
+    asset_root: Optional[str] = None
     motion_codebook: Optional[str] = None
     map_codebook: Optional[str] = None
     token_size: int = 2048
@@ -100,14 +134,12 @@ class SmartConfig:
                 "history_steps must cover at least two motion tokens, because "
                 "the autoregressive loop reads the last two history slots."
             )
-        if self.motion_codebook is None:
-            object.__setattr__(
-                self,
-                "motion_codebook",
-                str(_BUNDLED_TOKENS / f"cluster_frame_5_{self.token_size}.pkl"),
-            )
-        if self.map_codebook is None:
-            object.__setattr__(self, "map_codebook", str(_BUNDLED_TOKENS / "map_traj_token5.pkl"))
+        if self.asset_root is not None:
+            root = Path(self.asset_root)
+            if self.motion_codebook is None:
+                object.__setattr__(self, "motion_codebook", str(root / MOTION_CODEBOOK_NAME))
+            if self.map_codebook is None:
+                object.__setattr__(self, "map_codebook", str(root / MAP_CODEBOOK_NAME))
 
     @property
     def step_ms(self) -> int:

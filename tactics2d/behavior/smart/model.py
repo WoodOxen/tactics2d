@@ -6,7 +6,6 @@
 """SMART network and its behavior-model entry point."""
 
 import dataclasses
-import pickle
 from typing import Dict, Iterable, List, Optional
 
 import torch
@@ -17,7 +16,7 @@ from tactics2d.map.element import Map
 from tactics2d.participant.trajectory import Trajectory
 
 from .agent_decoder import SmartAgentDecoder
-from .config import SmartConfig
+from .config import SmartConfig, load_codebook
 from .dataset import SmartBatchBuilder, _observed_frames
 from .map_decoder import SmartMapDecoder
 from .policy import TorchSmartPolicy
@@ -48,10 +47,8 @@ class SmartTorchModel(nn.Module):
 
         super().__init__()
         self.config = config if config is not None else SmartConfig()
-        with open(self.config.motion_codebook, "rb") as handle:
-            motion_codebook = pickle.load(handle)
-        with open(self.config.map_codebook, "rb") as handle:
-            map_codebook = pickle.load(handle)
+        motion_codebook = load_codebook(self.config.motion_codebook, "motion codebook")
+        map_codebook = load_codebook(self.config.map_codebook, "map codebook")
         map_token = {"traj_src": torch.from_numpy(map_codebook["traj_src"]).to(torch.float)}
         self.map_encoder = SmartMapDecoder(self.config, map_token)
         self.agent_encoder = SmartAgentDecoder(self.config, motion_codebook)

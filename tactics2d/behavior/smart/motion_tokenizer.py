@@ -5,13 +5,12 @@
 
 """Agent motion tokenizer for the SMART network."""
 
-import pickle
 from typing import Dict, List, Optional
 
 import numpy as np
 import torch
 
-from .config import SmartConfig
+from .config import SmartConfig, load_codebook
 from .schema import AgentType, SmartAgentTokens
 
 # Codebook key per agent type index; any other type stays at token 0.
@@ -124,8 +123,15 @@ class MotionTokenizer:
     def _load_codebook(self) -> None:
         """Load the motion codebook and precompute the tail token set."""
 
-        with open(self.config.motion_codebook, "rb") as handle:
-            codebook = pickle.load(handle)
+        codebook = load_codebook(self.config.motion_codebook, "motion codebook")
+
+        for key, contour in codebook["token"].items():
+            if len(contour) != self.config.token_size:
+                raise ValueError(
+                    f"motion codebook {self.config.motion_codebook!r} carries "
+                    f"{len(contour)} {key} tokens but config.token_size is "
+                    f"{self.config.token_size}; point motion_codebook at the matching file."
+                )
 
         self._token: Dict[str, torch.Tensor] = {}
         self._token_last: Dict[str, torch.Tensor] = {}

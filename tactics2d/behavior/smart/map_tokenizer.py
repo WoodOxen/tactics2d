@@ -6,7 +6,6 @@
 """Map polyline tokenizer for the SMART network."""
 
 import math
-import pickle
 from typing import List, Optional
 
 import numpy as np
@@ -17,7 +16,7 @@ from shapely.geometry import Polygon
 
 from tactics2d.map.query import SemanticMapQuery
 
-from .config import SmartConfig
+from .config import SmartConfig, load_codebook
 from .schema import LightType, PointType, PolygonType, SmartMapTokens
 
 # WOMD ``Lane.Type`` shifted by one to SMART's polygon type.
@@ -268,8 +267,7 @@ class MapTokenizer:
         upstream matches against, read as a contiguous float32 tensor.
         """
 
-        with open(self.config.map_codebook, "rb") as handle:
-            codebook = pickle.load(handle)
+        codebook = load_codebook(self.config.map_codebook, "map codebook")
 
         sample_pt = np.asarray(codebook["sample_pt"], dtype=np.float32)
         if sample_pt.shape != (self.config.map_token_size, _MAP_SAMPLE_COUNT, 2):
