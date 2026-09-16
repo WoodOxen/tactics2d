@@ -5,6 +5,7 @@
 
 from .fork_merge import Fork, Merge
 from .intersection import Intersection
+from .junction_approach import JunctionApproach
 from .lane_adapter import LaneAdapter
 from .one_way import OneWay
 from .ramp import EntranceRamp, ExitRamp
@@ -17,6 +18,7 @@ __all__ = [
     "OneWay",
     "TwoWay",
     "LaneAdapter",
+    "JunctionApproach",
     "Fork",
     "Merge",
     "ExitRamp",

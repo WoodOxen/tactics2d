@@ -249,7 +249,7 @@ def _build_connector_lane(
     Returns:
         Tuple ``(lane, [left_roadline, right_roadline], updated_id_counter)``.
     """
-    centerline = bezier_connection(p_start, h_start, p_end, h_end, step_size, min_tangent=0.0)
+    centerline = bezier_connection(p_start, h_start, p_end, h_end, step_size, min_tangent=5.0)
     left_pts = offset_polyline(centerline, arm_lane_width / 2.0)
     right_pts = offset_polyline(centerline, -arm_lane_width / 2.0)
 
