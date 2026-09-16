@@ -30,6 +30,54 @@ def boundary_offset(boundary_index: int, lane_num: int, lane_width: float) -> fl
     return lane_num * lane_width / 2.0 - boundary_index * lane_width
 
 
+def port_offset_point(port: RoadPort, offset: float) -> np.ndarray:
+    """Return the exact laterally-offset boundary point at a RoadPort.
+
+    Args:
+        port: Road port defining the socket position and heading.
+        offset: Signed lateral offset in metres (positive = left of the port
+            heading).
+
+    Returns:
+        Boundary point ``port.point + offset * normal`` with shape ``(2,)``.
+    """
+    point = np.asarray(port.point, dtype=float)
+    heading = float(port.heading)
+
+    normal = np.array([-np.sin(heading), np.cos(heading)], dtype=float)
+
+    return point + float(offset) * normal
+
+
+def pin_offset_polyline_endpoints(
+    points: np.ndarray, start_port: RoadPort, end_port: RoadPort, offset: float
+) -> np.ndarray:
+    """Pin an offset polyline exactly to its RoadPort boundary endpoints.
+
+    ``offset_polyline`` estimates endpoint normals from the first and last
+    sampled chords, which can drift from the port heading on curved reference
+    lines and leave small gaps or overlaps where modules meet.  This helper
+    snaps both ends to the exact positions defined by the RoadPort contract so
+    that connected modules share identical boundary points.
+
+    Args:
+        points: Offset polyline points with shape ``(N, 2)``.
+        start_port: Road port at the polyline start.
+        end_port: Road port at the polyline end.
+        offset: Signed lateral offset in metres used to build ``points``.
+
+    Returns:
+        Copy of ``points`` whose first and last points are pinned to
+        ``start_port.point`` and ``end_port.point`` respectively.
+    """
+    pts = np.asarray(points, dtype=float).copy()
+
+    pts[0] = port_offset_point(start_port, offset)
+    pts[-1] = port_offset_point(end_port, offset)
+
+    return pts
+
+
 def as_id_list(ids: str | int | Iterable[str | int] | None) -> list[str]:
     """Convert one or more ids to a flat list of strings.
 
@@ -373,6 +421,47 @@ def build_segmented_roadline(
     return roadlines, roadline_ids, id_counter
 
 
+def resolve_arm_lane_counts(arm: dict[str, Any]) -> tuple[int, int]:
+    """Resolve an arm dict's per-direction lane counts.
+
+    The symmetric ``"lane_num"`` shorthand remains supported.  Callers can
+    instead provide both ``"in_lane_num"`` and ``"out_lane_num"`` to define
+    the two travel directions independently.
+
+    Args:
+        arm: Arm descriptor dictionary.
+
+    Returns:
+        Tuple ``(in_lane_num, out_lane_num)``.
+
+    Raises:
+        ValueError: If only one explicit count is supplied, the symmetric and
+            explicit forms are mixed, or neither form is supplied.
+    """
+    has_in = "in_lane_num" in arm
+    has_out = "out_lane_num" in arm
+
+    if has_in != has_out:
+        given = "in_lane_num" if has_in else "out_lane_num"
+        raise ValueError(
+            "Arm dicts must contain both 'in_lane_num' and 'out_lane_num' "
+            f"(only '{given}' provided)."
+        )
+    if has_in:
+        if "lane_num" in arm:
+            raise ValueError(
+                "Arm dicts must not combine 'lane_num' with 'in_lane_num'/'out_lane_num'."
+            )
+        return int(arm["in_lane_num"]), int(arm["out_lane_num"])
+    if "lane_num" not in arm:
+        raise ValueError(
+            "Arm dicts must contain 'lane_num' or both of 'in_lane_num' and 'out_lane_num'."
+        )
+
+    lane_num = int(arm["lane_num"])
+    return lane_num, lane_num
+
+
 def build_junction_arm_ports(
     normalized_arms: list[dict[str, Any]],
     outgoing_lane_ids: list[list[str]],
@@ -387,7 +476,11 @@ def build_junction_arm_ports(
 
     Args:
         normalized_arms: Arm records with keys ``point``, ``heading_inward``,
-            ``heading_outward``, ``lane_num``, ``lane_width``, ``speed_limit``.
+            ``heading_outward``, ``in_lane_num``, ``out_lane_num``,
+            ``lane_width``, ``speed_limit``. The inward port exposes
+            ``in_lane_num`` and the outward port exposes ``out_lane_num``;
+            either count can differ from the number of associated connector
+            lane ids.
         outgoing_lane_ids: Per-arm list of lane ids that leave the junction
             toward the connected road.
         incoming_lane_ids: Per-arm list of lane ids that enter the junction
@@ -416,14 +509,14 @@ def build_junction_arm_ports(
         inward_port = RoadPort(
             point=np.asarray(arm["point"], dtype=float),
             heading=float(arm["heading_inward"]),
-            lane_num=int(arm["lane_num"]),
+            lane_num=int(arm["in_lane_num"]),
             lane_width=float(arm["lane_width"]),
             speed_limit=float(arm["speed_limit"]),
         )
         outward_port = RoadPort(
             point=np.asarray(arm["point"], dtype=float),
             heading=float(arm["heading_outward"]),
-            lane_num=int(arm["lane_num"]),
+            lane_num=int(arm["out_lane_num"]),
             lane_width=float(arm["lane_width"]),
             speed_limit=float(arm["speed_limit"]),
         )

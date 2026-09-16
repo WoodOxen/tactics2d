@@ -4,6 +4,7 @@
 """Waymo Open Motion Dataset parser implementation."""
 
 
+import struct
 from pathlib import Path
 from typing import List, Tuple, Union
 
@@ -25,6 +26,60 @@ class WOMDParser:
 
     Because loading the tfrecord file is time consuming, the trajectory and the map parsers provide two ways to load the file. The first way is to load the file directly from the given file path. The second way is to load the file from a tfrecord.tfrecord_iterator object. If the tfrecord.tfrecord_iterator object is given, the parser will ignore the file path.
     """
+
+    def __init__(self) -> None:
+        """Initialize the WOMD parser with an in-memory tfrecord offset index.
+
+        The byte-offset index of every tfrecord is built once per process
+        (a framing-only scan, no protobuf parsing) and reused, so per-scenario
+        reads are O(1) instead of O(number of scenarios in the file).
+        """
+        self._offsets = {}  # per-process in-memory: tfrecord path -> offsets
+
+    def _scan_offsets(self, file_path: str) -> List[int]:
+        """Byte offset of every record, from the tfrecord framing only.
+
+        Reads the 12-byte header (8-byte length + 4-byte CRC) of each record and
+        seeks past the datum, so the scan never parses protobuf payloads.
+        """
+        offsets = []
+        with open(file_path, "rb") as handle:
+            while True:
+                pos = handle.tell()
+                header = handle.read(12)
+                if len(header) < 12:
+                    break
+                (length,) = struct.unpack("<Q", header[:8])
+                offsets.append(pos)
+                handle.seek(length + 4, 1)  # relative: skip datum + trailing crc
+        return offsets
+
+    def _offsets_for(self, file_path: str) -> List[int]:
+        """Record offsets of a tfrecord, built once per process and memoized."""
+        if file_path not in self._offsets:
+            self._offsets[file_path] = self._scan_offsets(file_path)
+        return self._offsets[file_path]
+
+    @staticmethod
+    def _read_record_at(file, offset: int) -> bytes:
+        """Raw bytes of one tfrecord record at a byte offset."""
+        file.seek(offset)
+        header = file.read(12)
+        (length,) = struct.unpack("<Q", header[:8])
+        return file.read(length)
+
+    def _scenario_by_index(self, scenario_id: int, file: str, folder: str):
+        """Parse one scenario by record index via the in-memory offset index (O(1))."""
+        file_path = Path(folder) / file
+        offsets = self._offsets_for(str(file_path))
+        if not offsets:
+            return None
+        data_id = scenario_id % len(offsets)
+        with open(file_path, "rb") as handle:
+            proto_bytes = self._read_record_at(handle, offsets[data_id])
+        scenario = scenario_pb.Scenario()
+        scenario.ParseFromString(proto_bytes)
+        return scenario
 
     _TYPE_MAPPING = {0: "unknown", 1: "vehicle", 2: "pedestrian", 3: "cyclist", 4: "other"}
 
@@ -185,8 +240,11 @@ class WOMDParser:
         participants = dict()
         time_stamps = set()
 
-        dataset = self._get_dataset(**kwargs)
-        scenario, _ = self._resolve_scenario_data(scenario_id, dataset)
+        if isinstance(scenario_id, int) and "file" in kwargs and "folder" in kwargs:
+            scenario = self._scenario_by_index(scenario_id, kwargs["file"], kwargs["folder"])
+        else:
+            dataset = self._get_dataset(**kwargs)
+            scenario, _ = self._resolve_scenario_data(scenario_id, dataset)
         fill_invalid_gaps = kwargs.get("fill_invalid_gaps", False)
         max_gap_frames = kwargs.get("max_gap_frames", 1)
 

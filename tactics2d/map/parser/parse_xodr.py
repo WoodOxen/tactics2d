@@ -1,6 +1,8 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+"""OpenDRIVE parser implementation."""
+
 from __future__ import annotations
 
 import logging
@@ -109,6 +111,33 @@ def _eval_cubic_poly(records: list, s: float, s_key: str = "s") -> float:
             break
     ds = s - active[s_key]
     return active["a"] + active["b"] * ds + active["c"] * ds**2 + active["d"] * ds**3
+
+
+def _eval_cubic_poly_vec(records: list, s_arr, s_key: str = "s") -> np.ndarray:
+    """Vectorized ``_eval_cubic_poly`` over an array of arc-lengths.
+
+    The piecewise segments must be sorted ascending by ``s_key`` (as produced
+    by the XODR parsers). Returns an array of evaluated polynomial values, one
+    per element of ``s_arr``.
+
+    Args:
+        records (list): List of dicts with keys s_key, a, b, c, d.
+        s_arr (Sequence[float]): Arc-length values at which to evaluate.
+        s_key (str): Key for the segment start value. Defaults to "s".
+
+    Returns:
+        np.ndarray: Evaluated polynomial values.
+    """
+    s_arr = np.asarray(s_arr, dtype=float)
+    if not records or len(s_arr) == 0:
+        return np.zeros(len(s_arr), dtype=float)
+    s_start = np.array([rec[s_key] for rec in records], dtype=float)
+    coeff = np.array([[rec["a"], rec["b"], rec["c"], rec["d"]] for rec in records], dtype=float)
+    idx = np.searchsorted(s_start, s_arr, side="right") - 1
+    idx = np.clip(idx, 0, len(records) - 1)  # match scalar fallback to records[0]
+    ds = s_arr - s_start[idx]
+    a, b, c, d = coeff[idx].T
+    return a + b * ds + c * ds**2 + d * ds**3
 
 
 def _build_offset_polyline(
@@ -273,7 +302,8 @@ class XODRParser:
 
         n = max(2, int(L / 0.1) + 1)
         s_arr = np.linspace(0.0, L, n)
-        pts = [(x0 + s * np.cos(hdg), y0 + s * np.sin(hdg)) for s in s_arr]
+        cos_hdg, sin_hdg = np.cos(hdg), np.sin(hdg)
+        pts = np.column_stack((x0 + s_arr * cos_hdg, y0 + s_arr * sin_hdg)).tolist()
         kappas = [0.0] * len(pts)
         return pts, kappas
 
@@ -644,9 +674,7 @@ class XODRParser:
         width_records = self._parse_width_records(lane_node)
 
         ls_s0 = float(ref_s[0])
-        width_at_s = np.array(
-            [_eval_cubic_poly(width_records, float(s) - ls_s0, s_key="sOffset") for s in ref_s]
-        )
+        width_at_s = _eval_cubic_poly_vec(width_records, ref_s - ls_s0, s_key="sOffset")
 
         outer_t = inner_t + sign * width_at_s
 
@@ -828,9 +856,7 @@ class XODRParser:
             key=lambda r: r["s"],
         )
 
-        lane_offset_t = np.array(
-            [_eval_cubic_poly(lane_offset_records, float(s), s_key="s") for s in s_arr]
-        )
+        lane_offset_t = _eval_cubic_poly_vec(lane_offset_records, s_arr, s_key="s")
 
         center_pts = pts_arr + lane_offset_t[:, np.newaxis] * ref_normals
 

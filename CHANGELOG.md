@@ -5,6 +5,10 @@
 
 ### Added
 
+- Added independent incoming and outgoing arm lane counts to the Intersection
+  and Roundabout generators. Arm dictionaries can now use
+  ``in_lane_num``/``out_lane_num`` while preserving the existing symmetric
+  ``lane_num`` shorthand; unmatched lanes intentionally remain unpaired.
 - Added NuPlan support to the browser frontend: NuPlan sqlite logs are discovered from the data root (`nuPlan/data/cache/<split>/*.db` or the nuplan-devkit layout) and appear in the dataset dropdown grouped by split, scenes stream through the same preview pipeline (`NuPlanParser` trajectories, city map auto-resolved from the log via `NUPLAN_MAP_CONFIG`, camera following the longest-lived vehicle), registered geopackage city maps appear in the map form with a capped city-center preview window, and `tactics2d preview dataset --dataset NuPlan` works from the CLI. UTM-scale NuPlan coordinates are shifted to a local origin at the map center before rendering, since float32 resolution at that magnitude (0.5 m at 4.7e6 m) would visibly deform geometry in the browser.
 - Added NGSIM, INTERACTION, DLP, CitySim, Argoverse 2, and DriveInsightD to the browser frontend dataset preview, covering every trajectory parser except WOMD: each family is discovered from its official layout under the data root, streams through a shared stamped-scene pipeline (observed frame stamps, automatic origin shift for global coordinates, string participant ids renumbered for the renderer with the original kept as `source_id`), and resolves its map when one ships with the dataset (INTERACTION scenario OSM, DLP parking-lot OSM, Argoverse 2 per-scenario map json, DriveInsightD sibling OpenDRIVE); CitySim renders trajectory-only scenes; NGSIM draws the street-centerline shapefiles shipped in its per-location `gis-files` folders as a base map (state-plane feet converted like the trajectories, clipped to the recording's extent), with headings derived from motion since the source data carries none.
 - Added WOMD to the browser frontend dataset preview, completing coverage of every trajectory parser: tfrecord shards are discovered under the data root, shards up to 32 MB are enumerated per scenario as `<shard>/<scenario_id>` dropdown entries (bigger shards appear as one entry and preview their first scenario), and scenes stream the per-scenario vector map with the trajectories through the shared stamped-scene pipeline; `tactics2d preview dataset --dataset WOMD` works from the CLI.
@@ -34,8 +38,19 @@
 - Added `Net2OsmConverter` for converting SUMO `.net.xml` maps to Lanelet2-annotated `.osm` format via the `NetXMLParser` → `Map` → `OsmWriter` pipeline.
 - Added `Osm2NetConverter` for converting Lanelet2-annotated `.osm` maps to SUMO `.net.xml` format via the `OSMParser` → `Map` → `SumoWriter` pipeline.
 
+### Changed
+
+- Raised `requires-python` to `>=3.10` and documented a Python Support Policy: the officially supported baseline is now Python 3.10–3.14 and Ubuntu 22.04+.
+- Rebased the `test_modules` CI matrix in `test_modules.yml` onto Python 3.10–3.14 across Ubuntu 22.04/24.04, macOS, and Windows (20 jobs).
+
+### Removed
+
+- Dropped support for Python 3.8 and 3.9 (upstream end-of-life).
+- Removed the legacy Ubuntu 18.04/20.04 Docker CI job and stopped building wheels for cp38–cp39 (cp310 remains until its upstream EOL in 2026-10).
+
 ### Fixed
 
+- Fixed `NuPlanParser.parse_trajectory` crashing with `sqlite3.OperationalError: unrecognized token: "{"` on every database: the lidar-box query was built as a plain string literal containing an unexpanded `{where}` placeholder, so the conditional time-window clause was never interpolated. The query is now an f-string, so `time_range` filtering (and the plain full-database scan) works as intended.
 - Fixed browser-frontend dataset discovery emitting backslash-separated relative paths on Windows: entries are now normalized with `as_posix()`, which also unbreaks WOMD and Argoverse 2 scenario selection there (both split the `file` value on `/`).
 - Fixed `Argoverse2Parser` crashing with `KeyError: 'construction'` on real motion-forecasting scenarios: the `construction` and `unknown` object categories were missing from the type mappings, and unseen future categories now degrade to `Other` instead of aborting the parse. Found by loading official validation scenarios from the public Argoverse S3 bucket.
 - Fixed screen recordings failing to play in strict players (e.g. GNOME Videos): with the compatibility-mode toggle enabled (default), captures are finalized server-side via ffmpeg (`POST /api/record/export`) into constant-frame-rate H.264 MP4, since raw MediaRecorder output declares a variable (0/1) frame rate; unticking the toggle (or a server without ffmpeg) downloads the raw recording unchanged.

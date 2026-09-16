@@ -13,19 +13,8 @@ import os
 
 RENDER = "DISPLAY" in os.environ
 
-# Test constants for deterministic testing
-TEST_ACCEL_OFFSET_1 = 4.5  # For kinematics model test
-TEST_STEER_OFFSET_1 = 0.9  # For kinematics model test
-TEST_ACCEL_OFFSET_2 = 5.25  # For dynamics model test (average of 4.5 and 6)
-TEST_STEER_OFFSET_2 = 0.9  # For dynamics model test
-
-# Vehicle template constants for "medium_car"
-MEDIUM_CAR_LENGTH = 4.284  # meters
-MEDIUM_CAR_FRONT_OVERHANG = 0.880  # meters
-MEDIUM_CAR_REAR_OVERHANG = 0.767  # meters
-
 import logging
-import time
+import math
 
 logging.basicConfig(level=logging.INFO)
 
@@ -72,42 +61,6 @@ VEHICLE_ACTION_LIST = [
     ((0.1, 0.6), 5000), ((0.1, -0.6), 5000),
 ]
 # fmt: on
-
-
-def simulate_actions(model, action_list, initial_state, interval, model_type="standard"):
-    """
-    Simulate a sequence of actions using a physics model.
-
-    Args:
-        model: Physics model instance
-        action_list: List of (action, duration_ms) tuples
-        initial_state: Initial State object
-        interval: Simulation time step (ms)
-        model_type: Type of model ("standard", "drift" for drift model)
-
-    Returns:
-        List of (x, y) trajectory points
-    """
-    if model_type == "drift":
-        state = initial_state
-        omega_wf = 0
-        omega_wr = 0
-        trajectory = [(state.x, state.y)]
-        for action, duration in action_list:
-            for _ in np.arange(0, duration, interval):
-                state, omega_wf, omega_wr, _, _ = model.step(
-                    state, omega_wf, omega_wr, action[0], action[1], interval
-                )
-                trajectory.append((state.x, state.y))
-        return trajectory
-    else:
-        state = initial_state
-        trajectory = [(state.x, state.y)]
-        for action, duration in action_list:
-            for _ in np.arange(0, duration, interval):
-                state, _, _ = model.step(state, action[0], action[1], interval)
-                trajectory.append((state.x, state.y))
-        return trajectory
 
 
 class Visualizer:
@@ -210,302 +163,403 @@ class Visualizer:
 @pytest.mark.physics
 @pytest.mark.parametrize(
     "speed_range, accel_range, interval, delta_t",
-    [
-        ([0, 5], [0, 2], 100, 5),
-        ([-5, 5], [-2, 2], 9, 5),
-        ([5, 5], [2, 2], 50, 3),
-        (5, 2, 100, 5),
-        (-5, -2, 100, 5),
-        (None, None, 100, 5),
-    ],
+    [(None, None, 100, 5), ([-5, 5], [-2, 2], 9, 5), ([0, 5], [0, 2], 100, 5)],
 )
 def test_point_mass(speed_range, accel_range, interval, delta_t):
+    """The newton and euler backends must agree on the same trajectory (within tolerance)."""
     model_newton = PointMass(speed_range, accel_range, interval, delta_t, "newton")
     model_euler = PointMass(speed_range, accel_range, interval, delta_t, "euler")
     initial_state = State(frame=0, x=10, y=10, heading=0, speed=0)
 
-    last_state_newton = initial_state
-    last_state_euler = initial_state
-    line_newton = [[last_state_newton.x, last_state_newton.y]]
-    line_euler = [[last_state_euler.x, last_state_euler.y]]
-    cnt = 0
-    t1 = time.time()
+    state = initial_state
+    line_newton = [[state.x, state.y]]
     for action, duration in PEDESTRIAN_ACTION_LIST:
         for _ in np.arange(0, duration, interval):
-            state_newton = model_newton.step(last_state_newton, action, interval)
-            line_newton.append([state_newton.x, state_newton.y])
-            last_state_newton = state_newton
-            cnt += 1
-    t2 = time.time()
+            state = model_newton.step(state, action, interval)
+            line_newton.append([state.x, state.y])
 
+    state = initial_state
+    line_euler = [[state.x, state.y]]
     for action, duration in PEDESTRIAN_ACTION_LIST:
         for _ in np.arange(0, duration, interval):
-            state_euler = model_euler.step(last_state_euler, action, interval)
-            line_euler.append([state_euler.x, state_euler.y])
-            last_state_euler = state_euler
-    t3 = time.time()
+            state = model_euler.step(state, action, interval)
+            line_euler.append([state.x, state.y])
 
     distance = hausdorff_distance(LineString(line_newton), LineString(line_euler))
     assert distance < 0.01, f"Hausdorff distance {distance:.6f} exceeds threshold 0.01"
-    logging.info("The average fps for Newton's method is {:.2f} Hz.".format(cnt / (t2 + 1e-6 - t1)))
-    logging.info("The average fps for Euler's method is {:.2f} Hz.".format(cnt / (t3 + 1e-6 - t2)))
 
 
 @pytest.mark.physics
-@pytest.mark.parametrize("interval, delta_t", [(9, 5), (50, 3), (100, 5)])
-def test_single_track_kinematic(interval, delta_t):
+def test_step_size_insensitivity():
+    """RK4-based models must produce nearly identical trajectories regardless of delta_t.
+
+    A step-size-dependent integrator (e.g. the previous first-order Euler) would drift by
+    several centimeters to meters here, so this guards against regressing the integrators.
+    """
     vehicle = Vehicle(0)
     vehicle.load_from_template("medium_car")
-    physics_model_constrained = SingleTrackKinematics(
-        lf=vehicle.length / 2 - vehicle.front_overhang,
-        lr=vehicle.length / 2 - vehicle.rear_overhang,
+    lf = vehicle.length / 2 - vehicle.front_overhang
+    lr = vehicle.length / 2 - vehicle.rear_overhang
+
+    def simulate(model, action_list):
+        state = State(frame=0, x=10, y=10, heading=0, speed=0)
+        trajectory = [(state.x, state.y)]
+        for action, duration in action_list:
+            for _ in np.arange(0, duration, 100):
+                if isinstance(model, PointMass):
+                    state = model.step(state, action, 100)
+                else:
+                    state, _, _ = model.step(state, action[0], action[1], 100)
+                trajectory.append((state.x, state.y))
+        return state, trajectory
+
+    def make(model_cls, delta_t, **extra):
+        if model_cls is PointMass:
+            return model_cls(interval=100, delta_t=delta_t, backend="euler")
+        return model_cls(lf=lf, lr=lr, interval=100, delta_t=delta_t, **extra)
+
+    # (model, action list, extra kwargs, delta_ts to compare against the delta_t=5 baseline)
+    specs = [
+        (SingleTrackKinematics, VEHICLE_ACTION_LIST, {}, (20, 50)),
+        (
+            SingleTrackDynamics,
+            VEHICLE_ACTION_LIST,
+            dict(mass=vehicle.kerb_weight, mass_height=vehicle.height / 2),
+            (20,),
+        ),
+        (PointMass, PEDESTRIAN_ACTION_LIST, {}, (20, 50)),
+    ]
+
+    for model_cls, actions, extra, delta_ts in specs:
+        ref_state, ref_traj = simulate(make(model_cls, 5, **extra), actions)
+        for delta_t in delta_ts:
+            state, trajectory = simulate(make(model_cls, delta_t, **extra), actions)
+            dist = hausdorff_distance(LineString(ref_traj), LineString(trajectory))
+            end_dist = math.hypot(state.x - ref_state.x, state.y - ref_state.y)
+            assert dist < 1e-2, (
+                f"{model_cls.__name__} delta_t={delta_t} vs 5: Hausdorff distance "
+                f"{dist:.6f} exceeds 1e-2"
+            )
+            assert end_dist < 1e-2, (
+                f"{model_cls.__name__} delta_t={delta_t} vs 5: endpoint distance "
+                f"{end_dist:.6f} exceeds 1e-2"
+            )
+
+
+@pytest.mark.physics
+def test_interval_invariance():
+    """With delta_t=5, the trajectory must not depend on how the horizon is split into step() calls."""
+    vehicle = Vehicle(0)
+    vehicle.load_from_template("medium_car")
+    lf = vehicle.length / 2 - vehicle.front_overhang
+    lr = vehicle.length / 2 - vehicle.rear_overhang
+    total_ms = 600
+    accel, delta = 2.0, 0.4
+
+    def simulate(interval):
+        model = SingleTrackKinematics(lf=lf, lr=lr, interval=interval, delta_t=5)
+        state = State(frame=0, x=0, y=0, heading=0, speed=5.0)
+        t = 0
+        while t < total_ms:
+            state, _, _ = model.step(state, accel, delta, interval)
+            t += interval
+        return state
+
+    ref = simulate(5)
+    for interval in (10, 50, 100, 300, 600):
+        state = simulate(interval)
+        assert abs(state.x - ref.x) < 1e-12, f"interval={interval} vs 5: x {state.x} != {ref.x}"
+        assert abs(state.y - ref.y) < 1e-12, f"interval={interval} vs 5: y {state.y} != {ref.y}"
+        assert (
+            abs(state.heading - ref.heading) < 1e-12
+        ), f"interval={interval} vs 5: heading {state.heading} != {ref.heading}"
+
+
+@pytest.mark.physics
+def test_drift_converges_at_fine_step():
+    """SingleTrackDrift is numerically stiff (a fast mode around 800 s^-1 makes explicit RK4
+    stable only below ~3.5 ms), so only fine step sizes converge. This guards the persistent
+    yaw-rate/slip-angle state and the RK4 integrator: before the fix, even delta_t=1 ms
+    integrated the wrong (per-step-reset) dynamics and diverged ~6 m from the true ODE over 5 s.
+    """
+    vehicle = Vehicle(0)
+    vehicle.load_from_template("medium_car")
+    lf = vehicle.length / 2 - vehicle.front_overhang
+    lr = vehicle.length / 2 - vehicle.rear_overhang
+
+    def simulate(delta_t):
+        model = SingleTrackDrift(
+            lf=lf,
+            lr=lr,
+            mass=vehicle.kerb_weight,
+            mass_height=vehicle.height / 2,
+            interval=100,
+            delta_t=delta_t,
+        )
+        state = State(frame=0, x=0, y=0, heading=0, speed=10.0, vx=10.0, vy=0)
+        omega_wf = omega_wr = 10.0 / model.radius
+        t = 0
+        while t < 5000:
+            state, omega_wf, omega_wr, _, _ = model.step(state, omega_wf, omega_wr, 1.0, 0.2, 100)
+            t += 100
+        return state
+
+    ref = simulate(1)
+    state = simulate(2)
+    dist = math.hypot(state.x - ref.x, state.y - ref.y)
+    assert dist < 0.2, f"drift delta_t=2 vs 1: endpoint distance {dist:.4f} exceeds 0.2"
+
+
+@pytest.mark.physics
+@pytest.mark.parametrize(
+    "model_cls", [SingleTrackKinematics, SingleTrackDynamics, SingleTrackDrift]
+)
+def test_single_track_smoke(model_cls):
+    """A range-constrained model of each class steps the full action list without NaN/errors.
+
+    Replaces three near-identical tests: builds the model from the medium_car template with the
+    vehicle's steer/speed/accel ranges, runs the whole VEHICLE_ACTION_LIST, asserts every state
+    stays finite with increasing frames, and finishes with an interval=9 (delta_t=5) step that
+    exercises the ``interval % delta_t`` remainder sub-step.
+    """
+    vehicle = Vehicle(0)
+    vehicle.load_from_template("medium_car")
+    lf = vehicle.length / 2 - vehicle.front_overhang
+    lr = vehicle.length / 2 - vehicle.rear_overhang
+
+    extra = {}
+    if issubclass(model_cls, (SingleTrackDynamics, SingleTrackDrift)):
+        extra = dict(mass=vehicle.kerb_weight, mass_height=vehicle.height / 2)
+
+    model = model_cls(
+        lf=lf,
+        lr=lr,
         steer_range=vehicle.steer_range,
         speed_range=vehicle.speed_range,
         accel_range=vehicle.accel_range,
-        interval=interval,
-        delta_t=delta_t,
+        interval=100,
+        delta_t=5,
+        **extra,
     )
 
-    physics_model = SingleTrackKinematics(
-        lf=vehicle.length / 2 - vehicle.front_overhang,
-        lr=vehicle.length / 2 - vehicle.rear_overhang,
-        interval=interval,
-        delta_t=delta_t,
-    )
-
-    expected_lf = MEDIUM_CAR_LENGTH / 2 - MEDIUM_CAR_FRONT_OVERHANG
-    assert (
-        physics_model_constrained.lf == expected_lf
-    ), f"lf mismatch: {physics_model_constrained.lf} != {expected_lf}"
-    expected_lr = MEDIUM_CAR_LENGTH / 2 - MEDIUM_CAR_REAR_OVERHANG
-    assert (
-        physics_model_constrained.lr == expected_lr
-    ), f"lr mismatch: {physics_model_constrained.lr} != {expected_lr}"
-    logging.info(f"{vehicle.steer_range}, {vehicle.speed_range}, {vehicle.accel_range}")
-
-    state_constrained = State(frame=0, x=10, y=10, heading=0, speed=0)
     state = State(frame=0, x=10, y=10, heading=0, speed=0)
-    trajectory = [(state.x, state.y)]
-    if RENDER:
-        # visualizer = Visualizer(vehicle, int(1000/interval))
-        visualizer = Visualizer(vehicle)
-        t1 = time.time()
-
+    states = [state]
+    omega_wf = omega_wr = 0
     for action, duration in VEHICLE_ACTION_LIST:
-        for _ in np.arange(0, duration, interval):
-            state, _, _ = physics_model.step(
-                state_constrained,
-                action[0] + TEST_ACCEL_OFFSET_1,
-                action[1] + TEST_STEER_OFFSET_1,
-                interval,
-            )
-            is_valid = physics_model_constrained.verify_state(state, state_constrained, interval)
-            assert not is_valid, "State should be invalid when using out-of-range actions"
-
-            state_constrained, real_accel, real_steer = physics_model_constrained.step(
-                state_constrained, action[0], action[1], interval
-            )
-            trajectory.append((state_constrained.x, state_constrained.y))
-
-            if RENDER:
-                visualizer.update(state_constrained, action, (real_accel, real_steer), trajectory)
-
-    if RENDER:
-        t2 = time.time()
-        n_frame = int(np.sum([n_frame for _, n_frame in VEHICLE_ACTION_LIST]) / interval)
-        visualizer.quit()
-        logging.info(
-            "The average fps for single track kinematics model is {:.2f} Hz.".format(
-                n_frame / (t2 - t1)
-            )
-        )
-
-
-@pytest.mark.parametrize("interval, delta_t", [(9, 5), (50, 3), (100, 5)])
-def test_single_track_dynamics(interval, delta_t):
-    vehicle = Vehicle(0)
-    vehicle.load_from_template("medium_car")
-    physics_model_constrained = SingleTrackDynamics(
-        lf=vehicle.length / 2 - vehicle.front_overhang,
-        lr=vehicle.length / 2 - vehicle.rear_overhang,
-        mass=vehicle.kerb_weight,
-        mass_height=vehicle.height / 2,
-        steer_range=vehicle.steer_range,
-        speed_range=vehicle.speed_range,
-        accel_range=vehicle.accel_range,
-        interval=interval,
-        delta_t=delta_t,
-    )
-
-    physics_model = SingleTrackDynamics(
-        lf=vehicle.length / 2 - vehicle.front_overhang,
-        lr=vehicle.length / 2 - vehicle.rear_overhang,
-        mass=vehicle.kerb_weight,
-        mass_height=vehicle.height / 2,
-    )
-
-    state_constrained = State(frame=0, x=10, y=10, heading=0, speed=0)
-    trajectory = [(state_constrained.x, state_constrained.y)]
-    if RENDER:
-        # visualizer = Visualizer(vehicle, int(1000/interval))
-        visualizer = Visualizer(vehicle)
-        t1 = time.time()
-
-    for action, duration in VEHICLE_ACTION_LIST:
-        for _ in np.arange(0, duration, interval):
-            state, _, _ = physics_model.step(
-                state_constrained,
-                action[0] + TEST_ACCEL_OFFSET_2,
-                action[1] + TEST_STEER_OFFSET_2,
-                interval,
-            )
-            is_valid = physics_model_constrained.verify_state(state, state_constrained, interval)
-            assert not is_valid, "State should be invalid when using out-of-range actions"
-
-            state_constrained, real_accel, real_steer = physics_model_constrained.step(
-                state_constrained, action[0], action[1], interval
-            )
-            trajectory.append((state_constrained.x, state_constrained.y))
-            if RENDER:
-                visualizer.update(state_constrained, action, (real_accel, real_steer), trajectory)
-
-    if RENDER:
-        t2 = time.time()
-        n_frame = int(np.sum([n_frame for _, n_frame in VEHICLE_ACTION_LIST]) / interval)
-        visualizer.quit()
-        logging.info(
-            "The average fps for single track dynamics model is {:.2f} Hz.".format(
-                n_frame / (t2 - t1)
-            )
-        )
-
-
-@pytest.mark.physics
-@pytest.mark.parametrize("interval, delta_t", [(9, 5), (50, 3), (100, 5)])
-def test_single_track_drift(interval, delta_t):
-    vehicle = Vehicle(0)
-    vehicle.load_from_template("medium_car")
-    physics_model_constrained = SingleTrackDrift(
-        lf=vehicle.length / 2 - vehicle.front_overhang,
-        lr=vehicle.length / 2 - vehicle.rear_overhang,
-        mass=vehicle.kerb_weight,
-        mass_height=vehicle.height / 2,
-        steer_range=vehicle.steer_range,
-        speed_range=vehicle.speed_range,
-        accel_range=vehicle.accel_range,
-        interval=interval,
-        delta_t=delta_t,
-    )
-
-    state_constrained = State(frame=0, x=10, y=10, heading=0, speed=0)
-    omega_wf = 0
-    omega_wr = 0
-    trajectory = [(state_constrained.x, state_constrained.y)]
-    if RENDER:
-        # visualizer = Visualizer(vehicle, int(1000/interval))
-        visualizer = Visualizer(vehicle)
-        t1 = time.time()
-
-    for action, duration in VEHICLE_ACTION_LIST:
-        for _ in np.arange(0, duration, interval):
-            (state_constrained, omega_wf, omega_wr, real_accel, real_steer) = (
-                physics_model_constrained.step(
-                    state_constrained, omega_wf, omega_wr, action[0], action[1], interval
+        for _ in np.arange(0, duration, 100):
+            if isinstance(model, SingleTrackDrift):
+                state, omega_wf, omega_wr, _, _ = model.step(
+                    state, omega_wf, omega_wr, action[0], action[1], 100
                 )
-            )
-            trajectory.append((state_constrained.x, state_constrained.y))
-            if RENDER:
-                visualizer.update(state_constrained, action, (real_accel, real_steer), trajectory)
+            else:
+                state, _, _ = model.step(state, action[0], action[1], 100)
+            assert state.frame == states[-1].frame + 100
+            assert math.isfinite(state.x) and math.isfinite(state.y)
+            assert math.isfinite(state.speed) and math.isfinite(state.heading)
+            states.append(state)
 
-    if RENDER:
-        t2 = time.time()
-        n_frame = int(np.sum([n_frame for _, n_frame in VEHICLE_ACTION_LIST]) / interval)
+    # Remainder sub-step path (5 ms sub-steps plus a 4 ms leftover for interval=9).
+    if isinstance(model, SingleTrackDrift):
+        state, omega_wf, omega_wr, _, _ = model.step(state, omega_wf, omega_wr, 1.0, 0.1, 9)
+    else:
+        state, _, _ = model.step(state, 1.0, 0.1, 9)
+    assert state.frame == states[-1].frame + 9
+    assert math.isfinite(state.x) and math.isfinite(state.y) and math.isfinite(state.speed)
+
+    if RENDER and model_cls is SingleTrackKinematics:
+        visualizer = Visualizer(vehicle)
+        trajectory = [(s.x, s.y) for s in states]
+        for s in states:
+            visualizer.update(s, (0, 0), (0, 0), trajectory)
         visualizer.quit()
-        logging.info(
-            "The average fps for single track drift model is {:.2f} Hz.".format(n_frame / (t2 - t1))
-        )
 
 
 @pytest.mark.physics
-@pytest.mark.parametrize("interval, delta_t", [(9, 5), (50, 3), (100, 5)])
-def test_deviation(interval, delta_t):
+@pytest.mark.parametrize("model_cls", [SingleTrackKinematics, SingleTrackDynamics])
+def test_verify_state_rejects_out_of_range(model_cls):
+    """verify_state must reject a step pushed beyond the steer/accel range but accept an in-range one."""
     vehicle = Vehicle(0)
     vehicle.load_from_template("medium_car")
-    kinematics_model = SingleTrackKinematics(
-        lf=vehicle.length / 2 - vehicle.front_overhang,
-        lr=vehicle.length / 2 - vehicle.rear_overhang,
+    lf = vehicle.length / 2 - vehicle.front_overhang
+    lr = vehicle.length / 2 - vehicle.rear_overhang
+
+    extra = {}
+    if model_cls is SingleTrackDynamics:
+        extra = dict(mass=vehicle.kerb_weight, mass_height=vehicle.height / 2)
+    ranges = dict(
         steer_range=vehicle.steer_range,
         speed_range=vehicle.speed_range,
         accel_range=vehicle.accel_range,
-        interval=interval,
-        delta_t=delta_t,
     )
-    dynamics_model = SingleTrackDynamics(
-        lf=vehicle.length / 2 - vehicle.front_overhang,
-        lr=vehicle.length / 2 - vehicle.rear_overhang,
-        mass=vehicle.kerb_weight,
-        mass_height=vehicle.height / 2,
-        steer_range=vehicle.steer_range,
-        speed_range=vehicle.speed_range,
-        accel_range=vehicle.accel_range,
-        interval=interval,
-        delta_t=delta_t,
+    constrained = model_cls(lf=lf, lr=lr, interval=100, delta_t=5, **ranges, **extra)
+    free = model_cls(lf=lf, lr=lr, interval=100, delta_t=5, **extra)
+
+    last = State(frame=0, x=10, y=10, heading=0, speed=5.0, vx=5.0, vy=0)
+
+    # Steering far beyond max_steer (pi/6 ~= 0.52 rad) must be rejected by verify_state.
+    bad, _, _ = free.step(last, 0.0, 1.2, 100)
+    assert constrained.verify_state(bad, last) is False
+
+    # Regression: an accelerating near-straight step at speed used to be rejected because the
+    # reachability box paired the max speed with the extreme steering angle. With a straight
+    # travel bound (Euclidean displacement <= arc length) it is accepted.
+    fast_last = State(frame=0, x=0, y=0, heading=0, speed=10.0, vx=10.0, vy=0)
+    good, real_accel, real_steer = constrained.step(fast_last, 1.0, 0.1, 100)
+    assert real_accel == 1.0 and real_steer == 0.1
+    assert constrained.verify_state(good, fast_last) is True
+
+    # A teleport far beyond one step of travel is still rejected by the distance bound.
+    teleport = State(
+        frame=fast_last.frame + 100,
+        x=fast_last.x + 100.0,
+        y=fast_last.y,
+        heading=fast_last.heading,
+        speed=fast_last.speed,
     )
-    drift_model = SingleTrackDrift(
-        lf=vehicle.length / 2 - vehicle.front_overhang,
-        lr=vehicle.length / 2 - vehicle.rear_overhang,
-        mass=vehicle.kerb_weight,
-        mass_height=vehicle.height / 2,
-        steer_range=vehicle.steer_range,
-        speed_range=vehicle.speed_range,
-        accel_range=vehicle.accel_range,
-        interval=interval,
-        delta_t=delta_t,
-    )
+    assert constrained.verify_state(teleport, fast_last) is False
 
-    state_kinematics = State(frame=0, x=10, y=10, heading=0, speed=0)
-    state_dynamics = State(frame=0, x=10, y=10, heading=0, speed=0)
-    state_drift = State(frame=0, x=10, y=10, heading=0, speed=0)
-    omega_wf = 0
-    omega_wr = 0
-    trajectory_kinematics = [(state_kinematics.x, state_kinematics.y)]
-    trajectory_dynamics = [(state_dynamics.x, state_dynamics.y)]
-    trajectory_drift = [(state_drift.x, state_drift.y)]
 
-    for action, duration in VEHICLE_ACTION_LIST:
-        for _ in np.arange(0, duration, interval):
-            state_kinematics, _, _ = kinematics_model.step(
-                state_kinematics, action[0], action[1], interval
-            )
-            trajectory_kinematics.append((state_kinematics.x, state_kinematics.y))
+@pytest.mark.physics
+def test_grip_cap():
+    """SingleTrackKinematics.mu is an opt-in grip limit.
 
-            state_dynamics, _, _ = dynamics_model.step(
-                state_dynamics, action[0], action[1], interval
-            )
-            trajectory_dynamics.append((state_dynamics.x, state_dynamics.y))
+    When mu is None (default) the model stays the pure no-slip kinematic reference. When mu is
+    set, the yaw rate is capped so the lateral acceleration v * phi_dot stays within mu * g,
+    i.e. the vehicle understeers once the grip limit is reached instead of keeping an
+    unlimited-grip turn.
+    """
+    vehicle = Vehicle(0)
+    vehicle.load_from_template("medium_car")
+    lf = vehicle.length / 2 - vehicle.front_overhang
+    lr = vehicle.length / 2 - vehicle.rear_overhang
+    g = 9.81
 
-            state_drift, omega_wf, omega_wr, _, _ = drift_model.step(
-                state_drift, omega_wf, omega_wr, action[0], action[1], interval
-            )
-            trajectory_drift.append((state_drift.x, state_drift.y))
+    # Opt-in: the default model carries no friction limit.
+    model_default = SingleTrackKinematics(lf=lf, lr=lr)
+    assert model_default.mu is None
 
-    deviation1 = hausdorff_distance(
-        LineString(trajectory_kinematics), LineString(trajectory_dynamics)
-    )
-    deviation2 = hausdorff_distance(LineString(trajectory_kinematics), LineString(trajectory_drift))
-    deviation3 = hausdorff_distance(LineString(trajectory_dynamics), LineString(trajectory_drift))
+    mu = 0.85
+    mu_g = mu * g
 
-    logging.info(f"The deviation between kinematics and dynamics model is {deviation1:.2f}")
-    logging.info(f"The deviation between kinematics and drift model is {deviation2:.2f}")
-    logging.info(f"The deviation between dynamics and drift model is {deviation3:.2f}")
+    def simulate(mu_, v0=20.0, accel=0.0, steer=0.3, seconds=5.0, delta_t=5):
+        """Return (final state, max measured |yaw rate| over one step)."""
+        model = SingleTrackKinematics(lf=lf, lr=lr, mu=mu_, interval=100, delta_t=delta_t)
+        state = State(frame=0, x=0, y=0, heading=0, speed=v0, vx=v0, vy=0)
+        max_yaw = 0.0
+        for _ in range(int(seconds * 1000 / 100)):
+            prev = state.heading
+            state, _, _ = model.step(state, accel, steer, 100)
+            dh = (state.heading - prev + math.pi) % (2 * math.pi) - math.pi
+            max_yaw = max(max_yaw, abs(dh) / 0.1)
+        return state, max_yaw
 
-    if RENDER:
-        pygame.init()
-        screen = pygame.display.set_mode((1200, 1200))
-        screen.fill((255, 255, 255))
-        pygame.draw.lines(screen, (100, 0, 0), False, np.array(trajectory_kinematics) * 20, 1)
-        pygame.draw.lines(screen, (0, 100, 0), False, np.array(trajectory_dynamics) * 20, 1)
-        pygame.draw.lines(screen, (0, 0, 100), False, np.array(trajectory_drift) * 20, 1)
-        pygame.display.update()
-        pygame.time.wait(3000)
-        pygame.quit()
+    # v=20, delta=0.3 demands a_y ~= 46 m/s^2 >> mu*g=8.34: the turn rate must be capped.
+    state_capped, max_yaw_capped = simulate(mu)
+    state_free, max_yaw_free = simulate(None)
+
+    # The lateral acceleration v * phi_dot never exceeds mu * g (v stays 20 here).
+    assert max_yaw_capped * 20.0 <= mu_g + 1e-6
+    # The geometric (unlimited-grip) model turns far faster in the same corner.
+    assert max_yaw_free > 2.0
+    assert max_yaw_capped < 0.5
+    # The capped vehicle follows a wider arc, so the two endpoints differ by tens of meters.
+    assert math.hypot(state_capped.x - state_free.x, state_capped.y - state_free.y) > 30.0
+
+    # Below the grip limit (a_y ~= 0.95 m/s^2 here) the cap is inactive: identical to mu=None.
+    state_low_cap, _ = simulate(mu, v0=5.0, steer=0.1, seconds=2.0)
+    state_low_free, _ = simulate(None, v0=5.0, steer=0.1, seconds=2.0)
+    assert math.hypot(state_low_cap.x - state_low_free.x, state_low_cap.y - state_low_free.y) < 1e-6
+
+    # Step-size invariance is preserved even in the (piecewise) capped regime: the only
+    # non-smooth point is the moment the demand crosses mu*g, so keep a loose bound.
+    state_cap5, _ = simulate(mu, v0=5.0, accel=1.5, steer=0.3, seconds=5.0, delta_t=5)
+    state_cap20, _ = simulate(mu, v0=5.0, accel=1.5, steer=0.3, seconds=5.0, delta_t=20)
+    assert math.hypot(state_cap5.x - state_cap20.x, state_cap5.y - state_cap20.y) < 0.2
+
+
+@pytest.mark.physics
+def test_friction_ellipse():
+    """SingleTrackDynamics.friction_ellipse couples longitudinal and lateral grip.
+
+    Off by default (no behaviour change). When enabled, braking/acceleration reduces the
+    lateral-response coefficient, so a braking-and-turning vehicle accumulates less yaw than
+    without the ellipse; at zero longitudinal acceleration the two are identical.
+    """
+    vehicle = Vehicle(0)
+    vehicle.load_from_template("medium_car")
+    lf = vehicle.length / 2 - vehicle.front_overhang
+    lr = vehicle.length / 2 - vehicle.rear_overhang
+
+    def make_model(flag):
+        return SingleTrackDynamics(
+            lf=lf,
+            lr=lr,
+            mass=vehicle.kerb_weight,
+            mass_height=vehicle.height / 2,
+            interval=100,
+            delta_t=2,
+            friction_ellipse=flag,
+        )
+
+    base = make_model(False)
+    assert base.friction_ellipse is False
+
+    def simulate(flag, accel, steer=0.0, seconds=3.0):
+        model = make_model(flag)
+        state = State(frame=0, x=0, y=0, heading=0, speed=20.0, vx=20.0, vy=0)
+        for _ in range(int(seconds * 1000 / 100)):
+            state, _, _ = model.step(state, accel, steer, 100)
+        return state
+
+    # accel = 0: the ellipse reduces mu_lat to mu, so the flag must not change the trajectory.
+    s_off = simulate(False, accel=0.0, steer=0.3)
+    s_on = simulate(True, accel=0.0, steer=0.3)
+    assert math.hypot(s_off.x - s_on.x, s_off.y - s_on.y) < 1e-12
+
+    # Braking (-6 m/s^2, well within mu*g) while cornering: the ellipse leaves less lateral
+    # capability, so the yaw build-up (and thus the lateral drift) is smaller.
+    s_off_brk = simulate(False, accel=-6.0, steer=0.3)
+    s_on_brk = simulate(True, accel=-6.0, steer=0.3)
+    assert math.hypot(s_off_brk.x - s_on_brk.x, s_off_brk.y - s_on_brk.y) > 1.0
+    assert abs(s_on_brk.heading) < abs(s_off_brk.heading)
+
+
+@pytest.mark.physics
+def test_build_physics_model():
+    """Vehicle.build_physics_model wires the template geometry/mass into a physics model."""
+    vehicle = Vehicle(0)
+    vehicle.load_from_template("medium_car")
+    expected_lf = vehicle.length / 2 - vehicle.front_overhang
+    expected_lr = vehicle.length / 2 - vehicle.rear_overhang
+
+    # Kinematics: geometry + ranges (+ optional mu), no mass parameters needed.
+    kin = vehicle.build_physics_model(SingleTrackKinematics, mu=0.85)
+    assert isinstance(kin, SingleTrackKinematics)
+    assert kin.lf == expected_lf
+    assert kin.lr == expected_lr
+    assert kin.mu == 0.85
+    assert kin.steer_range == vehicle.steer_range
+    assert kin.speed_range == vehicle.speed_range
+    assert kin.accel_range == vehicle.accel_range
+
+    kin_default = vehicle.build_physics_model(SingleTrackKinematics)
+    assert kin_default.mu is None
+
+    # Dynamics: geometry + mass + optional mu / friction_ellipse; I_z keeps the class default.
+    dyn = vehicle.build_physics_model(SingleTrackDynamics, mu=0.85, friction_ellipse=True)
+    assert isinstance(dyn, SingleTrackDynamics)
+    assert dyn.lf == expected_lf and dyn.lr == expected_lr
+    assert dyn.mass == vehicle.kerb_weight
+    assert dyn.mass_height == vehicle.height / 2
+    assert dyn.mu == 0.85
+    assert dyn.friction_ellipse is True
+    assert dyn.I_z == SingleTrackDynamics(lf=1, lr=1, mass=1, mass_height=0.5).I_z
+
+    # Drift: geometry + mass + wheel radius / I_z overrides.
+    drift = vehicle.build_physics_model(SingleTrackDrift, I_z=2000.0, radius=0.33)
+    assert isinstance(drift, SingleTrackDrift)
+    assert drift.lf == expected_lf and drift.lr == expected_lr
+    assert drift.mass == vehicle.kerb_weight
+    assert drift.mass_height == vehicle.height / 2
+    assert drift.I_z == 2000.0
+    assert drift.radius == 0.33

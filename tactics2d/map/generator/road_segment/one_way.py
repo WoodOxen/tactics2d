@@ -19,6 +19,7 @@ from .element_builder import (
     build_lane_from_boundaries,
     build_roadline_from_points,
     lane_ids,
+    pin_offset_polyline_endpoints,
 )
 from .reference_line import fit_reference_line
 from .road_segment import RoadSegment
@@ -86,10 +87,11 @@ class OneWay(RoadSegment):
         )
 
         boundary_num = lane_n + 1
-        boundary_pts = [
-            offset_polyline(center_pts, boundary_offset(i, lane_n, lane_w))
-            for i in range(boundary_num)
-        ]
+        boundary_pts = []
+        for i in range(boundary_num):
+            offset = boundary_offset(i, lane_n, lane_w)
+            pts = offset_polyline(center_pts, offset)
+            boundary_pts.append(pin_offset_polyline_endpoints(pts, start_port, end_port, offset))
 
         roadlines: list[RoadLine] = []
         boundary_roadlines: list[RoadLine] = []

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract version from pyproject.toml (compatible with Python 3.8+)"""
+"""Extract version from pyproject.toml (compatible with Python 3.10+)"""
 import sys
 
 try:

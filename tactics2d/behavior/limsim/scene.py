@@ -10,6 +10,7 @@ from shapely.geometry import LineString, Point
 
 from tactics2d.geometry import normalize_angle
 from tactics2d.map.element import Map
+from tactics2d.map.element.map import HAS_STRTREE
 from tactics2d.participant.trajectory import State
 from tactics2d.routing.utils import find_nearest_lane, get_lane_centerline
 
@@ -99,7 +100,9 @@ class SceneBuilder:
             distance = lane.geometry.distance(point) if projection is None else projection.distance
             if distance > self.config.lane_match_radius:
                 continue
-            lane_heading = self._lane_heading_at(lane, projection.s if projection is not None else None)
+            lane_heading = self._lane_heading_at(
+                lane, projection.s if projection is not None else None
+            )
             heading_error = 0.0
             if lane_heading is not None:
                 heading_error = abs(normalize_angle(state.heading - lane_heading))
@@ -114,12 +117,18 @@ class SceneBuilder:
         lane = map_.lanes.get(lane_id)
         point = Point(point_xy)
         lane_ids = set()
-        for candidate_id, candidate_lane in map_.lanes.items():
-            if candidate_lane.geometry is None:
+        # Broad-phase: use the map spatial index when available, else full scan.
+        if HAS_STRTREE and map_._element_geometries:
+            candidate_ids = map_.query_point(point_xy, buffer=self.config.lane_match_radius)
+        else:
+            candidate_ids = list(map_.lanes.keys())
+        for candidate_id in candidate_ids:
+            candidate_lane = map_.lanes.get(candidate_id)
+            if candidate_lane is None or candidate_lane.geometry is None:
                 continue
-            centerline = get_lane_centerline(candidate_lane)
+            centerline = candidate_lane.centerline()
             if centerline is not None:
-                distance = LineString(centerline).distance(point)
+                distance = centerline.distance(point)
             else:
                 distance = candidate_lane.geometry.distance(point)
             if distance <= self.config.lane_match_radius:

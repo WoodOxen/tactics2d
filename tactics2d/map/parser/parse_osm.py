@@ -33,6 +33,57 @@ class OSMParser:
                 Defaults to False.
         """
         self.lanelet2 = lanelet2
+        self._way_id_map = {}
+        self._relation_id_map = {}
+
+    def _mapped_way_id(self, id_: int) -> int:
+        return self._way_id_map.get(id_, id_)
+
+    def _mapped_relation_id(self, id_: int) -> int:
+        return self._relation_id_map.get(id_, id_)
+
+    def _build_id_remaps(self, xml_root: ET.Element) -> None:
+        """Remap way/relation ids that collide with other element kinds.
+
+        OSM keeps node, way, and relation ids in independent namespaces, while
+        :class:`Map` enforces a single one; official levelXdata lanelet2 maps
+        reuse numeric ids across kinds (e.g. exiD node 1500 vs way 1500).
+        Colliding ways and relations get ids from a free range, and every
+        member reference is resolved through the same tables, so maps without
+        collisions keep their original ids untouched.
+        """
+        node_ids = {int(node.attrib["id"]) for node in xml_root.findall("node")}
+        way_ids = [int(way.attrib["id"]) for way in xml_root.findall("way")]
+        relation_ids = [int(relation.attrib["id"]) for relation in xml_root.findall("relation")]
+
+        self._way_id_map = {}
+        self._relation_id_map = {}
+        used = set(node_ids)
+        next_id = max(used.union(way_ids, relation_ids), default=0) + 1
+
+        for way_id in way_ids:
+            if way_id in used:
+                self._way_id_map[way_id] = next_id
+                used.add(next_id)
+                next_id += 1
+            else:
+                used.add(way_id)
+
+        for relation_id in relation_ids:
+            if relation_id in used:
+                self._relation_id_map[relation_id] = next_id
+                used.add(next_id)
+                next_id += 1
+            else:
+                used.add(relation_id)
+
+        if self._way_id_map or self._relation_id_map:
+            logging.warning(
+                "%d way id(s) and %d relation id(s) collide with other element kinds; "
+                "remapped them to a free id range.",
+                len(self._way_id_map),
+                len(self._relation_id_map),
+            )
 
     def _append_point_list(self, point_list: list, new_points: list, component_id: int) -> None:
         """Append new points to an existing point list, handling direction alignment.
@@ -58,6 +109,67 @@ class OSMParser:
             raise SyntaxError(f"Points on the side of relation {component_id} is not continuous.")
 
         point_list += new_points[1:]
+
+    def _stitch_polylines(self, segments: list, component_id: int) -> list:
+        """Stitch member polylines into one chain regardless of member order.
+
+        Official lanelet2 exports do not guarantee that relation members are
+        listed head-to-tail, so segments are joined by matching endpoints in
+        any order and orientation. When no exact match remains, the chain is
+        bridged to the nearest remaining segment with a warning instead of
+        aborting the whole map.
+
+        Args:
+            segments (list): Lists of points, one per relation member.
+            component_id (int): The id of the relation, used for messages.
+
+        Returns:
+            list: The stitched point chain.
+        """
+        segments = [list(segment) for segment in segments if len(segment) > 0]
+        if not segments:
+            return []
+
+        chain = segments.pop(0)
+        while segments:
+            joined = False
+            for index, segment in enumerate(segments):
+                try:
+                    self._append_point_list(chain, list(segment), component_id)
+                except SyntaxError:
+                    continue
+                segments.pop(index)
+                joined = True
+                break
+            if joined:
+                continue
+
+            best_cost = None
+            best = None
+            for index, segment in enumerate(segments):
+                for chain_flip, chain_end in ((False, chain[-1]), (True, chain[0])):
+                    for segment_flip, segment_start in ((False, segment[0]), (True, segment[-1])):
+                        cost = (chain_end[0] - segment_start[0]) ** 2 + (
+                            chain_end[1] - segment_start[1]
+                        ) ** 2
+                        if best_cost is None or cost < best_cost:
+                            best_cost = cost
+                            best = (index, chain_flip, segment_flip)
+
+            index, chain_flip, segment_flip = best
+            segment = segments.pop(index)
+            if chain_flip:
+                chain.reverse()
+            if segment_flip:
+                segment.reverse()
+            logging.warning(
+                "Members of relation %s are not connected; bridging a gap of %.2f m.",
+                component_id,
+                best_cost**0.5,
+            )
+            chain += segment
+
+        return chain
 
     def _get_tags(self, xml_node: ET.Element) -> dict:
         """Parse OSM tags from an XML node into a dictionary.
@@ -151,18 +263,18 @@ class OSMParser:
         Returns:
             Area: The parsed area, or None if the outer boundary is empty or parsing fails.
         """
-        area_id = int(xml_node.attrib["id"])
+        area_id = self._mapped_relation_id(int(xml_node.attrib["id"]))
         line_ids = dict(inner=[], outer=[])
         regulatory_ids = []
 
         for member in xml_node.findall("member"):
             member_id = int(member.attrib["ref"])
             if member.attrib["role"] == "outer":
-                line_ids["outer"].append(member_id)
+                line_ids["outer"].append(self._mapped_way_id(member_id))
             elif member.attrib["role"] == "inner":
-                line_ids["inner"].append(member_id)
+                line_ids["inner"].append(self._mapped_way_id(member_id))
             elif member.attrib["role"] == "regulatory_element":
-                regulatory_ids.append(member_id)
+                regulatory_ids.append(self._mapped_relation_id(member_id))
 
         outer_point_list = []
         for line_id in line_ids["outer"]:
@@ -304,7 +416,7 @@ class OSMParser:
             Area | RoadLine: An Area if the way is closed or tagged as area,
                 otherwise a RoadLine.
         """
-        id_ = int(xml_node.attrib["id"])
+        id_ = self._mapped_way_id(int(xml_node.attrib["id"]))
         point_list = []
         point_ids = []
 
@@ -333,7 +445,7 @@ class OSMParser:
         Returns:
             Area | RoadLine | Regulatory: The parsed road element, or None if parsing fails.
         """
-        id_ = int(xml_node.attrib["id"])
+        id_ = self._mapped_relation_id(int(xml_node.attrib["id"]))
         tags = self._get_tags(xml_node)
         type_ = tags.pop("type")
         road_element = None
@@ -342,22 +454,16 @@ class OSMParser:
             road_element = self._parse_area(xml_node, map_)
 
         elif type_ == "route":
-            point_list = []
             line_ids = []
             for member in xml_node.findall("member"):
                 if member.attrib["type"] == "way":
-                    line_ids.append(int(member.attrib["ref"]))
-            for line_id in line_ids:
-                if len(point_list) == 0:
-                    if map_.roadlines.get(line_id):
-                        point_list = list(map_.roadlines[line_id].geometry.coords)
-                if map_.roadlines.get(line_id):
-                    new_points = list(map_.roadlines[line_id].geometry.coords)
-                    try:
-                        self._append_point_list(point_list, new_points, id_)
-                    except SyntaxError as err:
-                        logging.error(err)
-                        return None
+                    line_ids.append(self._mapped_way_id(int(member.attrib["ref"])))
+            segments = [
+                list(map_.roadlines[line_id].geometry.coords)
+                for line_id in line_ids
+                if map_.roadlines.get(line_id)
+            ]
+            point_list = self._stitch_polylines(segments, id_)
             road_element = RoadLine(id_, LineString(point_list), type_="route", custom_tags=tags)
 
         elif type_ == "restriction":
@@ -367,6 +473,10 @@ class OSMParser:
             vias = {}
             for member in xml_node.findall("member"):
                 member_id = int(member.attrib["ref"])
+                if member.attrib["type"] == "way":
+                    member_id = self._mapped_way_id(member_id)
+                elif member.attrib["type"] == "relation":
+                    member_id = self._mapped_relation_id(member_id)
                 if member.attrib["role"] == "from":
                     froms[member_id] = member.attrib["type"]
                 elif member.attrib["role"] == "to":
@@ -391,11 +501,17 @@ class OSMParser:
         Returns:
             RoadLine: A roadline with Lanelet2 tags.
         """
-        line_id = int(xml_node.attrib["id"])
+        line_id = self._mapped_way_id(int(xml_node.attrib["id"]))
         point_list = []
 
         for node in xml_node.findall("nd"):
-            point_list.append(map_.nodes[int(node.attrib["ref"])].location)
+            node_id = int(node.attrib["ref"])
+            if node_id not in map_.nodes:
+                logging.warning("Way %s references missing node %s; skipped it.", line_id, node_id)
+                continue
+            point_list.append(map_.nodes[node_id].location)
+        if len(point_list) < 2:
+            raise SyntaxError(f"Way {line_id} has fewer than 2 resolvable nodes.")
         linestring = LineString(point_list)
 
         tags = self._get_lanelet2_tags(xml_node)
@@ -412,25 +528,27 @@ class OSMParser:
         Returns:
             Lane: A lane with Lanelet2 tags and aligned left/right boundaries.
         """
-        lane_id = int(xml_node.attrib["id"])
+        lane_id = self._mapped_relation_id(int(xml_node.attrib["id"]))
         line_ids = dict(left=[], right=[])
         regulatory_ids = []
 
         for member in xml_node.findall("member"):
             member_id = int(member.attrib["ref"])
             if member.attrib["role"] == "left":
-                line_ids["left"].append(member_id)
+                line_ids["left"].append(self._mapped_way_id(member_id))
             elif member.attrib["role"] == "right":
-                line_ids["right"].append(member_id)
+                line_ids["right"].append(self._mapped_way_id(member_id))
             elif member.attrib["role"] == "regulatory_element":
-                regulatory_ids.append(member_id)
+                regulatory_ids.append(self._mapped_relation_id(member_id))
 
         point_list = {}
         for side in ["left", "right"]:
-            point_list[side] = list(map_.roadlines[line_ids[side][0]].geometry.coords)
-            for line_id in line_ids[side][1:]:
-                new_nodes = list(map_.roadlines[line_id].geometry.coords)
-                self._append_point_list(point_list[side], new_nodes, lane_id)
+            segments = [
+                list(map_.roadlines[line_id].geometry.coords) for line_id in line_ids[side]
+            ]
+            point_list[side] = self._stitch_polylines(segments, lane_id)
+            if len(point_list[side]) < 2:
+                raise SyntaxError(f"Lane {lane_id} has no usable {side} boundary.")
 
         left_side = LineString(point_list["left"])
         right_side = LineString(point_list["right"])
@@ -441,6 +559,19 @@ class OSMParser:
             left_side = LineString(point_list["left"])
         right_parallel = right_side.parallel_offset(0.1, "right")
         if right_side.hausdorff_distance(left_side) > right_parallel.hausdorff_distance(left_side):
+            point_list["right"].reverse()
+            right_side = LineString(point_list["right"])
+
+        # Robust orientation: the two sides of a lane must be parallel (both
+        # follow the lane direction; Lanelet2 convention: the left boundary
+        # defines the direction). The parallel_offset/hausdorff heuristic above
+        # is unreliable when the sides are antiparallel, so enforce consistency
+        # directly on the first/last-node direction vectors.
+        v_lx = point_list["left"][-1][0] - point_list["left"][0][0]
+        v_ly = point_list["left"][-1][1] - point_list["left"][0][1]
+        v_rx = point_list["right"][-1][0] - point_list["right"][0][0]
+        v_ry = point_list["right"][-1][1] - point_list["right"][0][1]
+        if v_lx * v_rx + v_ly * v_ry < 0.0:
             point_list["right"].reverse()
             right_side = LineString(point_list["right"])
 
@@ -468,23 +599,23 @@ class OSMParser:
         Returns:
             Area: An area with Lanelet2 tags.
         """
-        area_id = int(xml_node.attrib["id"])
+        area_id = self._mapped_relation_id(int(xml_node.attrib["id"]))
         line_ids = dict(inner=[], outer=[])
         regulatory_ids = []
 
         for member in xml_node.findall("member"):
             member_id = int(member.attrib["ref"])
             if member.attrib["role"] == "outer":
-                line_ids["outer"].append(member_id)
+                line_ids["outer"].append(self._mapped_way_id(member_id))
             elif member.attrib["role"] == "inner":
-                line_ids["inner"].append(member_id)
+                line_ids["inner"].append(self._mapped_way_id(member_id))
             elif member.attrib["role"] == "regulatory_element":
-                regulatory_ids.append(member_id)
+                regulatory_ids.append(self._mapped_relation_id(member_id))
 
-        outer_point_list = list(map_.roadlines[line_ids["outer"][0]].geometry.coords)
-        for line_id in line_ids["outer"][1:]:
-            new_points = list(map_.roadlines[line_id].geometry.coords)
-            self._append_point_list(outer_point_list, new_points, area_id)
+        outer_segments = [
+            list(map_.roadlines[line_id].geometry.coords) for line_id in line_ids["outer"]
+        ]
+        outer_point_list = self._stitch_polylines(outer_segments, area_id)
         if outer_point_list[0] != outer_point_list[-1]:
             logging.warning("The outer boundary of area %d is not closed.", area_id)
 
@@ -518,14 +649,16 @@ class OSMParser:
         Returns:
             Regulatory: A regulatory element with Lanelet2 tags.
         """
-        regulatory_id = int(xml_node.attrib["id"])
+        regulatory_id = self._mapped_relation_id(int(xml_node.attrib["id"]))
         relations = {}
         ways = {}
         for member in xml_node.findall("member"):
             if member.attrib["type"] == "relation":
-                relations[int(member.attrib["ref"])] = member.attrib["role"]
+                relations[self._mapped_relation_id(int(member.attrib["ref"]))] = member.attrib[
+                    "role"
+                ]
             elif member.attrib["type"] == "way":
-                ways[int(member.attrib["ref"])] = member.attrib["role"]
+                ways[self._mapped_way_id(int(member.attrib["ref"]))] = member.attrib["role"]
 
         regulatory_tags = self._get_lanelet2_tags(xml_node)
         if "speed_limit" in regulatory_tags:
@@ -549,6 +682,7 @@ class OSMParser:
             Map: A Tactics2D Map populated with all elements parsed from the OSM file.
         """
         xml_root = ET.parse(file_path).getroot()
+        self._build_id_remaps(xml_root)
 
         if configs is not None:
             project_rule = configs.get("project_rule", None)
@@ -596,33 +730,57 @@ class OSMParser:
             for xml_node in all_nodes:
                 map_.add_node(self._parse_nodes_no_proj(xml_node, lat0, lon0))
 
+        # A single malformed element (missing node reference, empty member
+        # list, degenerate geometry) degrades to a warning instead of
+        # aborting the whole map.
+        recoverable_errors = (KeyError, IndexError, ValueError, SyntaxError)
+
         if self.lanelet2:
             for xml_node in xml_root.findall("way"):
                 if xml_node.get("action") == "delete":
                     continue
-                map_.add_roadline(self._parse_roadline_lanelet2(xml_node, map_))
+                try:
+                    map_.add_roadline(self._parse_roadline_lanelet2(xml_node, map_))
+                except recoverable_errors as error:
+                    logging.warning(
+                        "Skipping way %s: %s", xml_node.attrib.get("id"), error
+                    )
 
             for xml_node in xml_root.findall("relation"):
                 if xml_node.get("action") == "delete":
                     continue
                 for tag in xml_node.findall("tag"):
-                    if tag.attrib["v"] == "lanelet":
-                        map_.add_lane(self._parse_lane_lanelet2(xml_node, map_))
-                    elif tag.attrib["v"] in ["multipolygon", "area"]:
-                        map_.add_area(self._parse_area_lanelet2(xml_node, map_))
+                    try:
+                        if tag.attrib["v"] == "lanelet":
+                            map_.add_lane(self._parse_lane_lanelet2(xml_node, map_))
+                        elif tag.attrib["v"] in ["multipolygon", "area"]:
+                            map_.add_area(self._parse_area_lanelet2(xml_node, map_))
+                    except recoverable_errors as error:
+                        logging.warning(
+                            "Skipping relation %s: %s", xml_node.attrib.get("id"), error
+                        )
 
             for xml_node in xml_root.findall("relation"):
                 if xml_node.get("action") == "delete":
                     continue
                 for tag in xml_node.findall("tag"):
                     if tag.attrib["v"] == "regulatory_element":
-                        map_.add_regulatory(self._parse_regulatory_lanelet2(xml_node))
+                        try:
+                            map_.add_regulatory(self._parse_regulatory_lanelet2(xml_node))
+                        except recoverable_errors as error:
+                            logging.warning(
+                                "Skipping relation %s: %s", xml_node.attrib.get("id"), error
+                            )
 
         else:
             for xml_node in xml_root.findall("way"):
                 if xml_node.get("action") == "delete":
                     continue
-                road_element = self._parse_way(xml_node, map_)
+                try:
+                    road_element = self._parse_way(xml_node, map_)
+                except recoverable_errors as error:
+                    logging.warning("Skipping way %s: %s", xml_node.attrib.get("id"), error)
+                    continue
 
                 if isinstance(road_element, RoadLine):
                     map_.add_roadline(road_element)
@@ -632,7 +790,13 @@ class OSMParser:
             for xml_node in xml_root.findall("relation"):
                 if xml_node.get("action") == "delete":
                     continue
-                road_element = self._parse_relation(xml_node, map_)
+                try:
+                    road_element = self._parse_relation(xml_node, map_)
+                except recoverable_errors as error:
+                    logging.warning(
+                        "Skipping relation %s: %s", xml_node.attrib.get("id"), error
+                    )
+                    continue
 
                 if isinstance(road_element, RoadLine):
                     map_.add_roadline(road_element)
