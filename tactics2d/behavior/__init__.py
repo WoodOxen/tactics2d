@@ -7,6 +7,7 @@ from .base import BehaviorModelBase
 from .bits import BitsBehaviorModel, BitsConfig
 from .intersim import InterSimBehaviorModel, InterSimConfig
 from .limsim import LimSimBehaviorModel, LimSimConfig
+from .smart import SmartBehaviorModel, SmartConfig
 
 __all__ = [
     "BehaviorModelBase",
@@ -16,4 +17,6 @@ __all__ = [
     "InterSimConfig",
     "LimSimBehaviorModel",
     "LimSimConfig",
+    "SmartBehaviorModel",
+    "SmartConfig",
 ]
