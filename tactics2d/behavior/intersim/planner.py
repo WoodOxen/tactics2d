@@ -18,9 +18,7 @@ from tactics2d.map.element import Map
 # Comfortable / emergency deceleration used by InterSim's speed adjustment.
 _A_SLOWDOWN = 2.0
 _A_EMERGENCY = 4.5
-# Corner speed limiting mirrors upstream `proper_speed_minimal = max(5, pi/3 /
-# yaw_change)`: the path is pre-scanned for the sharpest upcoming heading change
-# and the cruise profile brakes so the corner is taken at a safe speed.
+# Corner speed cap constants (upstream `proper_speed_minimal = max(5, pi/3 / yaw_change)`).
 _MIN_TURN_SPEED = 5.0
 _TURN_YAW_K = math.pi / 3.0
 _TURN_YAW_MIN = 0.04
@@ -77,9 +75,7 @@ def lane_chain_points(
     """Concatenate a lane centerline with its successors along the map.
 
     Successors are followed until the chain covers ``lookahead`` meters or no
-    successor remains. When ``goal`` is provided the successor whose initial
-    heading best aims at the goal is chosen (destination routing); otherwise
-    successors are followed greedily by heading continuity.
+    successor remains; with ``goal`` given, the successor aiming at it wins.
 
     Returns:
         A ``(M, 2)`` polyline oriented in the driving direction, or ``None``
@@ -280,10 +276,8 @@ def deceleration_speeds(
 ) -> np.ndarray:
     """Return a speed profile that stops before ``stop_distance`` meters.
 
-    The profile cruises at ``v0`` until braking at ``a_slow`` brings the agent
-    to rest exactly at ``stop_distance`` when the distance allows; otherwise
-    braking starts immediately at the strongest feasible deceleration
-    (capped at ``a_emergency``) and the speed holds at zero afterwards.
+    Cruises at ``v0`` then brakes at ``a_slow`` when the distance allows;
+    otherwise brakes immediately, capped at ``a_emergency``.
     """
 
     steps = int(steps)
@@ -328,11 +322,7 @@ def yield_speeds(
 ) -> np.ndarray:
     """Return a speed profile that slows to ``end_v`` and then continues.
 
-    Mirrors InterSim's ``adjust_speed_for_collision``: a yielding agent brakes
-    toward ``end_v`` (rather than to a full stop) and keeps moving, so it stays
-    off the road as a stationary target. When a near stop is unavoidable
-    (``end_v`` near zero or the conflict distance too short), it falls back to
-    the full-stop profile.
+    Falls back to the full-stop profile when a near stop is unavoidable.
     """
 
     if end_v <= 0.0 or distance <= 0.0:
@@ -371,10 +361,8 @@ def cruise_with_corner_caps(
 ) -> np.ndarray:
     """Return a cruise profile that brakes for upcoming turns.
 
-    Mirrors upstream ``proper_speed_minimal = max(5, pi/3 / yaw_change)``: each
-    path vertex whose tangent swings sharply gets a speed cap, and the speed is
-    limited so the agent can brake down to that cap before reaching it. Straights
-    keep the plain accelerate-toward-``target`` profile.
+    Each sharply-turning path vertex gets a speed cap the agent can brake down
+    to before reaching it; straights keep the plain cruise profile.
     """
 
     points = np.asarray(points, dtype=float).reshape(-1, 2)

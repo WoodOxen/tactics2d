@@ -55,8 +55,8 @@ class LimSimReward:
             n_steps = len(trajectory)
             last_state = trajectory[-1]
 
-            # --- per-step bonuses (original LimSim §3.3, 0.2 / max_decision_num each) ---
-            # mapped to trajectory-step granularity: 0.2 / n_steps per term
+            # --- per-step bonuses (0.2 / n_steps per term, mapped to
+            #     trajectory-step granularity) ---
             for state in trajectory:
                 if abs(state.lateral_offset) < 0.5:
                     reward += 0.2 / n_steps
@@ -93,8 +93,12 @@ class LimSimReward:
         if min_distance < self.config.conflict_distance:
             avg_reward -= 0.05 * (self.config.conflict_distance - min_distance)
 
+        # Normalised per rollout step and capped, so a sustained approach does
+        # not drive the reward to 0.0 (only a collision should do that).
         closing_factor = self._closing_speed_factor(collision_ordered)
-        avg_reward -= 0.02 * closing_factor
+        lengths = [len(trajectory) for trajectory in collision_ordered if trajectory]
+        steps = min(lengths) if lengths else 1
+        avg_reward -= min(self.config.reward_closing_penalty_cap, 0.02 * closing_factor / steps)
 
         return float(max(0.0, min(1.0, avg_reward)))
 

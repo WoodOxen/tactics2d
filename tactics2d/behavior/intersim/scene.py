@@ -37,8 +37,7 @@ class AgentRecord:
     speed_limit: Optional[float] = None
     intent_speed: Optional[float] = None
     lane_id: Optional[object] = None
-    # Braking/acceleration limits taken from the participant (Vehicle defaults:
-    # max_decel 10.0, max_accel 3.0 m/s^2) instead of a hard-coded constant.
+    # Braking/acceleration limits taken from the participant.
     max_accel: float = 3.0
     max_decel: float = 10.0
 

@@ -9,10 +9,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 
 # Adapted from InterSim (github.com/Tsinghua-MARS-Lab/InterSim), MIT,
-# Copyright (c) 2022 Tsinghua MARS Lab. Pure-NumPy port of the M2I relation
-# feature builder (utils_cython get_normalized/get_agents/get_roads) so the
-# learned relation predictor can run inside Tactics2D without the upstream
-# Cython extension.
+# Copyright (c) 2022 Tsinghua MARS Lab.
 
 HISTORY_FRAME_NUM = 11
 RASTER_SIZE = 224
@@ -202,10 +199,9 @@ def road_vectors_and_raster(
 
 
 def normalize_trajectories(trajectories: np.ndarray, x: float, y: float, yaw: float) -> np.ndarray:
-    """Normalize a ``(A, T, 7)`` trajectory array like ``get_normalized``.
+    """Normalize a ``(A, T, 7)`` trajectory array into the agent frame.
 
-    Only the x/y channels are rotated; the feature channels (length, width,
-    bbox yaw, velocities) are zeroed, matching the training-time Cython op.
+    Only the x/y channels are rotated; the remaining feature channels are zeroed.
     """
 
     out = np.zeros_like(trajectories)
@@ -228,7 +224,7 @@ def normalize_points(points: np.ndarray, x: float, y: float, yaw: float) -> np.n
 
 
 def round_half_up(value: float) -> int:
-    """Round half away from zero (mirrors the Cython raster cast)."""
+    """Round half away from zero."""
 
     return int(math.floor(value + 0.5))
 

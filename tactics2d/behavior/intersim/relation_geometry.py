@@ -18,8 +18,7 @@ class Edge(NamedTuple):
     """Directed relation between one influencer and one reactor.
 
     The influencer passes the conflict point first; the reactor must yield.
-    ``frame_diff`` is the signed reactor-minus-influencer frame offset
-    (positive means the reactor arrives later).
+    ``frame_diff`` is the signed reactor-minus-influencer frame offset.
     """
 
     influencer: object
@@ -39,11 +38,9 @@ class AgentBody:
 
 
 def check_body_collision(a: AgentBody, b: AgentBody, margin: float = 0.7) -> bool:
-    """Check whether two oriented boxes overlap.
+    """Check whether two oriented boxes overlap, shrinking both by ``margin``.
 
-    Both boxes are shrunk by ``margin`` before testing (mirroring the 0.7
-    safety factor used by InterSim), so bodies that merely graze are treated
-    as collision-free. The test is symmetric in ``a`` and ``b``.
+    The test is symmetric in ``a`` and ``b``.
     """
 
     box_a = (a.x, a.y, a.yaw, a.length, a.width)
@@ -62,16 +59,9 @@ def detect_relation_edges(
 ) -> List[Edge]:
     """Detect directed relations over planned trajectories.
 
-    For every candidate pair sharing a spatio-temporal conflict, the agent
-    reaching the conflict point later is the reactor and the earlier one the
-    influencer. A mixed vehicle/non-vehicle pair always resolves to the
-    non-vehicle being the influencer (a vehicle yields to it), mirroring the
-    InterSim rule that non-motorized agents are never forced to yield. A
-    same-frame, same-direction contact (a rear-end catch-up) resolves to the
-    trailing vehicle being the reactor.
-
-    Pairs whose same-index centres never come within reach of each other are
-    skipped up front, so large scenes do not pay the full pair scan.
+    The agent reaching the conflict point later is the reactor. A mixed
+    vehicle/non-vehicle pair makes the non-vehicle the influencer; a rear-end
+    catch-up makes the trailing vehicle the reactor.
 
     Args:
         poses: Agent id to planned pose array with shape ``(S, 4)`` storing
@@ -145,8 +135,7 @@ def detect_relation_edges(
                 else:
                     edges.append(Edge(id_a, id_b, 0))
             else:
-                # Simultaneous crossing: the agent entering the shared corridor
-                # earlier passes first; the later one yields.
+                # Simultaneous crossing: the earlier corridor entrant passes first.
                 entry_a, entry_b = _corridor_entry(
                     poses[id_a],
                     poses[id_b],
@@ -180,12 +169,7 @@ def _collision_pairs(
     margin: float,
     max_gap: Optional[int] = None,
 ) -> Optional[Tuple[int, int]]:
-    """Return the closest-in-time colliding frame pair of two trajectories.
-
-    When ``max_gap`` is given, only frame pairs within that time offset are
-    considered, which bounds the scan cost on large scenes; the closest-in-time
-    conflict is what relation resolution consumes anyway.
-    """
+    """Return the closest-in-time colliding frame pair of two trajectories."""
 
     best_diff = None
     best_pair = None
@@ -225,9 +209,8 @@ def _corridor_entry(
 ) -> Tuple[Optional[int], Optional[int]]:
     """Return the first step each trajectory enters the other's corridor.
 
-    The corridor half-width is the summed lateral half-extent of the two
-    bodies (shrunken by ``margin``); the entry step is when the agent's centre
-    first comes within that distance of the other agent's reference polyline.
+    The corridor half-width is the summed lateral half-extent of the two bodies,
+    shrunken by ``margin``.
     """
 
     half = 0.5 * (shape_a[1] + shape_b[1]) * margin + 1e-6

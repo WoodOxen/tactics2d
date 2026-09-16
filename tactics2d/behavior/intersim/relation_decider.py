@@ -16,8 +16,7 @@ from .config import InterSimConfig
 # Adapted from InterSim (github.com/Tsinghua-MARS-Lab/InterSim), MIT,
 # Copyright (c) 2022 Tsinghua MARS Lab.
 
-# The checkpoint is loaded once per process: it is a read-only weight asset, so
-# a module-level cache keeps repeated decider builds from re-reading ~125 MB.
+# Process-wide cache: the checkpoint is a read-only ~125 MB weight asset.
 _MODEL_CACHE = None
 
 
@@ -76,10 +75,8 @@ def road_graph(map_, cx: float, cy: float):
 def make_decider(config: InterSimConfig, poses, types, map_, ego_id, current: int):
     """Build the per-frame learned direction arbiter for relation_mode="nn".
 
-    The model's own geometric detector still builds the conflict graph; this
-    closure only decides the direction of each vehicle-vehicle pair, holding
-    the .bin predictor (with the upstream rule prefilter) and returning
-    ``None`` when it is not confident so the geometric edge is kept.
+    The closure only decides the direction of each vehicle-vehicle pair, and
+    returns ``None`` when the predictor is not confident.
     """
 
     import torch
@@ -130,10 +127,9 @@ def edge_yields(
     """Whether the reactor must yield, using the upstream rule prefilter.
 
     Returns ``True``/``False`` when a rule or a confident predictor decides,
-    and ``None`` when the predictor is not confident (the caller then keeps
-    the geometric edge). Mirrors upstream: the same-direction (< 30 deg) rule
-    yields for whoever faces the other's body, a non-vehicle partner is never
-    forced to yield, and the .bin predictor only arbitrates the rest.
+    and ``None`` when the predictor is not confident (the caller then keeps the
+    geometric edge). The same-direction (< 30 deg) and non-vehicle rules decide
+    first; the .bin predictor only arbitrates the rest.
     """
 
     reactor_pose = poses[reactor_id][current]

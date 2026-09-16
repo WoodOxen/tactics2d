@@ -25,6 +25,10 @@ class LimSimConfig:
     exploration_weight: float = 0.707
     interaction_distance: float = 30.0
     conflict_distance: float = 3.0
+    # Upper bound on the closing-speed reward penalty. Without a cap a sustained
+    # car-following approach subtracts an unbounded amount and clips the reward
+    # to 0.0, which MCTS cannot tell apart from a collision.
+    reward_closing_penalty_cap: float = 0.2
     lane_match_radius: float = 4.0
     lane_heading_match_weight: float = 2.0
     max_lateral_offset_for_lane_rollout: float = 2.5

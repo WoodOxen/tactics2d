@@ -37,16 +37,11 @@ __all__ = [
     "RollingSimulationResult",
 ]
 
-# A reactor yields to any conflict inside the planning horizon (upstream scans
-# the whole horizon for the earliest collision rather than gating on a
-# relative-arrival window), but stops outright only when the conflict is close.
+# Below this distance to the conflict the reactor stops outright instead of yielding.
 _MIN_DISTANCE_TO_TRAVEL = 4.0
-# In "directed_tie" mode a near-simultaneous arrival is treated like upstream's
-# relation no-edge (the learned model cannot pick a side): both agents yield.
-# A clear time separation keeps the plain directed single-yield behaviour.
+# Arrival gap treated as a tie by "directed_tie": both agents yield.
 _NO_EDGE_TIE_FRAMES = 3
-# Relation detection only needs close-in-time contacts; bounding the pair scan
-# keeps large scenes tractable.
+# Frame window bounding the relation pair scan.
 _COLLISION_GAP = 12
 
 
@@ -54,10 +49,8 @@ _COLLISION_GAP = 12
 class InterSimPlanResult:
     """Output of one InterSim-style planning update.
 
-    ``trajectories`` covers the requested agents only; ``relations`` holds the
-    directed ``[influencer -> reactor]`` conflict graph detected on the
-    baseline rollouts, and ``actions`` tags every planned scene agent as
-    ``"follow"`` (keeps its plan) or ``"yield"`` (braked for a reactor).
+    ``relations`` holds the directed ``[influencer -> reactor]`` conflict graph
+    and ``actions`` tags every planned scene agent as ``"follow"`` or ``"yield"``.
     """
 
     trajectories: Dict[object, Trajectory] = field(default_factory=dict)
@@ -69,11 +62,9 @@ class InterSimPlanResult:
 class InterSimBehaviorModel(BehaviorModelBase):
     """Plan interactions with explicit directed relations on Tactics2D data.
 
-    Each requested vehicle first rolls a lane-following (or constant-velocity)
-    baseline; overlapping baselines are turned into directed relations, and
-    every reactor decelerates to a stop short of its conflict so the final
-    forecast is collision-free. This reproduces InterSim's rule core without
-    any learned predictor: the relation and marginal model options are closed.
+    Each requested vehicle rolls a lane-following (or constant-velocity)
+    baseline; overlapping baselines become directed relations, and every
+    reactor decelerates short of its conflict so the forecast is collision-free.
     """
 
     def __init__(self, config: Optional[InterSimConfig] = None):
@@ -182,12 +173,7 @@ class InterSimBehaviorModel(BehaviorModelBase):
     # -- rollout and conflict resolution ---------------------------------
 
     def _baseline_speeds(self, record: AgentRecord) -> np.ndarray:
-        """Return a cruise profile accelerating toward the target speed.
-
-        A free vehicle cruises toward ``max(v0, cruise_speed)`` instead of
-        holding a frozen speed, so an agent that once braked to a stop can
-        resume once its conflict clears (as upstream env planners do).
-        """
+        """Return a cruise profile accelerating toward the target speed."""
 
         config = self.config
         if not record.is_vehicle:
@@ -238,8 +224,7 @@ class InterSimBehaviorModel(BehaviorModelBase):
                 ``relation_mode="nn"``. Defaults to None.
 
         Returns:
-            A tuple of the final speed profiles and the ids of the agents that
-            braked for a conflict.
+            A tuple of the final speed profiles and the yielding agent ids.
         """
 
         config = self.config
@@ -247,12 +232,8 @@ class InterSimBehaviorModel(BehaviorModelBase):
         final_speeds = dict(baseline)
         yielded: set = set()
 
-        # Map each potential reactor to the influencers it must brake for.
-        # "directed" only brakes the later arrival; "yield_all" (all-yield
-        # reference) brakes both sides of every imminent conflict. In "nn" mode
-        # an optional ``decider`` (the learned predictor plus upstream rule
-        # prefilter) overrides the direction per vehicle-vehicle pair, with the
-        # geometric edge kept whenever the predictor is not confident.
+        # Map each potential reactor to the influencers it must brake for; in
+        # "nn" mode the optional ``decider`` overrides the direction per pair.
         yield_edges = {(edge.influencer, edge.reactor) for edge in edges}
         reactor_influencers: Dict[object, List[object]] = {}
         handled_pairs = set()
@@ -292,8 +273,7 @@ class InterSimBehaviorModel(BehaviorModelBase):
                     if records[agent_id].is_vehicle and records[counter_id].is_vehicle:
                         reactor_influencers.setdefault(agent_id, []).append(counter_id)
 
-        # Escalation state per reactor: slow toward a reduced speed first and
-        # only fall back to a full stop when the conflict is unavoidable.
+        # Slow toward a reduced speed first, fall back to a full stop if unavoidable.
         end_targets: Dict[object, float] = {
             reactor_id: max(records[reactor_id].v0 * config.yield_speed_ratio, 0.6)
             for reactor_id in reactor_influencers
@@ -467,13 +447,8 @@ class InterSimBehaviorModel(BehaviorModelBase):
     ) -> RollingSimulationResult:
         """Replay the scenario closed-loop and return its outcome.
 
-        The runner mirrors the upstream InterSim cadence: the scenario is carried
-        by per-agent pose arrays that start from the parsed ground truth and are
-        overwritten with committed plans at planning frames. Only an ego-centric
-        relevant set (ego plus vehicles whose future conflicts with it) is
-        re-planned; the remaining vehicles keep their ground-truth motion, so the
-        ego can collide with exactly the same kind of imperfectly predicted agents
-        the original closed loop collided with.
+        Only an ego-centric relevant set is re-planned; the remaining vehicles
+        keep their ground-truth motion.
 
         Args:
             participants (Dict): All participants in the scenario.
@@ -482,8 +457,7 @@ class InterSimBehaviorModel(BehaviorModelBase):
             base_frame_ms (int, optional): Time stamp of index 0. Defaults to 0.
 
         Returns:
-            The closed-loop outcome, carrying the upstream-aligned metrics and
-            the final per-index poses.
+            The closed-loop outcome with its metrics and final per-index poses.
         """
 
         state = replay.ReplayState.from_participants(self.config, participants, base_frame_ms)
@@ -538,10 +512,8 @@ class InterSimBehaviorModel(BehaviorModelBase):
     def _plan_once(self, state, map_, ego_id, current, goals):
         """Plan ego first, then its relevant environment, and commit both.
 
-        Mirroring the upstream ordering (ego base planner commits before the env
-        relevant detection), the ego is planned alone, its newly committed
-        future is used to grow the relevant set, and only then are the relevant
-        environment vehicles re-planned so they brake for the ego.
+        The ego's committed future is used to grow the relevant set before the
+        environment vehicles are re-planned so they brake for the ego.
         """
 
         horizon = self.config.horizon_steps

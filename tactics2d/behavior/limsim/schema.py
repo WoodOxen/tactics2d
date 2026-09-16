@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from tactics2d.geometry import spatial
+from tactics2d.metrics.ttc import scene_ttc
 from tactics2d.participant.trajectory import State, Trajectory
 
 from .action import LimSimAction
@@ -175,7 +176,12 @@ def states_to_trajectory(
 
 @dataclass
 class LimSimEvaluation:
-    """Compact metrics for one behavior planning result."""
+    """Compact metrics for one behavior planning result.
+
+    The time-to-collision fields summarize the controlled trajectories only;
+    background vehicles keep their own motion and are not part of
+    ``PlanningResult.trajectories``, so they do not enter the pairwise scan.
+    """
 
     action_counts: Dict[str, int] = field(default_factory=dict)
     has_collision: bool = False
@@ -183,14 +189,28 @@ class LimSimEvaluation:
     mean_ade: Optional[float] = None
     mean_fde: Optional[float] = None
     trajectory_errors: Dict[object, TrajectoryError] = field(default_factory=dict)
+    minimum_ttc: Optional[float] = None
+    minimum_ttc_pair: Optional[Tuple[object, object]] = None
+    dangerous_pairs: int = 0
 
 
 def evaluate_planning_result(
     result: PlanningResult,
     reference_trajectories: Optional[Dict[object, Trajectory]] = None,
     dimensions: Optional[Dict[object, Tuple[float, float]]] = None,
+    ttc_method: str = "box",
 ) -> LimSimEvaluation:
-    """Evaluate actions, collisions, and optional displacement error."""
+    """Evaluate actions, collisions, displacement error, and conflict severity.
+
+    Args:
+        result (PlanningResult): The planning output to score.
+        reference_trajectories (Dict, optional): Ground-truth trajectories used
+            for ADE/FDE. Defaults to None.
+        dimensions (Dict, optional): Agent id to ``(length, width)`` in m.
+            Defaults to None.
+        ttc_method (str, optional): Time-to-collision model, ``"box"`` or
+            ``"circle"``. Defaults to "box".
+    """
 
     action_counts = Counter(action.value for action in result.actions.values())
     first_collision = find_first_collision(result.trajectories, dimensions)
@@ -204,6 +224,10 @@ def evaluate_planning_result(
         mean_ade = float(np.mean([error.ade for error in trajectory_errors.values()]))
         mean_fde = float(np.mean([error.fde for error in trajectory_errors.values()]))
 
+    minimum_ttc, minimum_ttc_pair, dangerous_pairs = scene_ttc(
+        result.trajectories, dimensions, method=ttc_method
+    )
+
     return LimSimEvaluation(
         action_counts=dict(action_counts),
         has_collision=first_collision is not None,
@@ -211,4 +235,7 @@ def evaluate_planning_result(
         mean_ade=mean_ade,
         mean_fde=mean_fde,
         trajectory_errors=trajectory_errors,
+        minimum_ttc=minimum_ttc,
+        minimum_ttc_pair=minimum_ttc_pair,
+        dangerous_pairs=dangerous_pairs,
     )

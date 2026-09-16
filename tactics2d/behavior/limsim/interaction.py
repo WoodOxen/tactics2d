@@ -97,7 +97,12 @@ class InteractionGraph:
                 or distance <= (source.length + target.length)
             )
 
-        return distance <= self.config.interaction_distance
+        # Topology is available and no relation matched: treat the pair as
+        # non-interacting. Grouping is capped at ``max_group_size`` and split by
+        # speed, so extra proximity-only edges do not keep real interaction
+        # pairs together, they only pull unrelated vehicles into a group that
+        # then gets cut arbitrarily.
+        return False
 
     def _longitudinally_close(self, source: AgentDecisionState, target: AgentDecisionState) -> bool:
         rear, front = (source, target)
@@ -109,12 +114,24 @@ class InteractionGraph:
     def _dynamic_interaction_distance(self, agent: AgentDecisionState) -> float:
         return self.config.same_lane_time_headway * agent.speed + agent.length
 
+    @staticmethod
+    def _lane_length(lane) -> float:
+        """Return the lane centreline length in meters.
+
+        ``Lane.geometry`` is a ``LinearRing`` built from both side boundaries,
+        so its length is about twice the lane length; the centreline is the
+        exact quantity and is cached on the lane.
+        """
+
+        centerline = lane.centerline()
+        if centerline is not None:
+            return float(centerline.length)
+        return float(lane.geometry.length) / 2.0 if lane.geometry is not None else 0.0
+
     def _successor_gap(
         self, rear: AgentDecisionState, front: AgentDecisionState, rear_lane
     ) -> float:
-        lane_length = (
-            float(rear_lane.geometry.length) / 2.0 if rear_lane.geometry is not None else 0.0
-        )
+        lane_length = self._lane_length(rear_lane)
         return max(lane_length - rear.route_progress, 0.0) + front.route_progress
 
     def _is_junction_like(self, lane) -> bool:

@@ -48,9 +48,8 @@ class RollingSimulationResult:
 class ReplayState:
     """The indexed pose arrays one closed-loop replay steps over.
 
-    Ground truth is laid out per agent on a common frame grid, and ``poses`` is
-    overwritten in place as plans are committed, so a single state object
-    carries the whole replay.
+    Ground truth is laid out per agent on a common frame grid; ``poses`` is
+    overwritten in place as plans are committed.
     """
 
     config: InterSimConfig

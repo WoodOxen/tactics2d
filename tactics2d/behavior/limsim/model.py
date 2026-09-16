@@ -149,7 +149,7 @@ class LimSimBehaviorModel(BehaviorModelBase):
         for group in groups:
             agents = [scene_states[agent_id] for agent_id in group]
             group_obstacles = list(background_trajectories.values())
-            # previously decided groups: use actual MCTS decisions (original paper §3.2)
+            # previously decided groups: use actual MCTS decisions
             group_obstacles.extend(decided_trajectories.values())
             # not-yet-decided groups: use constant-speed predictions as placeholders
             group_obstacles.extend(

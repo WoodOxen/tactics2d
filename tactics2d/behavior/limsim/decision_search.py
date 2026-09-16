@@ -100,7 +100,7 @@ class LimSimDecisionSearch:
                 break
             best_intermediate = selected
 
-            # early termination: good-enough terminal state (original paper §3.3)
+            # early termination: good-enough terminal state
             if terminal_fn(selected) and reward_fn(selected) > 0.8:
                 break
 

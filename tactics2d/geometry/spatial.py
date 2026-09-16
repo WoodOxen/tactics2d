@@ -121,16 +121,22 @@ def boxes_overlap(box_a, box_b, margin: float = 1.0) -> bool:
     Uses the separating-axis test over the four edge normals, so the answer is
     exact for rectangles: overlapping is reported whenever the two boxes share
     area, including the cross case where no corner of either box lies inside
-    the other. Each box is shrunk by ``margin`` before testing, so bodies that
-    merely graze are reported as collision-free.
+    the other.
+
+    Both boxes are scaled about their own centres by ``margin`` before testing,
+    so ``margin=1.0`` (the default) tests the full-size boxes, while
+    ``margin=0.7`` tests a 70% shrink and lets bodies that merely graze pass as
+    collision-free. A ``margin`` of 0 collapses both boxes to points, which
+    makes every pair overlap.
 
     Args:
         box_a: First box as ``(x, y, yaw, length, width)``. Units are m and rad.
         box_b: Second box as ``(x, y, yaw, length, width)``.
-        margin: Shrink factor applied to both boxes. Defaults to 1.0.
+        margin: Multiplicative scale applied to both boxes before testing.
+            Defaults to 1.0, which keeps them at full size.
 
     Returns:
-        True when the shrunken boxes overlap.
+        True when the scaled boxes overlap.
     """
 
     f1, l1, hl1, hw1 = _box_axes(box_a[2], box_a[3], box_a[4], margin)

@@ -12,9 +12,7 @@ import torch.nn.functional as F
 from torch import nn, Tensor
 
 # Adapted from InterSim (github.com/Tsinghua-MARS-Lab/InterSim), MIT,
-# Copyright (c) 2022 Tsinghua MARS Lab. Minimal relation-only VectorNet whose
-# parameter names align with the downloaded relation checkpoint; the raster
-# CNN and non-relation decoder branches are not needed by relation inference.
+# Copyright (c) 2022 Tsinghua MARS Lab.
 
 _HIDDEN = 128
 
