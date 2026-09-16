@@ -124,6 +124,22 @@ def _port_from_start_length(
     return start_port, end_port
 
 
+def _assert_roadline_endpoints_match_port_offsets(
+    result: RoadModuleResult, start_port: RoadPort, end_port: RoadPort, offsets: list[float]
+) -> None:
+    """Assert that every generated boundary endpoint matches a port socket."""
+    expected_points = []
+    for port in (start_port, end_port):
+        normal = np.array([-np.sin(port.heading), np.cos(port.heading)], dtype=float)
+        expected_points.extend(port.point + offset * normal for offset in offsets)
+
+    expected = np.asarray(expected_points, dtype=float)
+    for roadline in result.roadlines:
+        points = np.asarray(roadline.geometry.coords, dtype=float)
+        for endpoint in (points[0], points[-1]):
+            assert np.min(np.linalg.norm(expected - endpoint, axis=1)) < 1e-10
+
+
 def _two_way_from_port(
     port: RoadPort, *, length: float, id_offset: int, backward_lane_num: int | None = None
 ) -> RoadModuleResult:
@@ -255,6 +271,26 @@ def test_two_way_curved(runtime_dir):
     _add_result(map_, result)
     _render(map_, runtime_dir / "two_way_curved.png")
     assert len(map_.lanes) == 4
+
+
+@pytest.mark.map_generator
+def test_curved_road_boundaries_pin_to_roadport_offsets() -> None:
+    """Use RoadPort headings, not sampled endpoint chords, at curved sockets."""
+    one_way_start = _make_port(0.0, 0.0, 0.0, 2, speed_limit=50.0)
+    one_way_end = _make_port(30.0, 15.0, 0.65, 2, speed_limit=50.0)
+    one_way = OneWay().build(one_way_start, one_way_end, lane_num=2, id_offset=0)
+    _assert_roadline_endpoints_match_port_offsets(
+        one_way, one_way_start, one_way_end, [3.5, 0.0, -3.5]
+    )
+
+    two_way_start = _make_port(0.0, 0.0, 0.0, 2, speed_limit=50.0)
+    two_way_end = _make_port(55.0, 25.0, 0.45, 2, speed_limit=50.0)
+    two_way = TwoWay().build(
+        two_way_start, two_way_end, forward_lane_num=2, backward_lane_num=2, id_offset=0
+    )
+    _assert_roadline_endpoints_match_port_offsets(
+        two_way, two_way_start, two_way_end, [-7.0, -3.5, 0.0, 3.5, 7.0]
+    )
 
 
 @pytest.mark.map_generator

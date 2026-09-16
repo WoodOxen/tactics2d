@@ -3,7 +3,6 @@
 
 """Lane implementation."""
 
-
 import logging
 from dataclasses import dataclass
 from enum import IntEnum
@@ -135,7 +134,7 @@ class Lane:
         self.inferred_participants = inferred_participants
         self.speed_limit_mandatory = speed_limit_mandatory
         self.custom_tags = custom_tags
-        self._centerline = None
+        self._centerline = {}
 
         if None not in [left_side, right_side]:
             self.geometry = LinearRing(
@@ -180,23 +179,33 @@ class Lane:
     def shape(self) -> list:
         return list(self.geometry.coords)
 
-    def centerline(self) -> Optional[LineString]:
+    def centerline(self, sample_spacing_m: Optional[float] = 10.0) -> Optional[LineString]:
         """Return the lane centerline if it can be obtained.
 
-        The result is cached on first access. In the parsers and generators the
-        side boundaries are set once at construction, so the cache is safe;
-        code that reassigns ``left_side`` / ``right_side`` / ``custom_tags``
-        afterwards must clear ``lane._centerline``.
+        When an explicit centerline is not stored in ``custom_tags``, pair the
+        two lane boundaries at metric intervals. The default keeps the
+        approximation bounded for long lanes while callers that need to
+        reproduce the historical fixed-ten-point representation may pass
+        ``None`` explicitly.
+
+        Args:
+            sample_spacing_m: Maximum boundary-pair spacing in metres.
+                ``None`` selects the legacy fixed-ten-point approximation.
+
+        The result is cached per sampling mode. In the parsers and generators
+        the side boundaries are set once at construction, so the cache is
+        safe; code that reassigns ``left_side`` / ``right_side`` /
+        ``custom_tags`` afterwards must clear ``lane._centerline``.
         """
 
-        if self._centerline is not None:
-            return self._centerline
+        if sample_spacing_m in self._centerline:
+            return self._centerline[sample_spacing_m]
 
         if self.custom_tags is not None and "centerline" in self.custom_tags:
             centerline = np.asarray(self.custom_tags["centerline"], dtype=float)
             if centerline.ndim == 2 and centerline.shape[1] == 2 and len(centerline) >= 2:
-                self._centerline = LineString(centerline)
-                return self._centerline
+                self._centerline[sample_spacing_m] = LineString(centerline)
+                return self._centerline[sample_spacing_m]
 
         if self.left_side is None or self.right_side is None:
             return None
@@ -206,7 +215,16 @@ class Lane:
         if left.length <= 0.0 or right.length <= 0.0:
             return None
 
-        samples = np.linspace(0.0, 1.0, num=10)
+        if sample_spacing_m is None:
+            sample_count = 10
+        else:
+            if sample_spacing_m <= 0.0:
+                raise ValueError("sample_spacing_m must be positive or None")
+            sample_count = max(
+                10, int(np.ceil(max(left.length, right.length) / sample_spacing_m)) + 1
+            )
+
+        samples = np.linspace(0.0, 1.0, num=sample_count)
         points = []
         for ratio in samples:
             left_point = left.interpolate(float(ratio), normalized=True)
@@ -214,8 +232,8 @@ class Lane:
             points.append(
                 (0.5 * (left_point.x + right_point.x), 0.5 * (left_point.y + right_point.y))
             )
-        self._centerline = LineString(points)
-        return self._centerline
+        self._centerline[sample_spacing_m] = LineString(points)
+        return self._centerline[sample_spacing_m]
 
     def get_width(self, samples: int = 5, default: Optional[float] = None) -> Optional[float]:
         """Estimate lane width by sampling distances between left and right boundaries."""

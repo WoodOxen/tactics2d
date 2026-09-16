@@ -30,6 +30,54 @@ def boundary_offset(boundary_index: int, lane_num: int, lane_width: float) -> fl
     return lane_num * lane_width / 2.0 - boundary_index * lane_width
 
 
+def port_offset_point(port: RoadPort, offset: float) -> np.ndarray:
+    """Return the exact laterally-offset boundary point at a RoadPort.
+
+    Args:
+        port: Road port defining the socket position and heading.
+        offset: Signed lateral offset in metres (positive = left of the port
+            heading).
+
+    Returns:
+        Boundary point ``port.point + offset * normal`` with shape ``(2,)``.
+    """
+    point = np.asarray(port.point, dtype=float)
+    heading = float(port.heading)
+
+    normal = np.array([-np.sin(heading), np.cos(heading)], dtype=float)
+
+    return point + float(offset) * normal
+
+
+def pin_offset_polyline_endpoints(
+    points: np.ndarray, start_port: RoadPort, end_port: RoadPort, offset: float
+) -> np.ndarray:
+    """Pin an offset polyline exactly to its RoadPort boundary endpoints.
+
+    ``offset_polyline`` estimates endpoint normals from the first and last
+    sampled chords, which can drift from the port heading on curved reference
+    lines and leave small gaps or overlaps where modules meet.  This helper
+    snaps both ends to the exact positions defined by the RoadPort contract so
+    that connected modules share identical boundary points.
+
+    Args:
+        points: Offset polyline points with shape ``(N, 2)``.
+        start_port: Road port at the polyline start.
+        end_port: Road port at the polyline end.
+        offset: Signed lateral offset in metres used to build ``points``.
+
+    Returns:
+        Copy of ``points`` whose first and last points are pinned to
+        ``start_port.point`` and ``end_port.point`` respectively.
+    """
+    pts = np.asarray(points, dtype=float).copy()
+
+    pts[0] = port_offset_point(start_port, offset)
+    pts[-1] = port_offset_point(end_port, offset)
+
+    return pts
+
+
 def as_id_list(ids: str | int | Iterable[str | int] | None) -> list[str]:
     """Convert one or more ids to a flat list of strings.
 
