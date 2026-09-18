@@ -37,6 +37,13 @@ COMPARISON_EGO = 8
 COMPARISON_FRAME_MS = 1100
 COMPARISON_HORIZON_STEPS = 20
 
+# Second shared WOMD scene, in the same shard as the first: the ego sits on the
+# yielding side here, so the obligation turns into actual braking.
+SECOND_SCENARIO = 9
+SECOND_EGO = 2478
+SECOND_FRAME_MS = COMPARISON_FRAME_MS
+SECOND_HORIZON_STEPS = COMPARISON_HORIZON_STEPS
+
 # The nuPlan log the demos replay; the window is recomputed at run time, since the
 # parser stamps frames relative to ``datetime(2021, 1, 1)`` in local time.
 NUPLAN_SCENARIO_FOLDER = "train_boston"
