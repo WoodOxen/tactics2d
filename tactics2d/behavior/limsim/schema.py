@@ -3,76 +3,15 @@
 
 """Shared data schemas for LimSim-style interaction planning."""
 
-from collections import Counter
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
 from tactics2d.geometry import spatial
-from tactics2d.metrics.ttc import scene_ttc
 from tactics2d.participant.trajectory import State, Trajectory
 
 from .action import LimSimAction
-
-
-@dataclass
-class TrajectoryError:
-    """Displacement error between a planned trajectory and a reference trajectory."""
-
-    ade: float
-    fde: float
-    samples: int
-
-
-def find_first_collision(
-    trajectories: Dict[object, Trajectory],
-    dimensions: Optional[Dict[object, Tuple[float, float]]] = None,
-) -> Optional[Tuple[int, object, object]]:
-    """Return the first colliding frame and agent ids, if any."""
-    agent_ids = sorted(trajectories)
-    if len(agent_ids) < 2:
-        return None
-    frame_sets = [set(trajectories[agent_id].frames) for agent_id in agent_ids]
-    common_frames = sorted(set.intersection(*frame_sets)) if frame_sets else []
-    for frame in common_frames:
-        footprints = []
-        for agent_id in agent_ids:
-            length, width = (dimensions or {}).get(agent_id, (4.8, 1.9))
-            state = trajectories[agent_id].get_state(frame)
-            footprints.append(
-                (agent_id, spatial.oriented_box(state.x, state.y, state.heading, length, width))
-            )
-        for i, (source_id, source_shape) in enumerate(footprints):
-            for target_id, target_shape in footprints[i + 1 :]:
-                if source_shape.intersects(target_shape):
-                    return frame, source_id, target_id
-    return None
-
-
-def displacement_errors(
-    planned: Dict[object, Trajectory], reference: Dict[object, Trajectory]
-) -> Dict[object, TrajectoryError]:
-    """Compute ADE/FDE on frames shared by planned and reference trajectories."""
-    errors = {}
-    for agent_id, trajectory in planned.items():
-        reference_trajectory = reference.get(agent_id)
-        if reference_trajectory is None:
-            continue
-        common_frames = sorted(set(trajectory.frames) & set(reference_trajectory.frames))
-        if not common_frames:
-            continue
-        distances = []
-        for frame in common_frames:
-            planned_state = trajectory.get_state(frame)
-            reference_state = reference_trajectory.get_state(frame)
-            distances.append(
-                spatial.euclidean_distance(planned_state.location, reference_state.location)
-            )
-        errors[agent_id] = TrajectoryError(
-            ade=float(np.mean(distances)), fde=float(distances[-1]), samples=len(distances)
-        )
-    return errors
 
 
 @dataclass(frozen=True)
@@ -102,12 +41,7 @@ class AgentDecisionState:
         return spatial.oriented_box(self.x, self.y, self.heading, self.length, self.width)
 
     def with_updates(self, **kwargs) -> "AgentDecisionState":
-        """Return a new instance with the given fields replaced.
-
-        Uses direct construction instead of :func:`dataclasses.replace` to
-        avoid the intermediate dict allocation on every call (thousands per
-        planning cycle).
-        """
+        """Return a new instance with the given fields replaced."""
         return AgentDecisionState(
             agent_id=kwargs.pop("agent_id", self.agent_id),
             x=kwargs.pop("x", self.x),
@@ -157,6 +91,24 @@ class PlanningResult:
     background_agent_ids: List[object] = field(default_factory=list)
 
 
+@dataclass
+class LimSimRollingResult:
+    """Output of a receding-horizon replay of one vehicle."""
+
+    ego_id: object = None
+    # Frames to animate, in milliseconds: history up to the take-over, then the replayed future.
+    frames: List[int] = field(default_factory=list)
+    # The replayed vehicle's track: recorded history plus the committed future,
+    # on the recorded frame grid.
+    trajectory: Optional[Trajectory] = None
+    # Per planning frame, the plan issued there as ``(frame, x, y)`` waypoints.
+    plans: Dict[int, List[Tuple[int, float, float]]] = field(default_factory=dict)
+    cycles: int = 0
+    # Every vehicle re-simulated, the ego included. A caller measuring the closed
+    # loop should read the committed futures back out of ``participants``.
+    controlled_ids: List[object] = field(default_factory=list)
+
+
 def states_to_trajectory(
     agent_id: object, states: List[AgentDecisionState], start_frame: int, dt: float
 ):
@@ -172,70 +124,3 @@ def states_to_trajectory(
             State(frame=frame, x=state.x, y=state.y, heading=heading, vx=vx, vy=vy)
         )
     return trajectory
-
-
-@dataclass
-class LimSimEvaluation:
-    """Compact metrics for one behavior planning result.
-
-    The time-to-collision fields summarize the controlled trajectories only;
-    background vehicles keep their own motion and are not part of
-    ``PlanningResult.trajectories``, so they do not enter the pairwise scan.
-    """
-
-    action_counts: Dict[str, int] = field(default_factory=dict)
-    has_collision: bool = False
-    first_collision: Optional[Tuple[int, object, object]] = None
-    mean_ade: Optional[float] = None
-    mean_fde: Optional[float] = None
-    trajectory_errors: Dict[object, TrajectoryError] = field(default_factory=dict)
-    minimum_ttc: Optional[float] = None
-    minimum_ttc_pair: Optional[Tuple[object, object]] = None
-    dangerous_pairs: int = 0
-
-
-def evaluate_planning_result(
-    result: PlanningResult,
-    reference_trajectories: Optional[Dict[object, Trajectory]] = None,
-    dimensions: Optional[Dict[object, Tuple[float, float]]] = None,
-    ttc_method: str = "box",
-) -> LimSimEvaluation:
-    """Evaluate actions, collisions, displacement error, and conflict severity.
-
-    Args:
-        result (PlanningResult): The planning output to score.
-        reference_trajectories (Dict, optional): Ground-truth trajectories used
-            for ADE/FDE. Defaults to None.
-        dimensions (Dict, optional): Agent id to ``(length, width)`` in m.
-            Defaults to None.
-        ttc_method (str, optional): Time-to-collision model, ``"box"`` or
-            ``"circle"``. Defaults to "box".
-    """
-
-    action_counts = Counter(action.value for action in result.actions.values())
-    first_collision = find_first_collision(result.trajectories, dimensions)
-    trajectory_errors = {}
-    if reference_trajectories is not None:
-        trajectory_errors = displacement_errors(result.trajectories, reference_trajectories)
-
-    mean_ade = None
-    mean_fde = None
-    if trajectory_errors:
-        mean_ade = float(np.mean([error.ade for error in trajectory_errors.values()]))
-        mean_fde = float(np.mean([error.fde for error in trajectory_errors.values()]))
-
-    minimum_ttc, minimum_ttc_pair, dangerous_pairs = scene_ttc(
-        result.trajectories, dimensions, method=ttc_method
-    )
-
-    return LimSimEvaluation(
-        action_counts=dict(action_counts),
-        has_collision=first_collision is not None,
-        first_collision=first_collision,
-        mean_ade=mean_ade,
-        mean_fde=mean_fde,
-        trajectory_errors=trajectory_errors,
-        minimum_ttc=minimum_ttc,
-        minimum_ttc_pair=minimum_ttc_pair,
-        dangerous_pairs=dangerous_pairs,
-    )

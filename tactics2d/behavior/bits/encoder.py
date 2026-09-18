@@ -10,7 +10,7 @@ from .mlp import MLP
 
 
 class RNNEncoder(nn.Module):
-    """Official-style RNNTrajectoryEncoder used by history_conditioning checkpoints."""
+    """LSTM trajectory encoder producing history-conditioning features."""
 
     def __init__(
         self,

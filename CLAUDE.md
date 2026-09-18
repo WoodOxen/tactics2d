@@ -35,6 +35,11 @@ Use the **first year** the file was created (not the year of latest edit).
 
 ## Docstring Checklist
 
+**Content rule** — docstrings and comments describe **what the code does and how to
+use it**; they never explain how it was written. Implementation reasoning, clever
+tricks, cross-implementation comparisons and history belong in the commit message or
+PR. Comment blocks stay at 1-2 lines. See `.claude/rules/docstring_comment.json`.
+
 ### Notebooks (`.ipynb`) — no docstrings in code cells
 
 Notebooks are tutorial/demonstration documents, not library code. All explanation

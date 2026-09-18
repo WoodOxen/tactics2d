@@ -72,9 +72,8 @@ def weight_init(module: nn.Module) -> None:
 class FourierEmbedding(nn.Module):
     """Embed continuous features with a learnable Fourier basis.
 
-    Each of the ``input_dim`` columns is projected onto its own frequency basis, expanded
-    into ``[cos, sin, raw]``, pushed through a private MLP and summed; categorical
-    embeddings are added afterwards.
+    Each column gets its own frequency basis, is expanded into ``[cos, sin, raw]``, pushed
+    through a private MLP and summed; categorical embeddings are added afterwards.
     """
 
     def __init__(self, input_dim: int, hidden_dim: int, num_freq_bands: int):
@@ -238,9 +237,8 @@ class MLPLayer(nn.Module):
 class AttentionLayer(nn.Module):
     """A gated attention block over edge lists.
 
-    The query is gathered at ``edge_index[1]`` and the keys, values and positional
-    features at ``edge_index[0]``; ``attn_prenorm_x_dst`` aliases ``attn_prenorm_x_src``
-    when the block is not bipartite, so both names stay in the state dict.
+    The query is gathered at ``edge_index[1]``, the keys, values and positional features at
+    ``edge_index[0]``; ``attn_prenorm_x_dst`` aliases ``attn_prenorm_x_src`` when not bipartite.
     """
 
     def __init__(

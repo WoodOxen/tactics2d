@@ -18,11 +18,8 @@ from .schema import BitsRaster
 class BitsRasterizer:
     """Rasterize Tactics2D maps in an agent-centric frame.
 
-    The returned image has three static semantic channels:
-
-    1. drivable lane and area polygons;
-    2. lane centerlines and road lines;
-    3. pedestrian-oriented areas such as crosswalks and walkways.
+    The image has three static semantic channels: drivable lane and area polygons,
+    lane centerlines and road lines, then pedestrian areas (crosswalks, walkways).
     """
 
     DRIVABLE_AREA_SUBTYPES = {"drivable_area", "parking", "road_segment"}
@@ -90,10 +87,8 @@ class BitsRasterizer:
     ) -> np.ndarray:
         """Rasterize ego and neighboring agents' history as single pixels.
 
-        This mirrors the upstream TBSIM rendering, which marks one rounded pixel
-        per agent and timestep (``tbsim/utils/trajdata_utils.py``). ``ego_extent``,
-        ``other_extents`` and the history yaws are accepted but unused, matching
-        the upstream signature.
+        Marks one rounded pixel per available agent and timestep. ``ego_extent``,
+        ``other_extents`` and the history yaws are accepted but unused.
         """
 
         transform = raster_from_agent if raster_from_agent is not None else self.raster_from_agent()
@@ -180,15 +175,9 @@ class BitsRasterizer:
     def raster_from_agent(self) -> np.ndarray:
         """Return the transform from BITS agent coordinates to raster pixels.
 
-        Agent coordinates use x forward and y left. Raster coordinates use
-        column right and row down, with the ego position placed at one quarter
-        of the image width and halfway down the image.
-
-        Both axes keep a positive scale, so agent-frame ``+y`` (the agent's
-        left) maps to a larger row. This matches upstream TBSIM, whose raster
-        transform is built from a positive-scaled ``raster_from_local``
-        (``trajdata/utils/raster_utils.py``) that later translations and
-        rotations leave untouched.
+        Both axes keep a positive scale, so agent-frame x forward and y left map
+        to column-right, row-down pixels, with the ego at one quarter of the image
+        width and halfway down the image.
         """
 
         size = float(self.config.raster_size)

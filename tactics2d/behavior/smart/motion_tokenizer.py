@@ -193,8 +193,8 @@ class MotionTokenizer:
     def _nearest_token(contour: torch.Tensor, world: torch.Tensor) -> torch.Tensor:
         """Return the codebook index closest to each agent's footprint.
 
-        Score is the mean Euclidean distance over the four corners, ties to the
-        lower index; the reduce is done in numpy to match upstream's last bits.
+        Score is the mean Euclidean distance over the four corners, ties to the lower
+        index; the numpy reduction order is part of the numerical contract.
 
         Args:
             contour (torch.Tensor): Target footprints of shape ``(N, 4, 2)``.
@@ -248,7 +248,7 @@ class MotionTokenizer:
             selected = world[torch.arange(num_agent), index]
 
             axis = selected[:, 0] - selected[:, 3]
-            # Masked after ``arctan2``, as upstream: a compacted input rounds differently.
+            # ``arctan2`` runs on the full tensor; masking first changes the rounding.
             anchor_heading = torch.arctan2(axis[:, 1], axis[:, 0])
             anchor_valid = valid[:, i - self.shift]
             prev_heading = heading[:, i].clone()

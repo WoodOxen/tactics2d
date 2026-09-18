@@ -11,10 +11,8 @@ from typing import Dict
 class BitsConfig:
     """Parameters shared by BITS data preparation and models.
 
-    ``future_steps`` is the BITS checkpoint-compatible name for the number of
-    future states returned by ``BitsBehaviorModel.predict``. Use
-    ``planning_steps`` when code needs the same semantic field across behavior
-    models.
+    ``future_steps`` is the checkpoint key for the number of future states;
+    ``planning_steps`` is the same value under the cross-model name.
     """
 
     history_steps: int = 10
@@ -59,7 +57,7 @@ class BitsConfig:
 
     @property
     def torch_loss_weights(self) -> Dict[str, float]:
-        """Return TBSIM-style loss weights for the torch reproduction path."""
+        """Return the loss weights consumed by the torch training path."""
 
         return {
             "prediction_loss": self.prediction_loss_weight,
@@ -72,7 +70,7 @@ class BitsConfig:
 
     @property
     def cost_weights(self) -> Dict[str, float]:
-        """Return TBSIM-style closed-loop planning cost weights."""
+        """Return the closed-loop planning cost weights."""
 
         return {
             "likelihood_weight": self.likelihood_weight,

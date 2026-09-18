@@ -4,12 +4,12 @@
 """Tactics2D-native VectorNet relation predictor implementation."""
 
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch import nn, Tensor
+from torch import Tensor, nn
 
 # Adapted from InterSim (github.com/Tsinghua-MARS-Lab/InterSim), MIT,
 # Copyright (c) 2022 Tsinghua MARS Lab.
@@ -68,7 +68,7 @@ class _SubGraph(nn.Module):
         attention_mask = torch.zeros([batch_size, max_vector_num, hidden_size // 2], device=device)
         zeros = torch.zeros([hidden_size // 2], device=device)
         for i in range(batch_size):
-            attention_mask[i][vector_num[i]:max_vector_num].fill_(-10000.0)
+            attention_mask[i][vector_num[i] : max_vector_num].fill_(-10000.0)
         for layer in self.layers:
             new_hidden_states = torch.zeros(
                 [batch_size, max_vector_num, hidden_size], device=device
@@ -188,10 +188,8 @@ def _merge_sub_graph(tensor_list_list, module, device):
 class RelationVectorNet(nn.Module):
     """Relation-only VectorNet matching the relation checkpoint structure.
 
-    Sub-graph encodes each agent/road polyline; ``laneGCN_A2L`` refreshes the
-    lane states with the reactor; a global graph produces per-polyline states;
-    the relation head scores the reactor/influencer pair on the first two
-    polyline states.
+    The sub-graph encodes each agent/road polyline, ``laneGCN_A2L`` refreshes
+    lane states with the reactor, and the relation head scores the pair.
     """
 
     def __init__(self):
@@ -202,8 +200,9 @@ class RelationVectorNet(nn.Module):
         self.decoder = nn.Module()
         self.decoder.inf_r_decoder = _DecoderResCat(in_features=_HIDDEN * 2, out_features=2)
 
-    def forward(self, matrix: np.ndarray, polyline_spans: List[slice],
-                map_start_polyline_idx: int, device) -> np.ndarray:
+    def forward(
+        self, matrix: np.ndarray, polyline_spans: List[slice], map_start_polyline_idx: int, device
+    ) -> np.ndarray:
         """Score one reactor/influencer pair.
 
         Args:

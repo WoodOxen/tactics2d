@@ -5,7 +5,7 @@
 
 """Closed-loop joint rollout for the SMART port."""
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 
@@ -14,15 +14,9 @@ from tactics2d.map.element import Map
 from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 
+from ..rolling_utils import collision_kind, progress_window, to_lattice
 from .config import SmartConfig
 from .schema import SmartRollingResult
-
-# Collision classification thresholds by relative heading.
-_REAR_TOL = 30.0 * np.pi / 180.0
-_SIDE_TOL = 150.0 * np.pi / 180.0
-
-# Bodies are shrunk by this much before the overlap test.
-_COLLISION_MARGIN = 0.7
 
 # Fallback extents for a participant that carries none of its own.
 _DEFAULT_VEHICLE_LENGTH = 4.8
@@ -244,98 +238,8 @@ def commit(
     return written
 
 
-def _body(pose, dims):
-    """Build a shrunk oriented box for one pose.
-
-    Args:
-        pose (np.ndarray): A ``(4,)`` pose of x, y, z and yaw.
-        dims (Tuple[float, float]): The agent's length and width in metres.
-
-    Returns:
-        The shapely polygon the overlap test runs on.
-    """
-
-    length, width = dims
-    return spatial.oriented_box(
-        float(pose[0]),
-        float(pose[1]),
-        float(pose[3]),
-        length - _COLLISION_MARGIN,
-        width - _COLLISION_MARGIN,
-    )
-
-
-def collision_kind(poses, dims, ego_id, index: int) -> Optional[int]:
-    """Classify a same-frame ego collision at one index, if any.
-
-    Args:
-        poses (Dict[object, np.ndarray]): The rolling pose arrays.
-        dims (Dict[object, Tuple[float, float]]): Per-agent collision extents.
-        ego_id (object): The agent the collision is judged from.
-        index (int): Step to test.
-
-    Returns:
-        ``0`` for front, ``1`` for side, ``2`` for rear, or None if clear.
-    """
-
-    pose_ego = poses[ego_id][index]
-    if pose_ego[0] == -1:
-        return None
-    body_ego = _body(pose_ego, dims[ego_id])
-    for other_id in poses:
-        if other_id == ego_id:
-            continue
-        pose_other = poses[other_id][index]
-        if pose_other[0] == -1:
-            continue
-        if not body_ego.intersects(_body(pose_other, dims[other_id])):
-            continue
-        diff = abs(spatial.normalize_angle(float(pose_ego[3]) - float(pose_other[3])))
-        if diff < _REAR_TOL:
-            return 2
-        if diff > _SIDE_TOL:
-            return 1
-        return 0
-    return None
-
-
-def progress(poses, controlled_ids: List[object], end_index: int, steps: int) -> Tuple[float, int]:
-    """Sum per-step displacements of the controlled agents over frames 12..79.
-
-    Args:
-        poses (Dict[object, np.ndarray]): The rolling pose arrays.
-        controlled_ids (List[object]): Agents whose displacement is counted.
-        end_index (int): Last simulated step.
-        steps (int): Number of scenario steps.
-
-    Returns:
-        The summed displacement in metres and the number of agents it covers.
-    """
-
-    total_progress = 0.0
-    count = 0
-    for agent_id in controlled_ids:
-        total = 0.0
-        for index in range(_PROGRESS_START, _PROGRESS_END):
-            if index >= end_index:
-                break
-            if index + 1 >= steps:
-                break
-            pose_i = poses[agent_id][index]
-            pose_j = poses[agent_id][index + 1]
-            if pose_i[0] == -1 or pose_j[0] == -1:
-                break
-            distance = float(np.hypot(pose_i[0] - pose_j[0], pose_i[1] - pose_j[1]))
-            if distance >= _MAX_PROGRESS_STEP:
-                continue
-            total += distance
-        total_progress += total
-        count += 1
-    return total_progress, count
-
-
 class SmartRollingRunner:
-    """Replay a scenario closed-loop with SMART's joint decoder.
+    """Replay a scenario closed-loop with the joint decoder.
 
     Every ``planning_interval`` steps after a ``planning_warmup_steps`` warmup
     the whole modelled set is decoded once and committed together.
@@ -386,7 +290,8 @@ class SmartRollingRunner:
         participants: Dict[object, object],
         map_: Optional[Map],
         ego_id: object,
-        frame_ms0: int = 0,
+        frame_ms0: Optional[int] = None,
+        controlled_ids: Optional[Iterable[object]] = None,
     ) -> SmartRollingResult:
         """Replay the scenario closed-loop and return its outcome.
 
@@ -394,18 +299,40 @@ class SmartRollingRunner:
             participants (Dict[object, object]): All participants.
             map_ (Optional[Map]): The map, or None to fail on the first replan.
             ego_id (object): The agent the loop is centred on.
-            frame_ms0 (int, optional): Timestamp of index 0, in milliseconds.
-                Defaults to 0.
+            frame_ms0 (Optional[int], optional): Timestamp of index 0, in
+                milliseconds. Defaults to None, which uses the scenario's own
+                first observed frame - pass this only for a scenario whose frames
+                are stamped relative to another origin.
+            controlled_ids (Optional[Iterable], optional): The set of agents to
+                commit each cycle. Defaults to None, which commits every agent
+                the joint decoder returns. When given, *ego_id* must be a member
+                and only ids in the set are committed.
+
+                SMART may commit only a subset of the requested ids; read
+                ``total_agents_controlled`` for the count actually controlled.
 
         Returns:
             The closed-loop outcome, with the metrics and the final poses.
 
         Raises:
             KeyError: If *ego_id* is not a participant.
+            ValueError: If *controlled_ids* is given without *ego_id* in it.
         """
 
         if ego_id not in participants:
             raise KeyError(f"ego_id {ego_id!r} is not a participant of this scenario.")
+        if controlled_ids is not None:
+            controlled_ids = list(controlled_ids)
+            if ego_id not in controlled_ids:
+                raise ValueError(
+                    "controlled_ids must contain ego_id {!r}; got {!r}".format(
+                        ego_id, controlled_ids
+                    )
+                )
+        participants = to_lattice(participants, self.config.step_ms)
+        if frame_ms0 is None:
+            # Default the window origin to the ego's first frame.
+            frame_ms0 = int(participants[ego_id].trajectory.first_frame)
         step_ms = self.config.step_ms
         poses, dims, types = extract_poses(participants, step_ms, frame_ms0, self.scenario_steps)
 
@@ -426,8 +353,13 @@ class SmartRollingRunner:
                     self.config, poses, dims, types, participants, ego_id, current, frame_ms0
                 )
                 if scene:
-                    prediction = self.model.predict_scene(scene, map_, frame_ms, agent_ids=[ego_id])
+                    requested = [ego_id] if controlled_ids is None else controlled_ids
+                    prediction = self.model.predict_scene(
+                        scene, map_, frame_ms, agent_ids=requested
+                    )
                     for agent_id in prediction.agent_ids:
+                        if controlled_ids is not None and agent_id not in controlled_ids:
+                            continue
                         commit(
                             self.config,
                             poses,
@@ -439,7 +371,7 @@ class SmartRollingRunner:
                         )
                         if agent_id not in modelled_union:
                             modelled_union.append(agent_id)
-            kind = collision_kind(poses, dims, ego_id, current)
+            kind = collision_kind(poses, dims, ego_id, current, "linear")
             if kind is not None:
                 kinds[kind] += 1
                 collided = True
@@ -447,7 +379,11 @@ class SmartRollingRunner:
                 break
             current += 1
 
-        total_progress, controlled = progress(poses, modelled_union, end_index, self.scenario_steps)
+        total_progress = 0.0
+        for agent_id in modelled_union:
+            total, _ = progress_window(poses, agent_id, end_index, self.scenario_steps)
+            total_progress += total
+        controlled = len(modelled_union)
         return SmartRollingResult(
             front_collisions=kinds[0],
             side_collisions=kinds[1],

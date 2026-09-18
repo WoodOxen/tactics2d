@@ -26,12 +26,7 @@ _LANE_POLYGON_TYPE = {
     "bicycle_lane": PolygonType.BIKE,
 }
 
-# Inverse of ``WOMDParser._LANE_TYPE_MAPPING``, applied before the table above.
-# WOMD type 0 and type 2 both resolve to "road", so a type-0 lane reads as one.
-_LANE_WOMD_TYPE = {"highway": 1, "road": 2, "bicycle_lane": 3}
-
-# WOMD ``RoadLine`` type to SMART's point type. Upstream indexes a table that is
-# scrambled against the enum names, so the codes below are the table entries.
+# WOMD ``RoadLine`` type to SMART's point type.
 _ROADLINE_POINT_TYPE = {
     ("virtual", None, None): PointType.UNKNOWN,
     ("line_thin", "dashed", "white"): PointType.DASHED_WHITE,
@@ -86,10 +81,10 @@ def _nrm2():
 
 
 def _cumulative_knots(positions: np.ndarray) -> np.ndarray:
-    """Return the cumulative-distance knots of a polyline, upstream's rounding.
+    """Return the cumulative-distance knots of a polyline.
 
-    Upstream sums ``scipy.spatial.distance.euclidean`` results, which route
-    through BLAS; ``nrm2`` is called directly to keep the knots bit-equal.
+    Increments are float32 2-norms accumulated in order; the result is part of the
+    numerical contract.
 
     Args:
         positions (np.ndarray): Polyline points of shape ``(N, 2)``, float32.
@@ -106,7 +101,7 @@ def _cumulative_knots(positions: np.ndarray) -> np.ndarray:
 
 
 def _forward_headings(coords: np.ndarray) -> np.ndarray:
-    """Return the heading of every segment but the last, wrapped as upstream wraps it.
+    """Return the heading of every segment but the last, wrapped into ``[-pi, pi)``.
 
     Callers pass every vertex; the heading attached to a point is the direction
     of the segment leaving it.
@@ -125,11 +120,10 @@ def _forward_headings(coords: np.ndarray) -> np.ndarray:
 
 
 def _split_runs(positions: np.ndarray, headings: np.ndarray) -> List[List[int]]:
-    """Split a polyline into runs at upstream's heading breaks.
+    """Split a polyline into runs at heading breaks.
 
-    Cut on sharp turns or big gaps; ``headings[1]`` is not a typo for
-    ``headings[i - 1]`` -- upstream compares against the second point, and the
-    pretrained split depends on it.
+    Cut on sharp turns or big gaps; comparing ``headings[1]`` rather than
+    ``headings[i - 1]`` is deliberate and the codebook depends on it.
 
     Args:
         positions (np.ndarray): Polyline points of shape ``(N, 2)``, float32.
@@ -161,10 +155,8 @@ def _split_runs(positions: np.ndarray, headings: np.ndarray) -> List[List[int]]:
 def _resample_polyline(positions: np.ndarray, headings: np.ndarray) -> Optional[np.ndarray]:
     """Resample a polyline onto SMART's 0.5 m grid and cut it into tokens.
 
-    Runs are resampled every 0.5 m with the end point appended, then cut into
-    eleven-point windows stepping ten; each contributes points 0, 5 and 10 plus
-    the first heading. ``torch.atan2`` rounds differently on the transposed
-    layout, so the windowing mirrors upstream's tensor operations.
+    A run is resampled every 0.5 m with its end point appended, then cut into
+    eleven-point windows stepping ten; each contributes points 0, 5 and 10 plus the first heading.
 
     Args:
         positions (np.ndarray): The polyline's points without its last vertex, ``(N, 2)`` float32.
@@ -187,6 +179,9 @@ def _resample_polyline(positions: np.ndarray, headings: np.ndarray) -> Optional[
         new_y = interp1d(knots, points[:, 1])(query)
         resampled = torch.from_numpy(np.vstack((new_x, new_y)).T)
         count = resampled.shape[0]
+        if count < 2:
+            # A zero-length run resamples to one point, which has no heading; drop it.
+            continue
 
         theta = torch.arctan2(
             resampled[1:, 1] - resampled[:-1, 1], resampled[1:, 0] - resampled[:-1, 0]
@@ -263,8 +258,8 @@ class MapTokenizer:
     def _load_codebook(self) -> None:
         """Load the map codebook's sampling points.
 
-        ``sample_pt`` holds the three window points (indices 0, 5 and 10)
-        upstream matches against, read as a contiguous float32 tensor.
+        ``sample_pt`` holds the three window points (indices 0, 5 and 10) as a
+        contiguous float32 tensor.
         """
 
         codebook = load_codebook(self.config.map_codebook, "map codebook")
@@ -280,8 +275,8 @@ class MapTokenizer:
     def _nearest_token(self, traj_pos: torch.Tensor, traj_theta: torch.Tensor) -> torch.Tensor:
         """Return the codebook entry closest to each window.
 
-        Squared distances are summed in float32 with upstream's operand layout;
-        the summing order decides ties between near-equal candidates.
+        Squared distances are summed in float32; the summing order decides ties
+        between near-equal candidates.
 
         Args:
             traj_pos (torch.Tensor): Window points in the world frame, shape
@@ -307,7 +302,7 @@ class MapTokenizer:
         return torch.argmin(distance, dim=1)
 
     def _sources(self, map_, frame_ms: int) -> List[tuple]:
-        """Collect the map's tokenizable polylines in upstream's group order.
+        """Collect the map's tokenizable polylines in group order.
 
         Order is lanes, road edges, road markings, then crosswalks. A lane whose
         light has no record at exactly ``frame_ms`` reads as unknown.
@@ -379,8 +374,7 @@ class MapTokenizer:
     def build(self, map_, frame_ms: Optional[int] = None) -> SmartMapTokens:
         """Tokenize a map into windows of eleven points on a 0.5 m grid.
 
-        The whole map is tokenized, as upstream does; callers wanting a bounded
-        scene should prune ``map_``.
+        The whole map is tokenized; callers wanting a bounded scene should prune ``map_``.
 
         Args:
             map_ (Map): The map to tokenize.

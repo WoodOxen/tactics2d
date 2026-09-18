@@ -28,7 +28,7 @@ def _homogeneous_transform(points: torch.Tensor, matrix: torch.Tensor) -> torch.
 
 
 def _build_upright_rois(raster_points: torch.Tensor, context_size: int) -> torch.Tensor:
-    """Build official-style [batch_index, x1, y1, x2, y2] ROI boxes."""
+    """Build [batch_index, x1, y1, x2, y2] ROI boxes."""
     batch_size, agent_count = raster_points.shape[:2]
     half = float(context_size) / 2.0
     x_center = raster_points[..., 0]
@@ -101,8 +101,7 @@ class ROIHead(nn.Module):
         raster_points = _homogeneous_transform(
             agent_positions.to(device=image.device, dtype=image.dtype), raster_from_agent
         )
-        # Official BITS defaults to use_rotated_roi=False: build an axis-aligned
-        # ROI around each agent raster position, then apply torchvision RoIAlign.
+        # Build an axis-aligned ROI around each agent raster position, then RoIAlign.
         rois = _build_upright_rois(raster_points, context_size=self.context_size)
         roi_features = self.roi_align(encoder_features[self.roi_layer_key], rois)
         batch_size, agent_count = raster_points.shape[:2]

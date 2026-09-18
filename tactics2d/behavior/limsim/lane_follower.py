@@ -93,10 +93,8 @@ class LaneFollower:
     ) -> Optional[AgentDecisionState]:
         """Smoothly transition lane_id when the lateral offset crosses a lane boundary.
 
-        Instead of teleporting the lateral offset to the new lane's frame (which
-        produces a discontinuous jump of ~one lane width), this method projects
-        the vehicle's current Cartesian position onto the neighbor lane's
-        centerline to obtain a **continuous** lateral offset in the new frame.
+        Projects the current position onto the neighbor lane's centerline so the
+        lateral offset stays continuous in the new frame.
         """
 
         if action not in {LimSimAction.LCL, LimSimAction.LCR}:
@@ -144,8 +142,7 @@ class LaneFollower:
         lookahead = line.interpolate(min(next_progress + 0.5, line.length))
         heading = spatial.normalize_angle(np.arctan2(lookahead.y - point.y, lookahead.x - point.x))
 
-        # Signed distance from the neighbor centerline = continuous lateral offset.
-        # This avoids the 3.6 m arithmetic jump that the old formula produced.
+        # Signed distance from the neighbor centerline: continuous lateral offset.
         dx = agent.x - point.x
         dy = agent.y - point.y
         next_offset = float(-dx * np.sin(heading) + dy * np.cos(heading))

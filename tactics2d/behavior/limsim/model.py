@@ -13,6 +13,7 @@ from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import Trajectory
 
+from . import rolling
 from .action import LimSimAction
 from .config import LimSimConfig
 from .decision_search import LimSimDecisionSearch
@@ -22,15 +23,11 @@ from .lane_follower import LaneFollower
 from .prediction import LimSimPredictor
 from .roi import RoISelector
 from .scene import SceneBuilder
-from .schema import AgentDecisionState, PlanningResult, states_to_trajectory
+from .schema import AgentDecisionState, LimSimRollingResult, PlanningResult, states_to_trajectory
 
 
 class LimSimBehaviorModel(BehaviorModelBase):
-    """Reproduce LimSim's MCT-based interactive behavior layer on Tactics2D data.
-
-    This implementation focuses on the non-LLM LimSim pipeline: local interaction
-    grouping, discrete joint behavior decisions, and trajectory rollout.
-    """
+    """Reproduce LimSim's MCT-based interactive behavior layer on Tactics2D data."""
 
     def __init__(self, config: Optional[LimSimConfig] = None, parallel_workers: int = 0):
         self.config = config or LimSimConfig()
@@ -187,8 +184,7 @@ class LimSimBehaviorModel(BehaviorModelBase):
 
             if not self.config.use_frenet_refinement:
                 # --- pure LimSim mode: use MCTS rough trajectories directly ---
-                # This matches the original LimSim paper's trajectory generation
-                # (kinematic lane-following from MCTS-selected actions).
+                # Rough trajectories are kinematic lane-following rollouts of MCTS actions.
                 final_state_trajectories[agent.agent_id] = rough
                 result.trajectories[agent.agent_id] = states_to_trajectory(
                     agent.agent_id, rough, frame, self.config.dt
@@ -241,17 +237,13 @@ class LimSimBehaviorModel(BehaviorModelBase):
     ) -> Dict[object, Trajectory]:
         """Plan future trajectories for selected agents.
 
-        This method provides the shared behavior-model interface. Use
-        :meth:`plan` when LimSim-specific diagnostics such as actions, groups,
-        and MCTS root nodes are needed.
+        Shared behavior-model interface; use :meth:`plan` for LimSim-specific
+        diagnostics.
 
         .. note::
 
-            **route_map should always be provided.**  Without it LimSim relies
-            on pure lane-topology inference (blindly following the first
-            successor lane), which produces incorrect routing at intersections
-            and dead-ends.  Call :func:`~tactics2d.dataset_parser.route_extractor.extract_all_lane_sequences`
-            or provide your own mapping.
+            **route_map should always be provided.** Without it routing falls back
+            to lane topology and is wrong at intersections and dead-ends.
         """
 
         return self.plan(
@@ -261,6 +253,31 @@ class LimSimBehaviorModel(BehaviorModelBase):
             route_map=route_map if route_map is not None else {},
             agent_ids=agent_ids,
         ).trajectories
+
+    def rollout(
+        self,
+        participants: Dict[object, object],
+        map_: Optional[Map],
+        ego_id: object,
+        frame_ms: Optional[int] = None,
+        horizon_ms: Optional[int] = None,
+        route_map: Optional[Dict[object, Tuple[str, ...]]] = None,
+        controlled_ids: Optional[Iterable[object]] = None,
+    ) -> LimSimRollingResult:
+        """Replay one vehicle's future in a receding-horizon loop.
+
+        ``controlled_ids`` names every vehicle to re-simulate; the ego must be a
+        member. Defaulting to None replays the ego alone.
+        """
+
+        return rolling.LimSimRollingRunner(self, self.config, horizon_ms=horizon_ms).run(
+            participants,
+            map_,
+            ego_id,
+            frame_ms=frame_ms,
+            route_map=route_map,
+            controlled_ids=controlled_ids,
+        )
 
     def _filter_controlled_vehicle_ids(
         self, participants: Dict[object, object], agent_ids: Optional[Iterable[object]]

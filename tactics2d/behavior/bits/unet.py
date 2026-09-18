@@ -13,7 +13,7 @@ from torchvision.models.feature_extraction import create_feature_extractor
 
 
 class ConvBlock(nn.Module):
-    """Official UNet helper block: conv, batchnorm, ReLU twice."""
+    """UNet helper block: conv, BatchNorm, ReLU twice."""
 
     def __init__(self, in_channels: int, out_channels: int, mid_channels: Optional[int] = None):
         super().__init__()
@@ -32,7 +32,7 @@ class ConvBlock(nn.Module):
 
 
 class Upsample(nn.Module):
-    """Official-style bilinear upsample plus double conv."""
+    """Bilinear upsample plus double conv."""
 
     def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
@@ -84,7 +84,7 @@ class BottleneckBlock(nn.Module):
 
 
 class BitsRasterBackbone(nn.Module):
-    """ResNet raster encoder matching TBSIM's RasterizedMapEncoder layout."""
+    """ResNet raster encoder."""
 
     def __init__(
         self,
@@ -134,9 +134,7 @@ class BitsRasterBackbone(nn.Module):
         return self.output_activation(features)
 
     def extract_features(self, image: torch.Tensor) -> Dict[str, torch.Tensor]:
-        # This helper is only for tests/debugging; production UNet/ROI encoders
-        # still use torchvision create_feature_extractor to keep state_dict names
-        # close to the official code.
+        # Test/debugging helper; production encoders go through create_feature_extractor.
         x = self.map_model.conv1(image)
         x = self.map_model.bn1(x)
         x = self.map_model.relu(x)

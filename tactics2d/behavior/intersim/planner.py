@@ -15,10 +15,14 @@ from tactics2d.map.element import Map
 # Adapted from InterSim (github.com/Tsinghua-MARS-Lab/InterSim), MIT,
 # Copyright (c) 2022 Tsinghua MARS Lab.
 
-# Comfortable / emergency deceleration used by InterSim's speed adjustment.
+# Comfortable and emergency deceleration, in m/s^2.
 _A_SLOWDOWN = 2.0
 _A_EMERGENCY = 4.5
-# Corner speed cap constants (upstream `proper_speed_minimal = max(5, pi/3 / yaw_change)`).
+
+# Largest gap between a successor's start and the lane it continues, in metres.
+_MAX_LINK_GAP = 2.5
+
+# Corner speed cap constants.
 _MIN_TURN_SPEED = 5.0
 _TURN_YAW_K = math.pi / 3.0
 _TURN_YAW_MIN = 0.04
@@ -53,9 +57,7 @@ class ArcPath:
         ys = np.interp(arcs, self.cumulative, self.points[:, 1])
         tangents = self.points[1:] - self.points[:-1]
         segment_idx = np.clip(
-            np.searchsorted(self.cumulative, arcs, side="right") - 1,
-            0,
-            len(tangents) - 1,
+            np.searchsorted(self.cumulative, arcs, side="right") - 1, 0, len(tangents) - 1
         )
         tangents = tangents[segment_idx]
         yaws = np.arctan2(tangents[:, 1], tangents[:, 0])
@@ -67,10 +69,7 @@ class ArcPath:
 
 
 def lane_chain_points(
-    map_: Map,
-    lane_id: object,
-    lookahead: float,
-    goal: Optional[np.ndarray] = None,
+    map_: Map, lane_id: object, lookahead: float, goal: Optional[np.ndarray] = None
 ) -> Optional[np.ndarray]:
     """Concatenate a lane centerline with its successors along the map.
 
@@ -109,6 +108,10 @@ def lane_chain_points(
         if not successors:
             break
         current = _best_continuation(segments[-1][-1], successors, map_, goal)
+        if current is None:
+            # Nothing continues from where this lane ends, so the chain stops.
+            # Chaining anyway turns the route back up the road it came down.
+            break
         seen.add(current)
     if not segments:
         return None
@@ -120,14 +123,17 @@ def lane_chain_points(
 
 
 def _best_continuation(
-    tail: np.ndarray,
-    candidates: List[object],
-    map_: Map,
-    goal: Optional[np.ndarray] = None,
-) -> object:
-    """Pick the successor lane heading toward ``goal`` when given."""
+    tail: np.ndarray, candidates: List[object], map_: Map, goal: Optional[np.ndarray] = None
+) -> Optional[object]:
+    """Pick the successor lane that carries the chain on from ``tail``.
 
-    best_id = candidates[0]
+    A candidate only counts when it starts where the chain ends.
+
+    Returns:
+        The chosen lane id, or ``None`` when no candidate continues from *tail*.
+    """
+
+    best_id = None
     best_score = None
     goal_direction = None
     if goal is not None:
@@ -145,6 +151,8 @@ def _best_continuation(
         norm = np.linalg.norm(direction)
         if norm < 1e-9:
             return candidate_id
+        if norm > _MAX_LINK_GAP:
+            continue
         direction = direction / norm
         if goal_direction is not None:
             score = float(direction @ goal_direction)
@@ -185,8 +193,7 @@ def match_lane(
     """Match a pose to a map lane.
 
     The closest lane whose centerline passes within ``radius`` of ``(x, y)``
-    and whose local tangent agrees with ``heading`` within the given tolerance
-    is selected.
+    and whose tangent agrees with ``heading`` within the tolerance is selected.
 
     Returns:
         A tuple ``(lane_id, s0)`` where ``s0`` is the arc-length offset of the

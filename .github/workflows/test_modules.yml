@@ -146,6 +146,44 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[test]
 
+      - name: Cache behavior-model assets
+        id: behavior-assets
+        uses: actions/cache@v4
+        with:
+          path: tactics2d/data/checkpoints
+          key: behavior-assets-${{ hashFiles('.github/workflows/test_modules.yml') }}
+
+      - name: Fetch behavior-model assets
+        if: steps.behavior-assets.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          D=tactics2d/data/checkpoints
+          S="${RUNNER_TEMP}/hf-assets"
+          hf download MotacillaAlba/tactics2d-behavior --local-dir "$S"
+          mkdir -p "$D/bits" "$D/smart"
+          place() {
+            p=$(find "$S" -name "$1" -print -quit)
+            test -n "$p" || { echo "missing from HF: $1"; exit 1; }
+            mv "$p" "$D/$2/"
+          }
+          place bits_planner_nusc_resnet50.ckpt  bits
+          place bits_predictor_nusc_resnet18.ckpt bits
+          place epoch=00.ckpt                    smart
+          place smart_waymo_ep0.pt               smart
+          place motion_codebook.pkl              smart
+          place map_codebook.pkl                 smart
+          ls -lR "$D"
+
+      - name: Check the behavior-model assets are in place
+        # Unconditional: a missing asset makes the behavior tests skip, not fail.
+        shell: bash
+        run: |
+          D=tactics2d/data/checkpoints
+          for f in bits/bits_planner_nusc_resnet50.ckpt bits/bits_predictor_nusc_resnet18.ckpt \
+                   smart/motion_codebook.pkl smart/map_codebook.pkl smart/smart_waymo_ep0.pt; do
+            test -f "$D/$f" || { echo "missing: $f"; exit 1; }
+          done
+
       - name: Run Pytest
         run: |
           mkdir -p ./tests/runtime

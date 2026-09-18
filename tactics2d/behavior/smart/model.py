@@ -25,9 +25,9 @@ from .schema import SmartPrediction, SmartRollingResult, SmartTokenBatch
 
 
 class SmartTorchModel(nn.Module):
-    """The SMART encoder stack, laid out to consume an upstream checkpoint.
+    """The SMART encoder stack, laid out to consume a released checkpoint.
 
-    Submodule names mirror the checkpoint's own ``encoder.map_encoder.*`` and
+    Submodule names must match the checkpoint's ``encoder.map_encoder.*`` and
     ``encoder.agent_encoder.*`` keys.
 
     Attributes:
@@ -295,30 +295,35 @@ class SmartBehaviorModel(BehaviorModelBase):
             return ahead
         return ahead + [anchor + step * (index + 1) for index in range(len(ahead), count)]
 
-    def run_closed_loop(
+    def rollout(
         self,
         participants: Dict[object, object],
         map_: Optional[Map],
         ego_id: object,
-        frame_ms0: int = 0,
+        frame_ms0: Optional[int] = None,
         warmup_steps: Optional[int] = None,
         planning_interval: int = 10,
         scenario_steps: Optional[int] = None,
+        controlled_ids: Optional[Iterable[object]] = None,
     ) -> SmartRollingResult:
         """Replay a scenario closed-loop and return its outcome.
-
-        A thin wrapper over :class:`tactics2d.behavior.smart.rolling.SmartRollingRunner`.
 
         Args:
             participants (Dict[object, object]): All participants in the scenario.
             map_ (Optional[Map]): The map to tokenize.
             ego_id (object): The agent the loop is centred on.
-            frame_ms0 (int, optional): Timestamp of index 0, in milliseconds. Defaults to 0.
+            frame_ms0 (Optional[int], optional): Timestamp of index 0, in
+                milliseconds. Defaults to None, which uses the scenario's own first
+                observed frame.
             warmup_steps (Optional[int], optional): Steps of ground truth before the first
                 replan. Defaults to None, which uses the history length.
             planning_interval (int, optional): Steps between replans. Defaults to 10.
             scenario_steps (Optional[int], optional): Number of scenario steps. Defaults to
                 None, which uses the model's token span.
+            controlled_ids (Optional[Iterable], optional): The agents to commit each
+                cycle. Defaults to None, which commits every agent the decoder
+                returns. When given, *ego_id* must be a member, and only agents the
+                decoder also modelled are committed - see ``SmartRollingRunner.run``.
 
         Returns:
             The closed-loop outcome.
@@ -331,4 +336,6 @@ class SmartBehaviorModel(BehaviorModelBase):
             planning_interval=planning_interval,
             scenario_steps=scenario_steps,
         )
-        return runner.run(participants, map_, ego_id, frame_ms0=frame_ms0)
+        return runner.run(
+            participants, map_, ego_id, frame_ms0=frame_ms0, controlled_ids=controlled_ids
+        )

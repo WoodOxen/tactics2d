@@ -80,9 +80,7 @@ def batch_to_tensor(
 ) -> TensorBatch:
     """Convert one BITS batch to tensors for BITS PyTorch models.
 
-    This marks the boundary between Tactics2D scene data (``BitsBatch``) and
-    BITS torch modules: batches describe scenarios, while modules operate on
-    tensors.
+    Marks the boundary between ``BitsBatch`` scene data and BITS torch modules.
 
     Args:
         batch: A single BITS sample.
@@ -216,9 +214,8 @@ def prediction_from_tensor(positions, yaws, availabilities=None, scores=None) ->
 def prediction_from_module_output(output) -> BitsPrediction:
     """Normalise a BITS torch module output to a ``BitsPrediction``.
 
-    Accepts a ``BitsPrediction`` directly, a dict with keys ``positions``,
-    ``yaws``, (optional) ``availabilities``, (optional) ``scores``, or a
-    tuple/list of 2--4 elements ``(positions, yaws, *availabilities, *scores)``.
+    Accepts a ``BitsPrediction``, a dict with ``positions``/``yaws``/optional
+    ``availabilities``/``scores``, or a 2--4 tuple/list ``(positions, yaws, ...)``.
 
     Returns:
         A ``BitsPrediction`` in the numpy schema.

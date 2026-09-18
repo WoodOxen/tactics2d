@@ -220,7 +220,7 @@ class SmartPrediction:
 
 @dataclass
 class SmartRollingResult:
-    """Per-scenario closed-loop outcome with upstream-aligned metric fields.
+    """Per-scenario closed-loop outcome and its collision metrics.
 
     Attributes:
         front_collisions (int): Head-on collision count. Defaults to 0.

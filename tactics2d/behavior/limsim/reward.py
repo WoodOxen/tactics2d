@@ -3,10 +3,8 @@
 
 """Reward model for LimSim-style MCTS.
 
-The reward structure follows the original LimSim paper: per-step bonuses
-(lane-centre, speed, route-lane, continuity) summed over the trajectory and
-normalised to [0, 1], with a terminal-state bonus of up to 0.8.  A collision
-returns 0.0.
+Per-step bonuses (lane-centre, speed, route-lane, continuity) are summed over
+the trajectory and normalised to [0, 1]; terminal bonus up to 0.8, collision 0.0.
 """
 
 from typing import Dict, Sequence
@@ -31,9 +29,8 @@ class LimSimReward:
     ) -> float:
         """Evaluate a joint rollout, returning a value in **[0, 1]**.
 
-        The range matches the original LimSim paper so that the MCTS
-        early-termination threshold (reward > 0.8) and the decaying-budget
-        chain search behave as intended.
+        The range keeps the MCTS early-termination threshold (reward > 0.8)
+        meaningful.
         """
 
         ordered = [trajectories[agent.agent_id] for agent in initial_agents]
@@ -65,7 +62,7 @@ class LimSimReward:
                 if state.lane_id is not None and state.lane_id in state.route_lane_ids:
                     reward += 0.2 / n_steps
 
-            # action continuity (original: same action in consecutive decisions)
+            # action continuity: same action in consecutive decisions
             for i in range(1, len(trajectory)):
                 if trajectory[i].action == trajectory[i - 1].action:
                     reward += 0.2 / n_steps
@@ -93,8 +90,8 @@ class LimSimReward:
         if min_distance < self.config.conflict_distance:
             avg_reward -= 0.05 * (self.config.conflict_distance - min_distance)
 
-        # Normalised per rollout step and capped, so a sustained approach does
-        # not drive the reward to 0.0 (only a collision should do that).
+        # Normalised per rollout step and capped: only a collision may drive the
+        # reward to 0.0, not a sustained approach.
         closing_factor = self._closing_speed_factor(collision_ordered)
         lengths = [len(trajectory) for trajectory in collision_ordered if trajectory]
         steps = min(lengths) if lengths else 1

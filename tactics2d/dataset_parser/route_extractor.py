@@ -124,7 +124,6 @@ def match_lane_for_state(
         heading_error = 0.0
         if lh is not None:
             heading_error = abs(spatial.normalize_angle(heading - lh))
-            heading_error = min(heading_error, abs(np.pi - heading_error))
         score = distance + heading_weight * heading_error
         if score < best_score:
             best_score = score
@@ -149,6 +148,7 @@ def extract_lane_sequence(
     end_frame: Optional[int] = None,
     lane_match_radius: float = 4.0,
     heading_weight: float = 2.0,
+    min_dwell_frames: int = 5,
 ) -> List[str]:
     """Extract the ordered lane sequence a vehicle follows.
 
@@ -163,6 +163,8 @@ def extract_lane_sequence(
             Defaults to the earliest frame in the trajectory.
         end_frame: Last frame timestamp to consider (inclusive).
             Defaults to the latest frame in the trajectory.
+        min_dwell_frames: Frames a lane has to be held for it to count as part
+            of the route. Defaults to 5, i.e. half a second at 10 Hz.
 
     Returns:
         Ordered list of lane ID strings (no consecutive duplicates).
@@ -173,8 +175,7 @@ def extract_lane_sequence(
     if end_frame is not None:
         frames = [f for f in frames if f <= end_frame]
 
-    seq = []
-    prev_lane = None
+    runs: List[Tuple[str, int]] = []
     for f in frames:
         state = participant.trajectory.get_state(f)
         if state is None:
@@ -187,10 +188,19 @@ def extract_lane_sequence(
             lane_match_radius=lane_match_radius,
             heading_weight=heading_weight,
         )
-        if lid is not None and lid != prev_lane:
-            seq.append(lid)
-            prev_lane = lid
+        if lid is None:
+            continue
+        if runs and runs[-1][0] == lid:
+            runs[-1][1] += 1
+        else:
+            runs.append([lid, 1])
 
+    seq = []
+    for lid, dwell in runs:
+        if dwell < min_dwell_frames:
+            continue
+        if not seq or seq[-1] != lid:
+            seq.append(lid)
     return seq
 
 

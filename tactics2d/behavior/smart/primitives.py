@@ -3,7 +3,7 @@
 #
 # Adapted from SMART (github.com/rainmaker22/SMART), Apache-2.0.
 
-"""Tensor-level graph primitives replacing torch_cluster and PyG."""
+"""Tensor-level graph primitives for radius queries and sparse ops."""
 
 import warnings
 from typing import Optional

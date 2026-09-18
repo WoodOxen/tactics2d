@@ -13,7 +13,7 @@ from .config import BitsConfig
 def integrate_unicycle_controls(
     controls: torch.Tensor, current_states: torch.Tensor, config: Optional[BitsConfig] = None
 ) -> tuple:
-    """Integrate acceleration/yaw-rate controls with TBSIM-style unicycle dynamics.
+    """Integrate acceleration/yaw-rate controls with unicycle dynamics.
 
     Args:
         controls: Control tensor ``(*, T, 2)`` with ``[acceleration, yaw_rate]``.
@@ -39,9 +39,8 @@ def integrate_unicycle_controls(
 
 
 def unicycle_step(states: torch.Tensor, controls: torch.Tensor, config: BitsConfig) -> torch.Tensor:
-    # TBSIM Unicycle state is [x, y, speed, yaw], with controls
-    # [acceleration, yaw_rate]. Clamp controls from current speed, then
-    # integrate position with a half-step acceleration approximation.
+    # State is [x, y, speed, yaw]; controls are [acceleration, yaw_rate].
+    # Clamp controls, then integrate position with a half-step acceleration.
     acceleration, yaw_rate = clip_unicycle_controls(states, controls, config)
     dt = float(config.dt)
     speed = states[..., 2:3]

@@ -34,12 +34,8 @@ class LimSimDecisionSearch:
     ) -> Tuple[Dict[object, LimSimAction], Dict[object, List[AgentDecisionState]], object]:
         """Plan one joint action for a group of interacting agents.
 
-        Implements the original LimSim-style chained MCTS: the search runs
-        sequentially per decision step, with a decaying iteration budget
-        ``budget = base_budget / (depth/2 + 1)`` so that the immediate next
-        action receives the most computation.  Each step inherits the best
-        child of the previous step as its root, matching the paper's
-        receding-horizon-within-MCTS design.
+        Runs one chained MCTS per decision step with budget
+        ``base_budget / (depth/2 + 1)``, each step rooted at the previous best child.
         """
 
         self._expand_cache.clear()
@@ -64,12 +60,7 @@ class LimSimDecisionSearch:
             return self.reward.evaluate(agents, trajectories, obstacle_trajectories)
 
         def simulate_fn(state: JointDecisionState) -> JointDecisionState:
-            """Rollout to terminal with lightweight random-step generation.
-
-            Uses :meth:`_simulate_step` instead of :meth:`_expand` to avoid
-            computing the full Cartesian product of all agent actions on every
-            simulation step.
-            """
+            """Rollout to terminal with lightweight random-step generation."""
             current = state
             while not terminal_fn(current):
                 next_state = self._simulate_step(current, map_)
@@ -149,9 +140,6 @@ class LimSimDecisionSearch:
         steps_per_decision = max(1, int(round(self.config.decision_resolution / self.config.dt)))
 
         # --- pre-compute individual agent rollouts (key optimization) ---
-        # Without this, each expand call does 5^N × N rollouts.
-        # With caching, we do N × len(actions) rollouts and then assemble
-        # joint states via cheap list operations.
         agent_rollouts = {}
         for idx, agent in enumerate(state.agents):
             per_action = {}
@@ -187,10 +175,7 @@ class LimSimDecisionSearch:
     ) -> Optional[JointDecisionState]:
         """Generate a single random child without the full Cartesian product.
 
-        This is the lightweight counterpart of :meth:`_expand`, used exclusively
-        during simulation rollouts.  It picks one random action per agent,
-        rolls out only those agent-action pairs, and returns one child state
-        in O(N) instead of O(|A|^N).
+        Picks one random action per agent and rolls out only that agent-action pair.
         """
 
         steps_per_decision = max(1, int(round(self.config.decision_resolution / self.config.dt)))
@@ -221,10 +206,7 @@ class LimSimDecisionSearch:
     ) -> List[LimSimAction]:
         """Drop context-irrelevant actions to reduce the MCTS branching factor.
 
-        Heuristics:
-        - Drop AC at near-max speed (acceleration has no effect).
-        - Drop DC at near-min speed (already stopped or crawling).
-        - Always keep at least KS as a safe fallback.
+        Drops AC at near-max speed and DC at near-min speed; keeps KS as a fallback.
         """
         if len(actions) <= 2:
             return actions  # already minimal

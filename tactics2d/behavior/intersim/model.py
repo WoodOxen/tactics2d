@@ -4,7 +4,7 @@
 """Public InterSim-style relation-driven behavior model."""
 
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional
 
 import numpy as np
 
@@ -12,9 +12,8 @@ from tactics2d.behavior.base import BehaviorModelBase
 from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 from tactics2d.participant.trajectory import State, Trajectory
-from tactics2d.routing.utils import augment_lane_successors
 
-from . import relation_decider, replay, scene
+from . import scene
 from .config import InterSimConfig
 from .planner import (
     arcs_from_speeds,
@@ -24,18 +23,13 @@ from .planner import (
     yield_speeds,
 )
 from .relation_geometry import AgentBody, Edge, check_body_collision, detect_relation_edges
-from .replay import RollingSimulationResult
+from .rolling import InterSimRollingResult, InterSimRollingRunner
 from .scene import AgentRecord
 
 # Adapted from InterSim (github.com/Tsinghua-MARS-Lab/InterSim), MIT,
 # Copyright (c) 2022 Tsinghua MARS Lab.
 
-__all__ = [
-    "AgentRecord",
-    "InterSimBehaviorModel",
-    "InterSimPlanResult",
-    "RollingSimulationResult",
-]
+__all__ = ["AgentRecord", "InterSimBehaviorModel", "InterSimPlanResult", "InterSimRollingResult"]
 
 # Below this distance to the conflict the reactor stops outright instead of yielding.
 _MIN_DISTANCE_TO_TRAVEL = 4.0
@@ -63,8 +57,7 @@ class InterSimBehaviorModel(BehaviorModelBase):
     """Plan interactions with explicit directed relations on Tactics2D data.
 
     Each requested vehicle rolls a lane-following (or constant-velocity)
-    baseline; overlapping baselines become directed relations, and every
-    reactor decelerates short of its conflict so the forecast is collision-free.
+    baseline; overlaps become directed relations that brake the reactor.
     """
 
     def __init__(self, config: Optional[InterSimConfig] = None):
@@ -161,9 +154,8 @@ class InterSimBehaviorModel(BehaviorModelBase):
     ) -> Dict[object, Trajectory]:
         """Plan future trajectories for selected agents.
 
-        This method provides the shared behavior-model interface. Use
-        :meth:`plan` when the directed relations and per-agent actions are
-        needed.
+        Shared behavior-model interface. Use :meth:`plan` when the directed
+        relations and per-agent actions are needed.
         """
 
         return self.plan(
@@ -197,9 +189,7 @@ class InterSimBehaviorModel(BehaviorModelBase):
                 config.horizon_steps,
             )
         return cruise_with_corner_caps(
-            np.array(
-                [[0.0, 0.0], [record.v0 * config.horizon_steps * config.dt + 10.0, 0.0]]
-            ),
+            np.array([[0.0, 0.0], [record.v0 * config.horizon_steps * config.dt + 10.0, 0.0]]),
             record.s0,
             record.v0,
             target,
@@ -294,10 +284,7 @@ class InterSimBehaviorModel(BehaviorModelBase):
                     if influencer_id not in records:
                         continue
                     step = self._same_time_overlap(
-                        poses[reactor_id],
-                        poses[influencer_id],
-                        record,
-                        records[influencer_id],
+                        poses[reactor_id], poses[influencer_id], record, records[influencer_id]
                     )
                     if step is not None and (overlap_step is None or step < overlap_step):
                         overlap_step = step
@@ -410,11 +397,7 @@ class InterSimBehaviorModel(BehaviorModelBase):
     # -- serialization ----------------------------------------------------
 
     def _to_trajectory(
-        self,
-        record: AgentRecord,
-        speeds: np.ndarray,
-        poses: np.ndarray,
-        frame: int,
+        self, record: AgentRecord, speeds: np.ndarray, poses: np.ndarray, frame: int
     ) -> Trajectory:
         config = self.config
         trajectory = Trajectory(
@@ -438,111 +421,32 @@ class InterSimBehaviorModel(BehaviorModelBase):
 
     # -- closed-loop replay ------------------------------------------------
 
-    def run_closed_loop(
+    def rollout(
         self,
         participants: Dict[object, object],
         map_: Optional[Map],
         ego_id: object,
-        base_frame_ms: int = 0,
-    ) -> RollingSimulationResult:
+        base_frame_ms: Optional[int] = None,
+        controlled_ids: Optional[Iterable[object]] = None,
+    ) -> InterSimRollingResult:
         """Replay the scenario closed-loop and return its outcome.
-
-        Only an ego-centric relevant set is re-planned; the remaining vehicles
-        keep their ground-truth motion.
 
         Args:
             participants (Dict): All participants in the scenario.
             map_ (Optional[Map]): The map. None falls back to straight paths.
             ego_id (object): The agent the loop is centred on.
-            base_frame_ms (int, optional): Time stamp of index 0. Defaults to 0.
+            base_frame_ms (Optional[int], optional): Time stamp of index 0, in
+                milliseconds. Defaults to None, which uses the scenario's own first
+                observed frame.
+            controlled_ids (Optional[Iterable], optional): The exact set of agents
+                to plan each cycle. Defaults to None, which grows the set from the
+                ego over future body collisions. When given, *ego_id* must be a
+                member.
 
         Returns:
             The closed-loop outcome with its metrics and final per-index poses.
         """
 
-        state = replay.ReplayState.from_participants(self.config, participants, base_frame_ms)
-        goals: Dict[object, Optional[Tuple[float, float]]] = {
-            agent_id: (
-                (participant.trajectory.last_state.x, participant.trajectory.last_state.y)
-                if participant.trajectory.last_state is not None
-                else None
-            )
-            for agent_id, participant in participants.items()
-        }
-        if self.config.augment_lane_graph and map_ is not None:
-            augment_lane_successors(map_)
-        steps = self.config.scenario_steps
-        warmup = self.config.planning_warmup_steps
-        interval = self.config.planning_interval
-
-        relevant_union: List[object] = []
-        collided = False
-        collision_kind = [0, 0, 0]  # front, side, rear
-        end_index = min(89, steps - 1)
-
-        current = 1
-        while current <= end_index:
-            if (current - warmup) >= 0 and (current - warmup) % interval == 0:
-                relevant = self._plan_once(state, map_, ego_id, current, goals)
-                for agent_id in relevant:
-                    if agent_id not in relevant_union:
-                        relevant_union.append(agent_id)
-            kind = replay.ego_collision_at(state, ego_id, current)
-            if kind is not None:
-                collision_kind[kind] += 1
-                collided = True
-                end_index = current
-                break
-            current += 1
-
-        progress, controlled = replay.progress(state, ego_id, relevant_union, end_index)
-        return RollingSimulationResult(
-            front_collisions=collision_kind[0],
-            side_collisions=collision_kind[1],
-            rear_collisions=collision_kind[2],
-            progress=progress,
-            total_agents_controlled=controlled,
-            collided=collided,
-            end_index=end_index,
-            ego_id=ego_id,
-            relevant_ids=list(relevant_union),
-            poses={agent_id: array.copy() for agent_id, array in state.poses.items()},
+        return InterSimRollingRunner(self, self.config).run(
+            participants, map_, ego_id, base_frame_ms=base_frame_ms, controlled_ids=controlled_ids
         )
-
-    def _plan_once(self, state, map_, ego_id, current, goals):
-        """Plan ego first, then its relevant environment, and commit both.
-
-        The ego's committed future is used to grow the relevant set before the
-        environment vehicles are re-planned so they brake for the ego.
-        """
-
-        horizon = self.config.horizon_steps
-        frame_ms = state.base_frame_ms + current * self.config.step_ms
-        snapshot = replay.snapshot(state, ego_id, current, goals)
-        if not snapshot:
-            return []
-
-        relevant = replay.relevant_ids(state, ego_id, current, horizon)
-        decider = None
-        if self.config.relation_mode == "nn":
-            decider = relation_decider.make_decider(
-                self.config, state.poses, state.types, map_, ego_id, current
-            )
-
-        planned = []
-        ego_trajectories = self.predict(
-            snapshot, map_, frame_ms, agent_ids=[ego_id], decider=decider
-        )
-        if ego_id in ego_trajectories:
-            replay.commit(state, ego_id, ego_trajectories[ego_id], current)
-            planned.append(ego_id)
-
-        env_ids = [agent_id for agent_id in relevant if agent_id != ego_id and agent_id in snapshot]
-        if env_ids:
-            env_trajectories = self.predict(
-                snapshot, map_, frame_ms, agent_ids=env_ids, decider=decider
-            )
-            for agent_id, trajectory in env_trajectories.items():
-                replay.commit(state, agent_id, trajectory, current)
-                planned.append(agent_id)
-        return planned

@@ -1,34 +1,34 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Closed-loop frame stepping and scenario metrics."""
+"""Receding-horizon closed-loop replay for the InterSim behavior model."""
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 
 from tactics2d.geometry import spatial
+from tactics2d.map.element import Map
 from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
+from tactics2d.routing.utils import augment_lane_successors
 
+from ..rolling_utils import collision_kind, progress_window, to_lattice
+from . import relation_decider
 from .config import InterSimConfig
 from .relation_geometry import AgentBody, check_body_collision
 
 # Adapted from InterSim (github.com/Tsinghua-MARS-Lab/InterSim), MIT,
 # Copyright (c) 2022 Tsinghua MARS Lab.
 
-# Collision classification thresholds by relative heading (mirroring upstream).
-_REAR_TOL = 30.0 * np.pi / 180.0
-_SIDE_TOL = 150.0 * np.pi / 180.0
-
 _SNAP_CLASSES = (Vehicle, Pedestrian, Cyclist)
 _SNAP_RADIUS = 150.0
 
 
 @dataclass
-class RollingSimulationResult:
-    """Per-scenario closed-loop outcome with upstream-aligned metric fields."""
+class InterSimRollingResult:
+    """Per-scenario closed-loop outcome and its collision metrics."""
 
     front_collisions: int = 0
     side_collisions: int = 0
@@ -108,10 +108,7 @@ class ReplayState:
 
 
 def snapshot(
-    state: ReplayState,
-    ego_id,
-    current: int,
-    goals: Dict[object, Optional[Tuple[float, float]]],
+    state: ReplayState, ego_id, current: int, goals: Dict[object, Optional[Tuple[float, float]]]
 ) -> Dict[object, object]:
     """Build a one-state participant snapshot around the ego at a frame."""
 
@@ -211,67 +208,28 @@ def ego_collision_at(state: ReplayState, ego_id, index: int) -> Optional[int]:
         ego does not overlap any other body at ``index``.
     """
 
-    poses = state.poses
-    dims = state.dims
-    pose_ego = poses[ego_id][index]
-    if pose_ego[0] == -1:
-        return None
-    body_ego = AgentBody(float(pose_ego[0]), float(pose_ego[1]), float(pose_ego[3]), *dims[ego_id])
-    for other_id in poses:
-        if other_id == ego_id:
-            continue
-        pose_other = poses[other_id][index]
-        if pose_other[0] == -1:
-            continue
-        body_other = AgentBody(
-            float(pose_other[0]), float(pose_other[1]), float(pose_other[3]), *dims[other_id]
-        )
-        if not check_body_collision(body_ego, body_other):
-            continue
-        diff = abs(spatial.normalize_angle(float(pose_ego[3]) - float(pose_other[3])))
-        if diff < _REAR_TOL:
-            return 2  # rear
-        if diff > _SIDE_TOL:
-            return 1  # side
-        return 0  # front
-    return None
+    return collision_kind(state.poses, state.dims, ego_id, index, "factor")
 
 
 def progress(
     state: ReplayState, ego_id, relevant_ids: List[object], end_index: int
 ) -> Tuple[float, int]:
-    """Sum per-step displacements over frames 12..79 for controlled agents.
+    """Sum per-step displacements over the frames up to ``end_index``.
 
     Returns:
         A tuple ``(progress, count)`` of the summed displacement in meters and
         the number of controlled agents it was summed over.
     """
 
-    config = state.config
-    poses = state.poses
-    controlled = [agent_id for agent_id in relevant_ids]
+    steps = state.config.scenario_steps
+    controlled = list(relevant_ids)
     if ego_id not in controlled:
         controlled.append(ego_id)
     total_progress = 0.0
-    count = 0
     for agent_id in controlled:
-        total = 0.0
-        for index in range(12, 80):
-            if index >= end_index:
-                break
-            if index + 1 >= config.scenario_steps:
-                break
-            pose_i = poses[agent_id][index]
-            pose_j = poses[agent_id][index + 1]
-            if pose_i[0] == -1 or pose_j[0] == -1:
-                break
-            dist = float(np.hypot(pose_i[0] - pose_j[0], pose_i[1] - pose_j[1]))
-            if dist >= 20.0:
-                continue
-            total += dist
+        total, _ = progress_window(state.poses, agent_id, end_index, steps)
         total_progress += total
-        count += 1
-    return total_progress, count
+    return total_progress, len(controlled)
 
 
 def _recent_intent_speed(state: ReplayState, agent_id, current: int) -> float:
@@ -342,3 +300,158 @@ def _wrap_at(
     if intent_speed > 0.0:
         wrapper.intent_speed = intent_speed
     return wrapper
+
+
+class InterSimRollingRunner:
+    """Replay a scenario closed-loop around one ego.
+
+    Attributes:
+        model (InterSimBehaviorModel): The model being replayed.
+        config (InterSimConfig): The model's configuration.
+    """
+
+    def __init__(self, model, config: Optional[InterSimConfig] = None):
+        """Initialize the runner.
+
+        Args:
+            model (InterSimBehaviorModel): The model to replay, exposing ``predict``.
+            config (Optional[InterSimConfig], optional): Configuration to replay with.
+                Defaults to None, which uses the model's own.
+        """
+
+        self.model = model
+        self.config = config if config is not None else model.config
+
+    def run(
+        self,
+        participants: Dict[object, object],
+        map_: Optional[Map],
+        ego_id: object,
+        base_frame_ms: Optional[int] = None,
+        controlled_ids: Optional[Iterable[object]] = None,
+    ) -> InterSimRollingResult:
+        """Replay the scenario closed-loop and return its outcome.
+
+        Args:
+            participants (Dict): All participants in the scenario.
+            map_ (Optional[Map]): The map. None falls back to straight paths.
+            ego_id (object): The agent the loop is centred on.
+            base_frame_ms (Optional[int], optional): Time stamp of index 0, in
+                milliseconds. Defaults to None, which uses the scenario's own
+                first observed frame - pass this only for a scenario whose frames
+                are stamped relative to another origin.
+            controlled_ids (Optional[Iterable], optional): The exact set of
+                agents to plan and commit each cycle. Defaults to None, which
+                grows the set from the ego over future body collisions. When
+                given, *ego_id* must be a member; the ego keeps its meaning as
+                the loop's centre, the snapshot anchor and the agent collisions
+                are attributed to.
+
+        Returns:
+            The closed-loop outcome with its metrics and final per-index poses.
+
+        Raises:
+            ValueError: If *controlled_ids* is given without *ego_id* in it.
+        """
+
+        if controlled_ids is not None:
+            controlled_ids = list(controlled_ids)
+            if ego_id not in controlled_ids:
+                raise ValueError(
+                    "controlled_ids must contain ego_id {!r}; got {!r}".format(
+                        ego_id, controlled_ids
+                    )
+                )
+
+        participants = to_lattice(participants, self.config.step_ms)
+        if base_frame_ms is None:
+            base_frame_ms = int(participants[ego_id].trajectory.first_frame)
+        state = ReplayState.from_participants(self.config, participants, base_frame_ms)
+        goals: Dict[object, Optional[Tuple[float, float]]] = {
+            agent_id: (
+                (participant.trajectory.last_state.x, participant.trajectory.last_state.y)
+                if participant.trajectory.last_state is not None
+                else None
+            )
+            for agent_id, participant in participants.items()
+        }
+        if self.config.augment_lane_graph and map_ is not None:
+            augment_lane_successors(map_)
+        steps = self.config.scenario_steps
+        warmup = self.config.planning_warmup_steps
+        interval = self.config.planning_interval
+
+        relevant_union: List[object] = []
+        collided = False
+        kinds = [0, 0, 0]  # front, side, rear
+        end_index = min(89, steps - 1)
+
+        current = 1
+        while current <= end_index:
+            if (current - warmup) >= 0 and (current - warmup) % interval == 0:
+                relevant = self._plan_once(state, map_, ego_id, current, goals, controlled_ids)
+                for agent_id in relevant:
+                    if agent_id not in relevant_union:
+                        relevant_union.append(agent_id)
+            kind = ego_collision_at(state, ego_id, current)
+            if kind is not None:
+                kinds[kind] += 1
+                collided = True
+                end_index = current
+                break
+            current += 1
+
+        progress_total, controlled = progress(state, ego_id, relevant_union, end_index)
+        return InterSimRollingResult(
+            front_collisions=kinds[0],
+            side_collisions=kinds[1],
+            rear_collisions=kinds[2],
+            progress=progress_total,
+            total_agents_controlled=controlled,
+            collided=collided,
+            end_index=end_index,
+            ego_id=ego_id,
+            relevant_ids=list(relevant_union),
+            poses={agent_id: array.copy() for agent_id, array in state.poses.items()},
+        )
+
+    def _plan_once(self, state, map_, ego_id, current, goals, controlled_ids=None):
+        """Plan ego first, then its relevant environment, and commit both.
+
+        When *controlled_ids* is given it replaces the collision-grown
+        relevant set entirely.
+        """
+
+        horizon = self.config.horizon_steps
+        frame_ms = state.base_frame_ms + current * self.config.step_ms
+        nearby = snapshot(state, ego_id, current, goals)
+        if not nearby:
+            return []
+
+        if controlled_ids is None:
+            relevant = relevant_ids(state, ego_id, current, horizon)
+        else:
+            relevant = list(controlled_ids)
+        decider = None
+        if self.config.relation_mode == "nn":
+            decider = relation_decider.make_decider(
+                self.config, state.poses, state.types, map_, ego_id, current
+            )
+
+        planned = []
+        ego_trajectories = self.model.predict(
+            nearby, map_, frame_ms, agent_ids=[ego_id], decider=decider
+        )
+        if ego_id in ego_trajectories:
+            commit(state, ego_id, ego_trajectories[ego_id], current)
+            planned.append(ego_id)
+
+        env_ids = [agent_id for agent_id in relevant if agent_id != ego_id and agent_id in nearby]
+        if env_ids:
+            env_trajectories = self.model.predict(
+                nearby, map_, frame_ms, agent_ids=env_ids, decider=decider
+            )
+            for agent_id, trajectory in env_trajectories.items():
+                commit(state, agent_id, trajectory, current)
+                planned.append(agent_id)
+        return planned

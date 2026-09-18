@@ -8,6 +8,26 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+from tactics2d.participant.trajectory import Trajectory
+
+
+@dataclass
+class BitsRollingResult:
+    """Output of a receding-horizon replay of one vehicle."""
+
+    ego_id: object = None
+    # Frames to animate, in milliseconds: history up to the take-over, then the replayed future.
+    frames: List[int] = field(default_factory=list)
+    # The replayed vehicle's track: recorded history plus the committed future,
+    # on the recorded frame grid.
+    trajectory: Optional[Trajectory] = None
+    # Per planning frame, the plan issued there as ``(frame, x, y)`` waypoints.
+    plans: Dict[int, List[Tuple[int, float, float]]] = field(default_factory=dict)
+    cycles: int = 0
+    # Every vehicle that was re-simulated, the ego included. A caller measuring
+    # the closed loop reads these ids' committed futures back out of ``participants``.
+    controlled_ids: List[object] = field(default_factory=list)
+
 
 @dataclass(frozen=True)
 class BitsRaster:
@@ -37,9 +57,8 @@ class BitsRaster:
 class BitsBatch:
     """A single agent-centric BITS training or inference sample.
 
-    Positions are expressed in the current ego frame. The ego current pose is
-    at the origin, with the x-axis aligned to the ego heading and y-axis to the
-    ego's left. Yaws are relative to the ego heading.
+    Positions are in the current ego frame: ego at the origin, x along its
+    heading, y to its left. Yaws are relative to the ego heading.
     """
 
     ego_id: object

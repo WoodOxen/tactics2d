@@ -124,12 +124,10 @@ def edge_yields(
     model,
     device,
 ) -> Optional[bool]:
-    """Whether the reactor must yield, using the upstream rule prefilter.
+    """Decide whether the reactor must yield, applying the rule prefilter first.
 
-    Returns ``True``/``False`` when a rule or a confident predictor decides,
-    and ``None`` when the predictor is not confident (the caller then keeps the
-    geometric edge). The same-direction (< 30 deg) and non-vehicle rules decide
-    first; the .bin predictor only arbitrates the rest.
+    Same-direction (< 30 deg) and non-vehicle pairs are decided by rule; the
+    .bin predictor arbitrates the rest, and ``None`` marks low confidence.
     """
 
     reactor_pose = poses[reactor_id][current]

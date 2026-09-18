@@ -9,9 +9,8 @@ from enum import Enum
 class LimSimAction(str, Enum):
     """High-level actions used by the interaction planner.
 
-    The value strings follow the original LimSim implementation:
-    ``KS`` keeps the current longitudinal speed, ``AC`` accelerates, ``DC``
-    decelerates, and ``LCL``/``LCR`` request a lane change.
+    ``KS`` keeps the current speed, ``AC`` accelerates, ``DC`` decelerates,
+    ``LCL``/``LCR`` request a lane change.
     """
 
     KS = "KS"

@@ -13,10 +13,8 @@ from .action import LimSimAction
 class LimSimConfig:
     """Parameters for interaction grouping, rollout, and MCTS scoring.
 
-    ``horizon_steps`` is the LimSim planner-native name for the number of
-    future states returned by ``LimSimBehaviorModel.predict``. Use
-    ``planning_steps`` when code needs the same semantic field across behavior
-    models.
+    ``horizon_steps`` is the planner-native name for the states returned by
+    ``LimSimBehaviorModel.predict``; ``planning_steps`` is the cross-model name.
     """
 
     horizon_steps: int = 50
@@ -25,9 +23,8 @@ class LimSimConfig:
     exploration_weight: float = 0.707
     interaction_distance: float = 30.0
     conflict_distance: float = 3.0
-    # Upper bound on the closing-speed reward penalty. Without a cap a sustained
-    # car-following approach subtracts an unbounded amount and clips the reward
-    # to 0.0, which MCTS cannot tell apart from a collision.
+    # Upper bound on the closing-speed reward penalty; a 0.0 reward is reserved
+    # for collisions.
     reward_closing_penalty_cap: float = 0.2
     lane_match_radius: float = 4.0
     lane_heading_match_weight: float = 2.0

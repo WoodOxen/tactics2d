@@ -98,10 +98,7 @@ class InteractionGraph:
             )
 
         # Topology is available and no relation matched: treat the pair as
-        # non-interacting. Grouping is capped at ``max_group_size`` and split by
-        # speed, so extra proximity-only edges do not keep real interaction
-        # pairs together, they only pull unrelated vehicles into a group that
-        # then gets cut arbitrarily.
+        # non-interacting.
         return False
 
     def _longitudinally_close(self, source: AgentDecisionState, target: AgentDecisionState) -> bool:
@@ -118,9 +115,8 @@ class InteractionGraph:
     def _lane_length(lane) -> float:
         """Return the lane centreline length in meters.
 
-        ``Lane.geometry`` is a ``LinearRing`` built from both side boundaries,
-        so its length is about twice the lane length; the centreline is the
-        exact quantity and is cached on the lane.
+        ``Lane.geometry`` is a ``LinearRing`` over both boundaries, so its length
+        is about twice the lane length; the centreline is the exact quantity.
         """
 
         centerline = lane.centerline()

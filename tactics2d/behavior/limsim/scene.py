@@ -129,7 +129,6 @@ class SceneBuilder:
             heading_error = 0.0
             if lane_heading is not None:
                 heading_error = abs(spatial.normalize_angle(state.heading - lane_heading))
-                heading_error = min(heading_error, abs(np.pi - heading_error))
             score = distance + self.config.lane_heading_match_weight * heading_error
             if score < best_score:
                 best_score = score

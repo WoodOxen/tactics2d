@@ -2,5 +2,3 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """Geometry module."""
-
-from . import circle, direction, frenet, polyline, spatial

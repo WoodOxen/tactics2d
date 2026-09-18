@@ -3,6 +3,7 @@
 
 """Shared helpers for the behavior-model tutorial notebooks."""
 
+import math
 from typing import Dict, Optional, Sequence, Tuple
 
 import matplotlib as mpl
@@ -12,6 +13,7 @@ from shapely.geometry import Point
 from tactics2d.display.renderers import MatplotlibRenderer
 from tactics2d.display.sensor import BEVCamera
 from tactics2d.participant.element import Vehicle
+from tactics2d.participant.trajectory import Trajectory
 
 # BEVCamera perception range, in meters.
 PERCEPTION_RANGE = 200
@@ -25,6 +27,27 @@ EGO_COLOR = "light-pink"
 EGO_WARMUP_MS = 1100
 # Fraction of the scenario span a candidate ego has to survive into.
 EGO_COVERAGE = 0.75
+
+# Take-over shared by every behavior demo; the horizon is the shortest any
+# model supports.
+COMPARISON_SPLIT = "validation_interactive"
+COMPARISON_FILE = "validation_interactive.tfrecord-00000-of-00150"
+COMPARISON_SCENARIO = 2
+COMPARISON_EGO = 8
+COMPARISON_FRAME_MS = 1100
+COMPARISON_HORIZON_STEPS = 20
+
+# The nuPlan log the demos replay; the window is recomputed at run time, since the
+# parser stamps frames relative to ``datetime(2021, 1, 1)`` in local time.
+NUPLAN_SCENARIO_FOLDER = "train_boston"
+NUPLAN_SCENARIO_FILE = "2021.08.26.18.24.36_veh-28_00578_00663.db"
+NUPLAN_SCENARIO_MAP = "us-ma-boston/9.12.1817"
+NUPLAN_SCENARIO_EGO = 26
+NUPLAN_SCENARIO_TAG = "traversing_intersection"
+# Recording is 20 Hz; the models are laid out on a 100 ms lattice.
+NUPLAN_NATIVE_STEP_MS = 50
+NUPLAN_CONTEXT_MS = 5000
+NUPLAN_FUTURE_MS = 8000
 
 
 def apply_notebook_style():
@@ -197,3 +220,125 @@ def render_replay_animation(
     return FuncAnimation(
         renderer.fig, update, frames=playback_frames, interval=interval_ms, repeat=True
     )
+
+
+def nuplan_intersection_window(
+    db_path,
+    tag: str = NUPLAN_SCENARIO_TAG,
+    context_ms: int = NUPLAN_CONTEXT_MS,
+    future_ms: int = NUPLAN_FUTURE_MS,
+):
+    """Return the millisecond window around a log's longest intersection pass.
+
+    The window is the longest unbroken run of *tag* frames, padded by
+    *context_ms* ahead and *future_ms* behind.
+
+    Args:
+        db_path (str): Path to the nuPlan ``.db`` log.
+        tag (str, optional): Scenario type to look for. Defaults to
+            ``NUPLAN_SCENARIO_TAG``.
+        context_ms (int, optional): Milliseconds of run-up to keep. Defaults to
+            ``NUPLAN_CONTEXT_MS``.
+        future_ms (int, optional): Milliseconds of run-out to keep. Defaults to
+            ``NUPLAN_FUTURE_MS``.
+
+    Returns:
+        A ``(start_ms, end_ms)`` tuple in the parser's own frame convention.
+
+    Raises:
+        ValueError: If the log carries no frame tagged *tag*.
+    """
+
+    import sqlite3
+
+    from tactics2d.dataset_parser.parse_nuplan import NuPlanParser
+
+    with sqlite3.connect(str(db_path)) as connection:
+        stamps = dict(connection.execute("SELECT token, timestamp FROM lidar_pc"))
+        tagged = sorted(
+            stamps[token]
+            for (token,) in connection.execute(
+                "SELECT lidar_pc_token FROM scenario_tag WHERE type = ?", (tag,)
+            )
+        )
+    if not tagged:
+        raise ValueError(f"{db_path} has no frame tagged {tag!r}.")
+
+    runs, current = [], [tagged[0]]
+    for previous, moment in zip(tagged, tagged[1:]):
+        # Tags are stamped per lidar sweep; a wider gap means another intersection.
+        if moment - previous <= 4 * NUPLAN_NATIVE_STEP_MS * 1000:
+            current.append(moment)
+        else:
+            runs.append(current)
+            current = [moment]
+    runs.append(current)
+    longest = max(runs, key=len)
+
+    # ``_DATETIME`` is the parser's own epoch; frames it hands out are relative to it.
+    epoch_ms = NuPlanParser._DATETIME
+    return (
+        int(longest[0] / 1000 - epoch_ms) - context_ms,
+        int(longest[-1] / 1000 - epoch_ms) + future_ms,
+    )
+
+
+def recorded_future(trajectory: Trajectory, frame_ms: int) -> Trajectory:
+    """Take a copy of the part of a trajectory recorded after ``frame_ms``.
+
+    Args:
+        trajectory (Trajectory): The vehicle's recorded trajectory.
+        frame_ms (int): The take-over frame. The unit is millisecond (ms).
+
+    Returns:
+        A stand-alone ``Trajectory`` holding every state after ``frame_ms``.
+    """
+
+    future = Trajectory(id_=trajectory.id_, fps=trajectory.fps, stable_freq=trajectory.stable_freq)
+    for frame in sorted(trajectory.frames):
+        if frame > frame_ms:
+            future.add_state(trajectory.get_state(frame))
+    return future
+
+
+def displacement_errors(
+    predicted: Trajectory,
+    recorded: Trajectory,
+    horizon_steps: Optional[int] = None,
+    tolerance_ms: int = 50,
+):
+    """Score a predicted future against the recorded one.
+
+    Args:
+        predicted (Trajectory): The predicted future.
+        recorded (Trajectory): The recorded future, from ``recorded_future``.
+        horizon_steps (int, optional): Number of matched steps to score, counted
+            from the take-over. Defaults to None, i.e. every matched step.
+        tolerance_ms (int, optional): Largest frame gap a pair may have, in
+            milliseconds. Defaults to 50.
+
+    Returns:
+        A tuple of:
+            - ade (float): Mean displacement over the scored steps, in metres.
+            - fde (float): Displacement at the last scored step, in metres.
+            - matched (int): How many steps were scored.
+
+        Both errors are ``inf`` when no pair survives the tolerance.
+    """
+
+    predicted_frames = sorted(predicted.frames)
+    errors = []
+    for frame in sorted(recorded.frames):
+        if not predicted_frames:
+            break
+        nearest = min(predicted_frames, key=lambda other: abs(other - frame))
+        if abs(nearest - frame) > tolerance_ms:
+            continue
+        state = predicted.get_state(nearest)
+        truth = recorded.get_state(frame)
+        errors.append(math.hypot(state.x - truth.x, state.y - truth.y))
+    if horizon_steps is not None:
+        errors = errors[:horizon_steps]
+    if not errors:
+        return float("inf"), float("inf"), 0
+    return sum(errors) / len(errors), errors[-1], len(errors)

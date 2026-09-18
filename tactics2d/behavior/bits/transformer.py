@@ -28,7 +28,7 @@ class LayerNorm(nn.Module):
 
 
 class SublayerConnection(nn.Module):
-    """Residual connection followed by TBSIM-style layer normalization."""
+    """Residual connection followed by layer normalization."""
 
     def __init__(self, size: int, dropout: float):
         super().__init__()
@@ -53,7 +53,7 @@ class PositionwiseFeedForward(nn.Module):
 
 
 class _MultiHeadAttention(nn.Module):
-    """TBSIM SimpleTransformer attention block."""
+    """SimpleTransformer attention block."""
 
     def __init__(self, head_count: int, d_model: int, dropout: float = 0.1, pooling_dim=None):
         super().__init__()
@@ -114,7 +114,7 @@ def scaled_dot_product_attention(
 
 
 class _EncoderLayer(nn.Module):
-    """Single TBSIM StaticEncoder layer."""
+    """Single transformer encoder layer."""
 
     def __init__(
         self,
@@ -135,19 +135,27 @@ class _EncoderLayer(nn.Module):
 
 
 class _BitsPositionalEncodingNd(nn.Module):
-    """Official XY positional encoding for SimpleTransformer."""
+    """XY positional encoding for the BITS transformer."""
 
-    def __init__(self, dim: int, dropout: float, step_size=(0.1, 0.1)):
+    def __init__(self, dim: int, dropout: float, step_size=(0.1, 0.1), tbsim_compat=False):
         super().__init__()
         if dim % 4 != 0:
             raise ValueError("dim must be divisible by 4.")
         self.dropout = nn.Dropout(p=dropout)
         self.dim = int(dim)
         self.step_size = tuple(float(value) for value in step_size)
-        axis_dim = dim // 2
-        self.div_term = torch.exp(torch.arange(0, axis_dim, 2) * -(math.log(10000.0) / axis_dim))
+        self.tbsim_compat = bool(tbsim_compat)
+        if self.tbsim_compat:
+            self.div_term = torch.exp(torch.arange(0, dim, 2) * -(math.log(10000.0) / dim))
+        else:
+            axis_dim = dim // 2
+            self.div_term = torch.exp(
+                torch.arange(0, axis_dim, 2) * -(math.log(10000.0) / axis_dim)
+            )
 
     def forward(self, inputs: torch.Tensor, position: torch.Tensor) -> torch.Tensor:
+        if self.tbsim_compat:
+            return self.dropout(self._forward_tbsim(inputs, position))
         encoded = torch.zeros(
             *inputs.shape[:-1], self.dim, dtype=inputs.dtype, device=inputs.device
         )
@@ -161,17 +169,39 @@ class _BitsPositionalEncodingNd(nn.Module):
             axis_encoded[..., 1::2] = torch.cos(phase)
         return self.dropout(encoded)
 
+    def _forward_tbsim(self, inputs: torch.Tensor, position: torch.Tensor) -> torch.Tensor:
+        """Compute the TBSIM positional encoding."""
+        repeat_size = [1] * inputs.ndim
+        repeat_size[-1] = self.dim // 2
+        div_term = self.div_term.to(device=inputs.device, dtype=inputs.dtype)
+        encoded = torch.zeros(
+            *inputs.shape[:-1], self.dim, dtype=inputs.dtype, device=inputs.device
+        )
+        for axis, step in enumerate(self.step_size):
+            phase = position[..., axis : axis + 1].repeat(*repeat_size) / step * div_term
+            encoded = torch.zeros(
+                *inputs.shape[:-1], self.dim, dtype=inputs.dtype, device=inputs.device
+            )
+            encoded[..., 0::2] = torch.sin(phase)
+            encoded[..., 1::2] = torch.sin(phase)
+        return encoded
+
 
 class _BitsStaticEncoder(nn.Module):
     """Agent-axis transformer encoder with official state_dict names."""
 
     def __init__(
-        self, agent_enc: _EncoderLayer, xy_pe: _BitsPositionalEncodingNd, layer_count: int = 1
+        self,
+        agent_enc: _EncoderLayer,
+        xy_pe: _BitsPositionalEncodingNd,
+        layer_count: int = 1,
+        tbsim_compat: bool = False,
     ):
         super().__init__()
         self.N_layer = int(layer_count)
         self.agent_encs = nn.ModuleList([copy.deepcopy(agent_enc) for _ in range(self.N_layer)])
         self.XY_pe = xy_pe
+        self.tbsim_compat = bool(tbsim_compat)
 
     def forward(
         self,
@@ -190,7 +220,7 @@ class _BitsStaticEncoder(nn.Module):
 
 
 class Transformer(nn.Module):
-    """Official SimpleTransformer used by the released BITS predictor checkpoint."""
+    """SimpleTransformer encoder over agent features."""
 
     def __init__(
         self,
@@ -202,15 +232,19 @@ class Transformer(nn.Module):
         head: int = 8,
         dropout: float = 0.1,
         step_size=(0.1, 0.1),
+        tbsim_compat: bool = False,
     ):
         super().__init__()
         agent_attn = _MultiHeadAttention(head, d_model, pooling_dim=-3)
         feed_forward = PositionwiseFeedForward(d_model, d_ff, dropout)
-        xy_pe = _BitsPositionalEncodingNd(XY_pe_dim, dropout, step_size=step_size)
+        xy_pe = _BitsPositionalEncodingNd(
+            XY_pe_dim, dropout, step_size=step_size, tbsim_compat=tbsim_compat
+        )
         self.agent_enc = _BitsStaticEncoder(
             _EncoderLayer(d_model, copy.deepcopy(agent_attn), copy.deepcopy(feed_forward), dropout),
             xy_pe,
             N_a,
+            tbsim_compat=tbsim_compat,
         )
         self.pre_emb = nn.Linear(src_dim, d_model - XY_pe_dim)
         self.post_emb = nn.Linear(d_model, src_dim)

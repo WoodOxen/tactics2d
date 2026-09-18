@@ -59,9 +59,8 @@ def detect_relation_edges(
 ) -> List[Edge]:
     """Detect directed relations over planned trajectories.
 
-    The agent reaching the conflict point later is the reactor. A mixed
-    vehicle/non-vehicle pair makes the non-vehicle the influencer; a rear-end
-    catch-up makes the trailing vehicle the reactor.
+    The later arrival is the reactor; a mixed pair makes the non-vehicle the
+    influencer, and a rear-end catch-up makes the trailing vehicle the reactor.
 
     Args:
         poses: Agent id to planned pose array with shape ``(S, 4)`` storing
@@ -104,14 +103,7 @@ def detect_relation_edges(
         if _nearest_same_index_gap(poses_a, poses_b) > (length_a + length_b) / 2.0 + 2.0:
             continue
         pair = _collision_pairs(
-            poses_a,
-            poses_b,
-            length_a,
-            width_a,
-            length_b,
-            width_b,
-            margin,
-            max_gap=max_gap,
+            poses_a, poses_b, length_a, width_a, length_b, width_b, margin, max_gap=max_gap
         )
         if pair is None:
             continue
@@ -137,11 +129,7 @@ def detect_relation_edges(
             else:
                 # Simultaneous crossing: the earlier corridor entrant passes first.
                 entry_a, entry_b = _corridor_entry(
-                    poses[id_a],
-                    poses[id_b],
-                    (length_a, width_a),
-                    (length_b, width_b),
-                    margin,
+                    poses[id_a], poses[id_b], (length_a, width_a), (length_b, width_b), margin
                 )
                 if entry_a is not None and entry_b is not None and entry_a != entry_b:
                     if entry_a < entry_b:
@@ -177,9 +165,7 @@ def _collision_pairs(
         pose_a = poses_a[idx_a]
         if pose_a[0] == -1:
             continue
-        body_a = AgentBody(
-            float(pose_a[0]), float(pose_a[1]), float(pose_a[3]), length_a, width_a
-        )
+        body_a = AgentBody(float(pose_a[0]), float(pose_a[1]), float(pose_a[3]), length_a, width_a)
         idx_b_lo = max(0, idx_a - max_gap) if max_gap is not None else 0
         idx_b_hi = min(len(poses_b), idx_a + max_gap + 1) if max_gap is not None else len(poses_b)
         for idx_b in range(idx_b_lo, idx_b_hi):

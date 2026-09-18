@@ -15,11 +15,10 @@ from .schema import states_to_trajectory
 
 
 class LimSimPredictor:
-    """Predict short horizon trajectories with LimSim's default assumptions.
+    """Predict short horizon trajectories with default assumptions.
 
-    The original LimSim predictor reuses remaining planned trajectories for
-    controlled vehicles and uses constant-speed lane following for background
-    vehicles. This lightweight version follows the same rule-based spirit.
+    Reuse remaining planned trajectories for controlled vehicles; use
+    constant-speed lane following for background vehicles.
     """
 
     def __init__(self, config: LimSimConfig):

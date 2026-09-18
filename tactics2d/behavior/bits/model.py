@@ -1,19 +1,7 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""BITS behavior model and neural-network modules for bi-level imitation learning.
-
-Contains the full BITS model:
-
-- :class:`BitsSpatialPlannerModule` — high-level spatial planner
-- :class:`BitsAgentAwareTrajectoryModule` — low-level traffic model
-- :class:`BitsBiLevelTorchModel` — full bi-level model combining both
-- :class:`BitsBehaviorModel` — public entry point with checkpoint loading
-
-Low-level building blocks (MLP, transformer, UNet, dynamics …) are imported
-from :mod:`.blocks`, :mod:`.transformer`, :mod:`.unet`, and :mod:`.dynamics`.
-ROI heads come from :mod:`.roi`, policy heads from :mod:`.heads`.
-"""
+"""BITS behavior model and neural-network modules for bi-level imitation learning."""
 
 from pathlib import Path
 from typing import Dict, Iterable, Mapping, Optional
@@ -28,6 +16,7 @@ from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 from tactics2d.participant.trajectory import State, Trajectory
 
+from . import rolling
 from .config import BitsConfig
 from .dataset import BitsBatchBuilder
 from .encoder import RNNEncoder
@@ -35,7 +24,7 @@ from .heads import FutureStatePredictorHead, GoalConditionalPolicyHead
 from .policy import BitsPolicy, TorchBitsPolicy
 from .predictor import BitsPrediction
 from .roi import ROIHead
-from .schema import BitsBatch
+from .schema import BitsBatch, BitsRollingResult
 from .scorer import BitsPlanScorer
 from .transformer import Transformer as BitsSimpleTransformer
 from .unet import BitsRasterBackbone
@@ -82,7 +71,11 @@ def _unpack_ego_init_states(tensors):
 
     The ego is always at the origin in its own frame, so x/y are zero.
     """
-    curr_speed = _add_batch_dim(tensors["curr_speed"], 2)
+    curr_speed = tensors["curr_speed"]
+    if curr_speed.ndim == 1:
+        # One speed per batch element, not a batched time series.
+        curr_speed = curr_speed[:, None]
+    curr_speed = _add_batch_dim(curr_speed, 2)
     history_yaws = _add_batch_dim(tensors["history_yaws"], 3).to(curr_speed)
     return torch.cat(
         [
@@ -150,6 +143,18 @@ def _unpack_scene_states(tensors):
     states = torch.cat([ego_state[:, None], agent_states], dim=1)
     states = states * current_availability.to(states).unsqueeze(-1)
     return positions, states, current_availability
+
+
+def _unpack_roi_anchors(tensors):
+    """Return the ROI anchor positions.
+
+    Only meant for ``tbsim_compat`` runs.
+    """
+    ego_positions = _add_batch_dim(tensors["history_positions"], 3)
+    other_positions = tensors["all_other_agents_history_positions"]
+    if other_positions.ndim == 3:
+        other_positions = other_positions.unsqueeze(0)
+    return torch.cat([ego_positions[:, None, 0], other_positions[:, :, 0]], dim=1)
 
 
 def _unpack_history_trajectories(tensors, reference):
@@ -224,6 +229,52 @@ def _map_checkpoint_prefixes(
     return mapped
 
 
+# Maps official TBSIM ``policy.*`` / ``nets.policy.*`` onto Tactics2D
+# ``planner.*`` / ``shared_encoder.*``.
+_PLANNER_PREFIX_MAP = {
+    "nets.policy.decoder.": "planner.spatial_goal_decoder.decoder.",
+    "policy.decoder.": "planner.spatial_goal_decoder.decoder.",
+    "nets.policy.encoder_heads.": "shared_encoder.encoder_heads.",
+    "policy.encoder_heads.": "shared_encoder.encoder_heads.",
+    "nets.policy.": "planner.spatial_goal_decoder.",
+    "policy.": "planner.spatial_goal_decoder.",
+}
+
+
+def _map_planner_state_dict(state_dict: Mapping[str, object]) -> Dict[str, object]:
+    """Map a planner state dict (Tactics2D or official TBSIM) onto module names.
+
+    Args:
+        state_dict (Mapping): Raw planner tensors, keyed either way.
+
+    Returns:
+        The tensors under the Tactics2D module names.
+    """
+    return _normalize_checkpoint_keys(_map_checkpoint_prefixes(state_dict, _PLANNER_PREFIX_MAP))
+
+
+def _infer_encoder_arch(state_dict: Mapping[str, object]) -> Optional[str]:
+    """Read the encoder architecture off a planner state dict, if present.
+
+    Args:
+        state_dict (Mapping): Planner tensors keyed by Tactics2D module names.
+
+    Returns:
+        "resnet18", "resnet50", or None when the checkpoint holds no encoder.
+    """
+    for key, value in state_dict.items():
+        if not str(key).endswith("encoder_heads.map_model.layer1.0.conv1.weight"):
+            continue
+        shape = tuple(getattr(value, "shape", ()))
+        if len(shape) != 4:
+            continue
+        if shape[2:] == (1, 1):
+            return "resnet50"
+        if shape[2:] == (3, 3):
+            return "resnet18"
+    return None
+
+
 def _state_dict_from_checkpoint(checkpoint, map_location=None) -> Mapping[str, object]:
     if isinstance(checkpoint, (str, Path)):
         checkpoint = torch.load(checkpoint, map_location=map_location)
@@ -239,7 +290,10 @@ def _state_dict_from_checkpoint(checkpoint, map_location=None) -> Mapping[str, o
 def _extract_planner_state(
     checkpoint, map_location=None, separate_planner_encoder: bool = False
 ) -> Dict[str, object]:
-    """Extract ``planner.*`` and ``shared_encoder.*`` tensors from a BITS checkpoint.
+    """Extract the planner-owned tensors from a BITS checkpoint.
+
+    Accepts both the Tactics2D layout (``planner.*`` / ``shared_encoder.*``) and
+    the official TBSIM layout (``nets.policy.*`` / ``policy.*``).
 
     Args:
         checkpoint: A checkpoint path or an already loaded mapping.
@@ -256,12 +310,8 @@ def _extract_planner_state(
         ValueError: If the checkpoint holds no planner or encoder weights.
     """
 
-    if isinstance(checkpoint, Mapping):
-        payload = checkpoint
-    else:
-        payload = torch.load(checkpoint, map_location=map_location)
-    state_dict = payload.get("model_state_dict", payload)
-    normalized = _normalize_checkpoint_keys(state_dict)
+    state_dict = _state_dict_from_checkpoint(checkpoint, map_location=map_location)
+    normalized = _map_planner_state_dict(state_dict)
     planner_state = {
         key: value
         for key, value in normalized.items()
@@ -269,7 +319,8 @@ def _extract_planner_state(
     }
     if not planner_state:
         raise ValueError(
-            "Tactics2D planner checkpoint does not contain planner.* or shared_encoder.* weights."
+            "Checkpoint does not contain planner.* or shared_encoder.* weights "
+            "(Tactics2D format), nor nets.policy.* / policy.* (official TBSIM format)."
         )
 
     if separate_planner_encoder:
@@ -279,6 +330,11 @@ def _extract_planner_state(
             for key, value in planner_state.items()
             if str(key).startswith(prefix)
         }
+        if not owned:
+            raise ValueError(
+                "separate_planner_encoder=True needs the checkpoint's "
+                f"{prefix!r} tensors, but the checkpoint has none."
+            )
         planner_state.update(owned)
     return planner_state
 
@@ -289,27 +345,13 @@ def _merge_tbsim_state_dicts(
 ) -> Dict[str, object]:
     """Merge official planner/predictor state dicts into one BITS model state dict."""
 
-    def _map_planner(sd):
-        mapped = _map_checkpoint_prefixes(
-            sd,
-            prefix_map={
-                "nets.policy.decoder.": "planner.spatial_goal_decoder.decoder.",
-                "policy.decoder.": "planner.spatial_goal_decoder.decoder.",
-                "nets.policy.encoder_heads.": "shared_encoder.encoder_heads.",
-                "policy.encoder_heads.": "shared_encoder.encoder_heads.",
-                "nets.policy.": "planner.spatial_goal_decoder.",
-                "policy.": "planner.spatial_goal_decoder.",
-            },
-        )
-        return _normalize_checkpoint_keys(mapped)
-
     def _map_predictor(sd):
         mapped = _map_checkpoint_prefixes(sd, prefix_map={"model.": "predictor."})
         return _normalize_checkpoint_keys(mapped)
 
     merged: Dict[str, object] = {}
     if planner_state_dict is not None:
-        merged.update(_map_planner(planner_state_dict))
+        merged.update(_map_planner_state_dict(planner_state_dict))
     if predictor_state_dict is not None:
         mapped_predictor = _map_predictor(predictor_state_dict)
         overlap = set(merged).intersection(mapped_predictor)
@@ -320,6 +362,64 @@ def _merge_tbsim_state_dicts(
             raise ValueError(f"Overlapping BITS checkpoint keys: {non_encoder_overlap[:3]}")
         merged.update(mapped_predictor)
     return merged
+
+
+def _validate_checkpoint_for_model(
+    model: "BitsBiLevelTorchModel", merged_state_dict: Mapping[str, object]
+) -> Dict[str, object]:
+    """Return the tensors of a merged state dict that fit the model.
+
+    Args:
+        model (BitsBiLevelTorchModel): Model the checkpoint is destined for.
+        merged_state_dict (Mapping): Merged planner + predictor tensors.
+
+    Returns:
+        The subset of ``merged_state_dict`` whose keys exist in the model.
+
+    Raises:
+        ValueError: If any model tensor is missing from the checkpoint or has a
+            different shape there.
+    """
+    model_state = model.state_dict()
+    loadable = {key: merged_state_dict[key] for key in merged_state_dict if key in model_state}
+    missing = sorted(set(model_state) - set(loadable))
+    mismatched = sorted(
+        key
+        for key, value in loadable.items()
+        if tuple(value.shape) != tuple(model_state[key].shape)
+    )
+    if not missing and not mismatched:
+        return loadable
+
+    ignored = sorted(set(merged_state_dict) - set(model_state))
+
+    def _by_prefix(keys):
+        counts: Dict[str, int] = {}
+        for key in keys:
+            prefix = ".".join(str(key).split(".")[:2])
+            counts[prefix] = counts.get(prefix, 0) + 1
+        return ", ".join(f"{prefix}.*: {count}" for prefix, count in sorted(counts.items()))
+
+    lines = [
+        "Checkpoint does not fit the model: "
+        f"{len(missing)} missing, {len(mismatched)} shape mismatches, {len(ignored)} ignored."
+    ]
+    if missing:
+        lines.append(f"  missing by prefix: {_by_prefix(missing)}")
+        lines.append(f"  first missing: {missing[:3]}")
+    for key in mismatched[:3]:
+        lines.append(
+            f"  shape mismatch on {key}: checkpoint {tuple(merged_state_dict[key].shape)} "
+            f"vs model {tuple(model_state[key].shape)}"
+        )
+    if any("encoder_heads" in key for key in missing + mismatched):
+        lines.append(
+            f"  the checkpoint's encoder looks like {_infer_encoder_arch(merged_state_dict)}, "
+            f"but the model was built with a {model.model_arch} shared encoder and a "
+            f"{model.planner_model_arch} planner encoder; pass planner_model_arch=... and/or "
+            "model_arch=... to match."
+        )
+    raise ValueError("\n".join(lines))
 
 
 def _build_bits_model(metadata: dict, config: BitsConfig) -> "BitsBiLevelTorchModel":
@@ -451,12 +551,15 @@ class BitsAgentAwareTrajectoryModule(nn.Module):
         use_transformer: bool = False,
         config: Optional[BitsConfig] = None,
         shared_encoder: Optional[SharedRasterEncoder] = None,
+        tbsim_compat: bool = False,
     ):
         super().__init__()
         self.future_steps = int(future_steps)
         self.config = config or BitsConfig()
         self.goal_feature_dim = int(goal_feature_dim)
         self.history_conditioning = bool(history_conditioning)
+        # Compatibility ROI anchoring, positional encoding and feature masking.
+        self.tbsim_compat = bool(tbsim_compat)
         self.register_buffer(
             "roi_size",
             torch.tensor(
@@ -491,7 +594,9 @@ class BitsAgentAwareTrajectoryModule(nn.Module):
             self.history_encoder = None
         agent_feature_dim_total = agent_feature_dim + global_feature_dim + history_feature_dim
         self.transformer = (
-            BitsSimpleTransformer(src_dim=agent_feature_dim_total) if use_transformer else None
+            BitsSimpleTransformer(src_dim=agent_feature_dim_total, tbsim_compat=self.tbsim_compat)
+            if use_transformer
+            else None
         )
         self.policy_head = GoalConditionalPolicyHead(
             agent_feature_dim_total=agent_feature_dim_total,
@@ -541,10 +646,11 @@ class BitsAgentAwareTrajectoryModule(nn.Module):
         agent_controls = agent_decoded["controls"]
         agent_positions = agent_decoded["positions"]
         agent_yaws = agent_decoded["yaws"]
-        agent_mask = current_availability[:, 1:].to(agent_controls)
-        agent_controls = agent_controls * agent_mask[:, :, None, None]
-        agent_positions = agent_positions * agent_mask[:, :, None, None]
-        agent_yaws = agent_yaws * agent_mask[:, :, None, None]
+        if not self.tbsim_compat:
+            agent_mask = current_availability[:, 1:].to(agent_controls)
+            agent_controls = agent_controls * agent_mask[:, :, None, None]
+            agent_positions = agent_positions * agent_mask[:, :, None, None]
+            agent_yaws = agent_yaws * agent_mask[:, :, None, None]
 
         expanded_agent_positions = agent_positions[:, None].expand(-1, mode_count, -1, -1, -1)
         expanded_agent_yaws = agent_yaws[:, None].expand(-1, mode_count, -1, -1, -1)
@@ -598,7 +704,8 @@ class BitsAgentAwareTrajectoryModule(nn.Module):
         image = _add_batch_dim(tensors["image"], 4)
         if encoder_features is None:
             encoder_features = self.shared_encoder(image)
-        agent_features, global_features = self.roi_head(tensors, agent_positions, encoder_features)
+        roi_positions = _unpack_roi_anchors(tensors) if self.tbsim_compat else agent_positions
+        agent_features, global_features = self.roi_head(tensors, roi_positions, encoder_features)
         global_features = global_features[:, None].expand(-1, agent_features.shape[1], -1)
         all_features = torch.cat([agent_features, global_features], dim=-1)
         if self.history_encoder is not None:
@@ -614,7 +721,8 @@ class BitsAgentAwareTrajectoryModule(nn.Module):
                 current_availability.to(all_features),
                 agent_positions.to(all_features),
             )
-        all_features = all_features * current_availability.to(all_features).unsqueeze(-1)
+        if not self.tbsim_compat:
+            all_features = all_features * current_availability.to(all_features).unsqueeze(-1)
         if return_encoder_features:
             return (
                 all_features,
@@ -631,7 +739,7 @@ class BitsAgentAwareTrajectoryModule(nn.Module):
 
 
 class BitsBiLevelTorchModel(nn.Module):
-    """BITS core model with the official planner/predictor boundary."""
+    """BITS core model with the planner/predictor boundary."""
 
     def __init__(
         self,
@@ -646,12 +754,23 @@ class BitsBiLevelTorchModel(nn.Module):
         use_transformer: bool = False,
         config: Optional[BitsConfig] = None,
         separate_planner_encoder: bool = False,
+        planner_model_arch: Optional[str] = None,
+        tbsim_compat: bool = False,
     ):
         super().__init__()
         self.image_channels = int(image_channels)
         self.future_steps = int(future_steps)
         self.hidden_dim = int(hidden_dim)
         self.model_arch = model_arch
+        # Defaults to model_arch.
+        self.planner_model_arch = planner_model_arch or model_arch
+        self.tbsim_compat = bool(tbsim_compat)
+        if not separate_planner_encoder and self.planner_model_arch != self.model_arch:
+            raise ValueError(
+                "planner_model_arch differs from model_arch, which needs "
+                "separate_planner_encoder=True: a single shared encoder cannot have "
+                f"two architectures ({self.planner_model_arch!r} vs {self.model_arch!r})."
+            )
         self.context_size = int(context_size)
         self.roi_feature_size = int(roi_feature_size)
         self.roi_layer_key = roi_layer_key
@@ -666,7 +785,7 @@ class BitsBiLevelTorchModel(nn.Module):
         self.separate_planner_encoder = bool(separate_planner_encoder)
         if self.separate_planner_encoder:
             self.planner = BitsSpatialPlannerModule(
-                image_channels=image_channels, model_arch=model_arch
+                image_channels=image_channels, model_arch=self.planner_model_arch
             )
         else:
             self.planner = BitsSpatialPlannerModule(
@@ -687,6 +806,7 @@ class BitsBiLevelTorchModel(nn.Module):
             use_transformer=use_transformer,
             config=self.config,
             shared_encoder=self.shared_encoder,
+            tbsim_compat=self.tbsim_compat,
         )
 
     def forward(
@@ -802,16 +922,7 @@ def decode_bits_spatial_prediction(
 class BitsBehaviorModel(BehaviorModelBase):
     """Public BITS-style behavior model entry point.
 
-    Usage::
-
-        # From a single merged checkpoint:
-        model = BitsBehaviorModel.from_checkpoint("path/to/model.ckpt")
-
-        # From a trained planner plus an official predictor:
-        model = BitsBehaviorModel.from_trained_planner(
-            planner_checkpoint="runtime/bits_planner/epoch_0050.ckpt",
-            predictor_checkpoint="checkpoints/bits-3qx90/official_predictor/iter94000_ep6_valLoss0.06.ckpt",
-        )
+    Build one with :meth:`from_checkpoint` or :meth:`from_trained_planner`.
     """
 
     def __init__(
@@ -892,36 +1003,52 @@ class BitsBehaviorModel(BehaviorModelBase):
         device=None,
         dtype=None,
         separate_planner_encoder: bool = True,
+        planner_model_arch: Optional[str] = None,
+        tbsim_compat: Optional[bool] = None,
         **extra_arch_kwargs,
     ) -> "BitsBehaviorModel":
         """Load a trained planner checkpoint merged with an official predictor.
 
-        When ``planner_checkpoint`` is a Tactics2D-format checkpoint (saved by
-        the behavior training pipeline), its metadata is used to infer
-        architecture parameters and override explicit arguments.  When loading
-        an official TBSIM checkpoint that has no metadata, explicit ``**``
-        arguments serve as fallback.
+        Checkpoint metadata overrides explicit architecture arguments.
 
         Args:
             planner_checkpoint: Trained spatial planner checkpoint.
             predictor_checkpoint (optional): Official TBSIM predictor checkpoint. Defaults to None.
             separate_planner_encoder (bool, optional): Keep the planner's own
-                trained encoder instead of letting the official predictor's
-                encoder overwrite it. A planner whose encoder was trained jointly
-                (even while nominally frozen) is otherwise fed features it was
-                never trained on. Costs one extra encoder forward per step, and
-                matches the upstream layout of two independent checkpoints.
-                Defaults to True.
+                trained encoder instead of letting the predictor's encoder
+                overwrite it. Defaults to True.
+            planner_model_arch (str, optional): Backbone of the planner's own
+                encoder when it differs from the predictor's. Inferred from the
+                checkpoint when omitted. Defaults to None.
+            tbsim_compat (bool, optional): Use compatibility ROI anchoring,
+                positional encoding and feature masking. Defaults
+                to None, which takes the flag from the checkpoint's metadata and
+                falls back to False. Passing True or False overrides the
+                checkpoint.
 
         Returns:
             A ready-to-use behavior model.
+
+        Raises:
+            ValueError: If a parameter overrides the architecture the checkpoint
+                was actually trained with.
         """
+        if extra_arch_kwargs:
+            raise ValueError(f"Unknown architecture arguments: {sorted(extra_arch_kwargs)}")
         resolved_config = config or BitsConfig(future_steps=int(future_steps))
+        resolved_tbsim_compat = tbsim_compat
 
         # --- Try to read architecture from planner metadata ---
+        planner_payload = None
         try:
-            planner_payload = torch.load(planner_checkpoint, map_location=map_location)
+            planner_payload = (
+                planner_checkpoint
+                if isinstance(planner_checkpoint, Mapping)
+                else torch.load(planner_checkpoint, map_location=map_location)
+            )
             planner_meta = planner_payload.get("metadata", {})
+            if tbsim_compat is None:
+                resolved_tbsim_compat = bool(planner_meta.get("tbsim_compat", False))
             image_channels = int(planner_meta.get("image_channels", image_channels))
             future_steps = int(planner_meta.get("future_steps", future_steps))
             hidden_dim = int(
@@ -966,11 +1093,28 @@ class BitsBehaviorModel(BehaviorModelBase):
                     planner_meta.get("schedule", {}).get("use_transformer", use_transformer),
                 )
             )
-            resolved_config = BitsConfig(
-                **{**dict(planner_meta.get("config", {})), "future_steps": future_steps}
-            )
+            if planner_meta.get("config"):
+                resolved_config = BitsConfig(
+                    **{**dict(planner_meta["config"]), "future_steps": future_steps}
+                )
         except Exception:
             pass
+        if resolved_tbsim_compat is None:
+            resolved_tbsim_compat = False
+
+        # --- Merge weights ---
+        mapped_state_dict = _extract_planner_state(
+            planner_payload if planner_payload is not None else planner_checkpoint,
+            map_location=map_location,
+            separate_planner_encoder=bool(separate_planner_encoder),
+        )
+        inferred_arch = _infer_encoder_arch(mapped_state_dict)
+        if planner_model_arch is not None and inferred_arch not in (None, planner_model_arch):
+            raise ValueError(
+                f"planner_model_arch={planner_model_arch!r} contradicts the checkpoint, whose "
+                f"planner encoder looks like {inferred_arch!r}."
+            )
+        planner_model_arch = planner_model_arch or inferred_arch or model_arch
 
         model = BitsBiLevelTorchModel(
             image_channels=int(image_channels),
@@ -984,13 +1128,8 @@ class BitsBehaviorModel(BehaviorModelBase):
             use_transformer=bool(use_transformer),
             config=resolved_config,
             separate_planner_encoder=bool(separate_planner_encoder),
-        )
-
-        # --- Merge weights ---
-        mapped_state_dict = _extract_planner_state(
-            planner_checkpoint,
-            map_location=map_location,
-            separate_planner_encoder=bool(separate_planner_encoder),
+            planner_model_arch=planner_model_arch,
+            tbsim_compat=bool(resolved_tbsim_compat),
         )
 
         if predictor_checkpoint is not None:
@@ -1013,14 +1152,7 @@ class BitsBehaviorModel(BehaviorModelBase):
             mapped_state_dict.update(official_sd)
 
         model_state = model.state_dict()
-        loadable = {k: mapped_state_dict[k] for k in mapped_state_dict if k in model_state}
-        missing = set(model_state) - set(loadable)
-        if missing:
-            raise ValueError(
-                f"Checkpoint is missing {len(missing)} keys from the model. "
-                f"First 10: {sorted(missing)[:10]}"
-            )
-        model_state.update(loadable)
+        model_state.update(_validate_checkpoint_for_model(model, mapped_state_dict))
         model.load_state_dict(model_state)
         model.eval()
         if device is not None:
@@ -1072,6 +1204,26 @@ class BitsBehaviorModel(BehaviorModelBase):
     def predict_batch(self, batch: BitsBatch) -> BitsPrediction:
         """Expose the policy-level batch API for training/evaluation code."""
         return self.policy.predict_batch(batch)
+
+    def rollout(
+        self,
+        participants: Dict[object, object],
+        map_: Optional[Map],
+        ego_id: object,
+        frame_ms: Optional[int] = None,
+        horizon_ms: Optional[int] = None,
+        replan_interval: int = 20,
+        controlled_ids: Optional[Iterable[object]] = None,
+    ) -> BitsRollingResult:
+        """Replay one vehicle's future in a receding-horizon loop.
+
+        ``controlled_ids`` names every vehicle to re-simulate; the ego must be a
+        member. Defaulting to None replays the ego alone.
+        """
+
+        return rolling.BitsRollingRunner(
+            self, self.config, horizon_ms=horizon_ms, replan_interval=replan_interval
+        ).run(participants, map_, ego_id, frame_ms=frame_ms, controlled_ids=controlled_ids)
 
     def _prediction_to_trajectory(
         self, ego_id: object, frame: int, batch: BitsBatch, prediction: BitsPrediction

@@ -36,7 +36,7 @@ class MLP(nn.Module):
 
 
 class SplitMLP(MLP):
-    """Multi-output MLP used by the official BITS trajectory decoder."""
+    """Multi-output MLP used by the BITS trajectory decoder."""
 
     def __init__(self, input_dim: int, output_shapes: OrderedDict, layer_dims: tuple = ()):
         self._output_shapes = output_shapes
@@ -57,7 +57,7 @@ class SplitMLP(MLP):
 
 
 class TrajectoryDecoder(nn.Module):
-    """Official-style MLP decoder that predicts unicycle controls then integrates them."""
+    """MLP decoder predicting unicycle controls then integrating them."""
 
     def __init__(
         self,
@@ -70,8 +70,7 @@ class TrajectoryDecoder(nn.Module):
         self.feature_dim = int(feature_dim)
         self.future_steps = int(future_steps)
         self.config = config or BitsConfig(future_steps=future_steps)
-        # Official Unicycle decoder uses state_as_input=True: concatenate the
-        # current [x, y, v, yaw] state with features before predicting controls.
+        # Concatenate the current [x, y, v, yaw] state with features before predicting controls.
         self.mlp = SplitMLP(
             input_dim=self.feature_dim + 4,
             output_shapes=OrderedDict(trajectories=(self.future_steps, 2)),

@@ -563,3 +563,80 @@ def concatenate(
         return None
 
     return np.vstack(merged)
+
+
+def signed_distance_to_polyline(
+    points: np.ndarray, polyline: np.ndarray, cyclic: bool = False
+) -> np.ndarray:
+    """Return the signed distance from each point to a polyline.
+
+    Distances are negative on the polyline's left side and positive on its right.
+
+    Args:
+        points: Query points with shape ``(N, 2)``. Units are metres.
+        polyline: Polyline with shape ``(M, 2)``, ordered along its direction.
+        cyclic: Whether the polyline closes on itself, i.e. its last point joins
+            its first. Defaults to False.
+
+    Returns:
+        Signed distances with shape ``(N,)``.
+
+    Raises:
+        ValueError: If the polyline has fewer than two points or contains a
+            zero-length segment.
+    """
+
+    points = np.asarray(points, dtype=float)
+    if points.ndim != 2 or points.shape[1] != 2:
+        raise ValueError(f"points must have shape (N, 2), got {points.shape}.")
+    line = _as_polyline(polyline)
+
+    starts = line[:-1]
+    deltas = line[1:] - starts
+    squared = np.sum(deltas * deltas, axis=-1)
+    if np.any(squared <= 0.0):
+        raise ValueError("polyline contains a zero-length segment.")
+
+    to_point = points[:, np.newaxis, :] - starts[np.newaxis, :, :]
+    relative = np.sum(to_point * deltas, axis=-1) / squared
+    clamped = np.clip(relative, 0.0, 1.0)
+    gap = to_point - clamped[..., np.newaxis] * deltas
+    distance = np.linalg.norm(gap, axis=-1)
+    side = np.sign(_cross_2d(to_point, deltas))
+
+    # Convex joints inherit the neighbouring segment's side.
+    padded = np.concatenate([deltas[-1:], deltas, deltas[:1]])
+    convex = _cross_2d(padded[:-1], padded[1:]) > 0.0
+
+    side = _resolve_side(side, relative, convex, cyclic)
+    nearest = np.argmin(distance, axis=-1)
+    rows = np.arange(len(points))
+    return np.asarray(side[rows, nearest] * distance[rows, nearest], dtype=float)
+
+
+def _cross_2d(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Return the 2D cross product ``a x b`` along the last axis."""
+    return a[..., 0] * b[..., 1] - a[..., 1] * b[..., 0]
+
+
+def _resolve_side(
+    side: np.ndarray, relative: np.ndarray, convex: np.ndarray, cyclic: bool
+) -> np.ndarray:
+    """Fold the neighbouring segments' sides into one side per segment."""
+    num_segments = side.shape[-1]
+    span = np.arange(num_segments)
+    if cyclic:
+        prior, following = np.roll(span, 1), np.roll(span, -1)
+    else:
+        prior = np.maximum(span - 1, 0)
+        following = np.minimum(span + 1, num_segments - 1)
+
+    # `convex[s]` describes the joint at the start of segment `s`.
+    sides_prior = side[:, prior]
+    sides_next = side[:, following]
+    if_before = np.where(convex[:-1], np.maximum(side, sides_prior), np.minimum(side, sides_prior))
+    if_after = np.where(convex[1:], np.maximum(side, sides_next), np.minimum(side, sides_next))
+
+    before = (relative < 0.0) & (prior != span)
+    after = (relative > 1.0) & (following != span)
+    return np.where(before, if_before, np.where(after, if_after, side))

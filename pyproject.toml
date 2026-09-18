@@ -38,6 +38,7 @@ Repository = "https://github.com/WoodOxen/tactics2d"
 test = [
     "Pillow>=9.5.0",
     "httpx>=0.28.0",
+    "huggingface_hub>=0.34",
     "pytest>=7.4.4",
     "pytest-cov>=4.1.0",
     "torch>=2.8.0",

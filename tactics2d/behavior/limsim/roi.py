@@ -23,10 +23,8 @@ class RoISelection:
 class RoISelector:
     """Select local Region of Interest agents from participants.
 
-    Tactics2D uses the general Region of Interest naming for this local
-    control area: vehicles inside the radius are controlled, and vehicles
-    between the radius and roughly twice the radius are kept as background
-    obstacles.
+    Vehicles inside the radius are controlled; vehicles out to roughly twice the
+    radius are kept as background obstacles.
     """
 
     @staticmethod

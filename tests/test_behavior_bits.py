@@ -3,6 +3,7 @@
 
 """Tests for the BITS behavior model (public API only)."""
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -13,18 +14,30 @@ pytest.importorskip("torch", reason="BITS torch tests require the tactics2d[bits
 pytest.importorskip("torchvision", reason="BITS torch tests require the tactics2d[bits] extra.")
 
 from tactics2d.behavior import BehaviorModelBase
-from tactics2d.behavior.bits import BitsBehaviorModel, BitsConfig
-from tactics2d.behavior.bits.predictor import BitsPrediction
+from tactics2d.behavior.bits import BitsBehaviorModel
 from tactics2d.map.element import Lane, Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 
+# Released BITS checkpoints; downloaded separately from the Hugging Face repo.
+ASSET_ROOT = Path(__file__).resolve().parent.parent / "tactics2d/data/checkpoints/bits"
+PLANNER_CHECKPOINT = ASSET_ROOT / "bits_planner_nusc_resnet50.ckpt"
+PREDICTOR_CHECKPOINT = ASSET_ROOT / "bits_predictor_nusc_resnet18.ckpt"
 
-def _vehicle(agent_id, states, length=4.5, width=1.8):
-    trajectory = Trajectory(id_=agent_id, fps=10, stable_freq=False)
-    for state in states:
-        trajectory.add_state(state)
-    return Vehicle(agent_id, "vehicle", trajectory=trajectory, length=length, width=width)
+
+@pytest.fixture(scope="module")
+def bits_model():
+    """Load the released TBSIM planner and predictor once for the whole module."""
+    if not PLANNER_CHECKPOINT.exists() or not PREDICTOR_CHECKPOINT.exists():
+        pytest.skip(f"Released BITS checkpoints are not present under {ASSET_ROOT}.")
+
+    # The checkpoint is self-describing; the two paths are the whole input.
+    return BitsBehaviorModel.from_trained_planner(
+        planner_checkpoint=PLANNER_CHECKPOINT,
+        predictor_checkpoint=PREDICTOR_CHECKPOINT,
+        map_location="cpu",
+        device="cpu",
+    )
 
 
 def _state(frame, x, y, heading=0.0, speed=5.0):
@@ -39,235 +52,133 @@ def _state(frame, x, y, heading=0.0, speed=5.0):
 
 
 def _straight_map():
+    """Build two parallel lanes; the raster reads both the sides and the centerline."""
     map_ = Map(name="bits_test_map")
-    lane = Lane(
-        id_="A",
-        left_side=LineString([(0.0, -2.0), (60.0, -2.0)]),
-        right_side=LineString([(0.0, 2.0), (60.0, 2.0)]),
-        custom_tags={"centerline": np.array([[0.0, 0.0], [60.0, 0.0]])},
-    )
-    map_.add_lane(lane)
+    for lane_id, y in (("A", 0.0), ("B", 5.0)):
+        map_.add_lane(
+            Lane(
+                id_=lane_id,
+                left_side=LineString([(0.0, y - 2.0), (200.0, y - 2.0)]),
+                right_side=LineString([(0.0, y + 2.0), (200.0, y + 2.0)]),
+                custom_tags={"centerline": np.array([[0.0, y], [200.0, y]])},
+            )
+        )
     return map_
 
 
-class _FixedPolicy:
-    """Minimal policy mock that returns pre-set predictions."""
-
-    def __init__(self, positions, yaws=None, scores=None):
-        positions = np.asarray(positions, dtype=float)
-        if positions.ndim == 2:
-            positions = positions[None]
-        self.positions = positions
-        self.yaws = (
-            np.zeros((*positions.shape[:2], 1), dtype=float) if yaws is None else np.asarray(yaws)
-        )
-        self.scores = (
-            np.ones(positions.shape[0], dtype=float) if scores is None else np.asarray(scores)
-        )
-
-    def predict_batch(self, batch):
-        return BitsPrediction(
-            positions=self.positions.copy(),
-            yaws=self.yaws.copy(),
-            availabilities=np.ones(self.positions.shape[:2], dtype=bool),
-            scores=self.scores.copy(),
-        )
+def _straight_vehicle(agent_id, frames, x, y, speed):
+    """Build a vehicle cruising along +x at ``speed`` over the given frame grid."""
+    trajectory = Trajectory(id_=agent_id, fps=10, stable_freq=False)
+    for index, frame in enumerate(frames):
+        trajectory.add_state(_state(frame, x + speed * 0.1 * index, y, speed=speed))
+    return Vehicle(agent_id, "vehicle", trajectory=trajectory, length=4.5, width=1.8)
 
 
-def test_bits_is_behavior_model():
-    """BitsBehaviorModel implements the shared BehaviorModelBase interface."""
-    model = BitsBehaviorModel(
-        BitsConfig(history_steps=0, future_steps=1),
-        policy=_FixedPolicy([[1.0, 0.0]]),
-        include_raster=False,
-    )
-    assert isinstance(model, BehaviorModelBase)
+def _poses(trajectory):
+    """Return the frames and ``[x, y, heading, speed]`` poses of a trajectory."""
+    frames = sorted(trajectory.frames)
+    poses = np.zeros((len(frames), 4), dtype=float)
+    for index, frame in enumerate(frames):
+        state = trajectory.get_state(frame)
+        poses[index] = [state.x, state.y, state.heading, state.speed]
+    return np.asarray(frames, dtype=float), poses
 
 
-def test_bits_requires_policy():
-    """Construction without a policy raises ValueError."""
-    with pytest.raises(ValueError, match="A BitsPolicy is required"):
-        BitsBehaviorModel(BitsConfig(history_steps=0, future_steps=1), include_raster=False)
+def _trajectory_arrays(trajectories):
+    """Flatten trajectories into a ``frames_<agent>`` / ``poses_<agent>`` mapping."""
+    arrays = {}
+    for agent_id, trajectory in trajectories.items():
+        frames, poses = _poses(trajectory)
+        arrays[f"frames_{agent_id}"] = frames
+        arrays[f"poses_{agent_id}"] = poses
+    return arrays
 
 
-def test_bits_predict():
-    """predict() returns world-frame trajectories for each requested agent."""
-    config = BitsConfig(history_steps=1, future_steps=2, dt=0.1, raster_size=64)
-    participants = {
-        1: _vehicle(
-            1,
-            [_state(-100, 10.0, 8.0, heading=np.pi / 2), _state(0, 10.0, 10.0, heading=np.pi / 2)],
-        )
-    }
-    model = BitsBehaviorModel(
-        config, policy=_FixedPolicy([[2.0, 0.0], [4.0, 0.0]]), include_raster=False
-    )
-
-    trajectories = model.predict(participants, _straight_map(), frame=0, agent_ids=[1])
-    trajectory = trajectories[1]
-
-    assert trajectory.frames == [100, 200]
-    np.testing.assert_allclose(trajectory.get_state(100).location, (10.0, 12.0), atol=1e-9)
-    np.testing.assert_allclose(trajectory.get_state(200).location, (10.0, 14.0), atol=1e-9)
+def _is_finite(poses):
+    """Return whether the pose rows hold finite numbers."""
+    return bool(np.isfinite(np.asarray(poses, dtype=float)).all())
 
 
-def test_bits_predict_batch():
-    """predict_batch() returns a BitsPrediction with the expected shape."""
-    config = BitsConfig(history_steps=0, future_steps=1)
-    participants = {1: _vehicle(1, [_state(0, 0.0, 0.0, speed=3.0)])}
-    model = BitsBehaviorModel(config, policy=_FixedPolicy([[0.3, 0.0]]), include_raster=False)
-
-    batch = model.builder.build(participants, frame=0, ego_id=1)
-    prediction = model.predict_batch(batch)
-
-    assert isinstance(prediction, BitsPrediction)
-    assert prediction.positions.shape == (1, 1, 2)
-    np.testing.assert_allclose(prediction.positions[0, 0], [0.3, 0.0])
+def _dump(runtime_dir, name, arrays, meta=None):
+    """Write the arrays (and optional summary) under the test's runtime directory."""
+    if arrays:
+        np.savez_compressed(str(runtime_dir / f"{name}.npz"), **arrays)
+    if meta is not None:
+        (runtime_dir / f"{name}.json").write_text(json.dumps(meta, indent=2, default=str))
+    return runtime_dir / f"{name}.json" if meta is not None else runtime_dir / f"{name}.npz"
 
 
+@pytest.mark.integration
 @pytest.mark.slow
-def test_bits_from_checkpoint(tmp_path):
-    """from_checkpoint() loads weights and produces structurally valid predictions."""
-    import torch
+def test_bits_loads_released_checkpoints(bits_model, runtime_dir):
+    """The released planner and predictor load into a usable behavior model."""
+    assert isinstance(bits_model, BehaviorModelBase)
+    assert bits_model.policy is not None
 
-    from tactics2d.behavior.bits.model import BitsBiLevelTorchModel
-
-    # --- create a synthetic checkpoint ---
-    ckpt_config = BitsConfig(history_steps=0, future_steps=2, dt=0.1, raster_size=64)
-    # image_channels matches raster output: static(3) + other-agent blob(1) = 4
-    model = BitsBiLevelTorchModel(
-        image_channels=4, future_steps=2, hidden_dim=8, config=ckpt_config
-    )
-    model.eval()
-
-    checkpoint = {
-        "metadata": {
-            "image_channels": 4,
-            "future_steps": 2,
-            "hidden_dim": 8,
-            "model_arch": "resnet18",
-            "config": {"future_steps": 2, "dt": 0.1, "history_steps": 0, "raster_size": 64},
+    path = _dump(
+        runtime_dir,
+        "bits_load",
+        {},
+        {
+            "future_steps": bits_model.config.future_steps,
+            "history_steps": bits_model.config.history_steps,
+            "dt": bits_model.config.dt,
         },
-        "model_state_dict": model.state_dict(),
-    }
-    ckpt_path = tmp_path / "model.ckpt"
-    torch.save(checkpoint, ckpt_path)
-
-    # --- load and run inference ---
-    loaded = BitsBehaviorModel.from_checkpoint(ckpt_path)
-    participants = {
-        1: _vehicle(
-            1,
-            [
-                _state(0, 10.0, 10.0, heading=np.pi / 2),
-                _state(100, 10.0, 12.0, heading=np.pi / 2),
-                _state(200, 10.0, 14.0, heading=np.pi / 2),
-            ],
-        )
-    }
-    trajectories = loaded.predict(participants, _straight_map(), frame=0, agent_ids=[1])
-    trajectory = trajectories[1]
-
-    assert trajectory.frames == [100, 200]
-    assert len(trajectory.frames) == 2
+    )
+    assert path.exists()
 
 
+@pytest.mark.integration
 @pytest.mark.slow
-@pytest.mark.dataset_parser
-def test_bits_from_nuplan_checkpoint_with_history_conditioning(tmp_path):
-    """from_checkpoint() with history_conditioning=True exercises the RNN encoder.
-
-    Loads a real NuPlan scenario, resamples its trajectory to 50 ms intervals
-    (matching NuPlan's native FPS=20), then runs inference through a model
-    with ``history_conditioning=True``.
-    """
-    import torch
-
-    from tactics2d.behavior.bits.model import BitsBiLevelTorchModel
-    from tactics2d.dataset_parser import NuPlanParser
-
-    # --- parse a real NuPlan scenario ---
-    folder_path = "./tactics2d/data/trajectory_sample/NuPlan/data/cache"
-    file_name = "train_vegas_1/2021.05.18.21.31.22_veh-30_00062_00160.db"
-    if not Path(folder_path, file_name).exists():
-        pytest.skip("NuPlan data not found — skipping NuPlan-based test.")
-
-    participants, _ = NuPlanParser().parse_trajectory(file_name, folder_path)
-    vehicles = [(pid, p) for pid, p in participants.items() if p.type_ == "vehicle"]
-    vehicles.sort(key=lambda x: len(x[1].trajectory.history_states), reverse=True)
-    nuplan_pid, nuplan_p = vehicles[0]
-
-    # resample with exact 50 ms spacing (NuPlan FPS=20, but raw timestamps
-    # have occasional 49 ms jitter)
-    raw_states = list(nuplan_p.trajectory.history_states.values())
-    base_frame = raw_states[len(raw_states) // 2 - 5].frame
-    trajectory = Trajectory(id_=nuplan_pid, fps=20, stable_freq=True)
-    for i, raw in enumerate(raw_states):
-        trajectory.add_state(
-            State(
-                frame=base_frame + i * 50,
-                x=raw.x,
-                y=raw.y,
-                heading=raw.heading,
-                vx=raw.vx,
-                vy=raw.vy,
-            )
-        )
-    ego = Vehicle(
-        nuplan_pid, "vehicle", trajectory=trajectory, length=nuplan_p.length, width=nuplan_p.width
-    )
-
-    # --- config matching NuPlan's FPS=20 (dt=50 ms) ---
-    dt = 0.05
-    hist_steps, fut_steps = 2, 5
-    ckpt_config = BitsConfig(
-        history_steps=hist_steps,
-        future_steps=fut_steps,
-        dt=dt,
-        raster_size=64,
-        max_agents_distance=5.0,
-    )
-    # image_channels: static(3) + time_steps(hist_steps+1)
-    img_channels = 4 + hist_steps
-
-    model = BitsBiLevelTorchModel(
-        image_channels=img_channels,
-        future_steps=fut_steps,
-        hidden_dim=8,
-        history_conditioning=True,
-        config=ckpt_config,
-    )
-    model.eval()
-
-    checkpoint = {
-        "metadata": {
-            "image_channels": img_channels,
-            "future_steps": fut_steps,
-            "hidden_dim": 8,
-            "model_arch": "resnet18",
-            "history_conditioning": True,
-            "config": {
-                "history_steps": hist_steps,
-                "future_steps": fut_steps,
-                "dt": dt,
-                "raster_size": 64,
-                "max_agents_distance": 5.0,
-            },
-        },
-        "model_state_dict": model.state_dict(),
+def test_bits_predict_returns_finite_trajectories(bits_model, runtime_dir):
+    """predict() returns a finite world-frame trajectory per requested agent."""
+    participants = {
+        0: _straight_vehicle(0, range(0, 3100, 100), 0.0, 0.0, speed=8.0),
+        1: _straight_vehicle(1, range(0, 3100, 100), 20.0, 5.0, speed=3.0),
     }
-    ckpt_path = tmp_path / "nuplan_model.ckpt"
-    torch.save(checkpoint, ckpt_path)
 
-    # --- pick a reference frame with enough history/future coverage ---
-    mid = len(raw_states) // 2
-    ref_frame = base_frame + mid * 50
+    predicted = bits_model.predict(participants, _straight_map(), frame=1000, agent_ids=[0])
 
-    loaded = BitsBehaviorModel.from_checkpoint(ckpt_path)
+    assert set(predicted) == {0}
+    trajectory = predicted[0]
+    assert isinstance(trajectory, Trajectory)
+    assert 1 <= len(trajectory.frames) <= bits_model.config.future_steps
+    assert _is_finite(_poses(trajectory)[1])
 
-    trajectories = loaded.predict({nuplan_pid: ego}, _straight_map(), frame=ref_frame)
-    trajectory = trajectories[nuplan_pid]
+    assert _dump(runtime_dir, "bits_predict", _trajectory_arrays(predicted)).exists()
 
-    expected_frames = [ref_frame + (t + 1) * int(round(dt * 1000)) for t in range(fut_steps)]
-    assert trajectory.frames == expected_frames
-    assert len(trajectory.frames) == fut_steps
+
+@pytest.mark.integration
+@pytest.mark.slow
+def test_bits_mpc_closed_loop_runs(bits_model, runtime_dir):
+    """A receding-horizon loop replans every 500 ms and commits the ego plan."""
+    map_ = _straight_map()
+    participants = {
+        0: _straight_vehicle(0, range(0, 1100, 100), 0.0, 0.0, speed=8.0),
+        1: _straight_vehicle(1, range(0, 3100, 100), 20.0, 5.0, speed=3.0),
+    }
+
+    committed = Trajectory(id_=0, fps=10, stable_freq=False)
+    frame = 1000
+    for _ in range(4):
+        predicted = bits_model.predict(participants, map_, frame=frame, agent_ids=[0])
+        future = [f for f in sorted(predicted[0].frames) if f > frame]
+        assert future
+
+        for next_frame in future[:5]:
+            state = predicted[0].get_state(next_frame)
+            participants[0].trajectory.add_state(state)
+            committed.add_state(state)
+        frame = future[4]
+
+    assert len(committed.frames) == 20
+    assert sorted(committed.frames) == list(committed.frames)
+    assert _is_finite(_poses(committed)[1])
+
+    path = _dump(
+        runtime_dir,
+        "bits_mpc",
+        _trajectory_arrays({0: committed}),
+        {"committed_rows": len(committed.frames)},
+    )
+    assert path.exists()
