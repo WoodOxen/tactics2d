@@ -17,6 +17,11 @@ from tactics2d.routing.utils import get_lane_centerline
 from .config import LimSimConfig
 from .schema import AgentDecisionState
 
+# Score added to a lane that is not on the vehicle's route, in metres. Large
+# enough that the nearest on-route lane wins a junction fork, small enough that
+# an actual lane change still matches the lane the vehicle is moving onto.
+_OFF_ROUTE_PENALTY = 4.0
+
 
 class SceneBuilder:
     """Build planner states from Tactics2D data structures."""
@@ -53,7 +58,8 @@ class SceneBuilder:
             if not isinstance(raw_state, State):
                 continue
 
-            lane_id = self._match_lane(map_, raw_state)
+            preferred = route_map.get(agent_id, ()) if route_map else ()
+            lane_id = self._match_lane(map_, raw_state, preferred)
             route_progress, lateral_offset = self._project_on_lane(
                 map_, lane_id, raw_state.location
             )
@@ -76,11 +82,13 @@ class SceneBuilder:
             )
         return states
 
-    def _match_lane(self, map_: Optional[Map], state: State) -> Optional[str]:
+    def _match_lane(
+        self, map_: Optional[Map], state: State, route_lane_ids: Iterable[str] = ()
+    ) -> Optional[str]:
         if map_ is None or len(map_.lanes) == 0:
             return None
 
-        lane_id = self._find_heading_consistent_lane(map_, state)
+        lane_id = self._find_heading_consistent_lane(map_, state, route_lane_ids)
         if lane_id is None:
             return None
 
@@ -95,7 +103,9 @@ class SceneBuilder:
             return None
         return lane_id
 
-    def _find_heading_consistent_lane(self, map_: Map, state: State) -> Optional[str]:
+    def _find_heading_consistent_lane(
+        self, map_: Map, state: State, route_lane_ids: Iterable[str] = ()
+    ) -> Optional[str]:
         point = Point(state.location)
 
         # broad phase: the cached STRtree of lane centerlines, no brute-force scan
@@ -130,6 +140,8 @@ class SceneBuilder:
             if lane_heading is not None:
                 heading_error = abs(spatial.normalize_angle(state.heading - lane_heading))
             score = distance + self.config.lane_heading_match_weight * heading_error
+            if route_lane_ids and lane_id not in route_lane_ids:
+                score += _OFF_ROUTE_PENALTY
             if score < best_score:
                 best_score = score
                 best_lane_id = lane_id
@@ -224,4 +236,12 @@ class SceneBuilder:
         projection = map_.lanes[lane_id].project_point(point)
         if projection is None:
             return 0.0, 0.0
-        return projection.s, projection.d
+
+        # ``Lane.project_point`` measures the distance to the projected point,
+        # which past the end of the lane is the longitudinal overshoot rather
+        # than a lateral offset. Project onto the lane's direction at the
+        # projection instead, so a vehicle that has driven past a short lane
+        # keeps the offset it had while driving in it.
+        offset = np.array([point[0] - projection.point.x, point[1] - projection.point.y])
+        normal = np.array([-np.sin(projection.heading), np.cos(projection.heading)])
+        return projection.s, float(np.dot(normal, offset))

@@ -60,9 +60,13 @@ class LaneFollower:
                 progress = min(progress + travel, route_path.length)
                 point = route_path.interpolate(progress)
                 lookahead = route_path.interpolate(min(progress + 0.5, route_path.length))
-                heading = spatial.normalize_angle(
-                    np.arctan2(lookahead.y - point.y, lookahead.x - point.x)
-                )
+                # At the end of the route the lookahead collapses onto the vehicle and
+                # carries no direction; hold the last heading instead of spinning to zero.
+                heading = current.heading
+                if lookahead.distance(point) > 1e-6:
+                    heading = spatial.normalize_angle(
+                        np.arctan2(lookahead.y - point.y, lookahead.x - point.x)
+                    )
                 lateral_offset = self._next_lateral_offset(current, action)
                 x = float(point.x - lateral_offset * np.sin(heading))
                 y = float(point.y + lateral_offset * np.cos(heading))
@@ -194,6 +198,26 @@ class LaneFollower:
             return agent.lateral_offset - self.config.lateral_speed * self.config.dt
         return agent.lateral_offset
 
+    def _nearest_route_index(self, agent: AgentDecisionState, map_: Map) -> int:
+        """Return the index, within the route, of the lane closest to the vehicle."""
+
+        point = Point(agent.x, agent.y)
+        best_index, best_distance = 0, float("inf")
+        for index, lane_id in enumerate(agent.route_lane_ids):
+            lane = map_.lanes.get(lane_id)
+            if lane is None:
+                continue
+            centerline = lane.centerline()
+            centerline = (
+                np.asarray(centerline.coords, dtype=float) if centerline is not None else None
+            )
+            if centerline is None or len(centerline) < 2:
+                continue
+            distance = LineString(centerline).distance(point)
+            if distance < best_distance:
+                best_index, best_distance = index, distance
+        return best_index
+
     def _select_route(
         self, agent: AgentDecisionState, action: LimSimAction, map_: Optional[Map]
     ) -> Tuple[Optional[LineString], Tuple[str, ...], float]:
@@ -207,30 +231,12 @@ class LaneFollower:
             try:
                 idx = agent.route_lane_ids.index(agent.lane_id)
             except ValueError:
-                idx = -1
-            if idx >= 0:
-                route_lanes = list(
-                    agent.route_lane_ids[idx : idx + self.config.max_routes_per_agent]
-                )
-            else:
-                # current lane not in route – fall back to topology
-                route_lanes = [agent.lane_id]
-                current_lane_id = route_lanes[0]
-                while len(route_lanes) < self.config.max_routes_per_agent:
-                    current_lane = map_.lanes.get(current_lane_id)
-                    if current_lane is None or not current_lane.successors:
-                        break
-                    # prefer a successor that is in the route sequence
-                    candidates = sorted(current_lane.successors)
-                    picked = candidates[0]
-                    for c in candidates:
-                        if c in agent.route_lane_ids:
-                            picked = c
-                            break
-                    if picked in route_lanes or picked not in map_.lanes:
-                        break
-                    route_lanes.append(picked)
-                    current_lane_id = picked
+                # The matched lane is off the route. Near-coincident junction lanes
+                # make a one-frame mismatch routine, so continue on the route lane the
+                # vehicle is on. Growing a chain from the off-route lane instead would
+                # steer the vehicle onto whichever branch that lane happens to lead to.
+                idx = self._nearest_route_index(agent, map_)
+            route_lanes = list(agent.route_lane_ids[idx : idx + self.config.max_routes_per_agent])
         else:
             route_lanes = [agent.lane_id]
             current_lane_id = route_lanes[0]

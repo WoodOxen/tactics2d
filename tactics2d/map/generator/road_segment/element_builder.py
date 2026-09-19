@@ -574,7 +574,7 @@ def variable_offset_polyline(
     if len(pts) < 2:
         return pts.copy()
 
-    cum = cumulative_s(pts)
+    cum = polyline.arc_lengths(pts)
     total = cum[-1]
     t = np.zeros(len(pts)) if total < 1e-9 else cum / total
     # quintic smoothstep: t^3 (6 t^2 - 15 t + 10)
