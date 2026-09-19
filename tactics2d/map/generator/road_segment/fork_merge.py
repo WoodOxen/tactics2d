@@ -12,15 +12,7 @@ from typing import Callable, NamedTuple
 import numpy as np
 from shapely.geometry import LineString, Point
 
-from tactics2d.geometry import (
-    cut_polyline,
-    find_intersection_point,
-    nearest_s,
-    offset_polyline,
-    point_at_s,
-    point_heading_at_s,
-    polyline_length,
-)
+from tactics2d.geometry import polyline
 from tactics2d.map.element import Lane, RoadLine
 from tactics2d.map.generator.rules.lane_marking_rules import (
     one_way_boundary_token,
@@ -145,14 +137,14 @@ def _choose_branch_s(
           lands upstream (fork) or downstream (merge) of the branch socket's
           nearest point on the main centreline, rather than right at it.
     """
-    total = polyline_length(main_center)
+    total = polyline.arc_length(main_center)
     offset = max(float(taper_length), float(branch_length) * _BRANCH_OFFSET_FACTOR)
     if diverges:
         lower, upper = total * _DIVERGE_LOWER, total * _DIVERGE_UPPER
-        s = nearest_s(main_center, branch_point) - offset
+        s = polyline.project_arc_length(main_center, branch_point) - offset
     else:
         lower, upper = total * _MERGE_LOWER, total * _MERGE_UPPER
-        s = nearest_s(main_center, branch_point) + offset
+        s = polyline.project_arc_length(main_center, branch_point) + offset
     if upper <= lower:
         return total * 0.5
     return float(np.clip(s, lower, upper))
@@ -286,9 +278,9 @@ def _branch_outer_point(
     """
     outer_idx = side_boundaries[-1] if side == "right" else side_boundaries[0]
     boundary = main_boundaries[outer_idx]
-    boundary_total = polyline_length(boundary)
+    boundary_total = polyline.arc_length(boundary)
     boundary_s = 0.0 if main_length < 1e-9 else s_on_main / main_length * boundary_total
-    outer_pt = point_at_s(boundary, boundary_s)
+    outer_pt = polyline.point_at_arc_length(boundary, boundary_s)
 
     if side == "right":
         inward_normal = np.array([-np.sin(heading), np.cos(heading)], dtype=float)
@@ -458,7 +450,7 @@ def _build_branch_segment(
     main_center = fit_reference_line(
         main_in.point, main_in.heading, main_out.point, main_out.heading, step_size
     )
-    main_length = polyline_length(main_center)
+    main_length = polyline.arc_length(main_center)
 
     if s_ratio is not None:
         s_on_main = float(np.clip(s_ratio, 0.0, 1.0)) * main_length
@@ -466,10 +458,10 @@ def _build_branch_segment(
         s_on_main = bk.choose_s(
             main_center, np.asarray(branch_port.point, dtype=float), taper_length, branch_length
         )
-    _, junction_heading = point_heading_at_s(main_center, s_on_main)
+    junction_heading = polyline.heading_at_arc_length(main_center, s_on_main)
 
     main_boundaries: list[np.ndarray] = [
-        offset_polyline(main_center, boundary_offset(i, main_n, lane_w)) for i in range(main_n + 1)
+        polyline.offset(main_center, boundary_offset(i, main_n, lane_w)) for i in range(main_n + 1)
     ]
 
     side_lanes, side_boundaries = _side_indices(main_n, branch_n, side)
@@ -509,7 +501,7 @@ def _build_branch_segment(
         )
 
     branch_boundaries: list[np.ndarray] = [
-        offset_polyline(branch_center, boundary_offset(i, branch_n, lane_w))
+        polyline.offset(branch_center, boundary_offset(i, branch_n, lane_w))
         for i in range(branch_n + 1)
     ]
 
@@ -531,11 +523,11 @@ def _build_branch_segment(
 
     for local_idx, b_pts in enumerate(branch_boundaries):
         b_line = LineString(b_pts)
-        intersect = find_intersection_point(b_line, main_out_line, pick=bk.pick)
+        intersect = polyline.find_intersection_point(b_line, main_out_line, pick=bk.pick)
         if intersect is None:
             branch_cut_lines.append(b_pts)
         else:
-            branch_cut_lines.append(cut_polyline(b_line, intersect, bk.cut_dir))
+            branch_cut_lines.append(polyline.cut(b_line, intersect, bk.cut_dir))
             if local_idx == branch_inside_boundary_idx:
                 nose_pt = intersect
             if local_idx == branch_outside_boundary_idx:
@@ -551,9 +543,9 @@ def _build_branch_segment(
             pt_first, pt_second = junction_pt, nose_pt
         else:
             pt_first, pt_second = nose_pt, junction_pt
-        main_before_pts = cut_polyline(main_out_line, pt_first, "before")
-        main_rest = cut_polyline(main_out_line, pt_first, "after")
-        main_after_pts = cut_polyline(LineString(main_rest), pt_second, "after")
+        main_before_pts = polyline.cut(main_out_line, pt_first, "before")
+        main_rest = polyline.cut(main_out_line, pt_first, "after")
+        main_after_pts = polyline.cut(LineString(main_rest), pt_second, "after")
 
     marking_s = 0.0
     if nose_pt is not None:

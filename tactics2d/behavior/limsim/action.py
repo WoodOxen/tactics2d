@@ -9,9 +9,8 @@ from enum import Enum
 class LimSimAction(str, Enum):
     """High-level actions used by the interaction planner.
 
-    The value strings follow the original LimSim implementation:
-    ``KS`` keeps the current longitudinal speed, ``AC`` accelerates, ``DC``
-    decelerates, and ``LCL``/``LCR`` request a lane change.
+    ``KS`` keeps the current speed, ``AC`` accelerates, ``DC`` decelerates,
+    ``LCL``/``LCR`` request a lane change.
     """
 
     KS = "KS"
@@ -20,20 +19,17 @@ class LimSimAction(str, Enum):
     LCL = "LCL"
     LCR = "LCR"
 
+    #: Semantic alias — prefer ``KS`` for new code.
     KEEP = "KS"
-    SPEED_UP = "AC"
-    SLOW_DOWN = "DC"
-    LANE_LEFT = "LCL"
-    LANE_RIGHT = "LCR"
 
     @property
     def acceleration(self) -> float:
-        """Nominal longitudinal acceleration attached to the action."""
+        """Nominal longitudinal acceleration for this action (m/s²)."""
 
         if self == LimSimAction.AC:
             return 0.7
         if self == LimSimAction.DC:
-            return -8.0
+            return -0.7
         return 0.0
 
     @property

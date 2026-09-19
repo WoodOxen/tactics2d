@@ -10,14 +10,7 @@ from dataclasses import dataclass
 import numpy as np
 from shapely.geometry import Polygon
 
-from tactics2d.geometry import (
-    as_point,
-    nearest_s,
-    normalize_angle,
-    offset_polyline,
-    polyline_length,
-    sample_by_s,
-)
+from tactics2d.geometry import polyline, spatial
 from tactics2d.map.element import Area, Lane, LaneRelationship, RoadLine
 from tactics2d.map.generator.rules.lane_marking_rules import (
     one_way_boundary_token,
@@ -89,15 +82,15 @@ def _repair_heading_towards_chord(
     Returns:
         Corrected heading in radians.
     """
-    start_point = as_point(start_point)
-    end_point = as_point(end_point)
+    start_point = spatial.as_point(start_point)
+    end_point = spatial.as_point(end_point)
     chord = end_point - start_point
 
     if np.linalg.norm(chord) < 1e-6:
         return float(heading)
 
     chord_heading = float(np.arctan2(chord[1], chord[0]))
-    if abs(normalize_angle(float(heading) - chord_heading)) > max_error:
+    if abs(spatial.normalize_angle(float(heading) - chord_heading)) > max_error:
         return chord_heading
 
     return float(heading)
@@ -138,7 +131,7 @@ def _build_freeway_main_road(
 
     boundary_num = lane_num + 1
     boundary_pts = [
-        offset_polyline(center_pts, boundary_offset(i, lane_num, lane_width))
+        polyline.offset(center_pts, boundary_offset(i, lane_num, lane_width))
         for i in range(boundary_num)
     ]
     boundary_line_ids: list[list[str]] = []
@@ -268,7 +261,7 @@ def _build_urban_main_road(
     roadlines.append(center_roadline)
 
     forward_boundary_pts = [
-        offset_polyline(center_pts, -i * lane_width) for i in range(forward_lane_num + 1)
+        polyline.offset(center_pts, -i * lane_width) for i in range(forward_lane_num + 1)
     ]
     forward_boundary_line_ids: list[list[str]] = [[center_roadline.id_]]
 
@@ -321,7 +314,7 @@ def _build_urban_main_road(
     add_ordered_lane_neighbors(forward_lanes)
 
     backward_boundary_pts_raw = [
-        offset_polyline(center_pts, i * lane_width) for i in range(backward_lane_num + 1)
+        polyline.offset(center_pts, i * lane_width) for i in range(backward_lane_num + 1)
     ]
     backward_boundary_line_ids: list[list[str]] = [[center_roadline.id_]]
 
@@ -414,8 +407,8 @@ def _build_single_lane_from_center(
     Returns:
         Tuple ``(lane, [left_roadline, right_roadline], updated_id_counter)``.
     """
-    left_pts = offset_polyline(center_pts, lane_width / 2.0)
-    right_pts = offset_polyline(center_pts, -lane_width / 2.0)
+    left_pts = polyline.offset(center_pts, lane_width / 2.0)
+    right_pts = polyline.offset(center_pts, -lane_width / 2.0)
 
     left_roadline = build_roadline_from_points(
         id_=id_counter,
@@ -547,10 +540,12 @@ def _build_aux_geometry(
         :class:`_AuxLaneGeometry` for the configured ramp kind.
     """
     n_taper = max(8, int((taper_s_end - taper_s_start) / step_size) + 1)
-    taper_pos, taper_hdgs, _ = sample_by_s(attach_boundary, taper_s_start, taper_s_end, n_taper)
+    taper_pos, taper_hdgs, _ = polyline.sample_uniformly(
+        attach_boundary, taper_s_start, taper_s_end, n_taper
+    )
 
     n_parallel = max(4, int((parallel_s_end - parallel_s_start) / step_size) + 1)
-    parallel_pos, parallel_hdgs, parallel_right_normals = sample_by_s(
+    parallel_pos, parallel_hdgs, parallel_right_normals = polyline.sample_uniformly(
         attach_boundary, parallel_s_start, parallel_s_end, n_parallel
     )
 
@@ -566,7 +561,7 @@ def _build_aux_geometry(
             step_size,
         )
         connector_start = parallel_pos[-1] + 0.5 * lane_w * out_normals[-1]
-        connector_end = as_point(ramp_port.point)
+        connector_end = spatial.as_point(ramp_port.point)
         connector_end_heading = _repair_heading_towards_chord(
             connector_start, connector_end, float(ramp_port.heading)
         )
@@ -590,7 +585,7 @@ def _build_aux_geometry(
         step_size,
     )
     connector_end = parallel_pos[0] + 0.5 * lane_w * out_normals[0]
-    connector_start = as_point(ramp_port.point)
+    connector_start = spatial.as_point(ramp_port.point)
     connector_start_heading = _repair_heading_towards_chord(
         connector_start, connector_end, float(ramp_port.heading)
     )
@@ -691,9 +686,9 @@ def _build_ramp(
     else:
         ramp_edge_offset = -lane_num * lane_w
 
-    boundary_preview = offset_polyline(center_pts, ramp_edge_offset)
-    boundary_length = polyline_length(boundary_preview)
-    ramp_s = nearest_s(boundary_preview, as_point(ramp_port.point))
+    boundary_preview = polyline.offset(center_pts, ramp_edge_offset)
+    boundary_length = polyline.arc_length(boundary_preview)
+    ramp_s = polyline.project_arc_length(boundary_preview, spatial.as_point(ramp_port.point))
 
     parallel_s_start, parallel_s_end, taper_s_start, taper_s_end, edge_gap = (
         _compute_ramp_s_intervals(kind, ramp_s, boundary_length, taper_length, parallel_length)
@@ -814,7 +809,9 @@ def _build_ramp(
 
     if gore_s_end > gore_s_start:
         n_gore = max(5, int(gore_length / step_size))
-        gore_main_pts, _, _ = sample_by_s(attach_boundary, gore_s_start, gore_s_end, n_gore)
+        gore_main_pts, _, _ = polyline.sample_uniformly(
+            attach_boundary, gore_s_start, gore_s_end, n_gore
+        )
         connector_side = (
             connector_lane.left_side if ramp_side == "right" else connector_lane.right_side
         )

@@ -1,7 +1,8 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""DriveInsightD parser implementation."""
+"""DriveInsight Dataset parser implementation."""
+
 
 import logging
 import xml.etree.ElementTree as ET

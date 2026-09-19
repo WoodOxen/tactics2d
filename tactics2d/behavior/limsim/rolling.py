@@ -1,259 +1,228 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Lightweight rolling runner for LimSim-style behavior planning."""
+"""Receding-horizon closed-loop replay for the LimSim behavior model."""
 
-from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Dict, Iterable, Optional, Tuple
 
 import numpy as np
 
-from tactics2d.geometry import normalize_angle
-from tactics2d.behavior._rolling import clone_vehicle_participants_at_frames, copy_state
 from tactics2d.map.element import Map
-from tactics2d.participant.trajectory import State, Trajectory
+from tactics2d.participant.trajectory import Trajectory
 
-from .action import LimSimAction
+from ..rolling_utils import to_lattice
 from .config import LimSimConfig
-from .model import LimSimBehaviorModel
-from .planner import LaneFollower
-from .roi import RoISelector
-from .scene import SceneBuilder
-from .schema import PlanningResult
+from .schema import LimSimRollingResult
+
+# Default history kept before the take-over frame, in milliseconds.
+DEFAULT_WARMUP_MS = 1000
+
+# Smallest step, in metres, that still counts as a heading sample.
+_MIN_HEADING_STEP = 1e-6
 
 
-@dataclass
-class RollingSimulationResult:
-    """Output of a lightweight rolling LimSim-style simulation."""
+def _write_states(trajectory: Trajectory, states: Dict[int, object]) -> None:
+    """Write a snapshot of states back into a trajectory."""
 
-    participants: Dict[object, object]
-    results: List[PlanningResult] = field(default_factory=list)
-    frames: List[int] = field(default_factory=list)
-    predicted_trajectories: List[Dict[object, Trajectory]] = field(default_factory=list)
+    trajectory._history_states = dict(states)
+    trajectory._frames = sorted(states)
+    trajectory._current_state = states[trajectory._frames[-1]] if trajectory._frames else None
+
+
+def _resample(ego_id, recorded_states, stable_freq, fps, history_frames, future_frames, samples):
+    """Lay the replayed future back onto the recorded frame grid."""
+
+    replayed = Trajectory(id_=ego_id, fps=fps, stable_freq=stable_freq)
+    for frame in history_frames:
+        replayed.add_state(recorded_states[frame])
+    if not future_frames or not samples:
+        return replayed
+
+    sample_frames = [frame for frame, _, _ in samples]
+    xs = np.interp(future_frames, sample_frames, [x for _, x, _ in samples])
+    ys = np.interp(future_frames, sample_frames, [y for _, _, y in samples])
+
+    state_cls = type(recorded_states[history_frames[-1]])
+    heading = recorded_states[history_frames[-1]].heading
+    for position, frame in enumerate(future_frames):
+        if position < len(future_frames) - 1:
+            dx = xs[position + 1] - xs[position]
+            dy = ys[position + 1] - ys[position]
+            if abs(dx) > _MIN_HEADING_STEP or abs(dy) > _MIN_HEADING_STEP:
+                heading = np.arctan2(dy, dx)
+        replayed.add_state(
+            state_cls(
+                frame=frame, x=float(xs[position]), y=float(ys[position]), heading=float(heading)
+            )
+        )
+    return replayed
 
 
 class LimSimRollingRunner:
-    """Run repeated single-step behavior-planning updates over a short horizon.
+    """Replay one vehicle's future in a receding-horizon loop.
 
-    This runner keeps the behavior model itself single-frame and wraps it in a
-    receding-horizon loop. Controlled RoI vehicles execute the first state of
-    their planned trajectory; other vehicles advance with a KS lane-following
-    rule, matching LimSim's lightweight background handling.
+    Attributes:
+        model (LimSimBehaviorModel): The model being replayed.
+        config (LimSimConfig): The model's configuration.
+        horizon_ms (int): How far ahead the replay runs, in milliseconds.
     """
 
-    def __init__(self, config: Optional[LimSimConfig] = None):
-        self.config = config or LimSimConfig()
-        self.behavior_model = LimSimBehaviorModel(self.config)
-        self.scene_builder = SceneBuilder(self.config)
-        self.follower = LaneFollower(self.config)
+    def __init__(
+        self, model, config: Optional[LimSimConfig] = None, horizon_ms: Optional[int] = None
+    ):
+        """Initialize the runner.
+
+        Args:
+            model (LimSimBehaviorModel): The model to replay, exposing ``predict``.
+            config (Optional[LimSimConfig], optional): Configuration to replay
+                with. Defaults to None, which uses the model's own.
+            horizon_ms (int, optional): How far ahead to replay, in milliseconds.
+                Defaults to None, which uses the model's planning horizon.
+        """
+
+        self.model = model
+        self.config = config if config is not None else model.config
+        self.horizon_ms = (
+            self.config.planning_steps * self.config.step_ms
+            if horizon_ms is None
+            else int(horizon_ms)
+        )
 
     def run(
         self,
         participants: Dict[object, object],
         map_: Optional[Map],
-        start_frame: int,
-        simulation_steps: int,
-        agent_ids: Optional[Iterable[object]] = None,
-        roi_center: Optional[Sequence[float]] = None,
-        roi_radius: Optional[float] = None,
-        roi_outer_radius: Optional[float] = None,
-        ego_id: Optional[object] = None,
-    ) -> RollingSimulationResult:
-        """Run rolling behavior planning for ``simulation_steps`` control updates."""
+        ego_id: object,
+        frame_ms: Optional[int] = None,
+        route_map: Optional[Dict[object, Tuple[str, ...]]] = None,
+        controlled_ids: Optional[Iterable[object]] = None,
+    ) -> LimSimRollingResult:
+        """Replay the vehicle and return its re-simulated track.
 
-        frame = int(start_frame)
-        simulation_agent_ids = self._simulation_agent_ids(
-            participants,
-            frame,
-            agent_ids=agent_ids,
-            roi_center=roi_center,
-            roi_radius=roi_radius,
-            roi_outer_radius=roi_outer_radius,
-            ego_id=ego_id,
-        )
-        simulated_participants = clone_vehicle_participants_at_frames(
-            participants,
-            frames=[frame],
-            agent_ids=simulation_agent_ids,
-            required_frame=frame,
-            fps=round(1.0 / self.config.dt, 3),
-        )
-        frames = [frame]
-        results = []
-        predictions = []
-        last_planned_trajectories = {}
-        committed_trajectories = {}
-        committed_actions = {}
-        fixed_roi_center = None if ego_id is not None else roi_center
+        Args:
+            participants (Dict[object, object]): All participants in the scenario.
+            map_ (Optional[Map]): The map to plan on.
+            ego_id (object): The vehicle to replay.
+            frame_ms (int, optional): The take-over frame, in milliseconds.
+                Defaults to None, i.e. ``DEFAULT_WARMUP_MS`` after the vehicle's
+                first frame.
+            route_map (Dict[object, Tuple[str, ...]], optional): Lane sequences per
+                agent. Defaults to None, which extracts them for the replayed
+                vehicles.
+            controlled_ids (Optional[Iterable], optional): Every vehicle to
+                re-simulate, the ego included. Defaults to None, i.e. the ego
+                alone. Each is truncated at the take-over frame and planned from
+                there.
 
-        for _ in range(simulation_steps):
-            result = self.behavior_model.plan(
-                simulated_participants,
-                map_,
-                frame=frame,
-                agent_ids=agent_ids,
-                roi_center=fixed_roi_center,
-                roi_radius=roi_radius,
-                roi_outer_radius=roi_outer_radius,
-                ego_id=ego_id,
-                last_planned_trajectories=last_planned_trajectories,
-            )
-            results.append(result)
-            self._update_committed_trajectories(
-                result,
-                frame,
-                committed_trajectories,
-                committed_actions,
-            )
-            predictions.append(
-                self.behavior_model.predictor.predict(
-                    simulated_participants,
-                    map_,
-                    frame,
-                    agent_ids=result.roi_agent_ids,
-                    last_planned_trajectories=last_planned_trajectories,
+        Returns:
+            The replay, resampled onto the recorded frame grid. The committed
+            future of every controlled vehicle is written back into
+            *participants*.
+
+        Raises:
+            ValueError: If the vehicle has no recorded trajectory, if *frame_ms*
+                falls past the end of it, or if *controlled_ids* omits *ego_id*.
+        """
+
+        if controlled_ids is not None:
+            controlled_ids = list(controlled_ids)
+            if ego_id not in controlled_ids:
+                raise ValueError(
+                    "controlled_ids must contain ego_id {!r}; got {!r}".format(
+                        ego_id, controlled_ids
+                    )
                 )
-            )
-            next_frame = self._next_frame(frame)
-            self._advance_participants(
-                simulated_participants,
-                map_,
-                frame,
-                next_frame,
-                result,
-                committed_trajectories,
-            )
-            last_planned_trajectories = self._prediction_memory(
-                result,
-                committed_trajectories,
-            )
-            frame = next_frame
-            frames.append(frame)
+        controlled = [ego_id] if controlled_ids is None else controlled_ids
 
-        return RollingSimulationResult(
-            participants=simulated_participants,
-            results=results,
-            frames=frames,
-            predicted_trajectories=predictions,
-        )
+        step_ms = self.config.step_ms
+        participants = to_lattice(participants, step_ms)
+        ego = participants[ego_id]
+        recorded_frames = sorted(ego.trajectory.frames)
+        if not recorded_frames:
+            raise ValueError(f"participant {ego_id!r} has no recorded trajectory to replay.")
 
-    def _simulation_agent_ids(
-        self,
-        participants: Dict[object, object],
-        frame: int,
-        agent_ids: Optional[Iterable[object]] = None,
-        roi_center: Optional[Sequence[float]] = None,
-        roi_radius: Optional[float] = None,
-        roi_outer_radius: Optional[float] = None,
-        ego_id: Optional[object] = None,
-    ) -> Optional[Iterable[object]]:
-        if agent_ids is not None:
-            return agent_ids
-        if roi_radius is None:
-            return None
-        if ego_id is not None:
-            selection = RoISelector.select_around_agent(
-                participants,
-                frame,
-                ego_id=ego_id,
-                radius=roi_radius,
-                outer_radius=roi_outer_radius,
+        if frame_ms is None:
+            frame_ms = recorded_frames[0] + DEFAULT_WARMUP_MS
+        take_over = next((frame for frame in recorded_frames if frame >= frame_ms), None)
+        if take_over is None:
+            raise ValueError(
+                f"participant {ego_id!r} has no frame at or after {frame_ms} ms; its track "
+                f"spans {recorded_frames[0]}-{recorded_frames[-1]} ms."
             )
-        elif roi_center is not None:
-            selection = RoISelector.select_by_radius(
-                participants,
-                frame,
-                center=roi_center,
-                radius=roi_radius,
-                outer_radius=roi_outer_radius,
-            )
-        else:
-            return None
-        return [*selection.agent_ids, *selection.background_agent_ids]
+        index = recorded_frames.index(take_over)
+        history_frames = recorded_frames[: index + 1]
+        future_frames = [f for f in recorded_frames if take_over < f <= take_over + self.horizon_ms]
 
-    def _advance_participants(
-        self,
-        participants: Dict[object, object],
-        map_: Optional[Map],
-        frame: int,
-        next_frame: int,
-        result: PlanningResult,
-        committed_trajectories: Optional[Dict[object, Trajectory]] = None,
-    ) -> None:
-        controlled_ids = set(result.trajectories)
-        background_states = self.scene_builder.build(
-            participants,
-            map_,
-            frame,
-            agent_ids=[agent_id for agent_id in participants if agent_id not in controlled_ids],
-        )
-        background_next_states = {
-            agent_id: rollout[0]
-            for agent_id, state in background_states.items()
-            for rollout in [self.follower.rollout(state, LimSimAction.KS, map_, steps=1)]
-            if rollout
+        # Truncate every controlled vehicle at the take-over frame.
+        saved_states = {
+            agent_id: dict(participants[agent_id].trajectory.history_states)
+            for agent_id in controlled
         }
+        stable_freq = ego.trajectory.stable_freq
+        fps = ego.trajectory.fps
+        for agent_id in controlled:
+            _write_states(
+                participants[agent_id].trajectory,
+                {f: s for f, s in saved_states[agent_id].items() if f <= take_over},
+            )
+        recorded_states = saved_states[ego_id]
 
-        for agent_id, participant in participants.items():
-            next_state = None
-            planned_trajectory = (committed_trajectories or {}).get(agent_id)
-            if planned_trajectory is None:
-                planned_trajectory = result.trajectories.get(agent_id)
-            if planned_trajectory is not None and planned_trajectory.has_state(next_frame):
-                next_state = copy_state(planned_trajectory.get_state(next_frame), next_frame)
-            elif agent_id in background_next_states:
-                next_state = self._state_from_decision_state(background_next_states[agent_id], next_frame)
+        if route_map is None:
+            from tactics2d.dataset_parser.route_extractor import extract_all_lane_sequences
 
-            if next_state is not None:
-                participant.trajectory.add_state(next_state)
+            # Must come after the truncation: the extractor scans the whole trajectory.
+            route_map = extract_all_lane_sequences(
+                participants, map_, take_over, agent_ids=controlled
+            )
 
-    def _update_committed_trajectories(
-        self,
-        result: PlanningResult,
-        frame: int,
-        committed_trajectories: Dict[object, Trajectory],
-        committed_actions: Dict[object, LimSimAction],
-    ) -> None:
-        next_frame = self._next_frame(frame)
-        for agent_id in list(committed_trajectories):
-            if agent_id not in result.actions or not committed_trajectories[agent_id].has_state(next_frame):
-                committed_trajectories.pop(agent_id, None)
-                committed_actions.pop(agent_id, None)
-                continue
-            result.actions[agent_id] = committed_actions[agent_id]
+        samples = []
+        plans = {}
+        current = take_over
+        for _ in range(self.horizon_ms // step_ms):
+            try:
+                # One call for the whole set, so every controlled vehicle is
+                # planned against the same snapshot rather than in sequence.
+                predicted = self.model.predict(
+                    participants, map_, current, agent_ids=controlled, route_map=route_map
+                )
+            except Exception:
+                break
+            if ego_id not in predicted:
+                break
+            plan = predicted[ego_id]
+            ahead = sorted(frame for frame in plan.frames if frame > current)
+            if not ahead:
+                break
 
-        for agent_id, action in result.actions.items():
-            if not action.is_lane_change:
-                continue
-            if (
-                agent_id not in committed_trajectories
-                or committed_actions.get(agent_id) != action
-            ):
-                trajectory = result.trajectories.get(agent_id)
-                if trajectory is not None:
-                    committed_trajectories[agent_id] = trajectory
-                    committed_actions[agent_id] = action
+            # Absolute world coordinates, keyed by the frame the plan was issued at.
+            plans[current] = [
+                (frame, plan.get_state(frame).x, plan.get_state(frame).y) for frame in ahead
+            ]
+            # The ego drives the clock; every controlled vehicle advances one
+            # step to it.
+            for agent_id in controlled:
+                own = predicted.get(agent_id)
+                if own is None:
+                    continue
+                own_ahead = sorted(frame for frame in own.frames if frame > current)
+                if not own_ahead:
+                    continue
+                state = own.get_state(own_ahead[0])
+                participants[agent_id].trajectory.add_state(state)
+                if agent_id == ego_id:
+                    samples.append((own_ahead[0], state.x, state.y))
+            current = ahead[0]
 
-    def _prediction_memory(
-        self,
-        result: PlanningResult,
-        committed_trajectories: Dict[object, Trajectory],
-    ) -> Dict[object, Trajectory]:
-        memory = dict(result.trajectories)
-        for agent_id, trajectory in committed_trajectories.items():
-            if agent_id in memory:
-                memory[agent_id] = trajectory
-        return memory
-
-    def _state_from_decision_state(self, state, frame: int) -> State:
-        return State(
-            frame=frame,
-            x=state.x,
-            y=state.y,
-            heading=normalize_angle(state.heading),
-            vx=state.speed * np.cos(state.heading),
-            vy=state.speed * np.sin(state.heading),
+        for agent_id in controlled:
+            _write_states(participants[agent_id].trajectory, saved_states[agent_id])
+            participants[agent_id].trajectory.stable_freq = stable_freq
+        return LimSimRollingResult(
+            ego_id=ego_id,
+            frames=history_frames + future_frames,
+            trajectory=_resample(
+                ego_id, recorded_states, stable_freq, fps, history_frames, future_frames, samples
+            ),
+            plans=plans,
+            cycles=len(samples),
+            controlled_ids=list(controlled),
         )
-
-    def _next_frame(self, frame: int) -> int:
-        return int(round(frame + self.config.step_ms))

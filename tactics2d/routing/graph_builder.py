@@ -12,6 +12,7 @@ from scipy.sparse import csr_matrix, lil_matrix
 from tactics2d.map.element import Map
 
 from .cost_builder import RoutingCostFunction, build_cost_function
+from .utils import geometric_successor_links
 
 
 @dataclass
@@ -36,10 +37,16 @@ class GraphBuilder:
         cost_mode: str = "distance",
         cost_fn: Optional[RoutingCostFunction] = None,
         cost_kwargs: Optional[Dict[str, float]] = None,
+        close_gaps: bool = False,
+        max_gap: float = 2.5,
+        max_heading_diff_deg: float = 45.0,
     ):
         self.include_neighbors = include_neighbors
         self.lane_change_penalty = lane_change_penalty
         self.cost_mode = cost_mode
+        self.close_gaps = close_gaps
+        self.max_gap = max_gap
+        self.max_heading_diff_deg = max_heading_diff_deg
         self.cost_kwargs = dict(cost_kwargs or {})
         if cost_fn is not None:
             self.cost_fn = cost_fn
@@ -63,6 +70,16 @@ class GraphBuilder:
             lane_id_to_index[lane_id]: [] for lane_id in lane_ids
         }
         edge_relations: Dict[Tuple[int, int], str] = {}
+
+        if self.close_gaps:
+            for src_id, dst_id in self._geometric_successors(map_):
+                src_idx = lane_id_to_index[src_id]
+                dst_idx = lane_id_to_index[dst_id]
+                if any(neighbor == dst_idx for neighbor, _, _ in adjacency[src_idx]):
+                    continue
+                cost = self.cost_fn(map_, map_.lanes[src_id], map_.lanes[dst_id], "successor")
+                adjacency[src_idx].append((dst_idx, cost, "successor"))
+                edge_relations[(src_idx, dst_idx)] = "successor"
 
         for lane_id, lane in map_.lanes.items():
             src_idx = lane_id_to_index[lane_id]
@@ -123,6 +140,10 @@ class GraphBuilder:
                 matrix[src_idx, dst_idx] = cost
 
         return csr_matrix(matrix)
+
+    def _geometric_successors(self, map_: Map):
+        """Return gap-closed successor links for the routing graph."""
+        return geometric_successor_links(map_, self.max_gap, self.max_heading_diff_deg)
 
     @staticmethod
     def _iter_boundary_roadlines(

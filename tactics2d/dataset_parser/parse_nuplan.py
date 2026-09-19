@@ -411,16 +411,26 @@ class NuPlanParser:
             map_.add_lane(connector_lane)
 
     def _load_successor_relationships(self, map_: Map, lane_connectors) -> None:
+        """Wire each connector to the lanes it joins.
+
+        nuPlan names a connector's ends after the lane it *enters*: its
+        ``entry_lane_fid`` is the lane the connector leads into, and its
+        ``exit_lane_fid`` the one it leaves. The upstream lane is therefore the
+        exit lane.
+        """
+
         for fid, row in lane_connectors.iterrows():
             connector_id = self._as_int_str(fid)
-            entry_id = self._as_int_str(row["entry_lane_fid"])
-            exit_id = self._as_int_str(row["exit_lane_fid"])
-            if entry_id in map_.lanes and connector_id in map_.lanes:
-                map_.lanes[entry_id].add_related_lane(connector_id, LaneRelationship.SUCCESSOR)
-                map_.lanes[connector_id].add_related_lane(entry_id, LaneRelationship.PREDECESSOR)
-            if connector_id in map_.lanes and exit_id in map_.lanes:
-                map_.lanes[connector_id].add_related_lane(exit_id, LaneRelationship.SUCCESSOR)
-                map_.lanes[exit_id].add_related_lane(connector_id, LaneRelationship.PREDECESSOR)
+            upstream_id = self._as_int_str(row["exit_lane_fid"])
+            downstream_id = self._as_int_str(row["entry_lane_fid"])
+            if upstream_id in map_.lanes and connector_id in map_.lanes:
+                map_.lanes[upstream_id].add_related_lane(connector_id, LaneRelationship.SUCCESSOR)
+                map_.lanes[connector_id].add_related_lane(upstream_id, LaneRelationship.PREDECESSOR)
+            if connector_id in map_.lanes and downstream_id in map_.lanes:
+                map_.lanes[connector_id].add_related_lane(downstream_id, LaneRelationship.SUCCESSOR)
+                map_.lanes[downstream_id].add_related_lane(
+                    connector_id, LaneRelationship.PREDECESSOR
+                )
 
     def _load_neighbor_relationships(self, map_: Map) -> None:
         lanes_by_group = {}

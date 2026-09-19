@@ -12,7 +12,7 @@ from tactics2d.search import MCTS
 
 from .action import LimSimAction
 from .config import LimSimConfig
-from .planner import LaneFollower, action_is_valid
+from .lane_follower import LaneFollower, is_action_valid
 from .reward import LimSimReward
 from .schema import AgentDecisionState, JointDecisionState
 
@@ -24,6 +24,7 @@ class LimSimDecisionSearch:
         self.config = config
         self.follower = LaneFollower(config)
         self.reward = LimSimReward(config)
+        self._expand_cache = {}
 
     def plan(
         self,
@@ -31,12 +32,16 @@ class LimSimDecisionSearch:
         map_: Optional[Map],
         obstacle_trajectories: Sequence[Sequence[AgentDecisionState]] = (),
     ) -> Tuple[Dict[object, LimSimAction], Dict[object, List[AgentDecisionState]], object]:
-        """Plan one joint action for a group of interacting agents."""
+        """Plan one joint action for a group of interacting agents.
+
+        Runs one chained MCTS per decision step with budget
+        ``base_budget / (depth/2 + 1)``, each step rooted at the previous best child.
+        """
+
+        self._expand_cache.clear()
 
         start_state = JointDecisionState(
-            agents=tuple(agents),
-            depth=0,
-            trajectories=tuple(tuple() for _ in agents),
+            agents=tuple(agents), depth=0, trajectories=tuple(tuple() for _ in agents)
         )
 
         def terminal_fn(state: JointDecisionState) -> bool:
@@ -55,23 +60,47 @@ class LimSimDecisionSearch:
             return self.reward.evaluate(agents, trajectories, obstacle_trajectories)
 
         def simulate_fn(state: JointDecisionState) -> JointDecisionState:
-            if terminal_fn(state):
-                return state
-            candidates = expand_fn(state)
-            return random.choice(candidates) if candidates else state
+            """Rollout to terminal with lightweight random-step generation."""
+            current = state
+            while not terminal_fn(current):
+                next_state = self._simulate_step(current, map_)
+                if next_state is None:
+                    break
+                current = next_state
+            return current
 
-        mcts = MCTS(
-            terminal_fn=terminal_fn,
-            expand_fn=expand_fn,
-            reward_fn=reward_fn,
-            simulate_fn=simulate_fn,
-            exploration_weight=self.config.exploration_weight,
-        )
-        _, root = mcts.plan(start=start_state, max_try=self.config.mcts_iterations)
-        selected = self._best_state_from_root(root) or start_state
-        root_fallback = self._best_one_step_state(
-            start_state, map_, agents, obstacle_trajectories
-        )
+        # --- chained MCTS: one search per decision step with decaying budget ---
+        base_budget = max(1, self.config.mcts_iterations)
+        current_state = start_state
+        best_intermediate = start_state
+        last_root = None
+
+        for depth in range(self.config.terminal_depth):
+            budget = max(2, int(base_budget / (depth / 2.0 + 1.0)))
+            mcts = MCTS(
+                terminal_fn=terminal_fn,
+                expand_fn=expand_fn,
+                reward_fn=reward_fn,
+                simulate_fn=simulate_fn,
+                exploration_weight=self.config.exploration_weight,
+            )
+            _, last_root = mcts.plan(start=current_state, max_try=budget)
+
+            selected = self._best_state_from_root(last_root)
+            if selected is None:
+                break
+            best_intermediate = selected
+
+            # early termination: good-enough terminal state
+            if terminal_fn(selected) and reward_fn(selected) > 0.8:
+                break
+
+            # follow best child as the root for the next decision step
+            current_state = selected
+
+        # --- one-step fallback: did MCTS beat the greedy immediate choice? ---
+        selected = best_intermediate
+        root_fallback = self._best_one_step_state(start_state, map_, agents, obstacle_trajectories)
         if root_fallback is not None and reward_fn(root_fallback) > reward_fn(selected):
             selected = root_fallback
 
@@ -91,26 +120,41 @@ class LimSimDecisionSearch:
                     steps=self.config.horizon_steps - len(trajectories.get(agent.agent_id, [])),
                 )
                 trajectories[agent.agent_id] = trajectories.get(agent.agent_id, []) + remaining
-        return actions, trajectories, root
+        return actions, trajectories, last_root
 
     def _expand(self, state: JointDecisionState, map_: Optional[Map]) -> List[JointDecisionState]:
+        cache_key = id(state)
+        if cache_key in self._expand_cache:
+            return self._expand_cache[cache_key]
+
         action_sets = []
         for agent in state.agents:
             actions = [
                 action
                 for action in self.config.candidate_actions
-                if action_is_valid(agent, action, map_)
+                if is_action_valid(agent, action, map_)
             ]
+            actions = self._prune_actions(agent, actions)
             action_sets.append(actions or [LimSimAction.KS])
 
-        expanded = []
         steps_per_decision = max(1, int(round(self.config.decision_resolution / self.config.dt)))
+
+        # --- pre-compute individual agent rollouts (key optimization) ---
+        agent_rollouts = {}
+        for idx, agent in enumerate(state.agents):
+            per_action = {}
+            for action in action_sets[idx]:
+                segment = self.follower.rollout(agent, action, map_, steps=steps_per_decision)
+                next_agent = segment[-1] if segment else agent.with_updates(action=action)
+                per_action[action] = (segment, next_agent)
+            agent_rollouts[idx] = per_action
+
+        expanded = []
         for joint_actions in itertools.product(*action_sets):
             next_agents = []
             next_trajectories = []
             for index, (agent, action) in enumerate(zip(state.agents, joint_actions)):
-                segment = self.follower.rollout(agent, action, map_, steps=steps_per_decision)
-                next_agent = segment[-1] if segment else agent.with_updates(action=action)
+                segment, next_agent = agent_rollouts[index][action]
                 next_agents.append(next_agent)
                 history = list(state.trajectories[index]) if state.trajectories else []
                 history.extend(segment)
@@ -122,7 +166,64 @@ class LimSimDecisionSearch:
                     trajectories=tuple(next_trajectories),
                 )
             )
+
+        self._expand_cache[cache_key] = expanded
         return expanded
+
+    def _simulate_step(
+        self, state: JointDecisionState, map_: Optional[Map]
+    ) -> Optional[JointDecisionState]:
+        """Generate a single random child without the full Cartesian product.
+
+        Picks one random action per agent and rolls out only that agent-action pair.
+        """
+
+        steps_per_decision = max(1, int(round(self.config.decision_resolution / self.config.dt)))
+        next_agents = []
+        next_trajectories = []
+
+        for index, agent in enumerate(state.agents):
+            actions = [
+                action
+                for action in self.config.candidate_actions
+                if is_action_valid(agent, action, map_)
+            ]
+            actions = self._prune_actions(agent, actions)
+            action = random.choice(actions or [LimSimAction.KS])
+            segment = self.follower.rollout(agent, action, map_, steps=steps_per_decision)
+            next_agent = segment[-1] if segment else agent.with_updates(action=action)
+            next_agents.append(next_agent)
+            history = list(state.trajectories[index]) if state.trajectories else []
+            history.extend(segment)
+            next_trajectories.append(tuple(history[: self.config.horizon_steps]))
+
+        return JointDecisionState(
+            agents=tuple(next_agents), depth=state.depth + 1, trajectories=tuple(next_trajectories)
+        )
+
+    def _prune_actions(
+        self, agent: AgentDecisionState, actions: List[LimSimAction]
+    ) -> List[LimSimAction]:
+        """Drop context-irrelevant actions to reduce the MCTS branching factor.
+
+        Drops AC at near-max speed and DC at near-min speed; keeps KS as a fallback.
+        """
+        if len(actions) <= 2:
+            return actions  # already minimal
+
+        keep = set(actions)
+        speed_ratio = agent.speed / max(self.config.max_speed, 1.0)
+
+        if speed_ratio >= 0.95:
+            keep.discard(LimSimAction.AC)
+        if speed_ratio <= 0.02:
+            keep.discard(LimSimAction.DC)
+
+        result = [a for a in actions if a in keep]
+        # ensure KS is always available as the safe option
+        if LimSimAction.KS not in result:
+            result.append(LimSimAction.KS)
+        return result
 
     def _best_state_from_root(self, root) -> Optional[JointDecisionState]:
         if root is None or not root.children:
@@ -147,8 +248,6 @@ class LimSimDecisionSearch:
         return max(
             candidates,
             key=lambda candidate: self.reward.evaluate(
-                initial_agents,
-                candidate.trajectory_dict(),
-                obstacle_trajectories,
+                initial_agents, candidate.trajectory_dict(), obstacle_trajectories
             ),
         )

@@ -3,13 +3,15 @@
 
 """Planner-facing semantic queries derived from Tactics2D maps."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Iterable, Sequence
 
 import numpy as np
 from shapely.geometry import GeometryCollection, LineString, MultiPoint, Point, Polygon, box
 
-from tactics2d.geometry import ReferencePath
+from tactics2d.geometry import frenet
 from tactics2d.map.element import Map, Regulatory
 
 
@@ -21,7 +23,7 @@ class StopTarget:
     point: Point
     reason: str
     source_id: str
-    state: Optional[str] = None
+    state: str | None = None
 
 
 @dataclass(frozen=True)
@@ -30,8 +32,8 @@ class StopLine:
 
     lane_id: str
     geometry: LineString
-    source_id: Optional[str] = None
-    reason: Optional[str] = None
+    source_id: str | None = None
+    reason: str | None = None
     virtual: bool = True
 
 
@@ -41,7 +43,7 @@ class LaneConflict:
 
     lane_id: str
     conflict_lane_id: str
-    points: Tuple[Point, ...]
+    points: tuple[Point, ...]
     inferred: bool = True
     source: str = "geometry"
 
@@ -53,8 +55,8 @@ class SemanticMapQuery:
         self.map = map_
 
     def get_reference_path(
-        self, lane_id: str, route_lane_ids: Optional[Sequence[str]] = None, lookahead_lanes: int = 3
-    ) -> Optional[ReferencePath]:
+        self, lane_id: str, route_lane_ids: Sequence[str] | None = None, lookahead_lanes: int = 3
+    ) -> ReferencePath | None:
         """Build a reference path by concatenating lane centerlines."""
 
         if lane_id not in self.map.lanes:
@@ -80,9 +82,9 @@ class SemanticMapQuery:
         if path is None:
             return None
         width = self.map.lanes[lane_id].get_width()
-        return ReferencePath(path=path, lane_ids=tuple(lane_ids), lane_width=width)
+        return frenet.ReferencePath(path=path, lane_ids=tuple(lane_ids), lane_width=width)
 
-    def get_lanes_in_region(self, region: Union[Tuple[float, float, float, float], Polygon]):
+    def get_lanes_in_region(self, region: tuple[float, float, float, float] | Polygon):
         """Return lane ids whose geometry intersects a region."""
 
         geometry = (
@@ -94,7 +96,7 @@ class SemanticMapQuery:
                 lane_ids.append(lane_id)
         return lane_ids
 
-    def get_traffic_light_for_lane(self, lane_id: str) -> Optional[Regulatory]:
+    def get_traffic_light_for_lane(self, lane_id: str) -> Regulatory | None:
         """Return the traffic-light regulatory element bound to a lane."""
 
         for regulation in self.map.regulations.values():
@@ -102,7 +104,7 @@ class SemanticMapQuery:
                 return regulation
         return None
 
-    def get_traffic_light_state(self, lane_id: str, time_ms: Optional[int] = None):
+    def get_traffic_light_state(self, lane_id: str, time_ms: int | None = None):
         """Return the traffic-light state record nearest to ``time_ms``."""
 
         regulation = self.get_traffic_light_for_lane(lane_id)
@@ -110,7 +112,7 @@ class SemanticMapQuery:
             return None
         return regulation.state_at(time_ms)
 
-    def get_stop_signs(self, lane_id: Optional[str] = None) -> List[Regulatory]:
+    def get_stop_signs(self, lane_id: str | None = None) -> list[Regulatory]:
         """Return stop signs, optionally filtered by lane id."""
 
         stop_signs = []
@@ -124,10 +126,10 @@ class SemanticMapQuery:
     def get_stop_targets(
         self,
         lane_id: str,
-        time_ms: Optional[int] = None,
+        time_ms: int | None = None,
         include_stop_signs: bool = True,
         include_traffic_lights: bool = True,
-    ) -> List[StopTarget]:
+    ) -> list[StopTarget]:
         """Return stop targets from stop signs and traffic lights."""
 
         targets = []
@@ -161,7 +163,7 @@ class SemanticMapQuery:
         return targets
 
     def get_lane_change_permission(
-        self, lane_id: str, direction: str, s: Optional[float] = None
+        self, lane_id: str, direction: str, s: float | None = None
     ) -> bool:
         """Return whether a lane change is allowed at a lane position."""
 
@@ -208,7 +210,7 @@ class SemanticMapQuery:
             return True
         return self.get_junction_by_lane(lane_id) is not None
 
-    def get_junction_area(self, junction_id: Optional[str] = None, lane_id: Optional[str] = None):
+    def get_junction_area(self, junction_id: str | None = None, lane_id: str | None = None):
         """Return an available junction/intersection polygon."""
 
         junction = None
@@ -245,9 +247,9 @@ class SemanticMapQuery:
     def get_conflict_lanes(
         self,
         lane_id: str,
-        candidate_lane_ids: Optional[Iterable[str]] = None,
+        candidate_lane_ids: Iterable[str] | None = None,
         angle_threshold: float = np.deg2rad(20.0),
-    ) -> List[str]:
+    ) -> list[str]:
         """Infer lanes whose centerlines geometrically conflict with a lane."""
 
         return [
@@ -260,9 +262,9 @@ class SemanticMapQuery:
     def get_junction_conflicts(
         self,
         lane_id: str,
-        candidate_lane_ids: Optional[Iterable[str]] = None,
+        candidate_lane_ids: Iterable[str] | None = None,
         angle_threshold: float = np.deg2rad(20.0),
-    ) -> List[LaneConflict]:
+    ) -> list[LaneConflict]:
         """Infer planner-facing lane conflicts from geometry and topology."""
 
         conflicts = []
@@ -320,7 +322,7 @@ class SemanticMapQuery:
                 return True
         return False
 
-    def get_conflict_points(self, lane_id_a: str, lane_id_b: str) -> List[Point]:
+    def get_conflict_points(self, lane_id_a: str, lane_id_b: str) -> list[Point]:
         """Return geometric conflict points between two lane centerlines."""
 
         line_a = self._lane_centerline(lane_id_a)
@@ -334,10 +336,10 @@ class SemanticMapQuery:
     def get_stop_line(
         self,
         lane_id: str,
-        stop_target: Optional[StopTarget] = None,
-        point: Optional[Union[Point, Tuple[float, float]]] = None,
-        width: Optional[float] = None,
-    ) -> Optional[StopLine]:
+        stop_target: StopTarget | None = None,
+        point: Point | tuple[float, float] | None = None,
+        width: float | None = None,
+    ) -> StopLine | None:
         """Build a virtual stop line perpendicular to a lane centerline."""
 
         lane = self.map.lanes.get(lane_id)
@@ -373,10 +375,10 @@ class SemanticMapQuery:
     def get_stop_line_geometry(
         self,
         lane_id: str,
-        stop_target: Optional[StopTarget] = None,
-        point: Optional[Union[Point, Tuple[float, float]]] = None,
-        width: Optional[float] = None,
-    ) -> Optional[LineString]:
+        stop_target: StopTarget | None = None,
+        point: Point | tuple[float, float] | None = None,
+        width: float | None = None,
+    ) -> LineString | None:
         """Build a virtual stop-line geometry perpendicular to a lane centerline."""
 
         stop_line = self.get_stop_line(
@@ -384,11 +386,11 @@ class SemanticMapQuery:
         )
         return stop_line.geometry if stop_line is not None else None
 
-    def _lane_centerline(self, lane_id: str) -> Optional[LineString]:
+    def _lane_centerline(self, lane_id: str) -> LineString | None:
         lane = self.map.lanes.get(lane_id)
         return lane.centerline() if lane is not None else None
 
-    def _concatenate_lines(self, lines: Sequence[Optional[LineString]]) -> Optional[LineString]:
+    def _concatenate_lines(self, lines: Sequence[LineString | None]) -> LineString | None:
         coords = []
         for line in lines:
             if line is None or line.length <= 0.0:
@@ -402,7 +404,7 @@ class SemanticMapQuery:
                 coords.extend(line_coords)
         return LineString(coords) if len(coords) >= 2 else None
 
-    def _boundary_roadline_ids(self, lane, side: str, s: Optional[float]) -> List[str]:
+    def _boundary_roadline_ids(self, lane, side: str, s: float | None) -> list[str]:
         tags = lane.custom_tags or {}
         segments = tags.get("boundary_segments", {}).get(side, [])
         if s is not None and segments:
@@ -451,7 +453,7 @@ class SemanticMapQuery:
         behind = line.interpolate(max(progress - 0.5, 0.0))
         return float(np.arctan2(ahead.y - behind.y, ahead.x - behind.x))
 
-    def _points_from_geometry(self, geometry) -> List[Point]:
+    def _points_from_geometry(self, geometry) -> list[Point]:
         if geometry.is_empty:
             return []
         if isinstance(geometry, Point):

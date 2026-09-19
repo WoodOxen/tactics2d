@@ -8,7 +8,7 @@ from typing import Tuple
 
 import numpy as np
 
-from tactics2d.geometry import Circle
+from tactics2d.geometry import circle
 
 
 class DubinsPath:
@@ -46,12 +46,12 @@ class DubinsPath:
                 end_heading = heading
                 return arc_curve, yaw, end_point, end_heading
 
-            circle_center, _ = Circle.get_circle(
+            circle_center, _ = circle.Circle.get_circle(
                 tangent_point=point, tangent_heading=heading, radius=radius, side=action
             )
             clockwise = action == "R"
             start_angle = (heading + np.pi / 2) if action == "R" else (heading - np.pi / 2)
-            arc_curve = Circle.get_arc(
+            arc_curve = circle.Circle.get_arc(
                 circle_center, radius, radian, start_angle, clockwise, step_size
             )
 

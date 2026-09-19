@@ -9,7 +9,7 @@ import logging
 
 import numpy as np
 
-from tactics2d.geometry import cumulative_s
+from tactics2d.geometry import polyline
 from tactics2d.map.element import Lane, RoadLine
 from tactics2d.map.generator.rules.lane_marking_rules import (
     one_way_boundary_token,
@@ -273,7 +273,7 @@ class JunctionApproach(RoadSegment):
         if min_len is None:
             min_len = max(lane_w * lane_delta * 3, 10.0)
 
-        center_len = float(cumulative_s(center_pts)[-1])
+        center_len = float(polyline.arc_lengths(center_pts)[-1])
         if lane_delta > 0 and center_len < min_len:
             logger.warning(
                 "Taper centreline length %.1f m is shorter than recommended "
@@ -305,7 +305,7 @@ class JunctionApproach(RoadSegment):
         boundary_num = max_n + 1
 
         # ---- resample centreline to uniform step size ------------------
-        cum = cumulative_s(center_pts)
+        cum = polyline.arc_lengths(center_pts)
         total_len = float(cum[-1])
         if total_len > self.step_size:
             n_steps = max(2, int(total_len / self.step_size) + 1)

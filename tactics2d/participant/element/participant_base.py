@@ -166,15 +166,19 @@ class ParticipantBase(ABC):
     def is_active(self, frame: int) -> bool:
         """This function checks if the participant has state information at the requested frame.
 
+        A participant is active only when a state exists at that precise frame;
+        trajectories with gaps report False for the missing frames.
+
         Args:
             frame (int): The requested frame. The unit is millisecond (ms).
 
         Returns:
-            bool: True if the participant has state information at the requested frame, False otherwise.
+            bool: True if the participant has state information at the requested
+                frame, False otherwise.
         """
-        if frame < self.trajectory.first_frame or frame > self.trajectory.last_frame:
+        if self.trajectory is None:
             return False
-        return True
+        return self.trajectory.has_state(frame)
 
     def add_state(self, state: State):
         """This function wraps the `add_state` method of the trajectory. It does some class-specific checks before adding the state to the trajectory.

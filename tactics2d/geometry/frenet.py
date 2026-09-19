@@ -9,7 +9,7 @@ from typing import Tuple
 import numpy as np
 from shapely.geometry import LineString, Point
 
-from .utils import normalize_angle
+from .spatial import normalize_angle
 
 
 @dataclass(frozen=True)
@@ -57,3 +57,34 @@ class ReferencePath:
         ahead = self.path.interpolate(min(s0 + 0.5, self.path.length))
         behind = self.path.interpolate(max(s0 - 0.5, 0.0))
         return normalize_angle(np.arctan2(ahead.y - behind.y, ahead.x - behind.x))
+
+
+def align_path_with_heading(
+    path_array: np.ndarray, x: float, y: float, heading: float
+) -> np.ndarray:
+    """Ensure a polyline path direction is consistent with a given heading.
+
+    Projects the reference point *(x, y)* onto the path, samples the local
+    tangent direction, and reverses the path array if the tangent opposes
+    *heading*.
+
+    Args:
+        path_array: Array of path points with shape ``(N, 2)``.
+        x: Reference x-coordinate.
+        y: Reference y-coordinate.
+        heading: Desired heading in radians.
+
+    Returns:
+        The path array, reversed if the local tangent opposes *heading*.
+    """
+    line = LineString(path_array)
+    progress = float(line.project(Point(x, y)))
+    point = line.interpolate(progress)
+    ahead = line.interpolate(min(progress + 0.5, line.length))
+    if ahead.distance(point) < 1e-6:
+        ahead = point
+        point = line.interpolate(max(progress - 0.5, 0.0))
+    path_heading = normalize_angle(np.arctan2(ahead.y - point.y, ahead.x - point.x))
+    if np.cos(normalize_angle(path_heading - heading)) < 0.0:
+        return path_array[::-1].copy()
+    return path_array
