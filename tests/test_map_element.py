@@ -3,7 +3,6 @@
 
 """Tests for map element."""
 
-
 import logging
 
 import pytest
@@ -62,6 +61,23 @@ def test_lane():
     assert lane1.is_related("2") == map_element.LaneRelationship.PREDECESSOR
     assert lane1.is_related("3") == 3
     assert not lane1.is_related("4")
+
+
+@pytest.mark.map_element
+def test_lane_centerline_sampling_spacing():
+    lane = map_element.Lane(
+        id_="sampling",
+        left_side=LineString([(0.0, 1.0), (105.0, 1.0)]),
+        right_side=LineString([(0.0, -1.0), (105.0, -1.0)]),
+    )
+
+    metric_centerline = lane.centerline()
+    legacy_centerline = lane.centerline(sample_spacing_m=None)
+
+    assert len(metric_centerline.coords) == 12
+    assert len(legacy_centerline.coords) == 10
+    with pytest.raises(ValueError, match="positive or None"):
+        lane.centerline(sample_spacing_m=0.0)
 
 
 @pytest.mark.map_element

@@ -37,6 +37,8 @@ PortKind = Literal[
     "roundabout_out",
     "adapter_in",
     "adapter_out",
+    "junction_approach_in",
+    "junction_approach_out",
 ]
 
 RampKind = Literal["exit", "entrance"]

@@ -218,6 +218,13 @@ def _arm_lane_centers(
 def _turn_direction(inc_heading: float, out_heading: float) -> str:
     """Classify a connection as a right turn, straight, or left turn.
 
+    ``inc_heading`` is the direction a vehicle travels *into* the junction;
+    ``out_heading`` is the direction it travels *out*.  Going straight keeps
+    the same travel direction, so the two headings are equal (a through road
+    carries traffic toward the junction on one side and away on the opposite
+    side, both pointing the same way).  A 90° change to the driver's right is
+    ``"right"``, to the left is ``"left"``.
+
     Args:
         inc_heading: Inward heading of the incoming arm in radians.
         out_heading: Outward heading of the outgoing arm in radians.
@@ -398,9 +405,6 @@ def _intersection_build(
             count or width.
     """
     center = np.asarray(center, dtype=float)
-
-    if len(arms) not in (3, 4):
-        raise ValueError("intersection requires 3 or 4 arms.")
 
     if step_size <= 0.0:
         raise ValueError("step_size must be positive.")
