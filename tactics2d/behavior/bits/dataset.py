@@ -241,13 +241,13 @@ class BitsBatchBuilder:
         best_distance = float("inf")
 
         for lane_id, lane in map_.lanes.items():
-            if lane.geometry is None:
-                continue
             centerline = lane.centerline()
             if centerline is not None:
                 distance = LineString(centerline).distance(point)
-            else:
+            elif lane.geometry is not None:
                 distance = lane.geometry.distance(point)
+            else:
+                continue
             if distance < best_distance:
                 best_distance = distance
                 best_lane_id = lane_id

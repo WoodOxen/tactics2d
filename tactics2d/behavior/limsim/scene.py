@@ -197,8 +197,6 @@ class SceneBuilder:
         indexed_lane_ids: List[str] = []
         indexed_centerlines: List[LineString] = []
         for candidate_id, candidate_lane in map_.lanes.items():
-            if candidate_lane.geometry is None:
-                continue
             centerline = candidate_lane.centerline()
             centerline = (
                 np.asarray(centerline.coords, dtype=float) if centerline is not None else None

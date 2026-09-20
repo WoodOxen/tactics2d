@@ -66,10 +66,14 @@ class WOMDParser:
 
         The framing scan is run once per shard globally (first process saves it,
         later processes load it) instead of once per parser instance, which
-        matters when many workers load scenes from the same shards.
+        matters when many workers load scenes from the same shards. The on-disk
+        key carries the shard's size and modification time, so a re-downloaded
+        shard is rescanned instead of reusing stale offsets.
         """
         if file_path not in self._offsets:
-            cache_path = os.path.join(_OFFSET_CACHE_DIR, os.path.basename(file_path) + ".pkl")
+            stat = os.stat(file_path)
+            cache_key = f"{os.path.basename(file_path)}-{stat.st_size}-{int(stat.st_mtime)}.pkl"
+            cache_path = os.path.join(_OFFSET_CACHE_DIR, cache_key)
             if os.path.exists(cache_path):
                 with open(cache_path, "rb") as handle:
                     self._offsets[file_path] = pickle.load(handle)
@@ -275,8 +279,13 @@ class WOMDParser:
         participants = dict()
         time_stamps = set()
 
-        dataset = self._get_dataset(**kwargs)
-        scenario, _ = self._resolve_scenario_data(scenario_id, dataset)
+        if isinstance(scenario_id, (int, np.integer)) and "file" in kwargs and "folder" in kwargs:
+            # O(1) fast path via the byte-offset index (mirrors parse_map);
+            # the iterator path below parses every record of the shard.
+            scenario = self._scenario_by_index(int(scenario_id), kwargs["file"], kwargs["folder"])
+        else:
+            dataset = self._get_dataset(**kwargs)
+            scenario, _ = self._resolve_scenario_data(scenario_id, dataset)
         fill_invalid_gaps = kwargs.get("fill_invalid_gaps", False)
         max_gap_frames = kwargs.get("max_gap_frames", 1)
 
@@ -290,7 +299,10 @@ class WOMDParser:
         timestamps = scenario.timestamps_seconds
         self.last_scenario_id = scenario.scenario_id
         object_of_interest = {int(track_id) for track_id in scenario.objects_of_interest}
-        tracks_to_predict = {int(item.track_index) for item in scenario.tracks_to_predict}
+        # ``track_index`` is a position in ``scenario.tracks``, not an object id.
+        tracks_to_predict = {
+            int(scenario.tracks[item.track_index].id) for item in scenario.tracks_to_predict
+        }
         for track in scenario.tracks:
             parsed_states = []
             width = 0

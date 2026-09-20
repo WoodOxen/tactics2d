@@ -11,6 +11,7 @@ from shapely.geometry import LineString
 
 from tactics2d.behavior.base import BehaviorModelBase
 from tactics2d.behavior.limsim import LimSimBehaviorModel, LimSimConfig
+from tactics2d.behavior.limsim.scene import SceneBuilder
 from tactics2d.map.element import Lane, Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
@@ -174,3 +175,16 @@ def test_limsim_mpc_closed_loop_runs(runtime_dir):
         {"committed_rows": len(committed.frames)},
     )
     assert path.exists()
+
+
+@pytest.mark.integration
+def test_scene_builder_indexes_a_lane_without_geometry():
+    """A lane carrying only a centreline still enters the spatial index."""
+    map_ = _parallel_map()
+    map_.lanes["A"].geometry = None
+
+    strtree, lane_ids, centerlines = SceneBuilder(LimSimConfig())._get_lane_index(map_)
+
+    assert strtree is not None
+    assert lane_ids == ["A", "B"]
+    assert [line.bounds for line in centerlines] == [(1.0, 0.0, 1.0, 80.0), (3.0, 0.0, 3.0, 80.0)]

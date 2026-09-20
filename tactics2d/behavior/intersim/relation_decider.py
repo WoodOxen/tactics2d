@@ -16,21 +16,23 @@ from .config import InterSimConfig
 # Adapted from InterSim (github.com/Tsinghua-MARS-Lab/InterSim), MIT,
 # Copyright (c) 2022 Tsinghua MARS Lab.
 
-# Process-wide cache: the checkpoint is a read-only ~125 MB weight asset.
-_MODEL_CACHE = None
+# Process-wide cache: the checkpoints are read-only ~125 MB weight assets, so
+# they are kept alive per path for the lifetime of the process.
+_MODEL_CACHE = {}
 
 
 def load_model(config: InterSimConfig):
-    """Return the relation predictor, loading its checkpoint on first use."""
+    """Return the relation predictor for the configured checkpoint, loading it on first use."""
 
-    global _MODEL_CACHE
-    if _MODEL_CACHE is None:
+    if not config.relation_model_path:
+        raise ValueError("relation_mode='nn' requires config.relation_model_path.")
+
+    path = str(config.relation_model_path)
+    if path not in _MODEL_CACHE:
         from .relation_model import RelationVectorNet
 
-        if not config.relation_model_path:
-            raise ValueError("relation_mode='nn' requires config.relation_model_path.")
-        _MODEL_CACHE = RelationVectorNet.from_checkpoint(config.relation_model_path)
-    return _MODEL_CACHE
+        _MODEL_CACHE[path] = RelationVectorNet.from_checkpoint(path)
+    return _MODEL_CACHE[path]
 
 
 def road_graph(map_, cx: float, cy: float):

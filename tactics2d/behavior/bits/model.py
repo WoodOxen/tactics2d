@@ -3,6 +3,7 @@
 
 """BITS behavior model and neural-network modules for bi-level imitation learning."""
 
+import logging
 from pathlib import Path
 from typing import Dict, Iterable, Mapping, Optional
 
@@ -30,6 +31,8 @@ from .transformer import Transformer as BitsSimpleTransformer
 from .unet import BitsRasterBackbone
 from .unet import GoalDecoder as SpatialGoalUNetDecoder
 from .unet import SharedRasterEncoder
+
+LOGGER = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Private tensor helpers
@@ -625,7 +628,7 @@ class BitsAgentAwareTrajectoryModule(nn.Module):
             )
         else:
             all_features, current_states, current_availability, _encoder_features = feature_context
-        batch_size, agent_count = all_features.shape[:2]
+        batch_size = all_features.shape[0]
         goal_positions = _ensure_goal_batch(goal_positions)
         goal_yaws = _ensure_goal_batch(goal_yaws)
         mode_count = goal_positions.shape[1]
@@ -637,7 +640,6 @@ class BitsAgentAwareTrajectoryModule(nn.Module):
         ego_positions = ego_decoded["positions"]
         ego_yaws = ego_decoded["yaws"]
 
-        other_count = max(agent_count - 1, 0)
         other_features = all_features[:, 1:]
         other_states = current_states[:, 1:]
         agent_decoded = self.future_state_head(
@@ -1098,7 +1100,13 @@ class BitsBehaviorModel(BehaviorModelBase):
                     **{**dict(planner_meta["config"]), "future_steps": future_steps}
                 )
         except Exception:
-            pass
+            # The metadata block is optional: the requested configuration still
+            # describes the model, so a missing or malformed one only downgrades it.
+            LOGGER.warning(
+                "Could not read the architecture from the BITS planner checkpoint metadata; "
+                "the requested configuration is used as-is.",
+                exc_info=True,
+            )
         if resolved_tbsim_compat is None:
             resolved_tbsim_compat = False
 
@@ -1200,10 +1208,6 @@ class BitsBehaviorModel(BehaviorModelBase):
             prediction = self.policy.predict_batch(batch)
             trajectories[ego_id] = self._prediction_to_trajectory(ego_id, frame, batch, prediction)
         return trajectories
-
-    def predict_batch(self, batch: BitsBatch) -> BitsPrediction:
-        """Expose the policy-level batch API for training/evaluation code."""
-        return self.policy.predict_batch(batch)
 
     def rollout(
         self,

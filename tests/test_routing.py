@@ -4,6 +4,7 @@
 """Tests for lane-level routing."""
 
 import numpy as np
+import pytest
 from shapely.geometry import LineString
 
 from tactics2d.map.element import Lane, LaneRelationship, Map
@@ -168,3 +169,13 @@ def test_find_lane_at_pose_respects_driving_direction():
     matched_down = find_lane_at_pose(map_, x=1.5, y=9.0, heading=-0.5 * np.pi)
     assert matched_down is not None
     assert matched_down[0] == "S"
+
+
+@pytest.mark.search
+def test_find_nearest_lane_matches_a_lane_without_geometry():
+    """A lane carrying only a centreline still takes part in the search."""
+    map_ = _build_test_map()
+    map_.lanes["A"].geometry = None
+
+    assert Router._find_nearest_lane(map_, (0.5, 5.0)) == "A"
+    assert Router._find_nearest_lane(map_, (0.5, 45.0)) == "E"

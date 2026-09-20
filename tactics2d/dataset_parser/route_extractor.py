@@ -40,19 +40,13 @@ def _candidate_lane_ids(map_: Map, lane_id: str, point_xy, lane_match_radius: fl
     point = Point(point_xy)
     lane_ids = set()
     for candidate_id, candidate_lane in map_.lanes.items():
-        if candidate_lane.geometry is None:
-            continue
         candidate_centerline = candidate_lane.centerline()
-        candidate_centerline = (
-            np.asarray(candidate_centerline.coords, dtype=float)
-            if candidate_centerline is not None
-            else None
-        )
-        distance = (
-            LineString(candidate_centerline).distance(point)
-            if candidate_centerline is not None
-            else candidate_lane.geometry.distance(point)
-        )
+        if candidate_centerline is not None:
+            distance = candidate_centerline.distance(point)
+        elif candidate_lane.geometry is not None:
+            distance = candidate_lane.geometry.distance(point)
+        else:
+            continue
         if distance <= lane_match_radius:
             lane_ids.add(candidate_id)
     if lane is None:
@@ -94,13 +88,13 @@ def match_lane_for_state(
     nearby_lane_id = None
     best_distance = float("inf")
     for lid, lane in map_.lanes.items():
-        if lane.geometry is None:
-            continue
         lane_centerline = lane.centerline()
         if lane_centerline is not None:
-            distance = LineString(lane_centerline).distance(point)
-        else:
+            distance = lane_centerline.distance(point)
+        elif lane.geometry is not None:
             distance = lane.geometry.distance(point)
+        else:
+            continue
         if distance < best_distance:
             best_distance = distance
             nearby_lane_id = lid

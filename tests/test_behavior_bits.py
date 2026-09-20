@@ -10,11 +10,12 @@ import numpy as np
 import pytest
 from shapely.geometry import LineString
 
-pytest.importorskip("torch", reason="BITS torch tests require the tactics2d[bits] extra.")
-pytest.importorskip("torchvision", reason="BITS torch tests require the tactics2d[bits] extra.")
+pytest.importorskip("torch", reason="BITS torch tests require the tactics2d[behavior] extra.")
+pytest.importorskip("torchvision", reason="BITS torch tests require the tactics2d[behavior] extra.")
 
 from tactics2d.behavior import BehaviorModelBase
 from tactics2d.behavior.bits import BitsBehaviorModel
+from tactics2d.behavior.bits.dataset import BitsBatchBuilder
 from tactics2d.map.element import Lane, Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
@@ -182,3 +183,13 @@ def test_bits_mpc_closed_loop_runs(bits_model, runtime_dir):
         {"committed_rows": len(committed.frames)},
     )
     assert path.exists()
+
+
+@pytest.mark.integration
+def test_bits_lane_match_accepts_a_lane_without_geometry():
+    """A lane carrying only a centreline is matched rather than skipped."""
+    map_ = _straight_map()
+    map_.lanes["A"].geometry = None
+
+    assert BitsBatchBuilder._match_lane(map_, _state(0, 100.0, 0.4)) == "A"
+    assert BitsBatchBuilder._match_lane(map_, _state(0, 100.0, 4.6)) == "B"
