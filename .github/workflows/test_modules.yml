@@ -168,7 +168,6 @@ jobs:
           }
           place bits_planner_nusc_resnet50.ckpt  bits
           place bits_predictor_nusc_resnet18.ckpt bits
-          place epoch=00.ckpt                    smart
           place smart_waymo_ep0.pt               smart
           place motion_codebook.pkl              smart
           place map_codebook.pkl                 smart
