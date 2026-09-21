@@ -66,7 +66,7 @@ class MCTS:
                 best_node.append(child)
 
         if len(best_node) == 0:
-            logging.info("MCTS: No best node found, returning None")
+            logging.debug("MCTS: _get_best_child on node with 0 children, returning None")
             return None
 
         return random.choice(best_node)
@@ -75,10 +75,20 @@ class MCTS:
         while not self.terminal_fn(node.state):
             if len(node.children) == 0:
                 return node
-            else:
+            # Original LimSim tree_policy: 50 % exploit (follow best child),
+            # 50 % explore (try to expand an untried sibling).
+            if random.random() < 0.5:
                 best_child = self._get_best_child(node)
                 if best_child is None:
-                    # No valid child found, return current node
+                    return node
+                node = best_child
+            else:
+                child = self._expand(node)
+                if child is not node:
+                    return child  # new sibling added — explore it
+                # fully expanded — fall back to best child
+                best_child = self._get_best_child(node)
+                if best_child is None:
                     return node
                 node = best_child
         return node
@@ -118,7 +128,7 @@ class MCTS:
 
         best_child = self._get_best_child(root)
         if best_child is None:
-            logging.warning("MCTS: No best child found, returning empty path")
+            logging.debug("MCTS: No best child found — tree has %d children.", len(root.children))
             return [], root
 
         path = []

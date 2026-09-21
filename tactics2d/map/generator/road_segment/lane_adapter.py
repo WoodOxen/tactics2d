@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from tactics2d.geometry import polyline
 from tactics2d.map.element import Lane, RoadLine
 from tactics2d.map.generator.rules.lane_marking_rules import (
     one_way_boundary_token,
@@ -24,6 +25,48 @@ from .element_builder import (
 )
 from .reference_line import fit_reference_line
 from .road_segment import RoadSegment
+
+
+def _variable_offset_polyline(
+    centerline: np.ndarray, start_offset: float, end_offset: float
+) -> np.ndarray:
+    """Offset a polyline with a smoothly varying lateral offset.
+
+    The offset transitions from ``start_offset`` to ``end_offset`` via a
+    smoothstep (zero-slope Hermite cubic) function of arc length, producing
+    zero first derivative at both ends.
+
+    Args:
+        centerline: Centreline points with shape ``(N, 2)``.
+        start_offset: Lateral offset at the entry end in metres.
+            Positive = left of travel direction.
+        end_offset: Lateral offset at the exit end in metres.
+            Positive = left of travel direction.
+
+    Returns:
+        Offset polyline with shape ``(N, 2)``.
+    """
+    pts = np.asarray(centerline, dtype=float)
+
+    if len(pts) < 2:
+        return pts.copy()
+
+    cumulative_lengths = polyline.arc_lengths(pts)
+    total = cumulative_lengths[-1]
+    t = np.zeros(len(pts)) if total < 1e-9 else cumulative_lengths / total
+    t = t * t * (3.0 - 2.0 * t)
+
+    tangents = np.empty_like(pts)
+    tangents[0] = pts[1] - pts[0]
+    tangents[-1] = pts[-1] - pts[-2]
+    if len(pts) > 2:
+        tangents[1:-1] = pts[2:] - pts[:-2]
+    norms = np.linalg.norm(tangents, axis=1, keepdims=True)
+    tangents /= np.where(norms < 1e-9, 1.0, norms)
+    normals = np.column_stack([-tangents[:, 1], tangents[:, 0]])
+
+    offsets = float(start_offset) + (float(end_offset) - float(start_offset)) * t
+    return pts + offsets[:, None] * normals
 
 
 def _boundary_offsets_for_adapter(

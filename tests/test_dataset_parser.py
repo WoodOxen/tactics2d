@@ -401,6 +401,50 @@ def test_womd_dynamic_traffic_lights(file_name: str, scenario_id: str, expected_
 
 
 @pytest.mark.dataset_parser
+def test_womd_parse_trajectory_by_record_index_matches_the_scenario_id():
+    """An integer index with file/folder reads the same scene as its scenario id."""
+    folder_path = "./tactics2d/data/trajectory_sample/WOMD"
+    file_name = "uncompressed_scenario_validation_validation.tfrecord-00001-of-00150"
+
+    dataset_parser = WOMDParser()
+    by_index, index_range = dataset_parser.parse_trajectory(0, file=file_name, folder=folder_path)
+    scenario_id = dataset_parser._scenario_by_index(0, file_name, folder_path).scenario_id
+    by_id, id_range = dataset_parser.parse_trajectory(
+        scenario_id, file=file_name, folder=folder_path
+    )
+
+    assert sorted(by_index) == sorted(by_id)
+    assert index_range == id_range
+
+
+@pytest.mark.dataset_parser
+def test_womd_offset_cache_key_carries_the_shard_size(tmp_path, monkeypatch):
+    """Two shards sharing a basename get separate cache entries."""
+    import tactics2d.dataset_parser.parse_womd as parse_womd
+
+    monkeypatch.setattr(parse_womd, "_OFFSET_CACHE_DIR", str(tmp_path))
+    file_name = "uncompressed_scenario_validation_validation.tfrecord-00001-of-00150"
+    shard = Path("./tactics2d/data/trajectory_sample/WOMD") / file_name
+
+    parser = parse_womd.WOMDParser()
+    parser._offsets_for(str(shard))
+
+    other_folder = tmp_path / "other"
+    other_folder.mkdir()
+    shorter = other_folder / file_name
+    shorter.write_bytes(shard.read_bytes()[:1000])
+    parser._offsets_for(str(shorter))
+
+    keys = [path.name for path in tmp_path.glob("*.pkl")]
+    assert len(keys) == 2
+    assert all(key.startswith(f"{file_name}-") for key in keys)
+    assert {key.split("-")[-2] for key in keys} == {
+        str(shorter.stat().st_size),
+        str(shard.stat().st_size),
+    }
+
+
+@pytest.mark.dataset_parser
 @pytest.mark.parametrize(
     "scenario_id, folder, map_name, expected",
     [

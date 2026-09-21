@@ -5,7 +5,7 @@
 
 from typing import Dict, List, Optional, Sequence, Tuple
 
-from tactics2d.geometry import euclidean_distance, oriented_box
+from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 
 from .config import LimSimConfig
@@ -62,7 +62,7 @@ class InteractionGraph:
     def _has_interaction(
         self, source: AgentDecisionState, target: AgentDecisionState, map_: Optional[Map]
     ) -> bool:
-        distance = euclidean_distance(source.location, target.location)
+        distance = spatial.euclidean_distance(source.location, target.location)
         if distance <= self.config.conflict_distance:
             return True
 
@@ -97,7 +97,9 @@ class InteractionGraph:
                 or distance <= (source.length + target.length)
             )
 
-        return distance <= self.config.interaction_distance
+        # Topology is available and no relation matched: treat the pair as
+        # non-interacting.
+        return False
 
     def _longitudinally_close(self, source: AgentDecisionState, target: AgentDecisionState) -> bool:
         rear, front = (source, target)
@@ -109,12 +111,23 @@ class InteractionGraph:
     def _dynamic_interaction_distance(self, agent: AgentDecisionState) -> float:
         return self.config.same_lane_time_headway * agent.speed + agent.length
 
+    @staticmethod
+    def _lane_length(lane) -> float:
+        """Return the lane centreline length in meters.
+
+        ``Lane.geometry`` is a ``LinearRing`` over both boundaries, so its length
+        is about twice the lane length; the centreline is the exact quantity.
+        """
+
+        centerline = lane.centerline()
+        if centerline is not None:
+            return float(centerline.length)
+        return float(lane.geometry.length) / 2.0 if lane.geometry is not None else 0.0
+
     def _successor_gap(
         self, rear: AgentDecisionState, front: AgentDecisionState, rear_lane
     ) -> float:
-        lane_length = (
-            float(rear_lane.geometry.length) / 2.0 if rear_lane.geometry is not None else 0.0
-        )
+        lane_length = self._lane_length(rear_lane)
         return max(lane_length - rear.route_progress, 0.0) + front.route_progress
 
     def _is_junction_like(self, lane) -> bool:
@@ -130,10 +143,19 @@ def has_trajectory_collision(trajectories: Sequence[Sequence[AgentDecisionState]
         return False
     steps = min(len(trajectory) for trajectory in trajectories)
     for step in range(steps):
-        footprints = [_footprint(trajectory[step]) for trajectory in trajectories]
-        for i, source in enumerate(footprints):
-            for target in footprints[i + 1 :]:
-                if source.intersects(target):
+        states = [trajectory[step] for trajectory in trajectories]
+        for i, source in enumerate(states):
+            source_shape = source.footprint  # hoisted: compute once per source
+            source_radius = 0.5 * (source.length**2 + source.width**2) ** 0.5
+            for j in range(i + 1, len(states)):
+                target = states[j]
+                target_radius = 0.5 * (target.length**2 + target.width**2) ** 0.5
+                if (
+                    spatial.euclidean_distance(source.location, target.location)
+                    > source_radius + target_radius
+                ):
+                    continue
+                if source_shape.intersects(target.footprint):
                     return True
     return False
 
@@ -147,11 +169,20 @@ def first_collision_info(
         return None
     steps = min(len(trajectory) for trajectory in trajectories)
     for step in range(steps):
-        footprints = [_footprint(trajectory[step]) for trajectory in trajectories]
-        for i, source in enumerate(footprints):
-            for j, target in enumerate(footprints[i + 1 :], start=i + 1):
-                if source.intersects(target):
-                    return step, trajectories[i][step], trajectories[j][step]
+        states = [trajectory[step] for trajectory in trajectories]
+        for i, source in enumerate(states):
+            source_shape = source.footprint  # hoisted: compute once per source
+            source_radius = 0.5 * (source.length**2 + source.width**2) ** 0.5
+            for j in range(i + 1, len(states)):
+                target = states[j]
+                target_radius = 0.5 * (target.length**2 + target.width**2) ** 0.5
+                if (
+                    spatial.euclidean_distance(source.location, target.location)
+                    > source_radius + target_radius
+                ):
+                    continue
+                if source_shape.intersects(target.footprint):
+                    return step, source, target
     return None
 
 
@@ -165,10 +196,6 @@ def minimum_pair_distance(trajectories: Sequence[Sequence[AgentDecisionState]]) 
     for step in range(steps):
         for i, source in enumerate(trajectories):
             for target in trajectories[i + 1 :]:
-                distance = euclidean_distance(source[step].location, target[step].location)
+                distance = spatial.euclidean_distance(source[step].location, target[step].location)
                 min_distance = min(min_distance, distance)
     return min_distance
-
-
-def _footprint(state: AgentDecisionState):
-    return oriented_box(state.x, state.y, state.heading, state.length, state.width)

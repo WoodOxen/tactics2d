@@ -16,7 +16,7 @@ from typing import Any
 
 import numpy as np
 
-from tactics2d.geometry import heading_unit, offset_polyline
+from tactics2d.geometry import polyline, spatial
 from tactics2d.map.element import Lane, RoadLine
 from tactics2d.map.generator.rules.lane_marking_rules import roadline_render_kwargs, roundabout_mark
 from tactics2d.map.generator.rules.module_types import RoadModuleResult, RoadPort
@@ -92,7 +92,7 @@ def _normalize_roundabout_arm(
     """Convert an arm descriptor into a fixed circular roundabout socket.
 
     Dict arms are projected directly onto the circular outer boundary using
-    ``heading_unit()``; the optional ``curvature`` field is stored as metadata
+    ``spatial.heading_unit()``; the optional ``curvature`` field is stored as metadata
     only and does not move the socket.  Curved approach roads should be generated
     by external ``OneWay`` / ``TwoWay`` modules connected to the returned port.
 
@@ -143,7 +143,7 @@ def _normalize_roundabout_arm(
     in_lane_num, out_lane_num = resolve_arm_lane_counts(arm)
     arm_radius = float(arm.get("radius", default_radius))
     lane_width = float(arm.get("lane_width", default_lane_width))
-    point = center + arm_radius * heading_unit(heading_outward)
+    point = center + arm_radius * spatial.heading_unit(heading_outward)
 
     return {
         "point": point,
@@ -249,9 +249,9 @@ def _build_connector_lane(
     Returns:
         Tuple ``(lane, [left_roadline, right_roadline], updated_id_counter)``.
     """
-    centerline = bezier_connection(p_start, h_start, p_end, h_end, step_size, min_tangent=5.0)
-    left_pts = offset_polyline(centerline, arm_lane_width / 2.0)
-    right_pts = offset_polyline(centerline, -arm_lane_width / 2.0)
+    centerline = bezier_connection(p_start, h_start, p_end, h_end, step_size, min_tangent=0.0)
+    left_pts = polyline.offset(centerline, arm_lane_width / 2.0)
+    right_pts = polyline.offset(centerline, -arm_lane_width / 2.0)
 
     left_rl = _virtual_connection_roadline(
         id_=id_counter, points=left_pts, role=f"{kind}_connection_boundary", side="left"
@@ -377,7 +377,7 @@ def _arm_outer_edge_roadlines(
     positive_edge_start = boundary_pt + out_lane_num * lane_width * normal
     negative_edge_start = boundary_pt - in_lane_num * lane_width * normal
 
-    inward_direction = -heading_unit(h_out)
+    inward_direction = -spatial.heading_unit(h_out)
 
     positive_edge_end = _ray_circle_intersection(
         start=positive_edge_start,

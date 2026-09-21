@@ -6,7 +6,7 @@
 
 import numpy as np
 
-from tactics2d.geometry import Circle
+from tactics2d.geometry import circle
 
 
 class ReedsSheppPath:
@@ -70,12 +70,12 @@ class ReedsSheppPath:
                 end_heading = heading
                 return arc_curve, yaw, end_point, end_heading
 
-            circle_center, _ = Circle.get_circle(
+            circle_center, _ = circle.Circle.get_circle(
                 tangent_point=point, tangent_heading=heading, radius=radius, side=action
             )
             start_angle = (heading + np.pi / 2) if action == "R" else (heading - np.pi / 2)
             clockwise = (action == "R" and forward > 0) or (action == "L" and forward < 0)
-            arc_curve = Circle.get_arc(
+            arc_curve = circle.Circle.get_arc(
                 circle_center, radius, radian, start_angle, clockwise, step_size
             )
 

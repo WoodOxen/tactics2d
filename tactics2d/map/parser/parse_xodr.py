@@ -1,7 +1,8 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""OpenDRIVE parser implementation."""
+"""OpenDRIVE (.xodr) map parser implementation."""
+
 
 from __future__ import annotations
 
@@ -14,7 +15,7 @@ from shapely.affinity import affine_transform, rotate
 from shapely.geometry import LineString, Polygon
 from shapely.validation import make_valid
 
-from tactics2d.geometry import Circle
+from tactics2d.geometry import circle
 from tactics2d.interpolator import ParamPoly3, Spiral
 from tactics2d.map.element import Area, Junction, Lane, Map, RoadLine
 
@@ -356,7 +357,7 @@ class XODRParser:
             return self._sample_line(node)
 
         r = abs(1.0 / k)
-        center, radius = Circle.get_circle(
+        center, radius = circle.Circle.get_circle(
             tangent_point=np.array([x0, y0]),
             tangent_heading=hdg,
             radius=r,
@@ -366,7 +367,7 @@ class XODRParser:
         start_angle = hdg - np.pi / 2.0 * np.sign(k)
         clockwise = k < 0
 
-        pts_arr = Circle.get_arc(
+        pts_arr = circle.Circle.get_arc(
             center_point=center,
             radius=radius,
             delta_angle=arc_angle,

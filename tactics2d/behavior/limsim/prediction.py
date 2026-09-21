@@ -9,17 +9,16 @@ from tactics2d.map.element import Map
 from tactics2d.participant.trajectory import Trajectory
 
 from .config import LimSimConfig
-from .planner import LaneFollower
+from .lane_follower import LaneFollower
 from .scene import SceneBuilder
 from .schema import states_to_trajectory
 
 
 class LimSimPredictor:
-    """Predict short horizon trajectories with LimSim's default assumptions.
+    """Predict short horizon trajectories with default assumptions.
 
-    The original LimSim predictor reuses remaining planned trajectories for
-    controlled vehicles and uses constant-speed lane following for background
-    vehicles. This lightweight version follows the same rule-based spirit.
+    Reuse remaining planned trajectories for controlled vehicles; use
+    constant-speed lane following for background vehicles.
     """
 
     def __init__(self, config: LimSimConfig):
@@ -38,29 +37,34 @@ class LimSimPredictor:
         """Predict future trajectories for active participants."""
 
         prediction = {}
+        last_planned = last_planned_trajectories or {}
         selected_ids = list(participants.keys()) if agent_ids is None else list(agent_ids)
+
+        # separate agents with reusable planned trajectories from those needing
+        # fresh prediction — batch the latter into a single scene build call
+        needs_build = []
         for agent_id in selected_ids:
-            remaining = self._remaining_trajectory(
-                agent_id, frame, last_planned_trajectories or {}
-            )
+            remaining = self._remaining_trajectory(agent_id, frame, last_planned)
             if remaining is not None:
                 prediction[agent_id] = remaining
-                continue
+            else:
+                needs_build.append(agent_id)
 
-            states = self.scene_builder.build(participants, map_, frame, [agent_id])
-            if agent_id not in states:
-                continue
-            future_states = self.follower.rollout(states[agent_id], states[agent_id].action, map_)
-            prediction[agent_id] = states_to_trajectory(
-                agent_id, future_states, frame, self.config.dt
-            )
+        if needs_build:
+            states = self.scene_builder.build(participants, map_, frame, needs_build)
+            for agent_id in needs_build:
+                if agent_id not in states:
+                    continue
+                future_states = self.follower.rollout(
+                    states[agent_id], states[agent_id].action, map_
+                )
+                prediction[agent_id] = states_to_trajectory(
+                    agent_id, future_states, frame, self.config.dt
+                )
         return prediction
 
     def _remaining_trajectory(
-        self,
-        agent_id: object,
-        frame: int,
-        last_planned_trajectories: Dict[object, Trajectory],
+        self, agent_id: object, frame: int, last_planned_trajectories: Dict[object, Trajectory]
     ) -> Optional[Trajectory]:
         trajectory = last_planned_trajectories.get(agent_id)
         if trajectory is None:

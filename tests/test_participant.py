@@ -191,6 +191,36 @@ def test_state_setters():
 
 
 @pytest.mark.participant
+def test_is_active_is_exact_not_a_range():
+    """A participant is active only where it actually has a state.
+
+    Trajectories carry gaps (parsers drop invalid frames), so a timestamp that
+    merely falls between the first and the last one must not count as active.
+    """
+    trajectory = Trajectory(id_=0)
+    trajectory.add_state(State(0, 0, 0, 0))
+    trajectory.add_state(State(100, 1, 0, 0))
+    trajectory.add_state(State(300, 3, 0, 0))  # frame 200 is missing
+    participant = Vehicle(0, "vehicle", trajectory=trajectory, length=4.5, width=1.8)
+
+    assert participant.is_active(0) is True
+    assert participant.is_active(100) is True
+    assert participant.is_active(300) is True
+    assert participant.is_active(200) is False
+    assert participant.is_active(400) is False
+
+
+@pytest.mark.participant
+def test_is_active_on_empty_participant_is_false():
+    """An empty or trajectory-less participant is never active."""
+    empty = Vehicle(0, "vehicle", trajectory=Trajectory(id_=0))
+    assert empty.is_active(0) is False
+
+    disconnected = Vehicle(1, "vehicle", trajectory=None)
+    assert disconnected.is_active(0) is False
+
+
+@pytest.mark.participant
 def test_trajectory_edge_cases():
     """Test edge cases in Trajectory class."""
     import numpy as np

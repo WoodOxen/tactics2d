@@ -13,18 +13,19 @@ from .action import LimSimAction
 class LimSimConfig:
     """Parameters for interaction grouping, rollout, and MCTS scoring.
 
-    ``horizon_steps`` is the LimSim planner-native name for the number of
-    future states returned by ``LimSimBehaviorModel.predict``. Use
-    ``planning_steps`` when code needs the same semantic field across behavior
-    models.
+    ``horizon_steps`` is the planner-native name for the states returned by
+    ``LimSimBehaviorModel.predict``; ``planning_steps`` is the cross-model name.
     """
 
-    horizon_steps: int = 30
+    horizon_steps: int = 50
     dt: float = 0.1
-    mcts_iterations: int = 80
-    exploration_weight: float = 1.0
-    interaction_distance: float = 35.0
+    mcts_iterations: int = 200
+    exploration_weight: float = 0.707
+    interaction_distance: float = 30.0
     conflict_distance: float = 3.0
+    # Upper bound on the closing-speed reward penalty; a 0.0 reward is reserved
+    # for collisions.
+    reward_closing_penalty_cap: float = 0.2
     lane_match_radius: float = 4.0
     lane_heading_match_weight: float = 2.0
     max_lateral_offset_for_lane_rollout: float = 2.5
@@ -32,19 +33,12 @@ class LimSimConfig:
     max_routes_per_agent: int = 3
     min_speed: float = 0.0
     max_speed: float = 35.0
+    acceleration: float = 0.7
+    deceleration: float = -0.7
     decision_resolution: float = 1.5
     default_vehicle_length: float = 4.8
     default_vehicle_width: float = 1.9
     default_lane_width: float = 3.6
-    collision_penalty: float = 1000.0
-    collision_speed_penalty: float = 25.0
-    collision_time_penalty: float = 10.0
-    proximity_penalty: float = 8.0
-    closing_speed_penalty: float = 6.0
-    progress_weight: float = 2.0
-    speed_weight: float = 0.2
-    comfort_weight: float = 0.4
-    lane_change_penalty: float = 2.0
     lateral_speed: float = 1.17
     frenet_target_speed_offsets: Tuple[float, ...] = (-1.0, 0.0, 1.0)
     frenet_lateral_offsets: Tuple[float, ...] = (-0.3, 0.0, 0.3)
@@ -72,7 +66,8 @@ class LimSimConfig:
     )
     same_lane_time_headway: float = 3.5
     junction_interaction_distance: float = 20.0
-    terminal_depth: int = 3
+    terminal_depth: int = 4
+    use_frenet_refinement: bool = False
     candidate_actions: Tuple[LimSimAction, ...] = field(
         default_factory=lambda: (
             LimSimAction.KS,

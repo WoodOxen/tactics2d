@@ -2,6 +2,7 @@
 .DS_Store
 .scannerwork
 *.lcov
+**/checkpoints/**
 **/data/*
 **/wandb/*
 **/logs/*
