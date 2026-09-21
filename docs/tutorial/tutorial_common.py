@@ -3,8 +3,9 @@
 
 """Shared helpers for the behavior-model tutorial notebooks."""
 
+import inspect
 import math
-from typing import Dict, Optional, Sequence, Tuple
+from typing import Callable, Dict, Optional, Sequence, Tuple
 
 import matplotlib as mpl
 from matplotlib.animation import FuncAnimation
@@ -12,8 +13,10 @@ from shapely.geometry import Point
 
 from tactics2d.display.renderers import MatplotlibRenderer
 from tactics2d.display.sensor import BEVCamera
+from tactics2d.map.element import Map
+from tactics2d.map.parser import OSMParser
 from tactics2d.participant.element import Vehicle
-from tactics2d.participant.trajectory import Trajectory
+from tactics2d.participant.trajectory import State, Trajectory
 
 # BEVCamera perception range, in meters.
 PERCEPTION_RANGE = 200
@@ -349,3 +352,174 @@ def displacement_errors(
     if not errors:
         return float("inf"), float("inf"), 0
     return sum(errors) / len(errors), errors[-1], len(errors)
+
+
+def load_map(
+    parser,
+    file_name=None,
+    folder=None,
+    map_file=None,
+    map_folder=None,
+    map_path=None,
+    map_config=None,
+    **parse_kwargs,
+) -> Map:
+    """Load the map of a scenario, with the fallbacks every demo needs.
+
+    The scenario parser is asked first. Not every dataset ships a map next to its
+    trajectories, so a stand-alone map file is loaded through ``OSMParser`` when
+    that fails, and an empty map is returned when there is neither - the models
+    accept one, and the demos then differ only in how much context they draw.
+
+    Args:
+        parser: The dataset parser the scenario came from.
+        file_name (str, optional): Scenario file the trajectories were parsed
+            from, used as the map's when the dataset keeps them together.
+            Defaults to None.
+        folder (str, optional): Folder of the scenario file. Defaults to None.
+        map_file (str, optional): Map file, when the dataset keeps the map and
+            the scenario in separate files. Defaults to None, i.e. ``file_name``.
+        map_folder (str, optional): Folder of the map file. Defaults to None,
+            i.e. ``folder``.
+        map_path (str, optional): Path of a stand-alone OpenStreetMap file.
+            Defaults to None.
+        map_config (dict, optional): Configuration passed to the OSM parser.
+            Defaults to None.
+        **parse_kwargs: Scenario arguments, forwarded to the parser for the keys
+            its map interface takes; the scenario's own window is the
+            trajectory's business.
+
+    Returns:
+        The parsed map, or an empty one.
+    """
+
+    map_ = None
+    if hasattr(parser, "parse_map"):
+        takes = inspect.signature(parser.parse_map).parameters
+        map_ = parser.parse_map(
+            **{name: value for name, value in parse_kwargs.items() if name in takes},
+            file=map_file if map_file is not None else file_name,
+            folder=map_folder if map_folder is not None else folder,
+        )
+    if map_ is None and map_path is not None:
+        print(f"  loading map from {map_path}")
+        map_ = OSMParser(lanelet2=True).parse(file_path=map_path, configs=map_config)
+    return map_ if map_ is not None else Map("empty_map", scenario_type="demo")
+
+
+def rebuild_render_participants(poses, participants, step_ms, frame_ms0=0) -> Dict[object, object]:
+    """Turn the pose arrays of a runner into participants a camera can render.
+
+    The arrays carry positions and headings only, so the speed is recovered from
+    the last pose seen, over the frames it took to reach it; the models read that
+    speed as the agent's initial one, and a state without velocity would plan
+    every agent as if it were standing still. Rows whose first column is ``-1.0``
+    hold no pose: they are filled with the last one seen, so a trajectory covers
+    the span the runner actually simulated.
+
+    Args:
+        poses (Dict): Pose arrays keyed by agent id, one ``(x, y, _, heading)``
+            row per frame.
+        participants (Dict): The parsed participants, used for the vehicle class,
+            its dimensions and the recorded goal of each agent.
+        step_ms (int): Length of one frame, in milliseconds.
+        frame_ms0 (int, optional): Timestamp of the first row. Defaults to 0.
+
+    Returns:
+        The rebuilt participants, keyed by agent id.
+    """
+
+    dt = step_ms / 1000.0
+    rebuilt = {}
+    for agent_id, array in poses.items():
+        valid = [index for index, row in enumerate(array) if row[0] != -1.0]
+        if not valid:
+            continue
+        source = participants.get(agent_id)
+        trajectory = Trajectory(id_=agent_id, fps=round(1000.0 / step_ms, 3), stable_freq=True)
+        seen = None
+        for index in range(valid[0], valid[-1] + 1):
+            row = array[index]
+            if row[0] != -1.0:
+                seen = (float(row[0]), float(row[1]), float(row[3]))
+            speed = 0.0
+            for back in (1, 2, 3, 4, 5):
+                past = index - back
+                if past >= 0 and array[past][0] != -1.0:
+                    speed = math.hypot(seen[0] - array[past][0], seen[1] - array[past][1]) / (
+                        back * dt
+                    )
+                    break
+            trajectory.add_state(
+                State(
+                    frame=int(frame_ms0 + index * step_ms),
+                    x=seen[0],
+                    y=seen[1],
+                    heading=seen[2],
+                    vx=speed * math.cos(seen[2]),
+                    vy=speed * math.sin(seen[2]),
+                    speed=speed,
+                )
+            )
+        if source is None:
+            rebuilt[agent_id] = Vehicle(agent_id, "vehicle", trajectory=trajectory)
+            continue
+        rebuilt[agent_id] = type(source)(
+            agent_id,
+            source.type_,
+            trajectory=trajectory,
+            length=float(getattr(source, "length", 0.0) or 4.8),
+            width=float(getattr(source, "width", 0.0) or 1.9),
+        )
+        # The closed loop hands every agent its last recorded position as a
+        # routing goal; mirror it so a re-derived plan follows the same lanes.
+        if source.trajectory.last_state is not None:
+            rebuilt[agent_id].goal_xy = (
+                source.trajectory.last_state.x,
+                source.trajectory.last_state.y,
+            )
+    return rebuilt
+
+
+def collect_ego_plans(
+    plan_at: Callable[[int], Optional[Trajectory]],
+    warmup_steps: int,
+    steps: int,
+    interval_steps: int,
+    step_ms: int,
+    frame_ms0: int = 0,
+) -> Dict[int, Sequence[Tuple[int, float, float]]]:
+    """Re-derive the ego's plan at every planning frame of a closed loop.
+
+    The runners commit their plans into the pose arrays but do not return them,
+    so the plan trace is recovered by asking the same model, at the same frames,
+    for the ego's plan on the simulated state. Over the window in which a plan is
+    authoritative (up to the next replan) this reproduces what the runner
+    committed.
+
+    Args:
+        plan_at (Callable): Returns the trajectory the model plans for the ego at
+            a frame, or None when it has none.
+        warmup_steps (int): Frames of warm-up the model needs before planning.
+        steps (int): Number of simulated frames, counted from the first one and
+            exclusive as in ``range``.
+        interval_steps (int): Frames between two plans (the replan cadence).
+        step_ms (int): Length of one frame, in milliseconds.
+        frame_ms0 (int, optional): Timestamp of the first frame. Defaults to 0.
+
+    Returns:
+        Plans keyed by the frame that issued them, each a sequence of
+        ``(frame_ms, x, y)`` waypoints.
+    """
+
+    plans = {}
+    for index in range(warmup_steps, steps, interval_steps):
+        frame = frame_ms0 + index * step_ms
+        trajectory = plan_at(frame)
+        if trajectory is None:
+            continue
+        plans[frame] = [
+            (frame_, trajectory.get_state(frame_).x, trajectory.get_state(frame_).y)
+            for frame_ in trajectory.frames
+        ]
+    return plans

@@ -106,6 +106,10 @@ theme:
     - toc.follow
     - toc.integrate
 
+hooks:
+  - hooks/notebook_pages.py
+  - hooks/notebook_admonitions.py
+
 plugins:
   - glightbox
   - i18n:
