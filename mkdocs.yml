@@ -15,15 +15,15 @@ nav:
   - Dataset Support:
     - "dataset_support/index.md"
     - CitySim: "dataset_support/citysim.ipynb"
-    - DLP: "dataset_support/dlp.ipynb"
+    - Dragon Lake Parking: "dataset_support/dlp.ipynb"
     - DriveInsight: "dataset_support/driveinsightd.ipynb"
-    - highD: "dataset_support/highd.ipynb"
-    - inD: "dataset_support/ind.ipynb"
-    - rounD: "dataset_support/round.ipynb"
-    - exiD: "dataset_support/exid.ipynb"
-    - uniD: "dataset_support/unid.ipynb"
-    - nuPlan: "dataset_support/nuplan.ipynb"
-    - WOMD: "dataset_support/womd.ipynb"
+    - highD (LevelX): "dataset_support/highd.ipynb"
+    - inD (LevelX): "dataset_support/ind.ipynb"
+    - rounD (LevelX): "dataset_support/round.ipynb"
+    - exiD (LevelX): "dataset_support/exid.ipynb"
+    - uniD (LevelX): "dataset_support/unid.ipynb"
+    - NuPlan: "dataset_support/nuplan.ipynb"
+    - Waymo Open Motion Dataset (WOMD): "dataset_support/womd.ipynb"
   - Python API:
     - tactics2d.behavior: "api/behavior.md"
     - tactics2d.controller: "api/controller.md"
@@ -40,13 +40,13 @@ nav:
     - tactics2d.traffic: "api/traffic.md"
   - Tutorial:
     - browser_frontend: "tutorial/browser_frontend.md"
-    - graph_search_demo: "tutorial/graph_search_demo.ipynb"
-    - sampling_search_demo: "tutorial/sampling_search_demo.ipynb"
-    - routing: "tutorial/routing.ipynb"
-    - behavior_limsim_demo: "tutorial/behavior_limsim_demo.ipynb"
-    - behavior_bits_demo: "tutorial/behavior_bits_demo.ipynb"
-    - behavior_intersim_demo: "tutorial/behavior_intersim_demo.ipynb"
-    - behavior_smart_demo: "tutorial/behavior_smart_demo.ipynb"
+    - Graph-based Planning Algorithms: "tutorial/graph_search_demo.ipynb"
+    - Sampling-based Planning Algorithms: "tutorial/sampling_search_demo.ipynb"
+    - Routing Demo on WOMD Map: "tutorial/routing.ipynb"
+    - "Behavior Modeling API: LimSim Implementation": "tutorial/behavior_limsim_demo.ipynb"
+    - "Behavior Modeling API: BITS Implementation": "tutorial/behavior_bits_demo.ipynb"
+    - "Behavior Modeling API: InterSim Implementation": "tutorial/behavior_intersim_demo.ipynb"
+    - "Behavior Modeling API: SMART Implementation": "tutorial/behavior_smart_demo.ipynb"
   - Community: "community.md"
   - Publications: "publication.md"
 
@@ -100,8 +100,6 @@ theme:
     - navigation.footer
     - navigation.indexes
     - navigation.integrate
-    - navigation.instant
-    - navigation.instant.progress
     - navigation.top
     - navigation.sections
     - search.suggest
@@ -110,6 +108,18 @@ theme:
 
 plugins:
   - glightbox
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: zh
+          name: 中文
+          build: true
   - mkdocstrings:
       default_handler: python
       handlers:
