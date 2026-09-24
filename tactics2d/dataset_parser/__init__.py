@@ -13,6 +13,7 @@ from .parse_interaction import InteractionParser
 from .parse_levelx import LevelXParser
 from .parse_ngsim import NGSIMParser
 from .parse_nuplan import NuPlanParser
+from .parse_pinns import PINNSParser
 from .parse_womd import WOMDParser
 from .route_extractor import extract_all_lane_sequences, extract_lane_sequence, match_lane_for_state
 
@@ -24,6 +25,7 @@ __all__ = [
     "LevelXParser",
     "NGSIMParser",
     "NuPlanParser",
+    "PINNSParser",
     "WOMDParser",
     "DriveInsightDParser",
     "LEVELX_DATASETS",
