@@ -11,8 +11,8 @@ from shapely.geometry import LinearRing, LineString, Polygon
 
 from tactics2d.map.element import Map
 
+from .batch import BitsRaster
 from .config import BitsConfig
-from .schema import BitsRaster
 
 
 class BitsRasterizer:

@@ -8,7 +8,6 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 
 from tactics2d.geometry import spatial
-from tactics2d.participant.trajectory import State, Trajectory
 
 # Collision classification thresholds by relative heading.
 REAR_TOL = 30.0 * np.pi / 180.0
@@ -21,23 +20,6 @@ COLLISION_MARGIN = 0.7
 PROGRESS_START = 12
 PROGRESS_END = 80
 MAX_PROGRESS_STEP = 20.0
-
-
-def first_observed_frame(participants: Dict[object, object]) -> int:
-    """Return the earliest frame any participant is observed at.
-
-    Raises:
-        ValueError: If no participant carries a trajectory.
-    """
-
-    first_frames = [
-        participant.trajectory.first_frame
-        for participant in participants.values()
-        if participant.trajectory.first_frame is not None
-    ]
-    if not first_frames:
-        raise ValueError("the scenario has no observed frames to anchor the rollout on.")
-    return int(min(first_frames))
 
 
 def classify_collision(ego_yaw: float, other_yaw: float) -> int:
@@ -193,107 +175,3 @@ def progress_window(
         total += distance
         counted += 1
     return total, counted
-
-
-# A scenario whose frames are further apart than this fraction of a model's step
-# is treated as recorded at another rate and resampled onto the lattice.
-RATE_TOLERANCE = 0.1
-
-
-def observed_step_ms(participants: Dict[object, object]) -> float:
-    """Return the median gap between the frames a scenario is observed at.
-
-    Args:
-        participants (Dict[object, object]): Participants keyed by agent id.
-
-    Returns:
-        The gap in milliseconds, or ``nan`` when no participant has two frames.
-    """
-
-    gaps = []
-    for participant in participants.values():
-        frames = sorted(participant.trajectory.frames)
-        gaps.extend(frames[i + 1] - frames[i] for i in range(len(frames) - 1))
-    return float(np.median(gaps)) if gaps else float("nan")
-
-
-def to_lattice(participants: Dict[object, object], step_ms: int, frame_ms0: Optional[int] = None):
-    """Lay a scenario's recorded motion onto a fixed ``step_ms`` lattice.
-
-    Positions and headings are interpolated onto the lattice and the speed is
-    re-derived from the resampled course; participants already on it are unchanged.
-
-    Args:
-        participants (Dict[object, object]): Participants to lay out, keyed by agent id.
-        step_ms (int): Lattice interval in milliseconds.
-        frame_ms0 (Optional[int], optional): Timestamp of lattice index 0.
-            Defaults to None, which uses the scenario's own first frame.
-
-    Returns:
-        A participant dict on the lattice, or *participants* itself when it is
-        already there.
-    """
-
-    observed = observed_step_ms(participants)
-    if not np.isfinite(observed) or abs(observed - step_ms) <= RATE_TOLERANCE * step_ms:
-        return participants
-
-    first_frames = [
-        participant.trajectory.first_frame
-        for participant in participants.values()
-        if participant.trajectory.first_frame is not None
-    ]
-    if not first_frames:
-        return participants
-    if frame_ms0 is None:
-        frame_ms0 = int(min(first_frames))
-
-    laid_out = {}
-    for agent_id, participant in participants.items():
-        trajectory = participant.trajectory
-        frames = sorted(trajectory.frames)
-        if len(frames) < 2:
-            laid_out[agent_id] = participant
-            continue
-
-        times = np.asarray(frames, dtype=float)
-        states = [trajectory.get_state(frame) for frame in frames]
-        positions_x = np.asarray([state.x for state in states])
-        positions_y = np.asarray([state.y for state in states])
-        # Headings are unwrapped first, so a wrap through +/-pi interpolates as
-        # the small turn it is rather than as a full revolution.
-        headings = np.unwrap(np.asarray([state.heading for state in states]))
-
-        start = frame_ms0 + int(np.ceil((frames[0] - frame_ms0) / step_ms)) * step_ms
-        grid = list(range(start, frames[-1] + 1, step_ms))
-        if len(grid) < 2:
-            laid_out[agent_id] = participant
-            continue
-        grid_x = np.interp(grid, times, positions_x)
-        grid_y = np.interp(grid, times, positions_y)
-        grid_heading = np.interp(grid, times, headings)
-
-        resampled = Trajectory(id_=agent_id, fps=round(1000.0 / step_ms, 3), stable_freq=True)
-        for index, frame in enumerate(grid):
-            heading = float(spatial.normalize_angle(grid_heading[index]))
-            ahead = min(index + 1, len(grid) - 1)
-            arc = float(np.hypot(grid_x[ahead] - grid_x[index], grid_y[ahead] - grid_y[index]))
-            speed = arc / (step_ms / 1000.0) if ahead > index else 0.0
-            resampled.add_state(
-                State(
-                    frame=frame,
-                    x=float(grid_x[index]),
-                    y=float(grid_y[index]),
-                    heading=heading,
-                    vx=speed * np.cos(heading),
-                    vy=speed * np.sin(heading),
-                )
-            )
-        laid_out[agent_id] = type(participant)(
-            agent_id,
-            participant.type_,
-            trajectory=resampled,
-            length=getattr(participant, "length", None),
-            width=getattr(participant, "width", None),
-        )
-    return laid_out

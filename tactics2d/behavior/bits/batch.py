@@ -1,32 +1,12 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Data schemas for BITS-style imitation."""
+"""Batch and raster data types for BITS-style imitation."""
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-
-from tactics2d.participant.trajectory import Trajectory
-
-
-@dataclass
-class BitsRollingResult:
-    """Output of a receding-horizon replay of one vehicle."""
-
-    ego_id: object = None
-    # Frames to animate, in milliseconds: history up to the take-over, then the replayed future.
-    frames: List[int] = field(default_factory=list)
-    # The replayed vehicle's track: recorded history plus the committed future,
-    # on the recorded frame grid.
-    trajectory: Optional[Trajectory] = None
-    # Per planning frame, the plan issued there as ``(frame, x, y)`` waypoints.
-    plans: Dict[int, List[Tuple[int, float, float]]] = field(default_factory=dict)
-    cycles: int = 0
-    # Every vehicle that was re-simulated, the ego included. A caller measuring
-    # the closed loop reads these ids' committed futures back out of ``participants``.
-    controlled_ids: List[object] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

@@ -12,9 +12,9 @@ from tactics2d.search import MCTS
 
 from .action import LimSimAction
 from .config import LimSimConfig
+from .decision_state import AgentDecisionState, JointDecisionState
 from .lane_follower import LaneFollower, is_action_valid
 from .reward import LimSimReward
-from .schema import AgentDecisionState, JointDecisionState
 
 
 class LimSimDecisionSearch:

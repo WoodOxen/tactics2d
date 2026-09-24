@@ -17,8 +17,8 @@ from tactics2d.map.query import SemanticMapQuery, StopTarget
 
 from .action import LimSimAction
 from .config import LimSimConfig
+from .decision_state import AgentDecisionState
 from .lane_follower import LaneFollower
-from .schema import AgentDecisionState
 
 
 @dataclass

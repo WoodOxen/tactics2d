@@ -9,9 +9,9 @@ from tactics2d.map.element import Map
 from tactics2d.participant.trajectory import Trajectory
 
 from .config import LimSimConfig
+from .decision_state import states_to_trajectory
 from .lane_follower import LaneFollower
 from .scene import SceneBuilder
-from .schema import states_to_trajectory
 
 
 class LimSimPredictor:

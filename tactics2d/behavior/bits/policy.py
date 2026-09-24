@@ -16,8 +16,8 @@ from .adapters import (
     prediction_from_module_output,
     squeeze_batch_prediction,
 )
-from .predictor import BitsPlan, BitsPrediction
-from .schema import BitsBatch
+from .batch import BitsBatch
+from .prediction import BitsPlan, BitsPrediction
 from .scorer import BitsPlanScorer
 
 

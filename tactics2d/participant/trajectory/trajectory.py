@@ -5,7 +5,7 @@
 
 
 import logging
-from typing import Any, List, Tuple
+from typing import Any, List, Mapping, Tuple
 
 import numpy as np
 
@@ -147,6 +147,42 @@ class Trajectory:
         self._frames.append(state.frame)
         self._history_states[state.frame] = state
         self._current_state = state
+
+    def replace_states(self, states: Mapping[int, State]) -> None:
+        """Replace the trajectory contents with a timestamp-to-state mapping.
+
+        Args:
+            states: States keyed by their millisecond timestamps. Every key
+                must equal the corresponding state's ``frame`` value.
+
+        Raises:
+            ValueError: If a value is not a :class:`State` or its frame does
+                not match the mapping key.
+        """
+
+        ordered = sorted(states.items())
+        for frame, state in ordered:
+            if not isinstance(state, State):
+                raise ValueError("Trajectory states must be State instances.")
+            if frame != state.frame:
+                raise ValueError(f"State frame {state.frame} does not match mapping key {frame}.")
+        self._history_states = dict(ordered)
+        self._frames = [frame for frame, _ in ordered]
+        self._current_state = ordered[-1][1] if ordered else None
+
+    def truncate(self, frame: int, *, inclusive: bool = True) -> None:
+        """Discard states after ``frame`` in place.
+
+        Args:
+            frame: Cutoff timestamp in milliseconds.
+            inclusive: Keep the state at ``frame`` when true. Defaults to true.
+        """
+
+        if inclusive:
+            kept = {key: value for key, value in self._history_states.items() if key <= frame}
+        else:
+            kept = {key: value for key, value in self._history_states.items() if key < frame}
+        self.replace_states(kept)
 
     def get_trace(self, frame_range: Tuple[int, int] = None) -> list:
         """This function gets the trace of the trajectory within the requested frame range.

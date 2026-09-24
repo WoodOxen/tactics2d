@@ -17,7 +17,7 @@ from shapely.geometry import Polygon
 from tactics2d.map.query import SemanticMapQuery
 
 from .config import SmartConfig, load_codebook
-from .schema import LightType, PointType, PolygonType, SmartMapTokens
+from .tokens import LightType, PointType, PolygonType, SmartMapTokens
 
 # WOMD ``Lane.Type`` shifted by one to SMART's polygon type.
 _LANE_POLYGON_TYPE = {

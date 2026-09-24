@@ -14,7 +14,7 @@ from tactics2d.map.query import SemanticMapQuery
 
 from .action import LimSimAction
 from .config import LimSimConfig
-from .schema import AgentDecisionState
+from .decision_state import AgentDecisionState
 
 
 class LaneFollower:

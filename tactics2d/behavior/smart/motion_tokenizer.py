@@ -11,7 +11,7 @@ import numpy as np
 import torch
 
 from .config import SmartConfig, load_codebook
-from .schema import AgentType, SmartAgentTokens
+from .tokens import AgentType, SmartAgentTokens
 
 # Codebook key per agent type index; any other type stays at token 0.
 _CATEGORY_BY_TYPE = {

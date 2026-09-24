@@ -21,7 +21,7 @@ from .layers import (
     wrap_angle,
 )
 from .primitives import radius_graph
-from .schema import LightType, PointType, PolygonType, SmartMapTokens
+from .tokens import LightType, PointType, PolygonType, SmartMapTokens
 
 
 class SmartMapDecoder(nn.Module):

@@ -76,6 +76,7 @@ def test_lane_centerline_sampling_spacing():
 
     assert len(metric_centerline.coords) == 12
     assert len(legacy_centerline.coords) == 10
+    assert lane.length == pytest.approx(105.0)
     with pytest.raises(ValueError, match="positive or None"):
         lane.centerline(sample_spacing_m=0.0)
 

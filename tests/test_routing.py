@@ -9,7 +9,7 @@ from shapely.geometry import LineString
 
 from tactics2d.map.element import Lane, LaneRelationship, Map
 from tactics2d.routing import Router
-from tactics2d.routing.utils import augment_lane_successors, find_lane_at_pose
+from tactics2d.routing.graph_builder import augment_lane_successors
 
 
 def _build_lane(lane_id: str, x_left: float, x_right: float, y_start: float, y_end: float) -> Lane:
@@ -163,10 +163,10 @@ def test_find_lane_at_pose_respects_driving_direction():
     for lane in [north, south]:
         map_.add_lane(lane)
 
-    matched = find_lane_at_pose(map_, x=0.5, y=1.0, heading=0.5 * np.pi)
+    matched = map_.find_lane_at_pose(x=0.5, y=1.0, heading=0.5 * np.pi)
     assert matched is not None
     assert matched[0] == "N"
-    matched_down = find_lane_at_pose(map_, x=1.5, y=9.0, heading=-0.5 * np.pi)
+    matched_down = map_.find_lane_at_pose(x=1.5, y=9.0, heading=-0.5 * np.pi)
     assert matched_down is not None
     assert matched_down[0] == "S"
 
@@ -177,5 +177,5 @@ def test_find_nearest_lane_matches_a_lane_without_geometry():
     map_ = _build_test_map()
     map_.lanes["A"].geometry = None
 
-    assert Router._find_nearest_lane(map_, (0.5, 5.0)) == "A"
-    assert Router._find_nearest_lane(map_, (0.5, 45.0)) == "E"
+    assert map_.find_nearest_lane((0.5, 5.0)) == "A"
+    assert map_.find_nearest_lane((0.5, 45.0)) == "E"

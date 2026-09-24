@@ -13,45 +13,28 @@ import torch.nn as nn
 from torchvision.models.feature_extraction import create_feature_extractor
 
 from tactics2d.behavior.base import BehaviorModelBase
+from tactics2d.behavior.results import TrajectoryRolloutResult
 from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 from tactics2d.participant.trajectory import State, Trajectory
 
 from . import rolling
+from .batch import BitsBatch
 from .config import BitsConfig
 from .dataset import BitsBatchBuilder
 from .encoder import RNNEncoder
 from .heads import FutureStatePredictorHead, GoalConditionalPolicyHead
 from .policy import BitsPolicy, TorchBitsPolicy
-from .predictor import BitsPrediction
+from .prediction import BitsPrediction
 from .roi import ROIHead
-from .schema import BitsBatch, BitsRollingResult
 from .scorer import BitsPlanScorer
+from .tensor_utils import add_batch_dim, homogeneous_transform
 from .transformer import Transformer as BitsSimpleTransformer
 from .unet import BitsRasterBackbone
 from .unet import GoalDecoder as SpatialGoalUNetDecoder
 from .unet import SharedRasterEncoder
 
 LOGGER = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Private tensor helpers
-# ---------------------------------------------------------------------------
-
-
-def _add_batch_dim(tensor, min_ndim: int):
-    """Add a leading batch dimension if tensor has fewer than min_ndim dims."""
-    while tensor.ndim < min_ndim:
-        tensor = tensor.unsqueeze(0)
-    return tensor
-
-
-def _homogeneous_transform(points: torch.Tensor, matrix: torch.Tensor) -> torch.Tensor:
-    """Apply a 3x3 homogeneous transform to batched 2D points."""
-    ones = torch.ones(*points.shape[:-1], 1, dtype=points.dtype, device=points.device)
-    homogeneous = torch.cat([points, ones], dim=-1)
-    transform = matrix.to(device=points.device, dtype=points.dtype)
-    return torch.matmul(homogeneous, transform.transpose(1, 2))[..., :2]
 
 
 def _resolve_drivable_map(tensors):
@@ -62,7 +45,7 @@ def _resolve_drivable_map(tensors):
     image = tensors.get("image")
     if image is None:
         return None
-    image = _add_batch_dim(image, 4)
+    image = add_batch_dim(image, 4)
     if image.shape[1] == 0:
         return None
     static_start = max(0, image.shape[1] - 3)
@@ -78,8 +61,8 @@ def _unpack_ego_init_states(tensors):
     if curr_speed.ndim == 1:
         # One speed per batch element, not a batched time series.
         curr_speed = curr_speed[:, None]
-    curr_speed = _add_batch_dim(curr_speed, 2)
-    history_yaws = _add_batch_dim(tensors["history_yaws"], 3).to(curr_speed)
+    curr_speed = add_batch_dim(curr_speed, 2)
+    history_yaws = add_batch_dim(tensors["history_yaws"], 3).to(curr_speed)
     return torch.cat(
         [
             torch.zeros(
@@ -153,7 +136,7 @@ def _unpack_roi_anchors(tensors):
 
     Only meant for ``tbsim_compat`` runs.
     """
-    ego_positions = _add_batch_dim(tensors["history_positions"], 3)
+    ego_positions = add_batch_dim(tensors["history_positions"], 3)
     other_positions = tensors["all_other_agents_history_positions"]
     if other_positions.ndim == 3:
         other_positions = other_positions.unsqueeze(0)
@@ -162,8 +145,8 @@ def _unpack_roi_anchors(tensors):
 
 def _unpack_history_trajectories(tensors, reference):
     """Unpack ego and agent history positions/yaws from the tensor dict."""
-    ego_positions = _add_batch_dim(tensors["history_positions"], 3).to(reference)
-    ego_yaws = _add_batch_dim(tensors["history_yaws"], 3).to(reference)
+    ego_positions = add_batch_dim(tensors["history_positions"], 3).to(reference)
+    ego_yaws = add_batch_dim(tensors["history_yaws"], 3).to(reference)
     other_positions = tensors["all_other_agents_history_positions"]
     if other_positions.ndim == 3:
         other_positions = other_positions.unsqueeze(0)
@@ -504,7 +487,7 @@ class BitsSpatialPlannerModule(nn.Module):
         mask_drivable: bool = False,
         encoder_features: Optional[Dict[str, torch.Tensor]] = None,
     ) -> Dict[str, torch.Tensor]:
-        image = _add_batch_dim(tensors["image"], 4)
+        image = add_batch_dim(tensors["image"], 4)
         if encoder_features is None:
             if self.standalone_encoder is None:
                 raise ValueError("encoder_features are required for the shared-encoder planner.")
@@ -513,7 +496,7 @@ class BitsSpatialPlannerModule(nn.Module):
         drivable_map = _resolve_drivable_map(tensors) if mask_drivable else None
         decoded = decode_bits_spatial_prediction(
             spatial_prediction=spatial_prediction,
-            agent_from_raster=_add_batch_dim(tensors["agent_from_raster"], 3),
+            agent_from_raster=add_batch_dim(tensors["agent_from_raster"], 3),
             drivable_map=drivable_map,
             num_samples=num_samples,
             mask_drivable=mask_drivable,
@@ -561,15 +544,7 @@ class BitsAgentAwareTrajectoryModule(nn.Module):
         self.config = config or BitsConfig()
         self.goal_feature_dim = int(goal_feature_dim)
         self.history_conditioning = bool(history_conditioning)
-        # Compatibility ROI anchoring, positional encoding and feature masking.
         self.tbsim_compat = bool(tbsim_compat)
-        self.register_buffer(
-            "roi_size",
-            torch.tensor(
-                [float(context_size), float(context_size), float(context_size), float(context_size)]
-            ),
-        )
-        self.register_buffer("weights_scaling", torch.ones(3))
         if shared_encoder is None:
             self.shared_encoder = SharedRasterEncoder(
                 image_channels=image_channels, model_arch=model_arch, feature_dim=global_feature_dim
@@ -703,7 +678,7 @@ class BitsAgentAwareTrajectoryModule(nn.Module):
         encoder_features: Optional[Dict[str, torch.Tensor]] = None,
     ) -> tuple:
         agent_positions, current_states, current_availability = _unpack_scene_states(tensors)
-        image = _add_batch_dim(tensors["image"], 4)
+        image = add_batch_dim(tensors["image"], 4)
         if encoder_features is None:
             encoder_features = self.shared_encoder(image)
         roi_positions = _unpack_roi_anchors(tensors) if self.tbsim_compat else agent_positions
@@ -819,7 +794,7 @@ class BitsBiLevelTorchModel(nn.Module):
         num_samples: Optional[int] = None,
         mask_drivable: bool = False,
     ) -> Dict[str, object]:
-        image = _add_batch_dim(tensors["image"], 4)
+        image = add_batch_dim(tensors["image"], 4)
         encoder_features = self.shared_encoder(image)
         feature_context = self.predictor.extract_features(
             tensors, return_encoder_features=True, encoder_features=encoder_features
@@ -836,8 +811,8 @@ class BitsBiLevelTorchModel(nn.Module):
         if use_ground_truth_goal:
             if goal_tensors is None:
                 raise ValueError("goal_tensors are required when use_ground_truth_goal=True.")
-            goal_positions = _add_batch_dim(goal_tensors["goal_position"], 2).unsqueeze(1)
-            goal_yaws = _add_batch_dim(goal_tensors["goal_yaw"], 2).unsqueeze(1)
+            goal_positions = add_batch_dim(goal_tensors["goal_position"], 2).unsqueeze(1)
+            goal_yaws = add_batch_dim(goal_tensors["goal_yaw"], 2).unsqueeze(1)
         else:
             goal_positions = plan["positions"]
             goal_yaws = plan["yaws"]
@@ -869,7 +844,7 @@ def decode_bits_spatial_prediction(
     logits = spatial_prediction[:, 0]
     prob_map = torch.softmax(logits.flatten(1), dim=-1).reshape(batch_size, height, width)
     if mask_drivable and drivable_map is not None:
-        drivable = _add_batch_dim(drivable_map, 3).to(device=prob_map.device, dtype=torch.bool)
+        drivable = add_batch_dim(drivable_map, 3).to(device=prob_map.device, dtype=torch.bool)
         empty_mask = drivable.flatten(1).sum(dim=-1) == 0
         if torch.any(empty_mask):
             drivable = drivable.clone()
@@ -906,7 +881,7 @@ def decode_bits_spatial_prediction(
     yaws = torch.gather(yaw_map.flatten(2), dim=2, index=flat_indices[:, None]).transpose(1, 2)
 
     pixel_positions = torch.stack([cols, rows], dim=-1).to(residuals.dtype) + residuals
-    positions = _homogeneous_transform(pixel_positions, agent_from_raster)
+    positions = homogeneous_transform(pixel_positions, agent_from_raster)
     return {
         "positions": positions,
         "yaws": yaws,
@@ -1218,7 +1193,7 @@ class BitsBehaviorModel(BehaviorModelBase):
         horizon_ms: Optional[int] = None,
         replan_interval: int = 20,
         controlled_ids: Optional[Iterable[object]] = None,
-    ) -> BitsRollingResult:
+    ) -> TrajectoryRolloutResult:
         """Replay one vehicle's future in a receding-horizon loop.
 
         ``controlled_ids`` names every vehicle to re-simulate; the ego must be a
@@ -1265,12 +1240,3 @@ class BitsBehaviorModel(BehaviorModelBase):
             if bool(availabilities[previous_step]):
                 return spatial.transform_point(positions[previous_step], batch.world_from_agent)
         return np.asarray(batch.centroid, dtype=float)
-
-
-__all__ = [
-    "BitsAgentAwareTrajectoryModule",
-    "BitsBiLevelTorchModel",
-    "BitsSpatialPlannerModule",
-    "BitsBehaviorModel",
-    "decode_bits_spatial_prediction",
-]

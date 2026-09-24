@@ -7,7 +7,7 @@ import math
 from typing import List, Optional, Tuple
 
 import numpy as np
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
 
 from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
@@ -201,56 +201,7 @@ def match_lane(
         (the caller should fall back to constant velocity).
     """
 
-    if map_ is None:
-        return None
-    tolerance_rad = heading_tolerance_deg * np.pi / 180.0
-    best = None
-    best_distance = radius
-    for lane_id, lane in map_.lanes.items():
-        centerline = lane.centerline()
-        if centerline is None or len(centerline.coords) < 2:
-            continue
-        line = np.asarray(centerline.coords, dtype=float)
-        s0, nearest = _nearest_along(line, np.array([x, y]))
-        distance = float(np.hypot(nearest[0] - x, nearest[1] - y))
-        if distance > best_distance:
-            continue
-        tangent = _tangent_at(line, s0)
-        yaw_error = abs(spatial.normalize_angle(heading - np.arctan2(tangent[1], tangent[0])))
-        if yaw_error > tolerance_rad:
-            continue
-        best_distance = distance
-        best = (lane_id, s0, line)
-    if best is None:
-        return None
-    lane_id, s0, _ = best
-    return lane_id, s0
-
-
-def _nearest_along(line: np.ndarray, point: np.ndarray) -> Tuple[float, np.ndarray]:
-    segments = line[1:] - line[:-1]
-    lengths = np.linalg.norm(segments, axis=1)
-    cum = np.concatenate([[0.0], np.cumsum(lengths)])
-    to_point = point - line[:-1]
-    dots = np.sum(to_point * segments, axis=1) / np.maximum(lengths * lengths, 1e-12)
-    dots = np.clip(dots, 0.0, 1.0)
-    projections = line[:-1] + dots[:, None] * segments
-    distances = np.linalg.norm(projections - point, axis=1)
-    index = int(np.argmin(distances))
-    s = cum[index] + dots[index] * lengths[index]
-    return float(s), projections[index]
-
-
-def _tangent_at(line: np.ndarray, s: float) -> np.ndarray:
-    segments = line[1:] - line[:-1]
-    lengths = np.linalg.norm(segments, axis=1)
-    cum = np.concatenate([[0.0], np.cumsum(lengths)])
-    index = int(np.clip(np.searchsorted(cum, s, side="right") - 1, 0, len(segments) - 1))
-    tangent = segments[index]
-    norm = np.linalg.norm(tangent)
-    if norm < 1e-9:
-        return np.array([1.0, 0.0])
-    return tangent / norm
+    return map_.find_lane_at_pose(x, y, heading, radius, heading_tolerance_deg)
 
 
 def polyline_nearest_s(points: np.ndarray, point: np.ndarray) -> Tuple[float, np.ndarray]:
@@ -259,8 +210,11 @@ def polyline_nearest_s(points: np.ndarray, point: np.ndarray) -> Tuple[float, np
     line = _deduplicate(np.asarray(points, dtype=float).reshape(-1, 2))
     if len(line) < 2:
         return 0.0, np.asarray(point, dtype=float)
-    s0, nearest = _nearest_along(line, np.asarray(point, dtype=float))
-    return s0, nearest
+    geometry = LineString(line)
+    query = Point(np.asarray(point, dtype=float))
+    s0 = float(geometry.project(query))
+    nearest = geometry.interpolate(s0)
+    return s0, np.asarray(nearest.coords[0], dtype=float)
 
 
 def straight_path(x: float, y: float, heading: float, distance: float) -> ArcPath:

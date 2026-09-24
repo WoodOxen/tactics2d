@@ -20,8 +20,9 @@ from .config import SmartConfig, load_codebook
 from .dataset import SmartBatchBuilder, _observed_frames
 from .map_decoder import SmartMapDecoder
 from .policy import TorchSmartPolicy
-from .rolling import SmartRollingRunner
-from .schema import SmartPrediction, SmartRollingResult, SmartTokenBatch
+from .prediction import SmartPrediction
+from .rolling import SmartRollingResult, SmartRollingRunner
+from .tokens import SmartTokenBatch
 
 
 class SmartTorchModel(nn.Module):
