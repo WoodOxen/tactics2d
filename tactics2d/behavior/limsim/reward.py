@@ -11,8 +11,8 @@ from typing import Dict, Sequence
 
 from .action import LimSimAction
 from .config import LimSimConfig
+from .decision_state import AgentDecisionState
 from .interaction import first_collision_info, minimum_pair_distance
-from .schema import AgentDecisionState
 
 
 class LimSimReward:

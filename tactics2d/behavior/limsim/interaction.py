@@ -9,7 +9,7 @@ from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 
 from .config import LimSimConfig
-from .schema import AgentDecisionState
+from .decision_state import AgentDecisionState
 
 
 class InteractionGraph:
@@ -111,24 +111,10 @@ class InteractionGraph:
     def _dynamic_interaction_distance(self, agent: AgentDecisionState) -> float:
         return self.config.same_lane_time_headway * agent.speed + agent.length
 
-    @staticmethod
-    def _lane_length(lane) -> float:
-        """Return the lane centreline length in meters.
-
-        ``Lane.geometry`` is a ``LinearRing`` over both boundaries, so its length
-        is about twice the lane length; the centreline is the exact quantity.
-        """
-
-        centerline = lane.centerline()
-        if centerline is not None:
-            return float(centerline.length)
-        return float(lane.geometry.length) / 2.0 if lane.geometry is not None else 0.0
-
     def _successor_gap(
         self, rear: AgentDecisionState, front: AgentDecisionState, rear_lane
     ) -> float:
-        lane_length = self._lane_length(rear_lane)
-        return max(lane_length - rear.route_progress, 0.0) + front.route_progress
+        return max(rear_lane.length - rear.route_progress, 0.0) + front.route_progress
 
     def _is_junction_like(self, lane) -> bool:
         tags = lane.custom_tags or {}

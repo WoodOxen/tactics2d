@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from tactics2d.behavior.limsim.roi import RoISelector
+from tactics2d.behavior.selection import RegionSelector
 from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
@@ -17,7 +17,7 @@ from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
 from .config import SmartConfig
 from .map_tokenizer import MapTokenizer
 from .motion_tokenizer import MotionTokenizer
-from .schema import AgentType, SmartTokenBatch
+from .tokens import AgentType, SmartTokenBatch
 
 # Participant classes the motion codebook covers, with its own type index.
 _PARTICIPANT_AGENT_TYPES = (
@@ -181,7 +181,7 @@ class SmartBatchBuilder:
             )
 
         center = participants[center_id].trajectory.get_state(frame).location
-        selection = RoISelector.select_by_radius(
+        selection = RegionSelector.select_by_radius(
             participants=participants,
             frame=frame,
             center=center,

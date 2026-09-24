@@ -11,50 +11,8 @@ as LimSim.
 
 from typing import Dict, Iterable, List, Optional, Tuple
 
-import numpy as np
-from shapely.geometry import LineString, Point
-
-from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
-
-
-def _lane_heading_at(lane, s: Optional[float]) -> Optional[float]:
-    """Compute the heading of *lane* at longitudinal offset *s*."""
-    centerline = lane.centerline()
-    centerline = np.asarray(centerline.coords, dtype=float) if centerline is not None else None
-    if centerline is None or len(centerline) < 2:
-        return None
-    line = LineString(centerline)
-    if line.length <= 1e-6:
-        return None
-    route_s = 0.0 if s is None else float(np.clip(s, 0.0, line.length))
-    before = line.interpolate(max(0.0, route_s - 1.0))
-    after = line.interpolate(min(line.length, route_s + 1.0))
-    return float(np.arctan2(after.y - before.y, after.x - before.x))
-
-
-def _candidate_lane_ids(map_: Map, lane_id: str, point_xy, lane_match_radius: float):
-    """Collect candidate lane IDs near *point_xy*."""
-    lane = map_.lanes.get(lane_id)
-    point = Point(point_xy)
-    lane_ids = set()
-    for candidate_id, candidate_lane in map_.lanes.items():
-        candidate_centerline = candidate_lane.centerline()
-        if candidate_centerline is not None:
-            distance = candidate_centerline.distance(point)
-        elif candidate_lane.geometry is not None:
-            distance = candidate_lane.geometry.distance(point)
-        else:
-            continue
-        if distance <= lane_match_radius:
-            lane_ids.add(candidate_id)
-    if lane is None:
-        return list(lane_ids or {lane_id})
-    lane_ids.update(
-        {lane_id, *lane.left_neighbors, *lane.right_neighbors, *lane.predecessors, *lane.successors}
-    )
-    return list(lane_ids)
 
 
 def match_lane_for_state(
@@ -67,8 +25,7 @@ def match_lane_for_state(
 ) -> Optional[str]:
     """Find the lane ID that best matches a single (x, y, heading) state.
 
-    Uses the same distance + heading-consistency scoring as
-    :class:`~tactics2d.behavior.limsim.scene.SceneBuilder`.
+    Delegates distance and heading scoring to :meth:`Map.match_lane`.
 
     Args:
         map_: Tactics2D Map with lanes.
@@ -80,59 +37,9 @@ def match_lane_for_state(
     Returns:
         Matching lane ID, or ``None`` if no lane is within range.
     """
-    if map_ is None or len(map_.lanes) == 0:
+    if map_ is None:
         return None
-
-    # find the nearest lane to the point
-    point = Point(x, y)
-    nearby_lane_id = None
-    best_distance = float("inf")
-    for lid, lane in map_.lanes.items():
-        lane_centerline = lane.centerline()
-        if lane_centerline is not None:
-            distance = lane_centerline.distance(point)
-        elif lane.geometry is not None:
-            distance = lane.geometry.distance(point)
-        else:
-            continue
-        if distance < best_distance:
-            best_distance = distance
-            nearby_lane_id = lid
-
-    if nearby_lane_id is None:
-        return None
-
-    best_lane_id = nearby_lane_id
-    best_score = np.inf
-    lane_ids = _candidate_lane_ids(map_, nearby_lane_id, (x, y), lane_match_radius)
-
-    for lid in lane_ids:
-        lane = map_.lanes.get(lid)
-        if lane is None:
-            continue
-        proj = lane.project_point((x, y))
-        distance = lane.geometry.distance(point) if proj is None else proj.distance
-        if distance > lane_match_radius:
-            continue
-        lh = _lane_heading_at(lane, proj.s if proj is not None else None)
-        heading_error = 0.0
-        if lh is not None:
-            heading_error = abs(spatial.normalize_angle(heading - lh))
-        score = distance + heading_weight * heading_error
-        if score < best_score:
-            best_score = score
-            best_lane_id = lid
-
-    if best_lane_id is None:
-        return None
-
-    # final distance check on the best match
-    best_lane = map_.lanes[best_lane_id]
-    proj = best_lane.project_point((x, y))
-    distance = best_lane.geometry.distance(point) if proj is None else proj.distance
-    if distance > lane_match_radius:
-        return None
-    return best_lane_id
+    return map_.match_lane(x, y, heading, radius=lane_match_radius, heading_weight=heading_weight)
 
 
 def extract_lane_sequence(

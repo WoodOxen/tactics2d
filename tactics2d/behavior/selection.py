@@ -1,7 +1,7 @@
 # Copyright (C) 2026, Tactics2D Authors. Released under the GNU GPLv3.
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Region-of-interest selection for LimSim-style local scenes."""
+"""Model-independent region selection for behavior scenes."""
 
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
@@ -10,7 +10,7 @@ from tactics2d.geometry import spatial
 
 
 @dataclass(frozen=True)
-class RoISelection:
+class RegionSelection:
     """Vehicles selected for local interaction and background prediction."""
 
     agent_ids: List[object] = field(default_factory=list)
@@ -20,7 +20,7 @@ class RoISelection:
     outer_radius: Optional[float] = None
 
 
-class RoISelector:
+class RegionSelector:
     """Select local Region of Interest agents from participants.
 
     Vehicles inside the radius are controlled; vehicles out to roughly twice the
@@ -35,7 +35,7 @@ class RoISelector:
         radius: float,
         outer_radius: Optional[float] = None,
         candidate_ids: Optional[Iterable[object]] = None,
-    ) -> RoISelection:
+    ) -> RegionSelection:
         """Select agents by distance to a fixed physical center."""
 
         if radius < 0:
@@ -59,7 +59,7 @@ class RoISelector:
             elif distance <= outer:
                 background_agent_ids.append(agent_id)
 
-        return RoISelection(
+        return RegionSelection(
             agent_ids=agent_ids,
             background_agent_ids=background_agent_ids,
             center=center_xy,
@@ -76,7 +76,7 @@ class RoISelector:
         outer_radius: Optional[float] = None,
         include_ego: bool = True,
         candidate_ids: Optional[Iterable[object]] = None,
-    ) -> RoISelection:
+    ) -> RegionSelection:
         """Select agents around an ego participant."""
 
         ego = participants.get(ego_id)
@@ -84,7 +84,7 @@ class RoISelector:
             raise KeyError(f"ego_id {ego_id!r} is not active at frame {frame}.")
 
         ego_state = ego.trajectory.get_state(frame)
-        selection = RoISelector.select_by_radius(
+        selection = RegionSelector.select_by_radius(
             participants=participants,
             frame=frame,
             center=ego_state.location,
@@ -94,7 +94,7 @@ class RoISelector:
         )
         if not include_ego and ego_id in selection.agent_ids:
             agent_ids = [agent_id for agent_id in selection.agent_ids if agent_id != ego_id]
-            return RoISelection(
+            return RegionSelection(
                 agent_ids=agent_ids,
                 background_agent_ids=selection.background_agent_ids,
                 center=selection.center,
@@ -110,11 +110,11 @@ class RoISelector:
         max_agents: int,
         neighbor_count: int = 6,
         candidate_ids: Optional[Iterable[object]] = None,
-    ) -> RoISelection:
+    ) -> RegionSelection:
         """Select a compact local region around the densest active participant."""
 
         if max_agents <= 0:
-            return RoISelection()
+            return RegionSelection()
 
         active = []
         selected_ids = list(participants.keys()) if candidate_ids is None else list(candidate_ids)
@@ -125,7 +125,7 @@ class RoISelector:
             active.append((agent_id, participant.trajectory.get_state(frame)))
 
         if len(active) <= max_agents:
-            return RoISelection(
+            return RegionSelection(
                 agent_ids=[agent_id for agent_id, _ in active],
                 center=active[0][1].location if active else None,
             )
@@ -147,4 +147,9 @@ class RoISelector:
             key=lambda item: spatial.euclidean_distance(item[1].location, anchor_state.location),
         )
         agent_ids = [agent_id for agent_id, _ in ordered[:max_agents]]
-        return RoISelection(agent_ids=agent_ids, center=anchor_state.location)
+        return RegionSelection(agent_ids=agent_ids, center=anchor_state.location)
+
+
+select_by_radius = RegionSelector.select_by_radius
+select_around_agent = RegionSelector.select_around_agent
+select_dense_region = RegionSelector.select_dense_region

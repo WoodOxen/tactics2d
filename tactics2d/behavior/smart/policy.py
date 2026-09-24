@@ -10,7 +10,8 @@ from typing import Optional
 import numpy as np
 import torch
 
-from .schema import SmartPrediction, SmartTokenBatch
+from .prediction import SmartPrediction
+from .tokens import SmartTokenBatch
 
 
 class TorchSmartPolicy:

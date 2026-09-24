@@ -8,9 +8,6 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Iterable, List, Optional
 
-from tactics2d.map.element import Map
-from tactics2d.participant.trajectory import Trajectory
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -28,20 +25,20 @@ class BehaviorModelBase(ABC):
     def predict(
         self,
         participants: Dict[object, object],
-        map_: Optional[Map],
+        map_: Optional[object],
         frame: int,
         agent_ids: Optional[Iterable[object]] = None,
-    ) -> Dict[object, Trajectory]:
+    ) -> Dict[object, object]:
         """Plan future trajectories for the specified traffic participants."""
 
     def predict_batch(
         self,
         participants: Dict[object, object],
-        map_: Optional[Map],
+        map_: Optional[object],
         frames: List[int],
         agent_ids: Optional[Iterable[object]] = None,
         max_workers: Optional[int] = None,
-    ) -> Dict[int, Dict[object, Trajectory]]:
+    ) -> Dict[int, Dict[object, object]]:
         """Predict trajectories for multiple frames, optionally in parallel.
 
         When *max_workers* > 1, frames are dispatched across a

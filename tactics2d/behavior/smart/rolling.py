@@ -5,6 +5,7 @@
 
 """Closed-loop joint rollout for the SMART port."""
 
+from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
@@ -14,9 +15,21 @@ from tactics2d.map.element import Map
 from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 
-from ..rolling_utils import collision_kind, progress_window, to_lattice
+from ..results import ClosedLoopMetrics
+from ..rollout_metrics import collision_kind, progress_window
+from ..trajectory_processing import resample_participants
 from .config import SmartConfig
-from .schema import SmartRollingResult
+
+
+@dataclass
+class SmartRollingResult:
+    """SMART-specific rollout state plus shared closed-loop metrics."""
+
+    metrics: ClosedLoopMetrics = field(default_factory=ClosedLoopMetrics)
+    ego_id: object = None
+    modelled_ids: List[object] = field(default_factory=list)
+    poses: Dict[object, np.ndarray] = field(default_factory=dict)
+
 
 # Fallback extents for a participant that carries none of its own.
 _DEFAULT_VEHICLE_LENGTH = 4.8
@@ -329,7 +342,7 @@ class SmartRollingRunner:
                         ego_id, controlled_ids
                     )
                 )
-        participants = to_lattice(participants, self.config.step_ms)
+        participants = resample_participants(participants, self.config.step_ms)
         if frame_ms0 is None:
             # Default the window origin to the ego's first frame.
             frame_ms0 = int(participants[ego_id].trajectory.first_frame)
@@ -385,12 +398,14 @@ class SmartRollingRunner:
             total_progress += total
         controlled = len(modelled_union)
         return SmartRollingResult(
-            front_collisions=kinds[0],
-            side_collisions=kinds[1],
-            rear_collisions=kinds[2],
-            progress=total_progress,
-            total_agents_controlled=controlled,
-            collided=collided,
+            metrics=ClosedLoopMetrics(
+                front_collisions=kinds[0],
+                side_collisions=kinds[1],
+                rear_collisions=kinds[2],
+                progress=total_progress,
+                total_agents_controlled=controlled,
+                collided=collided,
+            ),
             ego_id=ego_id,
             modelled_ids=list(modelled_union),
             poses={agent_id: poses[agent_id].copy() for agent_id in poses},

@@ -6,6 +6,7 @@
 
 import enum
 import warnings
+from typing import Iterable, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -327,6 +328,121 @@ class Map:
             if elem_id is not None:
                 element_ids.append(elem_id)
         return element_ids
+
+    def find_nearest_lane(
+        self,
+        point: Sequence[float],
+        candidate_lane_ids: Optional[Iterable[str]] = None,
+        search_radius: float = 20.0,
+    ) -> Optional[str]:
+        """Return the lane nearest to a world position."""
+
+        query = Point(point[0], point[1])
+        lane_ids = (
+            list(candidate_lane_ids)
+            if candidate_lane_ids is not None
+            else self.query_point(point, buffer=search_radius) or list(self.lanes)
+        )
+        best_id = None
+        best_distance = np.inf
+        for lane_id in lane_ids:
+            lane = self.lanes.get(lane_id)
+            if lane is None:
+                continue
+            centerline = lane.centerline()
+            geometry = centerline if centerline is not None else lane.geometry
+            if geometry is None:
+                continue
+            distance = geometry.distance(query)
+            if distance < best_distance:
+                best_id, best_distance = lane_id, distance
+        return best_id
+
+    def find_lane_at_pose(
+        self,
+        x: float,
+        y: float,
+        heading: float,
+        radius: float = 8.0,
+        heading_tolerance_deg: float = 60.0,
+    ) -> Optional[Tuple[object, float]]:
+        """Return the closest lane whose direction agrees with a pose."""
+
+        tolerance = np.radians(heading_tolerance_deg)
+        best = None
+        best_distance = radius
+        for lane_id, lane in self.lanes.items():
+            projection = lane.project_point((x, y))
+            if projection is None or projection.distance > best_distance:
+                continue
+            heading_error = np.arctan2(
+                np.sin(heading - projection.heading), np.cos(heading - projection.heading)
+            )
+            if abs(heading_error) > tolerance:
+                continue
+            best_distance = projection.distance
+            best = (lane_id, projection.s)
+        return best
+
+    def match_lane(
+        self,
+        x: float,
+        y: float,
+        heading: float,
+        radius: float = 4.0,
+        heading_weight: float = 2.0,
+        preferred_lane_ids: Iterable[str] = (),
+        off_route_penalty: float = 0.0,
+    ) -> Optional[str]:
+        """Match a pose using distance, heading, and optional route preference."""
+
+        if not self.lanes:
+            return None
+        nearby = list(self.query_point((x, y), buffer=radius))
+        if not nearby:
+            nearest = self.find_nearest_lane((x, y), search_radius=radius)
+            nearby = [] if nearest is None else [nearest]
+        candidate_ids = set(nearby)
+        for lane_id in tuple(nearby):
+            lane = self.lanes.get(lane_id)
+            if lane is not None:
+                candidate_ids.update(
+                    {
+                        *lane.left_neighbors,
+                        *lane.right_neighbors,
+                        *lane.predecessors,
+                        *lane.successors,
+                    }
+                )
+        preferred = set(preferred_lane_ids)
+        best_id = None
+        best_score = np.inf
+        query = Point(x, y)
+        for lane_id in candidate_ids:
+            lane = self.lanes.get(lane_id)
+            if lane is None:
+                continue
+            projection = lane.project_point(query)
+            if projection is None:
+                if lane.geometry is None:
+                    continue
+                distance = float(lane.geometry.distance(query))
+                heading_error = 0.0
+            else:
+                distance = float(projection.distance)
+                heading_error = abs(
+                    np.arctan2(
+                        np.sin(heading - projection.heading), np.cos(heading - projection.heading)
+                    )
+                )
+            if distance > radius:
+                continue
+            score = distance + heading_weight * heading_error
+            if preferred and lane_id not in preferred:
+                score += off_route_penalty
+            if score < best_score:
+                best_id, best_score = lane_id, score
+        return best_id
 
     def add_node(self, node: Node):
         """This function adds a node to the map.

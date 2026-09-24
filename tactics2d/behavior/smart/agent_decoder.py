@@ -21,7 +21,7 @@ from .layers import (
     wrap_angle,
 )
 from .primitives import dense_to_sparse, radius, radius_graph, subgraph
-from .schema import SmartAgentTokens, SmartMapTokens
+from .tokens import SmartAgentTokens, SmartMapTokens
 
 
 class SmartAgentDecoder(nn.Module):

@@ -3,11 +3,14 @@
 
 """Public LimSim-style behavior model entry point."""
 
-from typing import Dict, Iterable, Optional, Sequence, Tuple
+from dataclasses import dataclass, field
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
 from tactics2d.behavior.base import BehaviorModelBase
+from tactics2d.behavior.results import TrajectoryRolloutResult
+from tactics2d.behavior.selection import RegionSelector
 from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
@@ -17,13 +20,24 @@ from . import rolling
 from .action import LimSimAction
 from .config import LimSimConfig
 from .decision_search import LimSimDecisionSearch
+from .decision_state import AgentDecisionState, states_to_trajectory
 from .frenet_planner import FrenetTrajectoryPlanner
 from .interaction import InteractionGraph, first_collision_info
 from .lane_follower import LaneFollower
 from .prediction import LimSimPredictor
-from .roi import RoISelector
 from .scene import SceneBuilder
-from .schema import AgentDecisionState, LimSimRollingResult, PlanningResult, states_to_trajectory
+
+
+@dataclass
+class PlanningResult:
+    """Output of the LimSim behavior model."""
+
+    trajectories: Dict[object, Trajectory] = field(default_factory=dict)
+    actions: Dict[object, LimSimAction] = field(default_factory=dict)
+    groups: List[List[object]] = field(default_factory=list)
+    root_nodes: Dict[Tuple[object, ...], object] = field(default_factory=dict)
+    roi_agent_ids: List[object] = field(default_factory=list)
+    background_agent_ids: List[object] = field(default_factory=list)
 
 
 class LimSimBehaviorModel(BehaviorModelBase):
@@ -85,7 +99,7 @@ class LimSimBehaviorModel(BehaviorModelBase):
         background_ids = []
         if selected_ids is None and roi_radius is not None:
             if ego_id is not None:
-                selection = RoISelector.select_around_agent(
+                selection = RegionSelector.select_around_agent(
                     participants,
                     frame,
                     ego_id=ego_id,
@@ -93,7 +107,7 @@ class LimSimBehaviorModel(BehaviorModelBase):
                     outer_radius=roi_outer_radius,
                 )
             elif roi_center is not None:
-                selection = RoISelector.select_by_radius(
+                selection = RegionSelector.select_by_radius(
                     participants,
                     frame,
                     center=roi_center,
@@ -263,7 +277,7 @@ class LimSimBehaviorModel(BehaviorModelBase):
         horizon_ms: Optional[int] = None,
         route_map: Optional[Dict[object, Tuple[str, ...]]] = None,
         controlled_ids: Optional[Iterable[object]] = None,
-    ) -> LimSimRollingResult:
+    ) -> TrajectoryRolloutResult:
         """Replay one vehicle's future in a receding-horizon loop.
 
         ``controlled_ids`` names every vehicle to re-simulate; the ego must be a

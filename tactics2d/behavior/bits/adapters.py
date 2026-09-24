@@ -9,8 +9,8 @@ from typing import Dict, Iterable, Optional
 import numpy as np
 import torch
 
-from .predictor import BitsAgentPrediction, BitsPlan, BitsPrediction
-from .schema import BitsBatch
+from .batch import BitsBatch
+from .prediction import BitsAgentPrediction, BitsPlan, BitsPrediction
 
 
 @dataclass(frozen=True)

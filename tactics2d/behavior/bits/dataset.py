@@ -7,16 +7,15 @@ from dataclasses import dataclass
 from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
-from shapely.geometry import LineString, Point
 
 from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State
 
+from .batch import BitsBatch
 from .config import BitsConfig
 from .rasterizer import BitsRasterizer
-from .schema import BitsBatch
 
 
 @dataclass(frozen=True)
@@ -235,24 +234,7 @@ class BitsBatchBuilder:
     def _match_lane(map_: Optional[Map], state: State) -> Optional[str]:
         if map_ is None or not map_.lanes:
             return None
-
-        point = Point(state.location[0], state.location[1])
-        best_lane_id = None
-        best_distance = float("inf")
-
-        for lane_id, lane in map_.lanes.items():
-            centerline = lane.centerline()
-            if centerline is not None:
-                distance = LineString(centerline).distance(point)
-            elif lane.geometry is not None:
-                distance = lane.geometry.distance(point)
-            else:
-                continue
-            if distance < best_distance:
-                best_distance = distance
-                best_lane_id = lane_id
-
-        return best_lane_id
+        return map_.find_nearest_lane(state.location)
 
 
 class BitsSampleDataset:

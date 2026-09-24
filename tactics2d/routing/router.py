@@ -6,7 +6,6 @@
 from typing import Callable, Dict, Optional, Sequence
 
 import numpy as np
-from shapely.geometry import LineString, Point
 
 from tactics2d.geometry import polyline
 from tactics2d.map.element import Map
@@ -81,8 +80,8 @@ class Router:
         )
         routing_graph = graph_builder.build(map_)
 
-        start_lane_id = self._find_nearest_lane(map_, start)
-        goal_lane_id = self._find_nearest_lane(map_, goal)
+        start_lane_id = map_.find_nearest_lane(start)
+        goal_lane_id = map_.find_nearest_lane(goal)
 
         route = Route(tuple(start[:2]), tuple(goal[:2]), start_lane_id, goal_lane_id)
         if start_lane_id is None or goal_lane_id is None:
@@ -161,24 +160,3 @@ class Router:
             return float(np.linalg.norm(src_center - dst_center))
 
         return heuristic
-
-    @staticmethod
-    def _find_nearest_lane(map_: Map, point_xy: Sequence[float]) -> Optional[str]:
-        """Find the nearest lane to a point."""
-        point = Point(point_xy[0], point_xy[1])
-        best_lane_id = None
-        best_distance = np.inf
-
-        for lane_id, lane in map_.lanes.items():
-            centerline = lane.centerline()
-            if centerline is not None:
-                distance = LineString(centerline).distance(point)
-            elif lane.geometry is not None:
-                distance = lane.geometry.distance(point)
-            else:
-                continue
-            if distance < best_distance:
-                best_distance = distance
-                best_lane_id = lane_id
-
-        return best_lane_id

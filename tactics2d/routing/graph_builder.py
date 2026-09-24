@@ -12,7 +12,61 @@ from scipy.sparse import csr_matrix, lil_matrix
 from tactics2d.map.element import Map
 
 from .cost_builder import RoutingCostFunction, build_cost_function
-from .utils import geometric_successor_links
+
+_MAX_GAP_SCAN_LANES = 2000
+
+
+def geometric_successor_links(
+    map_: Map, max_gap: float = 2.5, max_heading_diff_deg: float = 45.0
+) -> List[Tuple[object, object]]:
+    """Return lane successor links implied by endpoint geometry."""
+
+    valid = []
+    for lane_id, lane in map_.lanes.items():
+        centerline = lane.centerline()
+        if centerline is None or len(centerline.coords) < 2:
+            continue
+        points = np.asarray(centerline.coords, dtype=float)
+        tangents = points[1:] - points[:-1]
+        valid.append(
+            (
+                lane_id,
+                points[0],
+                points[-1],
+                np.arctan2(tangents[0][1], tangents[0][0]),
+                np.arctan2(tangents[-1][1], tangents[-1][0]),
+            )
+        )
+    if len(valid) > _MAX_GAP_SCAN_LANES or len(valid) < 2:
+        return []
+    ids = [item[0] for item in valid]
+    starts = np.asarray([item[1] for item in valid])
+    ends = np.asarray([item[2] for item in valid])
+    distance = np.linalg.norm(ends[:, None, :] - starts[None, :, :], axis=2)
+    diff = (
+        np.asarray([item[4] for item in valid])[:, None]
+        - np.asarray([item[3] for item in valid])[None, :]
+    )
+    aligned = np.abs(np.arctan2(np.sin(diff), np.cos(diff))) <= np.radians(max_heading_diff_deg)
+    close = distance <= max_gap
+    np.fill_diagonal(close, False)
+    links = []
+    for source, source_id in enumerate(ids):
+        for target in np.nonzero(close[source] & aligned[source])[0]:
+            target_id = ids[target]
+            if target_id not in map_.lanes[source_id].successors:
+                links.append((source_id, target_id))
+    return links
+
+
+def augment_lane_successors(
+    map_: Map, max_gap: float = 2.5, max_heading_diff_deg: float = 45.0
+) -> Map:
+    """Add geometrically inferred successor links to a map in place."""
+
+    for source_id, target_id in geometric_successor_links(map_, max_gap, max_heading_diff_deg):
+        map_.lanes[source_id].successors.add(target_id)
+    return map_
 
 
 @dataclass

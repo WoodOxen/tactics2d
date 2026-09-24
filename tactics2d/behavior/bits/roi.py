@@ -9,22 +9,8 @@ import torch
 import torch.nn as nn
 from torchvision.ops import RoIAlign
 
+from .tensor_utils import add_batch_dim, homogeneous_transform
 from .unet import BitsRasterBackbone
-
-
-def _add_batch_dim(tensor, min_ndim: int):
-    """Add a leading batch dimension if tensor has fewer than min_ndim dims."""
-    while tensor.ndim < min_ndim:
-        tensor = tensor.unsqueeze(0)
-    return tensor
-
-
-def _homogeneous_transform(points: torch.Tensor, matrix: torch.Tensor) -> torch.Tensor:
-    """Apply a 3x3 homogeneous transform to batched 2D points."""
-    ones = torch.ones(*points.shape[:-1], 1, dtype=points.dtype, device=points.device)
-    homogeneous = torch.cat([points, ones], dim=-1)
-    transform = matrix.to(device=points.device, dtype=points.dtype)
-    return torch.matmul(homogeneous, transform.transpose(1, 2))[..., :2]
 
 
 def _build_upright_rois(raster_points: torch.Tensor, context_size: int) -> torch.Tensor:
@@ -93,12 +79,12 @@ class ROIHead(nn.Module):
         agent_positions: torch.Tensor,
         encoder_features: Dict[str, torch.Tensor],
     ) -> tuple:
-        image = _add_batch_dim(tensors["image"], 4)
+        image = add_batch_dim(tensors["image"], 4)
         global_features = self.activation(encoder_features["final"])
-        raster_from_agent = _add_batch_dim(tensors["raster_from_agent"], 3).to(
+        raster_from_agent = add_batch_dim(tensors["raster_from_agent"], 3).to(
             device=image.device, dtype=image.dtype
         )
-        raster_points = _homogeneous_transform(
+        raster_points = homogeneous_transform(
             agent_positions.to(device=image.device, dtype=image.dtype), raster_from_agent
         )
         # Build an axis-aligned ROI around each agent raster position, then RoIAlign.

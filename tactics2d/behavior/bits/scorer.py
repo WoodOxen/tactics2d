@@ -10,9 +10,9 @@ from scipy.ndimage import distance_transform_edt
 
 from tactics2d.geometry import spatial
 
+from .batch import BitsBatch
 from .config import BitsConfig
-from .predictor import BitsAgentPrediction, BitsPlan, BitsPlanScoreBreakdown
-from .schema import BitsBatch
+from .prediction import BitsAgentPrediction, BitsPlan, BitsPlanScoreBreakdown
 
 
 class BitsPlanScorer:

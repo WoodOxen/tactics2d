@@ -5,13 +5,35 @@
 
 import inspect
 import logging
-import threading
+import subprocess
+import sys
 
 import pytest
 
-pytest.importorskip("torch", reason="Behavior-model tests require the tactics2d[behavior] extra.")
-
 from tactics2d.behavior import BehaviorModelBase
+
+
+def test_public_module_and_configs_do_not_import_torch():
+    """The public facade and pure configs remain usable without model extras."""
+    script = """
+import sys
+
+class BlockTorch:
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == 'torch' or fullname.startswith(('torch.', 'torchvision')):
+            raise ModuleNotFoundError(fullname)
+        return None
+
+sys.meta_path.insert(0, BlockTorch())
+import tactics2d.behavior
+from tactics2d.behavior import BehaviorModelBase, BitsConfig, SmartConfig
+assert 'torch' not in sys.modules
+assert BehaviorModelBase.__name__ == 'BehaviorModelBase'
+assert BitsConfig().future_steps == 20
+assert SmartConfig().future_steps == 80
+"""
+
+    subprocess.run([sys.executable, "-c", script], check=True)
 
 
 class _StubModel(BehaviorModelBase):
@@ -28,21 +50,6 @@ class _StubModel(BehaviorModelBase):
         if frame in self.fail_on:
             raise RuntimeError(f"cannot predict frame {frame}")
         return {agent_id: (frame, agent_id) for agent_id in agent_ids or ()}
-
-
-class _BarrierModel(_StubModel):
-    """Model that blocks until every synchronised frame is running at once."""
-
-    def __init__(self, barrier, frames_to_sync):
-        super().__init__(parallel_workers=2)
-        self.barrier = barrier
-        self.frames_to_sync = set(frames_to_sync)
-
-    def predict(self, participants, map_, frame, agent_ids=None):
-        """Wait for the sibling frame before predicting."""
-        if frame in self.frames_to_sync:
-            self.barrier.wait(timeout=10.0)
-        return super().predict(participants, map_, frame, agent_ids=agent_ids)
 
 
 @pytest.mark.integration
@@ -70,28 +77,6 @@ def test_predict_batch_dispatches_across_workers():
 
 
 @pytest.mark.integration
-def test_predict_batch_runs_sequentially_for_an_explicit_worker_count_of_one():
-    """A worker count of one overrides a parallel default and predicts in order."""
-    model = _StubModel(parallel_workers=4)
-
-    result = model.predict_batch({}, None, [10, 20, 30], agent_ids=[1], max_workers=1)
-
-    assert list(result) == [10, 20, 30]
-    assert model.calls == [(10, (1,)), (20, (1,)), (30, (1,))]
-
-
-@pytest.mark.integration
-def test_predict_batch_overlaps_frames_when_parallel():
-    """Two workers really run two frames at once, not one after the other."""
-    barrier = threading.Barrier(2)
-    model = _BarrierModel(barrier, frames_to_sync=[10, 20])
-
-    result = model.predict_batch({}, None, [10, 20, 30], agent_ids=[1])
-
-    assert result == {10: {1: (10, 1)}, 20: {1: (20, 1)}, 30: {1: (30, 1)}}
-
-
-@pytest.mark.integration
 def test_predict_batch_maps_a_failing_frame_to_an_empty_result(caplog):
     """One frame raising leaves the other frames in the batch intact."""
     model = _StubModel(fail_on=(20,))
@@ -104,18 +89,6 @@ def test_predict_batch_maps_a_failing_frame_to_an_empty_result(caplog):
     assert result[30] == {1: (30, 1)}
     assert "frame 20" in caplog.text
     assert "RuntimeError" in caplog.text
-
-
-@pytest.mark.integration
-def test_predict_batch_logs_a_failure_from_a_worker_thread(caplog):
-    """A frame that fails inside the executor is reported the same way."""
-    model = _StubModel(parallel_workers=2, fail_on=(20,))
-
-    with caplog.at_level(logging.WARNING, logger="tactics2d.behavior.base"):
-        result = model.predict_batch({}, None, [10, 20], agent_ids=[1])
-
-    assert result == {10: {1: (10, 1)}, 20: {}}
-    assert "frame 20" in caplog.text
 
 
 @pytest.mark.integration

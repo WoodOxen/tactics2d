@@ -179,6 +179,17 @@ class Lane:
     def shape(self) -> list:
         return list(self.geometry.coords)
 
+    @property
+    def length(self) -> float:
+        """Return the lane's longitudinal length in metres."""
+
+        centerline = self.centerline()
+        if centerline is not None:
+            return float(centerline.length)
+        if self.geometry is not None:
+            return float(self.geometry.length) / 2.0
+        return 0.0
+
     def centerline(self, sample_spacing_m: Optional[float] = 10.0) -> Optional[LineString]:
         """Return the lane centerline if it can be obtained.
 

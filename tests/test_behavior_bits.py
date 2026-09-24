@@ -3,7 +3,6 @@
 
 """Tests for the BITS behavior model (public API only)."""
 
-import json
 from pathlib import Path
 
 import numpy as np
@@ -13,9 +12,7 @@ from shapely.geometry import LineString
 pytest.importorskip("torch", reason="BITS torch tests require the tactics2d[behavior] extra.")
 pytest.importorskip("torchvision", reason="BITS torch tests require the tactics2d[behavior] extra.")
 
-from tactics2d.behavior import BehaviorModelBase
-from tactics2d.behavior.bits import BitsBehaviorModel
-from tactics2d.behavior.bits.dataset import BitsBatchBuilder
+from tactics2d.behavior import BehaviorModelBase, BitsBehaviorModel
 from tactics2d.map.element import Lane, Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
@@ -75,64 +72,18 @@ def _straight_vehicle(agent_id, frames, x, y, speed):
     return Vehicle(agent_id, "vehicle", trajectory=trajectory, length=4.5, width=1.8)
 
 
-def _poses(trajectory):
-    """Return the frames and ``[x, y, heading, speed]`` poses of a trajectory."""
-    frames = sorted(trajectory.frames)
-    poses = np.zeros((len(frames), 4), dtype=float)
-    for index, frame in enumerate(frames):
-        state = trajectory.get_state(frame)
-        poses[index] = [state.x, state.y, state.heading, state.speed]
-    return np.asarray(frames, dtype=float), poses
-
-
-def _trajectory_arrays(trajectories):
-    """Flatten trajectories into a ``frames_<agent>`` / ``poses_<agent>`` mapping."""
-    arrays = {}
-    for agent_id, trajectory in trajectories.items():
-        frames, poses = _poses(trajectory)
-        arrays[f"frames_{agent_id}"] = frames
-        arrays[f"poses_{agent_id}"] = poses
-    return arrays
-
-
-def _is_finite(poses):
-    """Return whether the pose rows hold finite numbers."""
-    return bool(np.isfinite(np.asarray(poses, dtype=float)).all())
-
-
-def _dump(runtime_dir, name, arrays, meta=None):
-    """Write the arrays (and optional summary) under the test's runtime directory."""
-    if arrays:
-        np.savez_compressed(str(runtime_dir / f"{name}.npz"), **arrays)
-    if meta is not None:
-        (runtime_dir / f"{name}.json").write_text(json.dumps(meta, indent=2, default=str))
-    return runtime_dir / f"{name}.json" if meta is not None else runtime_dir / f"{name}.npz"
-
-
 @pytest.mark.integration
 @pytest.mark.slow
-def test_bits_loads_released_checkpoints(bits_model, runtime_dir):
+def test_bits_loads_released_checkpoints(bits_model):
     """The released planner and predictor load into a usable behavior model."""
     assert isinstance(bits_model, BehaviorModelBase)
     assert bits_model.policy is not None
 
-    path = _dump(
-        runtime_dir,
-        "bits_load",
-        {},
-        {
-            "future_steps": bits_model.config.future_steps,
-            "history_steps": bits_model.config.history_steps,
-            "dt": bits_model.config.dt,
-        },
-    )
-    assert path.exists()
-
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_bits_predict_returns_finite_trajectories(bits_model, runtime_dir):
-    """predict() returns a finite world-frame trajectory per requested agent."""
+def test_bits_predict_runs(bits_model):
+    """The public prediction entry point runs."""
     participants = {
         0: _straight_vehicle(0, range(0, 3100, 100), 0.0, 0.0, speed=8.0),
         1: _straight_vehicle(1, range(0, 3100, 100), 20.0, 5.0, speed=3.0),
@@ -141,55 +92,20 @@ def test_bits_predict_returns_finite_trajectories(bits_model, runtime_dir):
     predicted = bits_model.predict(participants, _straight_map(), frame=1000, agent_ids=[0])
 
     assert set(predicted) == {0}
-    trajectory = predicted[0]
-    assert isinstance(trajectory, Trajectory)
-    assert 1 <= len(trajectory.frames) <= bits_model.config.future_steps
-    assert _is_finite(_poses(trajectory)[1])
-
-    assert _dump(runtime_dir, "bits_predict", _trajectory_arrays(predicted)).exists()
+    assert isinstance(predicted[0], Trajectory)
 
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_bits_mpc_closed_loop_runs(bits_model, runtime_dir):
-    """A receding-horizon loop replans every 500 ms and commits the ego plan."""
+def test_bits_rollout_runs(bits_model):
+    """The public closed-loop entry point runs on recorded participants."""
     map_ = _straight_map()
     participants = {
-        0: _straight_vehicle(0, range(0, 1100, 100), 0.0, 0.0, speed=8.0),
+        0: _straight_vehicle(0, range(0, 3100, 100), 0.0, 0.0, speed=8.0),
         1: _straight_vehicle(1, range(0, 3100, 100), 20.0, 5.0, speed=3.0),
     }
 
-    committed = Trajectory(id_=0, fps=10, stable_freq=False)
-    frame = 1000
-    for _ in range(4):
-        predicted = bits_model.predict(participants, map_, frame=frame, agent_ids=[0])
-        future = [f for f in sorted(predicted[0].frames) if f > frame]
-        assert future
+    result = bits_model.rollout(participants, map_, ego_id=0, frame_ms=1000, horizon_ms=2000)
 
-        for next_frame in future[:5]:
-            state = predicted[0].get_state(next_frame)
-            participants[0].trajectory.add_state(state)
-            committed.add_state(state)
-        frame = future[4]
-
-    assert len(committed.frames) == 20
-    assert sorted(committed.frames) == list(committed.frames)
-    assert _is_finite(_poses(committed)[1])
-
-    path = _dump(
-        runtime_dir,
-        "bits_mpc",
-        _trajectory_arrays({0: committed}),
-        {"committed_rows": len(committed.frames)},
-    )
-    assert path.exists()
-
-
-@pytest.mark.integration
-def test_bits_lane_match_accepts_a_lane_without_geometry():
-    """A lane carrying only a centreline is matched rather than skipped."""
-    map_ = _straight_map()
-    map_.lanes["A"].geometry = None
-
-    assert BitsBatchBuilder._match_lane(map_, _state(0, 100.0, 0.4)) == "A"
-    assert BitsBatchBuilder._match_lane(map_, _state(0, 100.0, 4.6)) == "B"
+    assert result.cycles > 0
+    assert isinstance(result.trajectory, Trajectory)

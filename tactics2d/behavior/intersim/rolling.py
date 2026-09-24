@@ -12,9 +12,11 @@ from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
-from tactics2d.routing.utils import augment_lane_successors
+from tactics2d.routing.graph_builder import augment_lane_successors
 
-from ..rolling_utils import collision_kind, progress_window, to_lattice
+from ..results import ClosedLoopMetrics
+from ..rollout_metrics import collision_kind, progress_window
+from ..trajectory_processing import resample_participants
 from . import relation_decider
 from .config import InterSimConfig
 from .relation_geometry import AgentBody, check_body_collision
@@ -30,13 +32,8 @@ _SNAP_RADIUS = 150.0
 class InterSimRollingResult:
     """Per-scenario closed-loop outcome and its collision metrics."""
 
-    front_collisions: int = 0
-    side_collisions: int = 0
-    rear_collisions: int = 0
+    metrics: ClosedLoopMetrics = field(default_factory=ClosedLoopMetrics)
     offroad_scenarios: int = 0
-    progress: float = 0.0
-    total_agents_controlled: int = 0
-    collided: bool = False
     end_index: int = 0
     ego_id: object = None
     relevant_ids: List[object] = field(default_factory=list)
@@ -363,7 +360,7 @@ class InterSimRollingRunner:
                     )
                 )
 
-        participants = to_lattice(participants, self.config.step_ms)
+        participants = resample_participants(participants, self.config.step_ms)
         if base_frame_ms is None:
             base_frame_ms = int(participants[ego_id].trajectory.first_frame)
         state = ReplayState.from_participants(self.config, participants, base_frame_ms)
@@ -403,12 +400,14 @@ class InterSimRollingRunner:
 
         progress_total, controlled = progress(state, ego_id, relevant_union, end_index)
         return InterSimRollingResult(
-            front_collisions=kinds[0],
-            side_collisions=kinds[1],
-            rear_collisions=kinds[2],
-            progress=progress_total,
-            total_agents_controlled=controlled,
-            collided=collided,
+            metrics=ClosedLoopMetrics(
+                front_collisions=kinds[0],
+                side_collisions=kinds[1],
+                rear_collisions=kinds[2],
+                progress=progress_total,
+                total_agents_controlled=controlled,
+                collided=collided,
+            ),
             end_index=end_index,
             ego_id=ego_id,
             relevant_ids=list(relevant_union),
