@@ -206,6 +206,29 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify Draft Release artifacts
+        if: steps.publish_test_pypi.outcome == 'success' || steps.check_test_pypi_version.outputs.version_exists == 'true'
+        run: |
+          DRAFT_TAG="${{ steps.create_draft_release.outputs.tag_name }}"
+          RELEASES=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100")
+          DRAFT=$(echo "$RELEASES" | jq -c --arg tag "$DRAFT_TAG" --arg sha "$GITHUB_SHA" \
+            '[.[] | select(.draft == true and .tag_name == $tag and .target_commitish == $sha)] | first // empty')
+          if [ -z "$DRAFT" ]; then
+            echo "Error: created draft $DRAFT_TAG was not found at $GITHUB_SHA."
+            exit 1
+          fi
+
+          WHEEL_COUNT=$(echo "$DRAFT" | jq '[.assets[].name | select(endswith(".whl"))] | length')
+          SDIST_COUNT=$(echo "$DRAFT" | jq '[.assets[].name | select(endswith(".tar.gz"))] | length')
+          if [ "$WHEEL_COUNT" -ne 12 ] || [ "$SDIST_COUNT" -ne 1 ]; then
+            echo "Error: draft has $WHEEL_COUNT wheels and $SDIST_COUNT source distributions; expected 12 and 1."
+            exit 1
+          fi
+
+          echo "Verified 12 wheels and 1 source distribution on draft $DRAFT_TAG."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # Clean up on Test PyPI failure
       # Only clean up if Test PyPI failed for reasons other than version already existing
       - name: Clean up on Test PyPI failure

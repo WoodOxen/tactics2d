@@ -56,10 +56,16 @@ jobs:
           EXPECTED_NAME="Release $VERSION (Test)"
 
           RELEASES=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100")
-          DRAFT=$(echo "$RELEASES" | jq -c --arg tag "$TAG" --arg name "$EXPECTED_NAME" \
-            '[.[] | select(.draft == true and (.tag_name == $tag or .name == $name))] | first // empty')
+          DRAFT=$(echo "$RELEASES" | jq -c \
+            --arg tag "$TAG" --arg name "$EXPECTED_NAME" --arg sha "$GITHUB_SHA" \
+            '[.[] | select(
+              .draft == true and
+              .target_commitish == $sha and
+              (.tag_name == $tag or .name == $name) and
+              (.assets | length) > 0
+            )] | sort_by(.created_at) | reverse | first // empty')
           if [ -z "$DRAFT" ]; then
-            echo "Error: draft release $TAG / '$EXPECTED_NAME' was not found."
+            echo "Error: no artifact-bearing draft for $TAG at $GITHUB_SHA was found."
             echo "Run the Test PyPI workflow from this exact master commit first."
             exit 1
           fi
@@ -81,9 +87,8 @@ jobs:
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
           DRAFT_TAG="${{ steps.draft_release.outputs.tag }}"
-          FINAL_TAG="v${VERSION}"
           mkdir -p final_dist
-          gh release download "$TAG" --dir final_dist --repo "${{ github.repository }}"
+          gh release download "$DRAFT_TAG" --dir final_dist --repo "${{ github.repository }}"
 
           test -f "final_dist/tactics2d-${VERSION}.tar.gz" || {
             echo "Error: source distribution is missing."
@@ -141,7 +146,8 @@ jobs:
         if: steps.publish_pypi.outcome == 'success' || steps.check_pypi_version.outputs.version_exists == 'true'
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
-          TAG="${{ steps.draft_release.outputs.tag }}"
+          DRAFT_TAG="${{ steps.draft_release.outputs.tag }}"
+          FINAL_TAG="v${VERSION}"
 
           PRERELEASE_FLAG=""
           if [[ "$VERSION" =~ (rc|beta|alpha) ]]; then
