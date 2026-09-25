@@ -209,12 +209,15 @@ jobs:
       - name: Verify Draft Release artifacts
         if: steps.publish_test_pypi.outcome == 'success' || steps.check_test_pypi_version.outputs.version_exists == 'true'
         run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
           DRAFT_TAG="${{ steps.create_draft_release.outputs.tag_name }}"
+          EXPECTED_NAME="Release $VERSION (Test)"
           RELEASES=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100")
-          DRAFT=$(echo "$RELEASES" | jq -c --arg tag "$DRAFT_TAG" --arg sha "$GITHUB_SHA" \
-            '[.[] | select(.draft == true and .tag_name == $tag and .target_commitish == $sha)] | first // empty')
+          DRAFT=$(echo "$RELEASES" | jq -c --arg name "$EXPECTED_NAME" --arg sha "$GITHUB_SHA" \
+            '[.[] | select(.draft == true and .name == $name and .target_commitish == $sha)] \
+            | sort_by(.created_at) | reverse | first // empty')
           if [ -z "$DRAFT" ]; then
-            echo "Error: created draft $DRAFT_TAG was not found at $GITHUB_SHA."
+            echo "Error: created draft '$EXPECTED_NAME' was not found at $GITHUB_SHA."
             exit 1
           fi
 
