@@ -142,11 +142,12 @@ jobs:
               gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}"
           done
 
-          EXISTING_TAG_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" \
-            --jq '.object.sha' 2>/dev/null || true)
-          if [ -n "$EXISTING_TAG_SHA" ] && [ "$EXISTING_TAG_SHA" != "$GITHUB_SHA" ]; then
-            echo "Error: tag $TAG already points to $EXISTING_TAG_SHA instead of $GITHUB_SHA"
-            exit 1
+          if EXISTING_TAG_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" \
+            --jq '.object.sha' 2>/dev/null); then
+            if [ "$EXISTING_TAG_SHA" != "$GITHUB_SHA" ]; then
+              echo "Error: tag $TAG already points to $EXISTING_TAG_SHA instead of $GITHUB_SHA"
+              exit 1
+            fi
           fi
 
           # Create new draft release
