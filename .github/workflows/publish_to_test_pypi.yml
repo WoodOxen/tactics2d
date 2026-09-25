@@ -33,9 +33,12 @@ jobs:
           cibuildwheel --output-dir dist
         env:
           CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
-          CIBW_SKIP: "pp*"
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-          CIBW_TEST_SKIP: "*"
+          CIBW_SKIP: "pp* *musllinux*"
+          CIBW_ARCHS_LINUX: x86_64
+          CIBW_ARCHS_WINDOWS: AMD64
+          CIBW_ARCHS_MACOS: universal2
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          CIBW_TEST_COMMAND: 'python -c "import tactics2d, cpp_geometry, cpp_interpolator; from tactics2d.behavior import BehaviorModelBase"'
           CIBW_BEFORE_BUILD: "pip install --upgrade setuptools"
 
       - name: Upload built artifacts
@@ -64,6 +67,12 @@ jobs:
           mkdir -p final_dist
           find dist -name '*.whl' -exec cp {} final_dist/ \;
 
+      - name: Build and validate source distribution
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build --sdist --outdir final_dist
+          python -m twine check final_dist/*
+
       - name: Read package version from pyproject.toml
         id: get_version
         run: |
@@ -80,14 +89,21 @@ jobs:
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
           echo "Checking if version $VERSION exists on Test PyPI..."
-          if python .github/scripts/check_pypi_version.py "$VERSION" --repository-url "https://test.pypi.org/legacy/"; then
+          set +e
+          python .github/scripts/check_pypi_version.py "$VERSION" --repository-url "https://test.pypi.org/legacy/"
+          STATUS=$?
+          set -e
+          if [ "$STATUS" -eq 0 ]; then
             echo "Version $VERSION already exists on Test PyPI"
             echo "version_exists=true" >> $GITHUB_OUTPUT
             echo "test_pypi_outcome=skipped" >> $GITHUB_OUTPUT
-          else
+          elif [ "$STATUS" -eq 1 ]; then
             echo "Version $VERSION does not exist on Test PyPI"
             echo "version_exists=false" >> $GITHUB_OUTPUT
             echo "test_pypi_outcome=needed" >> $GITHUB_OUTPUT
+          else
+            echo "Could not reliably check Test PyPI; refusing to publish."
+            exit "$STATUS"
           fi
 
       - name: Install GitHub CLI and jq
@@ -102,42 +118,64 @@ jobs:
 
           VERSION="${{ steps.get_version.outputs.version }}"
           TAG="v${VERSION}"
+          EXPECTED_NAME="Release $VERSION (Test)"
 
           PRERELEASE_FLAG=""
           if [[ "$VERSION" =~ (rc|beta|alpha) ]]; then
             PRERELEASE_FLAG="--prerelease"
           fi
 
-          # Check if tag already exists
-          if gh release view "$TAG" --json draft 2>/dev/null; then
-            echo "Tag $TAG already exists, checking if it's a draft release..."
+          RELEASES=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100")
+          PUBLISHED_ID=$(echo "$RELEASES" | jq -r --arg tag "$TAG" \
+            '[.[] | select(.draft == false and .tag_name == $tag)] | first | .id // empty')
+          if [ -n "$PUBLISHED_ID" ]; then
+            echo "Error: Release $TAG is already published; refusing to overwrite it."
+            exit 1
+          fi
 
-            # Check if existing release is a draft
-            if gh release view "$TAG" --json draft | grep -q '"draft": true'; then
-              echo "Draft release with tag $TAG already exists. Deleting it to create a new one..."
-              gh release delete "$TAG" --yes --repo "${{ github.repository }}"
-              echo "Deleted existing draft release with tag $TAG"
-            else
-              echo "Warning: Tag $TAG exists but is not a draft release (it may already be published)."
-              echo "Using existing release instead of creating a new one."
-              echo "tag_name=$TAG" >> $GITHUB_OUTPUT
-              echo "release_created=true" >> $GITHUB_OUTPUT
-              # Skip creation below
-              exit 0
-            fi
+          # Draft releases may use an internal untagged-* name until publication,
+          # so locate them by their release title through the stable REST fields.
+          echo "$RELEASES" | jq -r --arg name "$EXPECTED_NAME" \
+            '.[] | select(.draft == true and .name == $name) | .id' | while read -r RELEASE_ID; do
+              [ -n "$RELEASE_ID" ] || continue
+              echo "Deleting superseded draft release id $RELEASE_ID..."
+              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}"
+          done
+
+          EXISTING_TAG_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" \
+            --jq '.object.sha' 2>/dev/null || true)
+          if [ -n "$EXISTING_TAG_SHA" ] && [ "$EXISTING_TAG_SHA" != "$GITHUB_SHA" ]; then
+            echo "Error: tag $TAG already points to $EXISTING_TAG_SHA instead of $GITHUB_SHA"
+            exit 1
           fi
 
           # Create new draft release
           echo "Creating draft release with tag $TAG..."
           gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
             --title "Release $VERSION (Test)" \
             --notes-file release_notes.txt \
             --draft \
             $PRERELEASE_FLAG \
             --repo "${{ github.repository }}"
 
-          echo "tag_name=$TAG" >> $GITHUB_OUTPUT
-          echo "release_created=true" >> $GITHUB_OUTPUT
+          CREATED_RELEASES=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100")
+          CREATED_DRAFT=$(echo "$CREATED_RELEASES" | jq -c --arg tag "$TAG" --arg name "$EXPECTED_NAME" \
+            '[.[] | select(.draft == true and (.tag_name == $tag or .name == $name))] | first // empty')
+          if [ -z "$CREATED_DRAFT" ]; then
+            echo "Error: GitHub did not return the draft release after creation."
+            exit 1
+          fi
+
+          CREATED_TAG=$(echo "$CREATED_DRAFT" | jq -r '.tag_name')
+          CREATED_TARGET=$(echo "$CREATED_DRAFT" | jq -r '.target_commitish')
+          if [ "$CREATED_TARGET" != "$GITHUB_SHA" ]; then
+            echo "Error: created draft targets $CREATED_TARGET instead of $GITHUB_SHA"
+            exit 1
+          fi
+
+          echo "tag_name=$CREATED_TAG" >> "$GITHUB_OUTPUT"
+          echo "release_created=true" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -150,13 +188,6 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: final_dist/
           verbose: true
-
-      # Build sdist and upload to draft release (only if Test PyPI succeeded or version already exists)
-      - name: Build sdist
-        if: steps.publish_test_pypi.outcome == 'success' || steps.check_test_pypi_version.outputs.version_exists == 'true'
-        run: |
-          python -m pip install --upgrade build
-          python -m build --sdist --outdir final_dist
 
       - name: Upload wheel packages to Draft Release
         if: steps.publish_test_pypi.outcome == 'success' || steps.check_test_pypi_version.outputs.version_exists == 'true'
@@ -186,7 +217,7 @@ jobs:
         run: |
           echo "Test PyPI publishing failed. Cleaning up draft release and tag..."
           gh release delete "${{ steps.create_draft_release.outputs.tag_name }}" \
-            --yes \
+            --yes --cleanup-tag \
             --repo "${{ github.repository }}"
           echo "Draft release and tag deleted."
         env:

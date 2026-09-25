@@ -62,15 +62,9 @@ def version_exists(version: str, repository_url: str = "https://pypi.org") -> bo
             return exists
 
     except urllib.error.URLError as e:
-        print(f"Network error checking {api_url}: {e}", file=sys.stderr)
-        # If we can't connect, assume version doesn't exist to be safe
-        return False
+        raise RuntimeError(f"Network error checking {api_url}: {e}") from e
     except json.JSONDecodeError as e:
-        print(f"Invalid JSON response from {api_url}: {e}", file=sys.stderr)
-        return False
-    except Exception as e:
-        print(f"Unexpected error: {e}", file=sys.stderr)
-        return False
+        raise RuntimeError(f"Invalid JSON response from {api_url}: {e}") from e
 
 
 def main():

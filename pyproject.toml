@@ -4,7 +4,7 @@ version = "0.1.9"
 description = "Tactics2D: A Reinforcement Learning Environment Library with Generative Scenarios for Driving Decision-making"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = { file = "LICENSE" }
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"
 keywords = ["reinforcement-learning", "environment", "simulator", "decision-making", "traffic-behavior"]
 authors = [
     { name = "Yueyuan Li", email = "rowena.academic@gmail.com" }
@@ -20,7 +20,6 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",

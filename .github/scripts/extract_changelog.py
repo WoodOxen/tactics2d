@@ -98,11 +98,9 @@ def main():
 
     changes = extractor.extract_version_changes(version)
     if changes is None:
-        print(f"Warning: No changes found for version {version} in CHANGELOG.md")
-        # Create minimal release notes
-        release_notes = f"Release {version}"
-    else:
-        release_notes = extractor.format_release_notes(version, changes)
+        print(f"Error: No changes found for version {version} in CHANGELOG.md", file=sys.stderr)
+        sys.exit(1)
+    release_notes = extractor.format_release_notes(version, changes)
 
     # Write release notes to file for GitHub Actions
     with open("release_notes.txt", "w", encoding="utf-8") as f:

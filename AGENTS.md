@@ -69,6 +69,13 @@ instruction files should point here instead of duplicating these rules.
   integration/environment requirements. Ordinary unit tests do not need a marker.
 - Run the smallest relevant test selection first. Expand to the broader suite when the
   change has cross-module impact.
+- Run the full suite with an explicit test path, such as `python -m pytest tests`, rather
+  than bare `pytest` from the repository root. Bare discovery can recurse through the
+  dataset symlinks under `tactics2d/data` and spend a long time collecting no tests.
+- For faster local full-suite runs, use up to four file-level workers (for example,
+  `pytest tests -n 4` when pytest-xdist is installed) and set `OPENBLAS_NUM_THREADS=1`,
+  `OMP_NUM_THREADS=1`, and `MKL_NUM_THREADS=1` to avoid nested thread oversubscription.
+  If pytest-xdist is unavailable, split disjoint test modules across processes instead.
 - Unit tests must not access the network, download assets, or depend on machine-specific
   absolute paths. Use `pytest.importorskip` or an explicit skip for optional resources.
 - Seed randomized tests. Use justified numeric tolerances for floating-point and
