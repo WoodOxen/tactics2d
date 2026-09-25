@@ -214,7 +214,7 @@ jobs:
           EXPECTED_NAME="Release $VERSION (Test)"
           RELEASES=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100")
           DRAFT=$(echo "$RELEASES" | jq -c --arg name "$EXPECTED_NAME" --arg sha "$GITHUB_SHA" \
-            '[.[] | select(.draft == true and .name == $name and .target_commitish == $sha)] \
+            '[.[] | select(.draft == true and .name == $name and .target_commitish == $sha)]
             | sort_by(.created_at) | reverse | first // empty')
           if [ -z "$DRAFT" ]; then
             echo "Error: created draft '$EXPECTED_NAME' was not found at $GITHUB_SHA."
