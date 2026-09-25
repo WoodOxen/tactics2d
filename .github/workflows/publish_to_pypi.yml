@@ -80,7 +80,8 @@ jobs:
       - name: Download and validate release artifacts
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
-          TAG="${{ steps.draft_release.outputs.tag }}"
+          DRAFT_TAG="${{ steps.draft_release.outputs.tag }}"
+          FINAL_TAG="v${VERSION}"
           mkdir -p final_dist
           gh release download "$TAG" --dir final_dist --repo "${{ github.repository }}"
 
@@ -147,7 +148,9 @@ jobs:
             PRERELEASE_FLAG="--prerelease"
           fi
 
-          gh release edit "$TAG" \
+          gh release edit "$DRAFT_TAG" \
+            --tag "$FINAL_TAG" \
+            --target "$GITHUB_SHA" \
             --title "Release $VERSION" \
             --notes-file release_notes.txt \
             --draft=false \

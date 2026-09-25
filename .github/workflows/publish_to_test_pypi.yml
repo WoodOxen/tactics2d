@@ -152,29 +152,24 @@ jobs:
 
           # Create new draft release
           echo "Creating draft release with tag $TAG..."
-          gh release create "$TAG" \
+          CREATED_URL=$(gh release create "$TAG" \
             --target "$GITHUB_SHA" \
             --title "Release $VERSION (Test)" \
             --notes-file release_notes.txt \
             --draft \
             $PRERELEASE_FLAG \
-            --repo "${{ github.repository }}"
+            --repo "${{ github.repository }}")
 
-          CREATED_RELEASES=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100")
-          CREATED_DRAFT=$(echo "$CREATED_RELEASES" | jq -c --arg tag "$TAG" --arg name "$EXPECTED_NAME" \
-            '[.[] | select(.draft == true and (.tag_name == $tag or .name == $name))] | first // empty')
-          if [ -z "$CREATED_DRAFT" ]; then
-            echo "Error: GitHub did not return the draft release after creation."
+          # Drafts without a published Git ref may receive an untagged-* name.
+          # gh prints the canonical release URL, whose final path component is
+          # the identifier accepted by later release upload/download commands.
+          CREATED_TAG="${CREATED_URL##*/}"
+          if [ -z "$CREATED_TAG" ]; then
+            echo "Error: GitHub did not return the created draft release URL."
             exit 1
           fi
 
-          CREATED_TAG=$(echo "$CREATED_DRAFT" | jq -r '.tag_name')
-          CREATED_TARGET=$(echo "$CREATED_DRAFT" | jq -r '.target_commitish')
-          if [ "$CREATED_TARGET" != "$GITHUB_SHA" ]; then
-            echo "Error: created draft targets $CREATED_TARGET instead of $GITHUB_SHA"
-            exit 1
-          fi
-
+          echo "Created draft release $CREATED_TAG"
           echo "tag_name=$CREATED_TAG" >> "$GITHUB_OUTPUT"
           echo "release_created=true" >> "$GITHUB_OUTPUT"
         env:
