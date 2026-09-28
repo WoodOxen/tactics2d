@@ -25,10 +25,20 @@ from tactics2d.dataset_parser import (
     LevelXParser,
     NGSIMParser,
     NuPlanParser,
+    PINNSParser,
     WOMDParser,
 )
 from tactics2d.dataset_parser.parse_driveinsightd import DriveInsightDParser
 from tactics2d.map.map_config import NUPLAN_MAP_CONFIG
+
+
+def _get_pinns_dataset_folder():
+    folder = os.environ.get("PINNS_DATASET_PATH")
+    if folder is None:
+        folder = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "..", "PINNS_dataset")
+        )
+    return folder
 
 
 @pytest.mark.dataset_parser
@@ -120,6 +130,117 @@ def test_interaction_parser(file_id: int, stamp_range: tuple, expected: int):
 
     assert len(participants) == expected
     logging.info(f"The time needed to parse an INTERACTION scenario: {t2 - t1}s")
+
+
+@pytest.mark.dataset_parser
+def test_pinns_parser():
+    folder = _get_pinns_dataset_folder()
+    if not os.path.isdir(folder):
+        pytest.skip(f"PINNS dataset folder not found: {folder}")
+
+    file_name = "america_crossroad_summer_daytime_sunny_0.txt"
+    dataset_parser = PINNSParser()
+
+    t1 = time.time()
+    participants, actual_time_range = dataset_parser.parse_trajectory(file_name, folder)
+    t2 = time.time()
+
+    scene_info = dataset_parser.get_scene_info(file_name, folder)
+    filtered_participants, filtered_time_range = dataset_parser.parse_trajectory(
+        file_name, folder, time_range=(0, 1000), ids=[0, 2]
+    )
+
+    assert len(participants) == 53
+    assert actual_time_range == (0, 41100)
+    assert scene_info["location"] == "america"
+    assert scene_info["scene"] == "crossroad"
+    assert scene_info["fps"] == 30.0
+    assert {"pts_2d", "pts_3d", "x_min", "x_max", "y_min", "y_max"} <= set(scene_info.keys())
+
+    assert set(filtered_participants.keys()) == {0, 2}
+    assert filtered_time_range[0] >= 0
+    assert filtered_time_range[1] <= 1000
+    assert any(type(participant).__name__ == "Vehicle" for participant in participants.values())
+    assert any(
+        type(participant).__name__ == "Pedestrian" for participant in participants.values()
+    )
+
+    participant = participants[0]
+    state = participant.trajectory.initial_state
+    assert participant.source_id == 0
+    assert participant.scene_name == "america_crossroad_summer_daytime_sunny"
+    assert participant.type_ == "car"
+    assert participant.trajectory.fps == 30.0
+    assert state.frame == 33
+    assert state.source_frame == 1
+    assert state.x == pytest.approx(3.552340)
+    assert state.y == pytest.approx(24.009134)
+    assert state.image_x == pytest.approx(82.9)
+    assert state.image_y == pytest.approx(569.78)
+    assert state.image_width == pytest.approx(86.8)
+    assert state.image_height == pytest.approx(50.84)
+    assert state.confidence == pytest.approx(1.0)
+    assert state.interaction_id == -1
+
+    logging.info(f"The time needed to parse a PINNS scenario: {t2 - t1}s")
+
+#新增。测试 PINNS Parser 的数据读取、字段解析、格式校验、过滤功能和异常处理
+@pytest.mark.dataset_parser
+def test_pinns_map_inference(tmp_path):
+    folder = _get_pinns_dataset_folder()
+    if not os.path.isdir(folder):
+        pytest.skip(f"PINNS dataset folder not found: {folder}")
+
+    file_name = "america_crossroad_summer_daytime_sunny_0.txt"
+    dataset_parser = PINNSParser()
+
+    map_ = dataset_parser.parse_map(file_name, folder, max_lanes=8)
+    output_path = tmp_path / "pinns_inferred_map.png"
+    dataset_parser.draw_map(file_name, folder, str(output_path), max_lanes=8)
+
+    assert map_.name == "PINNS_america_crossroad_summer_daytime_sunny"
+    assert map_.scenario_type == "crossroad"
+    assert map_.country == "america"
+    assert map_.customs["generation"] == "inferred_from_trajectories"
+    assert {"scene_boundary", "inferred_drivable_area", "inferred_interaction_area"} <= set(
+        map_.areas.keys()
+    )
+    assert len(map_.roadlines) > 0
+    assert len(map_.lanes) > 0
+    assert all(lane.custom_tags["inferred"] for lane in map_.lanes.values())
+    assert all(lane.centerline() is not None for lane in map_.lanes.values())
+    assert map_.boundary[0] <= 0
+    assert map_.boundary[1] >= 30
+    assert output_path.exists()
+    assert output_path.stat().st_size > 0
+
+
+@pytest.mark.dataset_parser
+def test_pinns_parser_exceptions(tmp_path):
+    dataset_root = tmp_path / "PINNS"
+    label_folder = dataset_root / "labels"
+    calib_folder = dataset_root / "videos" / "test_scene"
+    label_folder.mkdir(parents=True)
+    calib_folder.mkdir(parents=True)
+    (calib_folder / "calib.json").write_text('{"fps": 30.0}', encoding="utf-8")
+
+    dataset_parser = PINNSParser()
+
+    bad_class_file = label_folder / "test_scene_0.txt"
+    bad_class_file.write_text(
+        "0 Bike 1 1.0 2.0 1.0 3.0 4.0 5.0 6.0 -1 0.0\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(KeyError):
+        dataset_parser.parse_trajectory("test_scene_0.txt", str(dataset_root))
+
+    incomplete_file = label_folder / "test_scene_1.txt"
+    incomplete_file.write_text("0 Car 1 1.0\n", encoding="utf-8")
+    with pytest.raises(ValueError):
+        dataset_parser.parse_trajectory("test_scene_1.txt", str(dataset_root))
+
+    with pytest.raises(FileNotFoundError):
+        dataset_parser.parse_trajectory("not_existing.txt", str(dataset_root))
 
 
 @pytest.mark.dataset_parser
