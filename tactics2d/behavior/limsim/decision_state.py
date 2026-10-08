@@ -4,6 +4,7 @@
 """LimSim decision-search state and trajectory conversion."""
 
 from dataclasses import dataclass, replace
+from functools import cached_property
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -35,9 +36,9 @@ class AgentDecisionState:
     def location(self) -> Tuple[float, float]:
         return (self.x, self.y)
 
-    @property
+    @cached_property
     def footprint(self):
-        """Return the oriented bounding box of this agent."""
+        """Return and cache the oriented bounding box of this immutable state."""
         return spatial.oriented_box(self.x, self.y, self.heading, self.length, self.width)
 
     def with_updates(self, **kwargs) -> "AgentDecisionState":

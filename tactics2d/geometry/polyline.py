@@ -488,6 +488,12 @@ def smooth_joint(
         Interpolated arc points with shape ``(M, 2)``, or ``None`` if the
         joint is smooth enough.
     """
+    # Degenerate SUMO connector lanes may contain a single point.  They can be
+    # concatenated, but do not define a tangent and therefore cannot be
+    # smoothed safely.
+    if len(prev_tail) < 2 or len(next_head) < 2:
+        return None
+
     p_joint = prev_tail[-1]
     q_joint = next_head[0]
 

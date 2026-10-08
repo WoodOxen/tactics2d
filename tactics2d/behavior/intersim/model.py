@@ -367,12 +367,19 @@ class InterSimBehaviorModel(BehaviorModelBase):
         record_b: AgentRecord,
         margin: float = 0.7,
     ) -> Optional[int]:
+        radius_a = 0.5 * margin * np.hypot(record_a.length, record_a.width)
+        radius_b = 0.5 * margin * np.hypot(record_b.length, record_b.width)
+        circle_limit_sq = float((radius_a + radius_b) ** 2)
         for step in range(len(poses_a)):
             if step >= len(poses_b):
                 break
             pose_a = poses_a[step]
             pose_b = poses_b[step]
             if pose_a[0] == -1 or pose_b[0] == -1:
+                continue
+            dx = float(pose_b[0] - pose_a[0])
+            dy = float(pose_b[1] - pose_a[1])
+            if dx * dx + dy * dy > circle_limit_sq:
                 continue
             body_a = AgentBody(
                 float(pose_a[0]),
@@ -426,6 +433,8 @@ class InterSimBehaviorModel(BehaviorModelBase):
         ego_id: object,
         base_frame_ms: Optional[int] = None,
         controlled_ids: Optional[Iterable[object]] = None,
+        plan_ego: bool = True,
+        deferred_ego_trajectory: Optional[Trajectory] = None,
     ) -> InterSimRollingResult:
         """Replay the scenario closed-loop and return its outcome.
 
@@ -440,11 +449,23 @@ class InterSimBehaviorModel(BehaviorModelBase):
                 to plan each cycle. Defaults to None, which grows the set from the
                 ego over future body collisions. When given, *ego_id* must be a
                 member.
+            plan_ego (bool, optional): Whether the model replans the ego.
+                Defaults to true; false keeps an externally supplied ego path.
+            deferred_ego_trajectory (Optional[Trajectory], optional): An external
+                ego path installed after the first relevance scan. This matches
+                protocols that decide interactions before committing an ego
+                action. Defaults to None.
 
         Returns:
             The closed-loop outcome with its metrics and final per-index poses.
         """
 
         return InterSimRollingRunner(self, self.config).run(
-            participants, map_, ego_id, base_frame_ms=base_frame_ms, controlled_ids=controlled_ids
+            participants,
+            map_,
+            ego_id,
+            base_frame_ms=base_frame_ms,
+            controlled_ids=controlled_ids,
+            plan_ego=plan_ego,
+            deferred_ego_trajectory=deferred_ego_trajectory,
         )

@@ -3,6 +3,7 @@
 
 """Receding-horizon closed-loop replay for the InterSim behavior model."""
 
+import math
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -15,11 +16,11 @@ from tactics2d.participant.trajectory import State, Trajectory
 from tactics2d.routing.graph_builder import augment_lane_successors
 
 from ..results import ClosedLoopMetrics
-from ..rollout_metrics import collision_kind, progress_window
+from ..rollout_metrics import progress_window
 from ..trajectory_processing import resample_participants
 from . import relation_decider
 from .config import InterSimConfig
-from .relation_geometry import AgentBody, check_body_collision
+from .relation_geometry import AgentBody, check_released_overlap
 
 # Adapted from InterSim (github.com/Tsinghua-MARS-Lab/InterSim), MIT,
 # Copyright (c) 2022 Tsinghua MARS Lab.
@@ -142,15 +143,35 @@ def snapshot(
     return result
 
 
-def relevant_ids(state: ReplayState, ego_id, current: int, horizon: int) -> List[object]:
-    """Grow a relevant set from the ego over future body collisions."""
+def relevant_ids(
+    state: ReplayState,
+    ego_id,
+    current: int,
+    horizon: int,
+    previous_ids: Optional[Iterable[object]] = None,
+) -> List[object]:
+    """Grow the persistent relevant set over future body collisions."""
 
     poses = state.poses
     dims = state.dims
+    margin = 0.7
+    collision_dims = {
+        agent_id: (max(1.0, length), max(1.0, width)) for agent_id, (length, width) in dims.items()
+    }
+    radii = {
+        agent_id: 0.5 * margin * np.hypot(length, width)
+        for agent_id, (length, width) in collision_dims.items()
+    }
     steps = state.config.scenario_steps
-    seen = {ego_id}
-    queue = [ego_id]
-    result = [ego_id]
+    result = []
+    if previous_ids is not None:
+        result.extend(
+            agent_id for agent_id in previous_ids if agent_id in poses and agent_id not in result
+        )
+    if ego_id not in result:
+        result.append(ego_id)
+    seen = set(result)
+    queue = list(result)
     while queue:
         agent_id = queue.pop()
         for index in range(current + 1, min(steps, current + horizon + 1)):
@@ -158,7 +179,7 @@ def relevant_ids(state: ReplayState, ego_id, current: int, horizon: int) -> List
             if pose_a[0] == -1:
                 continue
             body_a = AgentBody(
-                float(pose_a[0]), float(pose_a[1]), float(pose_a[3]), *dims[agent_id]
+                float(pose_a[0]), float(pose_a[1]), float(pose_a[3]), *collision_dims[agent_id]
             )
             for other_id in poses:
                 if other_id in seen:
@@ -166,10 +187,15 @@ def relevant_ids(state: ReplayState, ego_id, current: int, horizon: int) -> List
                 pose_b = poses[other_id][index]
                 if pose_b[0] == -1:
                     continue
+                radius = radii[agent_id] + radii[other_id]
+                dx = float(pose_b[0] - pose_a[0])
+                dy = float(pose_b[1] - pose_a[1])
+                if dx * dx + dy * dy > radius * radius:
+                    continue
                 body_b = AgentBody(
-                    float(pose_b[0]), float(pose_b[1]), float(pose_b[3]), *dims[other_id]
+                    float(pose_b[0]), float(pose_b[1]), float(pose_b[3]), *collision_dims[other_id]
                 )
-                if not check_body_collision(body_a, body_b):
+                if not check_released_overlap(body_a, body_b, yaw_sign=-1.0):
                     continue
                 seen.add(other_id)
                 queue.append(other_id)
@@ -198,14 +224,47 @@ def commit(state: ReplayState, agent_id, trajectory, current: int) -> None:
 
 
 def ego_collision_at(state: ReplayState, ego_id, index: int) -> Optional[int]:
-    """Classify a same-frame ego collision at one index, if any.
+    """Classify an ego collision with InterSim's released approximation.
 
     Returns:
         ``0`` for front, ``1`` for side, ``2`` for rear, or ``None`` when the
         ego does not overlap any other body at ``index``.
     """
 
-    return collision_kind(state.poses, state.dims, ego_id, index, "factor")
+    agent_ids = list(state.poses)
+    for later_index, checking_id in enumerate(agent_ids):
+        checking_pose = state.poses[checking_id][index]
+        if checking_pose[0] == -1:
+            continue
+        for target_id in agent_ids[:later_index]:
+            if checking_id != ego_id and target_id != ego_id:
+                continue
+            target_pose = state.poses[target_id][index]
+            if target_pose[0] == -1:
+                continue
+            checking_body = AgentBody(
+                float(checking_pose[0]),
+                float(checking_pose[1]),
+                float(checking_pose[3]),
+                max(1.0, state.dims[checking_id][0]),
+                max(1.0, state.dims[checking_id][1]),
+            )
+            target_body = AgentBody(
+                float(target_pose[0]),
+                float(target_pose[1]),
+                float(target_pose[3]),
+                max(1.0, state.dims[target_id][0]),
+                max(1.0, state.dims[target_id][1]),
+            )
+            if not check_released_overlap(checking_body, target_body, yaw_sign=1.0):
+                continue
+            yaw_diff = spatial.normalize_angle(float(target_pose[3] - checking_pose[3]))
+            if -math.pi / 6.0 < yaw_diff < math.pi / 6.0:
+                return 2
+            if yaw_diff > -5.0 * math.pi / 6.0:
+                return 1
+            return 0
+    return None
 
 
 def progress(
@@ -292,6 +351,21 @@ def _wrap_at(
     )
     cls = type(participant)
     wrapper = cls(agent_id, participant.type_, trajectory=trajectory, length=length, width=width)
+    current = int(round((frame_ms - state.base_frame_ms) / state.config.step_ms))
+    route_poses = []
+    # The released rerouter samples the current mutable trajectory every ten
+    # frames to disambiguate branches.  Carry the same compact hint through the
+    # one-state snapshot instead of discarding all route context.
+    for offset in range(10, 50, 10):
+        index = current + offset
+        if index >= state.config.scenario_steps:
+            break
+        route_pose = state.poses[agent_id][index]
+        if route_pose[0] == -1:
+            continue
+        route_poses.append(route_pose[[0, 1, 3]].copy())
+    if route_poses:
+        wrapper.route_poses = np.asarray(route_poses, dtype=float)
     if goal is not None:
         wrapper.goal_xy = goal
     if intent_speed > 0.0:
@@ -326,6 +400,8 @@ class InterSimRollingRunner:
         ego_id: object,
         base_frame_ms: Optional[int] = None,
         controlled_ids: Optional[Iterable[object]] = None,
+        plan_ego: bool = True,
+        deferred_ego_trajectory: Optional[Trajectory] = None,
     ) -> InterSimRollingResult:
         """Replay the scenario closed-loop and return its outcome.
 
@@ -343,6 +419,11 @@ class InterSimRollingRunner:
                 given, *ego_id* must be a member; the ego keeps its meaning as
                 the loop's centre, the snapshot anchor and the agent collisions
                 are attributed to.
+            plan_ego (bool, optional): Whether this runner replans the ego.
+                Defaults to true; false keeps an externally supplied ego path.
+            deferred_ego_trajectory (Optional[Trajectory], optional): External
+                ego states installed after the first relevance scan. Defaults
+                to None.
 
         Returns:
             The closed-loop outcome with its metrics and final per-index poses.
@@ -364,6 +445,20 @@ class InterSimRollingRunner:
         if base_frame_ms is None:
             base_frame_ms = int(participants[ego_id].trajectory.first_frame)
         state = ReplayState.from_participants(self.config, participants, base_frame_ms)
+        deferred_ego_poses = None
+        if deferred_ego_trajectory is not None:
+            deferred_ego_poses = state.poses[ego_id].copy()
+            for frame_ms in deferred_ego_trajectory.frames:
+                index = int(round((frame_ms - base_frame_ms) / self.config.step_ms))
+                if index < 0 or index >= self.config.scenario_steps:
+                    continue
+                ego_state = deferred_ego_trajectory.get_state(frame_ms)
+                deferred_ego_poses[index, :] = (
+                    ego_state.x,
+                    ego_state.y,
+                    0.0,
+                    spatial.normalize_angle(float(ego_state.heading)),
+                )
         goals: Dict[object, Optional[Tuple[float, float]]] = {
             agent_id: (
                 (participant.trajectory.last_state.x, participant.trajectory.last_state.y)
@@ -384,9 +479,21 @@ class InterSimRollingRunner:
         end_index = min(89, steps - 1)
 
         current = 1
+        first_planning = True
         while current <= end_index:
             if (current - warmup) >= 0 and (current - warmup) % interval == 0:
-                relevant = self._plan_once(state, map_, ego_id, current, goals, controlled_ids)
+                relevant = self._plan_once(
+                    state,
+                    map_,
+                    ego_id,
+                    current,
+                    goals,
+                    controlled_ids,
+                    plan_ego,
+                    deferred_ego_poses if first_planning else None,
+                    relevant_union,
+                )
+                first_planning = False
                 for agent_id in relevant:
                     if agent_id not in relevant_union:
                         relevant_union.append(agent_id)
@@ -414,7 +521,18 @@ class InterSimRollingRunner:
             poses={agent_id: array.copy() for agent_id, array in state.poses.items()},
         )
 
-    def _plan_once(self, state, map_, ego_id, current, goals, controlled_ids=None):
+    def _plan_once(
+        self,
+        state,
+        map_,
+        ego_id,
+        current,
+        goals,
+        controlled_ids=None,
+        plan_ego=True,
+        deferred_ego_poses=None,
+        previous_relevant=None,
+    ):
         """Plan ego first, then its relevant environment, and commit both.
 
         When *controlled_ids* is given it replaces the collision-grown
@@ -423,27 +541,32 @@ class InterSimRollingRunner:
 
         horizon = self.config.horizon_steps
         frame_ms = state.base_frame_ms + current * self.config.step_ms
-        nearby = snapshot(state, ego_id, current, goals)
-        if not nearby:
-            return []
-
         if controlled_ids is None:
-            relevant = relevant_ids(state, ego_id, current, horizon)
+            relevant = relevant_ids(state, ego_id, current, horizon, previous_ids=previous_relevant)
         else:
             relevant = list(controlled_ids)
         decider = None
         if self.config.relation_mode == "nn":
-            decider = relation_decider.make_decider(
-                self.config, state.poses, state.types, map_, ego_id, current
+            relation_poses = (
+                {agent_id: poses.copy() for agent_id, poses in state.poses.items()}
+                if deferred_ego_poses is not None
+                else state.poses
             )
+            decider = relation_decider.make_decider(
+                self.config, relation_poses, state.types, map_, ego_id, current
+            )
+        if deferred_ego_poses is not None:
+            state.poses[ego_id][current:] = deferred_ego_poses[current:]
+        nearby = snapshot(state, ego_id, current, goals)
+        if not nearby:
+            return []
 
-        planned = []
-        ego_trajectories = self.model.predict(
-            nearby, map_, frame_ms, agent_ids=[ego_id], decider=decider
-        )
-        if ego_id in ego_trajectories:
-            commit(state, ego_id, ego_trajectories[ego_id], current)
-            planned.append(ego_id)
+        if plan_ego:
+            ego_trajectories = self.model.predict(
+                nearby, map_, frame_ms, agent_ids=[ego_id], decider=decider
+            )
+            if ego_id in ego_trajectories:
+                commit(state, ego_id, ego_trajectories[ego_id], current)
 
         env_ids = [agent_id for agent_id in relevant if agent_id != ego_id and agent_id in nearby]
         if env_ids:
@@ -452,5 +575,8 @@ class InterSimRollingRunner:
             )
             for agent_id, trajectory in env_trajectories.items():
                 commit(state, agent_id, trajectory, current)
-                planned.append(agent_id)
-        return planned
+        # InterSim's released metrics call every collision-grown relevant
+        # object "controlled", including non-vehicles that the planner leaves
+        # on playback. Preserve that result semantics independently of which
+        # objects produced a new trajectory in this planning step.
+        return [agent_id for agent_id in relevant if agent_id != ego_id]

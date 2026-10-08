@@ -60,6 +60,7 @@ class LimSimBehaviorModel(BehaviorModelBase):
         frame: int,
         route_map: Dict[object, Tuple[str, ...]],
         agent_ids: Optional[Iterable[object]] = None,
+        background_agent_ids: Optional[Iterable[object]] = None,
         roi_center: Optional[Sequence[float]] = None,
         roi_radius: Optional[float] = None,
         roi_outer_radius: Optional[float] = None,
@@ -79,6 +80,9 @@ class LimSimBehaviorModel(BehaviorModelBase):
                 are chosen arbitrarily — not recommended).
             agent_ids: Optional explicit ids to control. If omitted, all active
                 vehicles are considered unless an RoI is requested.
+            background_agent_ids: Optional explicit ids to predict as obstacles
+                without controlling. This is useful when the source simulator
+                already supplies its own region classification.
             roi_center: Center point used with ``roi_radius`` when no ``ego_id``
                 is provided.
             roi_radius: Inner RoI radius. Vehicles inside this region are
@@ -96,7 +100,7 @@ class LimSimBehaviorModel(BehaviorModelBase):
         """
 
         selected_ids = list(agent_ids) if agent_ids is not None else None
-        background_ids = []
+        background_ids = list(background_agent_ids) if background_agent_ids is not None else []
         if selected_ids is None and roi_radius is not None:
             if ego_id is not None:
                 selection = RegionSelector.select_around_agent(
@@ -170,7 +174,7 @@ class LimSimBehaviorModel(BehaviorModelBase):
                 and other_id in scene_predictions
                 and other_id not in decided_ids
             )
-            if len(agents) <= 1:
+            if len(agents) <= 1 and not self.config.search_single_agent_groups:
                 agent = agents[0]
                 action = self._choose_single_agent_action(
                     agent, map_, group_obstacles, time_ms=frame

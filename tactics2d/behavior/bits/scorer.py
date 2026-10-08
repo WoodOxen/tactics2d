@@ -115,8 +115,19 @@ class BitsPlanScorer:
                 continue
             collision_steps = 0
             mode_index = index if agent_positions.shape[0] > 1 else 0
+            ego_radius = 0.5 * float(np.hypot(batch.extent[0], batch.extent[1]))
             for step in available:
                 if step >= agent_availability.shape[2]:
+                    continue
+                active = agent_availability[mode_index, :, step]
+                if not np.any(active):
+                    continue
+                centers = agent_positions[mode_index, :, step]
+                extents = batch.all_other_agents_extents
+                radii = 0.5 * np.hypot(extents[:, 0], extents[:, 1]) + ego_radius
+                delta = centers - plan.positions[index, step]
+                nearby = active & (np.sum(delta * delta, axis=-1) <= radii * radii)
+                if not np.any(nearby):
                     continue
                 ego_box = spatial.oriented_box(
                     plan.positions[index, step, 0],
@@ -132,6 +143,7 @@ class BitsPlanScorer:
                     agent_availability[mode_index],
                     batch.all_other_agents_extents,
                     int(step),
+                    candidate_mask=nearby,
                 ):
                     collision_steps += 1
             violations[index] = collision_steps / float(available.size)
@@ -171,8 +183,11 @@ class BitsPlanScorer:
         agent_availability: np.ndarray,
         agent_extents: np.ndarray,
         step: int,
+        candidate_mask: Optional[np.ndarray] = None,
     ) -> bool:
         for agent_index in range(agent_positions.shape[0]):
+            if candidate_mask is not None and not bool(candidate_mask[agent_index]):
+                continue
             if not bool(agent_availability[agent_index, step]):
                 continue
             extent = agent_extents[agent_index]

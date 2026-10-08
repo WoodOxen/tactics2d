@@ -23,7 +23,10 @@ class InteractionParser:
         Zhan, Wei, et al. "Interaction dataset: An international, adversarial and cooperative motion dataset in interactive driving scenarios with semantic maps." arXiv preprint arXiv:1910.03088 (2019).
     """
 
-    _type_guesser = GuessType()
+    def __init__(self) -> None:
+        """Initialize the classifier used only by INTERACTION trajectories."""
+
+        self._type_guesser = GuessType()
 
     def _get_file_id(self, file: Union[int, str]):
         if isinstance(file, str):

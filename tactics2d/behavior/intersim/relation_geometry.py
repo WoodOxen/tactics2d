@@ -3,6 +3,7 @@
 
 """Directed relation detection over planned agent trajectories."""
 
+import math
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple
 
@@ -43,9 +44,78 @@ def check_body_collision(a: AgentBody, b: AgentBody, margin: float = 0.7) -> boo
     The test is symmetric in ``a`` and ``b``.
     """
 
-    box_a = (a.x, a.y, a.yaw, a.length, a.width)
-    box_b = (b.x, b.y, b.yaw, b.length, b.width)
-    return spatial.boxes_overlap(box_a, box_b, margin)
+    # This is the same four-axis separating-axis test as
+    # ``spatial.boxes_overlap``.  InterSim calls it hundreds of thousands of
+    # times per dense scene, so scalar arithmetic avoids allocating several
+    # tiny NumPy arrays for every candidate pair.
+    cos_a, sin_a = math.cos(a.yaw), math.sin(a.yaw)
+    cos_b, sin_b = math.cos(b.yaw), math.sin(b.yaw)
+    forward_a = (cos_a, sin_a)
+    lateral_a = (-sin_a, cos_a)
+    forward_b = (cos_b, sin_b)
+    lateral_b = (-sin_b, cos_b)
+    half_length_a = 0.5 * a.length * margin
+    half_width_a = 0.5 * a.width * margin
+    half_length_b = 0.5 * b.length * margin
+    half_width_b = 0.5 * b.width * margin
+    dx, dy = b.x - a.x, b.y - a.y
+
+    for axis_x, axis_y in (forward_a, lateral_a, forward_b, lateral_b):
+        projection_a = half_length_a * abs(
+            forward_a[0] * axis_x + forward_a[1] * axis_y
+        ) + half_width_a * abs(lateral_a[0] * axis_x + lateral_a[1] * axis_y)
+        projection_b = half_length_b * abs(
+            forward_b[0] * axis_x + forward_b[1] * axis_y
+        ) + half_width_b * abs(lateral_b[0] * axis_x + lateral_b[1] * axis_y)
+        if abs(axis_x * dx + axis_y * dy) > projection_a + projection_b:
+            return False
+    return True
+
+
+def _rotate_point(x, y, origin_x, origin_y, angle):
+    cos_angle = math.cos(angle)
+    sin_angle = math.sin(angle)
+    relative_x = x - origin_x
+    relative_y = y - origin_y
+    return (
+        relative_x * cos_angle - relative_y * sin_angle + origin_x,
+        relative_x * sin_angle + relative_y * cos_angle + origin_y,
+    )
+
+
+def check_released_overlap(
+    checking: AgentBody, target: AgentBody, yaw_sign: float, margin: float = 0.7
+) -> bool:
+    """Match the released simulator's asymmetric seven-point overlap test."""
+
+    dx = target.x - checking.x
+    dy = target.y - checking.y
+    if abs(dx) > checking.length + target.length:
+        return False
+    if abs(dy) > checking.length + target.length:
+        return False
+    if math.hypot(dx, dy) <= (checking.width + target.width) / 2.0:
+        return True
+
+    half_width = target.width * margin / 2.0
+    half_length = target.length * margin / 2.0
+    target_points = [
+        (dx - half_width, dy - half_length),
+        (dx - half_width, dy),
+        (dx - half_width, dy + half_length),
+        (dx + half_width, dy + half_length),
+        (dx + half_width, dy),
+        (dx + half_width, dy - half_length),
+    ]
+    target_angle = yaw_sign * target.yaw + math.pi / 2.0
+    target_points = [_rotate_point(x, y, dx, dy, target_angle) for x, y in target_points]
+    target_points.insert(0, (dx, dy))
+    checking_angle = yaw_sign * checking.yaw + math.pi / 2.0
+    target_points = [_rotate_point(x, y, 0.0, 0.0, checking_angle) for x, y in target_points]
+    return any(
+        abs(x) < checking.width * margin / 2.0 and abs(y) < checking.length * margin / 2.0
+        for x, y in target_points
+    )
 
 
 def detect_relation_edges(
@@ -159,31 +229,51 @@ def _collision_pairs(
 ) -> Optional[Tuple[int, int]]:
     """Return the closest-in-time colliding frame pair of two trajectories."""
 
-    best_diff = None
-    best_pair = None
-    for idx_a in range(len(poses_a)):
-        pose_a = poses_a[idx_a]
-        if pose_a[0] == -1:
-            continue
-        body_a = AgentBody(float(pose_a[0]), float(pose_a[1]), float(pose_a[3]), length_a, width_a)
-        idx_b_lo = max(0, idx_a - max_gap) if max_gap is not None else 0
-        idx_b_hi = min(len(poses_b), idx_a + max_gap + 1) if max_gap is not None else len(poses_b)
-        for idx_b in range(idx_b_lo, idx_b_hi):
+    # An oriented rectangle is wholly contained in the circle centred on it
+    # with half-diagonal radius.  Rejecting pairs whose circles do not meet is
+    # therefore an exact broad phase: it avoids the much more expensive SAT
+    # test without changing any collision result.  Keep the historical
+    # ``margin <= 0`` edge case on the SAT path.
+    circle_limit_sq = None
+    if margin > 0.0:
+        radius_a = 0.5 * margin * np.hypot(length_a, width_a)
+        radius_b = 0.5 * margin * np.hypot(length_b, width_b)
+        circle_limit_sq = float((radius_a + radius_b) ** 2)
+    largest_gap = max(len(poses_a), len(poses_b)) - 1
+    if max_gap is not None:
+        largest_gap = min(largest_gap, max_gap)
+    # Search by increasing time difference.  The first hit is therefore the
+    # same minimum-gap pair the previous exhaustive scan retained.
+    for diff in range(largest_gap + 1):
+        pairs = []
+        for idx_a in range(len(poses_a)):
+            if diff:
+                pairs.append((idx_a, idx_a - diff))
+            pairs.append((idx_a, idx_a + diff))
+        for idx_a, idx_b in pairs:
+            if idx_b < 0 or idx_b >= len(poses_b):
+                continue
+            pose_a = poses_a[idx_a]
+            if pose_a[0] == -1:
+                continue
+            body_a = AgentBody(
+                float(pose_a[0]), float(pose_a[1]), float(pose_a[3]), length_a, width_a
+            )
             pose_b = poses_b[idx_b]
             if pose_b[0] == -1:
                 continue
+            if circle_limit_sq is not None:
+                dx = float(pose_b[0] - pose_a[0])
+                dy = float(pose_b[1] - pose_a[1])
+                if dx * dx + dy * dy > circle_limit_sq:
+                    continue
             body_b = AgentBody(
                 float(pose_b[0]), float(pose_b[1]), float(pose_b[3]), length_b, width_b
             )
             if not check_body_collision(body_a, body_b, margin):
                 continue
-            diff = abs(idx_a - idx_b)
-            if best_diff is None or diff < best_diff:
-                best_diff = diff
-                best_pair = (idx_a, idx_b)
-    if best_pair is None:
-        return None
-    return best_pair
+            return idx_a, idx_b
+    return None
 
 
 def _corridor_entry(
@@ -200,18 +290,11 @@ def _corridor_entry(
     """
 
     half = 0.5 * (shape_a[1] + shape_b[1]) * margin + 1e-6
-    path_b = poses_b[:, :2]
-    path_a = poses_a[:, :2]
-    entry_a = None
-    entry_b = None
-    for idx in range(len(poses_a)):
-        if float(np.min(np.linalg.norm(poses_a[idx, :2] - path_b, axis=1))) <= half:
-            entry_a = idx
-            break
-    for idx in range(len(poses_b)):
-        if float(np.min(np.linalg.norm(poses_b[idx, :2] - path_a, axis=1))) <= half:
-            entry_b = idx
-            break
+    distance_sq = np.sum((poses_a[:, None, :2] - poses_b[None, :, :2]) ** 2, axis=-1)
+    hits_a = np.flatnonzero(np.any(distance_sq <= half * half, axis=1))
+    hits_b = np.flatnonzero(np.any(distance_sq <= half * half, axis=0))
+    entry_a = int(hits_a[0]) if hits_a.size else None
+    entry_b = int(hits_b[0]) if hits_b.size else None
     return entry_a, entry_b
 
 
@@ -219,13 +302,8 @@ def _nearest_same_index_gap(poses_a: np.ndarray, poses_b: np.ndarray) -> float:
     """Return the minimum centre distance between two trajectories at equal time."""
 
     common = min(len(poses_a), len(poses_b))
-    best = None
-    for idx in range(common):
-        if poses_a[idx, 0] == -1 or poses_b[idx, 0] == -1:
-            continue
-        distance = float(
-            np.hypot(poses_a[idx, 0] - poses_b[idx, 0], poses_a[idx, 1] - poses_b[idx, 1])
-        )
-        if best is None or distance < best:
-            best = distance
-    return float("inf") if best is None else best
+    valid = (poses_a[:common, 0] != -1) & (poses_b[:common, 0] != -1)
+    if not np.any(valid):
+        return float("inf")
+    delta = poses_a[:common, :2][valid] - poses_b[:common, :2][valid]
+    return float(np.min(np.hypot(delta[:, 0], delta[:, 1])))

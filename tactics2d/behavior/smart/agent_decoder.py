@@ -149,8 +149,26 @@ class SmartAgentDecoder(nn.Module):
         self.token_predict_head = MLPLayer(
             input_dim=config.hidden_dim, hidden_dim=config.hidden_dim, output_dim=self.token_size
         )
-        self.trajectory_token = token_data["token"]
-        self.trajectory_token_all = token_data["token_all"]
+        for kind in ("veh", "ped", "cyc"):
+            self.register_buffer(
+                f"trajectory_token_{kind}",
+                torch.as_tensor(token_data["token"][kind], dtype=torch.float32),
+                persistent=False,
+            )
+            self.register_buffer(
+                f"trajectory_token_all_{kind}",
+                torch.as_tensor(token_data["token_all"][kind], dtype=torch.float32),
+                persistent=False,
+            )
+        tables = []
+        for kind in ("veh", "ped", "cyc"):
+            tail = getattr(self, f"trajectory_token_all_{kind}")[:, : self.shift]
+            token = getattr(self, f"trajectory_token_{kind}")[:, None]
+            tables.append(torch.cat([tail, token], dim=1))
+        self.register_buffer(
+            "trajectory_token_tables", torch.stack(tables, dim=0), persistent=False
+        )
+        self._token_embedding_cache = {}
         self.apply(weight_init)
         self.hist_mask = True
 
@@ -205,47 +223,32 @@ class SmartAgentDecoder(nn.Module):
         )
 
         veh_mask, ped_mask, cyc_mask = self._agent_types(agent, pos_a.device)
-        trajectory_token_veh = (
-            torch.from_numpy(self.trajectory_token["veh"]).clone().to(pos_a.device).to(torch.float)
+        trajectory_token_veh = self.trajectory_token_veh
+        cache_key = (
+            pos_a.device,
+            pos_a.dtype,
+            tuple(parameter._version for parameter in self.parameters()),
         )
-        self.agent_token_emb_veh = self.token_emb_veh(
-            trajectory_token_veh.view(trajectory_token_veh.shape[0], -1)
+        use_cache = not self.training and not torch.is_grad_enabled()
+        cached_embeddings = self._token_embedding_cache.get(cache_key) if use_cache else None
+        if cached_embeddings is None:
+            cached_embeddings = (
+                self.token_emb_veh(trajectory_token_veh.view(trajectory_token_veh.shape[0], -1)),
+                self.token_emb_ped(self.trajectory_token_ped.view(self.token_size, -1)),
+                self.token_emb_cyc(self.trajectory_token_cyc.view(self.token_size, -1)),
+            )
+            if use_cache:
+                self._token_embedding_cache = {cache_key: cached_embeddings}
+        self.agent_token_emb_veh, self.agent_token_emb_ped, self.agent_token_emb_cyc = (
+            cached_embeddings
         )
-        trajectory_token_ped = (
-            torch.from_numpy(self.trajectory_token["ped"]).clone().to(pos_a.device).to(torch.float)
-        )
-        self.agent_token_emb_ped = self.token_emb_ped(
-            trajectory_token_ped.view(trajectory_token_ped.shape[0], -1)
-        )
-        trajectory_token_cyc = (
-            torch.from_numpy(self.trajectory_token["cyc"]).clone().to(pos_a.device).to(torch.float)
-        )
-        self.agent_token_emb_cyc = self.token_emb_cyc(
-            trajectory_token_cyc.view(trajectory_token_cyc.shape[0], -1)
-        )
+        trajectory_token_ped = self.trajectory_token_ped
+        trajectory_token_cyc = self.trajectory_token_cyc
 
         agent_token_traj_all = None
         if inference:
-            agent_token_traj_all = torch.zeros(
-                (num_agent, self.token_size, self.shift + 1, 4, 2), device=pos_a.device
-            )
-            tail = {}
-            for key, token_all in self.trajectory_token_all.items():
-                tail[key] = (
-                    torch.from_numpy(token_all)
-                    .clone()
-                    .to(pos_a.device)
-                    .to(torch.float)[:, : self.shift]
-                )
-            agent_token_traj_all[veh_mask] = torch.cat(
-                [tail["veh"], trajectory_token_veh[:, None, ...]], dim=1
-            )
-            agent_token_traj_all[ped_mask] = torch.cat(
-                [tail["ped"], trajectory_token_ped[:, None, ...]], dim=1
-            )
-            agent_token_traj_all[cyc_mask] = torch.cat(
-                [tail["cyc"], trajectory_token_cyc[:, None, ...]], dim=1
-            )
+            agent_type = torch.as_tensor(agent.agent_type, dtype=torch.long, device=pos_a.device)
+            agent_token_traj_all = self.trajectory_token_tables[agent_type]
 
         agent_token_emb = torch.zeros((num_agent, num_step, self.hidden_dim), device=pos_a.device)
         agent_token_emb[veh_mask] = self.agent_token_emb_veh[agent_token_index[veh_mask]]
@@ -286,7 +289,7 @@ class SmartAgentDecoder(nn.Module):
 
         feat_a = torch.cat((agent_token_emb, x_a), dim=-1)
         feat_a = self.fusion_emb(feat_a)
-        return feat_a, agent_token_traj, agent_token_traj_all, agent_token_emb, categorical_embs
+        return (feat_a, agent_token_traj, agent_token_traj_all, agent_token_emb, categorical_embs)
 
     def build_temporal_edge(
         self,
@@ -585,15 +588,15 @@ class SmartAgentDecoder(nn.Module):
                 dim=1, index=sample_index[..., None, None, None].expand(-1, -1, 6, 4, 2)
             )[:, 0, ...]
             pred_prob[:, t] = topk_prob.gather(dim=-1, index=sample_index)[:, 0]
-            pred_traj[:, t * self.shift : (t + 1) * self.shift] = (
-                agent_pred_rel[:, 1:, ...].clone().mean(dim=2)
+            pred_traj[:, t * self.shift : (t + 1) * self.shift] = agent_pred_rel[:, 1:, ...].mean(
+                dim=2
             )
             diff_xy = agent_pred_rel[:, 1:, 0, :] - agent_pred_rel[:, 1:, 3, :]
             pred_head[:, t * self.shift : (t + 1) * self.shift] = torch.arctan2(
                 diff_xy[:, :, 1], diff_xy[:, :, 0]
             )
 
-            pos_a[:, self.history_slots + t] = agent_pred_rel[:, -1, ...].clone().mean(dim=1)
+            pos_a[:, self.history_slots + t] = agent_pred_rel[:, -1, ...].mean(dim=1)
             diff_xy = agent_pred_rel[:, -1, 0, :] - agent_pred_rel[:, -1, 3, :]
             head_a[:, self.history_slots + t] = torch.arctan2(diff_xy[:, 1], diff_xy[:, 0])
             next_token_idx = next_token_idx.gather(dim=1, index=sample_index).squeeze(-1)
