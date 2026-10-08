@@ -50,6 +50,10 @@ class BSpline:
         if np.any(np.diff(knot_vectors) < 0):
             raise ValueError("Knot vector must be non-decreasing.")
 
+        internal_knots = knot_vectors[degree : len(control_points) + 1]
+        if len(np.unique(internal_knots)) < 2:
+            raise ValueError("Need at least two internal knots.")
+
         # Compute the B-spline curve points using the C++ implementation
         curve_points = cpp_BSpline.get_curve(
             control_points.tolist(), knot_vectors.tolist(), degree, int(n_interpolation)
