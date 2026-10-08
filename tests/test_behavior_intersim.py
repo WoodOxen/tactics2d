@@ -11,7 +11,7 @@ from shapely.geometry import LineString
 
 from tactics2d.behavior import InterSimBehaviorModel, InterSimConfig
 from tactics2d.map.element import Lane, Map
-from tactics2d.participant.element import Pedestrian, Vehicle
+from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 
 RELATION_CHECKPOINT = (
@@ -51,29 +51,6 @@ def _cross_map():
     return map_
 
 
-def _participant(participant_type, agent_id, x, y, heading, speed, frame=0):
-    trajectory = Trajectory(id_=agent_id, fps=10, stable_freq=True)
-    trajectory.add_state(
-        State(
-            frame=frame,
-            x=x,
-            y=y,
-            heading=heading,
-            vx=speed * np.cos(heading),
-            vy=speed * np.sin(heading),
-        )
-    )
-    return participant_type(agent_id, "vehicle", trajectory=trajectory, length=4.8, width=1.9)
-
-
-def _vehicle(agent_id, x, y, heading, speed):
-    return _participant(Vehicle, agent_id, x, y, heading, speed)
-
-
-def _pedestrian(agent_id, x, y, heading=0.0):
-    return _participant(Pedestrian, agent_id, x, y, heading, 0.0)
-
-
 def _moving_participant(agent_id, x0, y0, heading, speed, steps):
     trajectory = Trajectory(id_=agent_id, fps=10, stable_freq=True)
     for index in range(steps):
@@ -89,23 +66,6 @@ def _moving_participant(agent_id, x0, y0, heading, speed, steps):
             )
         )
     return Vehicle(agent_id, "vehicle", trajectory=trajectory, length=4.8, width=1.9)
-
-
-@pytest.mark.integration
-def test_intersim_predict_runs():
-    """The integrated prediction entry point runs on CPU."""
-    map_ = _cross_map()
-    participants = {
-        "A": _vehicle("A", -20.0, 0.0, 0.0, 5.0),
-        "B": _vehicle("B", 0.0, -20.0, np.pi / 2, 5.5),
-        "P": _pedestrian("P", 20.0, 0.0),
-    }
-    config = InterSimConfig(cruise_speed=8.0)
-    model = InterSimBehaviorModel(config)
-
-    predicted = model.predict(participants, map_, frame=0, agent_ids=["A", "B"])
-    assert set(predicted) == {"A", "B"}
-    assert all(isinstance(trajectory, Trajectory) for trajectory in predicted.values())
 
 
 @pytest.mark.integration

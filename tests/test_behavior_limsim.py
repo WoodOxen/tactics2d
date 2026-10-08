@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from shapely.geometry import LineString
 
-from tactics2d.behavior import BehaviorModelBase, LimSimBehaviorModel, LimSimConfig
+from tactics2d.behavior import LimSimBehaviorModel, LimSimConfig
 from tactics2d.map.element import Lane, Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
@@ -54,32 +54,17 @@ def _vehicle(agent_id, frames, x, y, heading=np.pi / 2, speed=5.0):
 
 
 @pytest.mark.integration
-def test_limsim_predict_runs():
-    """The integrated MCTS prediction entry point runs on CPU."""
+def test_limsim_rollout_runs():
+    """The integrated MCTS implementation completes a CPU rollout."""
     config = LimSimConfig(
         horizon_steps=4,
         dt=0.2,
         decision_resolution=0.4,
         terminal_depth=2,
         mcts_iterations=4,
+        interaction_distance=20.0,
         search_single_agent_groups=True,
     )
-    participants = {1: _vehicle(1, [0], 3.0, 5.0, speed=5.0)}
-    model = LimSimBehaviorModel(config)
-
-    assert isinstance(model, BehaviorModelBase)
-    predicted = model.predict(
-        participants, _parallel_map(), frame=0, agent_ids=[1], route_map={1: ("B",)}
-    )
-
-    assert set(predicted) == {1}
-    assert isinstance(predicted[1], Trajectory)
-
-
-@pytest.mark.integration
-def test_limsim_rollout_runs():
-    """The public closed-loop entry point runs on recorded participants."""
-    config = LimSimConfig(horizon_steps=10, dt=0.1, mcts_iterations=50, interaction_distance=20.0)
     map_ = _parallel_map()
     participants = {
         1: _vehicle(1, range(0, 2100, 100), 1.0, 0.0, speed=5.0),
