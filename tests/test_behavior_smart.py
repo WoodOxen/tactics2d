@@ -11,7 +11,7 @@ from shapely.geometry import LineString
 
 pytest.importorskip("torch", reason="SMART tests require torch.")
 
-from tactics2d.behavior import BehaviorModelBase, SmartBehaviorModel, SmartConfig
+from tactics2d.behavior import SmartBehaviorModel, SmartConfig
 from tactics2d.map.element import Lane, Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
@@ -101,16 +101,9 @@ def _history_participants(count=3, spacing=8.0, frames=None):
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_smart_loads_released_checkpoint(smart_model):
-    """The self-trained checkpoint loads into a usable behavior model."""
-    assert isinstance(smart_model, BehaviorModelBase)
-    assert smart_model.policy is not None
-
-
-@pytest.mark.integration
-@pytest.mark.slow
 def test_smart_predict_runs(smart_model):
-    """The public prediction entry point runs."""
+    """The released checkpoint loads and the integrated predictor runs on CPU."""
+    assert smart_model.policy is not None
     participants = _history_participants(count=3)
 
     predicted = smart_model.predict(

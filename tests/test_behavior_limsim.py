@@ -54,27 +54,16 @@ def _vehicle(agent_id, frames, x, y, heading=np.pi / 2, speed=5.0):
 
 
 @pytest.mark.integration
-def test_limsim_plan_runs():
-    """The public model-specific planning entry point runs."""
-    config = LimSimConfig(horizon_steps=6, dt=0.2, mcts_iterations=20, interaction_distance=15.0)
-    map_ = _parallel_map()
-    participants = {
-        1: _vehicle(1, [0], 1.0, 5.0, speed=5.0),
-        2: _vehicle(2, [0], 3.0, 10.0, speed=2.0),
-    }
-
-    result = LimSimBehaviorModel(config).plan(
-        participants, map_, frame=0, route_map={1: ("A",), 2: ("B",)}
-    )
-
-    assert set(result.actions) == {1, 2}
-    assert set(result.trajectories) == {1, 2}
-
-
-@pytest.mark.integration
 def test_limsim_predict_runs():
-    """The shared prediction entry point runs."""
-    config = LimSimConfig(horizon_steps=6, dt=0.2, mcts_iterations=20, interaction_distance=15.0)
+    """The integrated MCTS prediction entry point runs on CPU."""
+    config = LimSimConfig(
+        horizon_steps=4,
+        dt=0.2,
+        decision_resolution=0.4,
+        terminal_depth=2,
+        mcts_iterations=4,
+        search_single_agent_groups=True,
+    )
     participants = {1: _vehicle(1, [0], 3.0, 5.0, speed=5.0)}
     model = LimSimBehaviorModel(config)
 

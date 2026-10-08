@@ -119,6 +119,7 @@ jobs:
     env:
       MPLBACKEND: Agg
       PYTHON_SKIP_TKINTER: 1
+      CUDA_VISIBLE_DEVICES: ""
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -160,7 +161,7 @@ jobs:
           D=tactics2d/data/checkpoints
           S="${RUNNER_TEMP}/hf-assets"
           hf download MotacillaAlba/tactics2d-behavior --local-dir "$S"
-          mkdir -p "$D/bits" "$D/smart"
+          mkdir -p "$D/bits" "$D/intersim" "$D/smart"
           place() {
             p=$(find "$S" -name "$1" -print -quit)
             test -n "$p" || { echo "missing from HF: $1"; exit 1; }
@@ -168,6 +169,7 @@ jobs:
           }
           place bits_planner_nusc_resnet50.ckpt  bits
           place bits_predictor_nusc_resnet18.ckpt bits
+          place relation_predictor_waymo.pt      intersim
           place smart_waymo_ep0.pt               smart
           place motion_codebook.pkl              smart
           place map_codebook.pkl                 smart
@@ -179,6 +181,7 @@ jobs:
         run: |
           D=tactics2d/data/checkpoints
           for f in bits/bits_planner_nusc_resnet50.ckpt bits/bits_predictor_nusc_resnet18.ckpt \
+                   intersim/relation_predictor_waymo.pt \
                    smart/motion_codebook.pkl smart/map_codebook.pkl smart/smart_waymo_ep0.pt; do
             test -f "$D/$f" || { echo "missing: $f"; exit 1; }
           done

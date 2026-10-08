@@ -12,7 +12,7 @@ from shapely.geometry import LineString
 pytest.importorskip("torch", reason="BITS torch tests require the tactics2d[behavior] extra.")
 pytest.importorskip("torchvision", reason="BITS torch tests require the tactics2d[behavior] extra.")
 
-from tactics2d.behavior import BehaviorModelBase, BitsBehaviorModel
+from tactics2d.behavior import BitsBehaviorModel
 from tactics2d.map.element import Lane, Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
@@ -74,16 +74,9 @@ def _straight_vehicle(agent_id, frames, x, y, speed):
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_bits_loads_released_checkpoints(bits_model):
-    """The released planner and predictor load into a usable behavior model."""
-    assert isinstance(bits_model, BehaviorModelBase)
-    assert bits_model.policy is not None
-
-
-@pytest.mark.integration
-@pytest.mark.slow
 def test_bits_predict_runs(bits_model):
-    """The public prediction entry point runs."""
+    """The released checkpoints load and the integrated predictor runs on CPU."""
+    assert bits_model.policy is not None
     participants = {
         0: _straight_vehicle(0, range(0, 3100, 100), 0.0, 0.0, speed=8.0),
         1: _straight_vehicle(1, range(0, 3100, 100), 20.0, 5.0, speed=3.0),

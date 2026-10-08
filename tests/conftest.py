@@ -12,6 +12,10 @@ import pytest
 # Set environment variables before any imports
 os.environ["MPLBACKEND"] = "Agg"
 os.environ["PYTHON_SKIP_TKINTER"] = "1"
+# The default test suite is device-independent and must exercise the CPU path
+# even on developer machines or self-hosted runners that expose a GPU.  Tests
+# that explicitly validate CUDA can opt in from a separate process.
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 
 @pytest.fixture
