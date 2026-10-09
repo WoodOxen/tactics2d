@@ -5,6 +5,7 @@
 
 """Map-token decoder for the SMART network."""
 
+import hashlib
 from typing import Dict, Optional
 
 import torch
@@ -87,7 +88,11 @@ class SmartMapDecoder(nn.Module):
             input_dim=config.hidden_dim, hidden_dim=config.hidden_dim, output_dim=self.token_size
         )
         self.token_emb = MLPEmbedding(input_dim=input_dim_token, hidden_dim=config.hidden_dim)
-        self.map_token = map_token
+        self.register_buffer(
+            "map_token_traj_src", map_token["traj_src"].to(torch.float), persistent=False
+        )
+        self._geometry_cache = None
+        self._token_embedding_cache = {}
         self.apply(weight_init)
         self.mask_pt = False
 
@@ -111,8 +116,18 @@ class SmartMapDecoder(nn.Module):
         orient_pt = tokens.pt_orientation.to(device).contiguous()
         orient_vector_pt = torch.stack([orient_pt.cos(), orient_pt.sin()], dim=-1)
 
-        token_sample_pt = self.map_token["traj_src"].to(device).to(torch.float)
-        pt_token_emb_src = self.token_emb(token_sample_pt.view(token_sample_pt.shape[0], -1))
+        token_sample_pt = self.map_token_traj_src
+        embedding_key = (
+            token_sample_pt.device,
+            token_sample_pt.dtype,
+            tuple(parameter._version for parameter in self.token_emb.parameters()),
+        )
+        use_cache = not self.training and not torch.is_grad_enabled()
+        pt_token_emb_src = self._token_embedding_cache.get(embedding_key) if use_cache else None
+        if pt_token_emb_src is None:
+            pt_token_emb_src = self.token_emb(token_sample_pt.view(token_sample_pt.shape[0], -1))
+            if use_cache:
+                self._token_embedding_cache = {embedding_key: pt_token_emb_src}
         x_pt = pt_token_emb_src[tokens.pt_token_idx.to(device)]
 
         token2pl = tokens.token2pl.to(device)
@@ -125,28 +140,38 @@ class SmartMapDecoder(nn.Module):
             ]
         ).sum(dim=0)
 
-        edge_index_pt2pt = radius_graph(
-            x=pos_pt[:, :2],
-            r=self.pl2pl_radius,
-            batch=None,
-            loop=False,
-            max_num_neighbors=self.max_num_neighbors,
-        )
-        rel_pos_pt2pt = pos_pt[edge_index_pt2pt[0]] - pos_pt[edge_index_pt2pt[1]]
-        rel_orient_pt2pt = wrap_angle(
-            orient_pt[edge_index_pt2pt[0]] - orient_pt[edge_index_pt2pt[1]]
-        )
-        r_pt2pt = torch.stack(
-            [
-                torch.norm(rel_pos_pt2pt[:, :2], p=2, dim=-1),
-                angle_between_2d_vectors(
-                    ctr_vector=orient_vector_pt[edge_index_pt2pt[1]],
-                    nbr_vector=rel_pos_pt2pt[:, :2],
-                ),
-                rel_orient_pt2pt,
-            ],
-            dim=-1,
-        )
+        digest = hashlib.blake2b(digest_size=16)
+        digest.update(tokens.pt_position.detach().cpu().numpy().tobytes())
+        digest.update(tokens.pt_orientation.detach().cpu().numpy().tobytes())
+        geometry_key = (digest.digest(), pos_pt.device, pos_pt.dtype)
+        if not use_cache or self._geometry_cache is None or self._geometry_cache[0] != geometry_key:
+            edge_index_pt2pt = radius_graph(
+                x=pos_pt[:, :2],
+                r=self.pl2pl_radius,
+                batch=None,
+                loop=False,
+                max_num_neighbors=self.max_num_neighbors,
+            )
+            rel_pos_pt2pt = pos_pt[edge_index_pt2pt[0]] - pos_pt[edge_index_pt2pt[1]]
+            rel_orient_pt2pt = wrap_angle(
+                orient_pt[edge_index_pt2pt[0]] - orient_pt[edge_index_pt2pt[1]]
+            )
+            relation_inputs = torch.stack(
+                [
+                    torch.norm(rel_pos_pt2pt[:, :2], p=2, dim=-1),
+                    angle_between_2d_vectors(
+                        ctr_vector=orient_vector_pt[edge_index_pt2pt[1]],
+                        nbr_vector=rel_pos_pt2pt[:, :2],
+                    ),
+                    rel_orient_pt2pt,
+                ],
+                dim=-1,
+            )
+            if use_cache:
+                self._geometry_cache = (geometry_key, edge_index_pt2pt, relation_inputs)
+        else:
+            _, edge_index_pt2pt, relation_inputs = self._geometry_cache
+        r_pt2pt = relation_inputs
         r_pt2pt = self.r_pt2pt_emb(continuous_inputs=r_pt2pt, categorical_embs=None)
         for i in range(self.num_layers):
             x_pt = self.pt2pt_layers[i](x_pt, r_pt2pt, edge_index_pt2pt)

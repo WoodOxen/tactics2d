@@ -75,6 +75,8 @@ def compare_similarity(curve1: np.ndarray, curve2: np.ndarray, diff: float = 0.0
         (1, np.array([[0, 0]]), np.array([0, 0, 1, 1]), 10),
         # Edge case test: all control points identical (zero-length curve)
         (2, np.array([[0, 0], [0, 0], [0, 0], [0, 0]]), None, 50),
+        # Edge case test: degenerate knot domain
+        (2, np.array([[0, 0], [1, 1], [2, 0], [3, 1]]), np.zeros(7), 100),
         # Edge case test: extreme curvature control points
         (2, np.array([[0, 0], [0.1, 100], [0.2, -100], [0.3, 0]]), None, 100),
         # Edge case test: minimal interpolation points
@@ -138,6 +140,9 @@ def test_b_spline(degree, control_points, knots, n_interpolation):
             assert (
                 err.args[0] == "Knot vector must be non-decreasing."
             ), "Unexpected error for non-monotonic knots"
+
+        elif knots is not None and len(np.unique(knots[degree : len(control_points) + 1])) < 2:
+            assert err.args[0] == "Need at least two internal knots."
 
         else:
             raise

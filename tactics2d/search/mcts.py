@@ -20,6 +20,8 @@ class MCTS:
             self.children = []
             self.total_reward = 0.0
             self.visits = 0
+            self.expansion_iterator = None
+            self.expansion_exhausted = False
 
     def __init__(
         self,
@@ -94,15 +96,21 @@ class MCTS:
         return node
 
     def _expand(self, node):
-        tried_states = [child.state for child in node.children]
-        for state in self.expand_fn(node.state):
-            if state not in tried_states:
-                child = self.Node(state=state, parent=node)
-                node.children.append(child)
-                return child
-        # No new states to expand
-        logging.debug(f"MCTS: Node cannot be expanded further (tried {len(tried_states)} states)")
-        return node
+        if node.expansion_exhausted:
+            return node
+        if node.expansion_iterator is None:
+            node.expansion_iterator = iter(self.expand_fn(node.state))
+        try:
+            state = next(node.expansion_iterator)
+        except StopIteration:
+            node.expansion_exhausted = True
+            logging.debug(
+                "MCTS: Node cannot be expanded further (created %d children)", len(node.children)
+            )
+            return node
+        child = self.Node(state=state, parent=node)
+        node.children.append(child)
+        return child
 
     def _simulate(self, node):
         final_state = self.simulate_fn(node.state)

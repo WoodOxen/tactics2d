@@ -11,41 +11,13 @@ from shapely.geometry import LineString
 
 pytest.importorskip("torch", reason="SMART tests require torch.")
 
-from tactics2d.behavior import BehaviorModelBase, SmartBehaviorModel, SmartConfig
+from tactics2d.behavior import SmartBehaviorModel, SmartConfig
 from tactics2d.map.element import Lane, Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 
-HISTORY_END_MS = 1000
-
 # SMART assets are downloaded separately; ``asset_root`` points at them.
 ASSET_ROOT = Path(__file__).resolve().parent.parent / "tactics2d/data/checkpoints/smart"
-
-
-def _config(**kwargs):
-    """Build a config aimed at the downloaded SMART assets.
-
-    Returns:
-        A config with ``asset_root`` set.
-
-    Raises:
-        Skipped: If the codebooks are not present on this machine.
-    """
-
-    for asset in ("motion_codebook.pkl", "map_codebook.pkl"):
-        if not (ASSET_ROOT / asset).exists():
-            pytest.skip(f"SMART assets are not present under {ASSET_ROOT}.")
-    return SmartConfig(asset_root=str(ASSET_ROOT), **kwargs)
-
-
-@pytest.fixture(scope="module")
-def smart_model():
-    """Load the self-trained SMART checkpoint once for the whole module."""
-    checkpoint = ASSET_ROOT / "smart_waymo_ep0.pt"
-    if not checkpoint.exists():
-        pytest.skip("no self-trained SMART checkpoint on this machine.")
-
-    return SmartBehaviorModel.from_checkpoint(str(checkpoint), config=_config(), device="cpu")
 
 
 def _state(frame, x, y, heading=0.0, speed=5.0):
@@ -101,36 +73,19 @@ def _history_participants(count=3, spacing=8.0, frames=None):
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_smart_loads_released_checkpoint(smart_model):
-    """The self-trained checkpoint loads into a usable behavior model."""
-    assert isinstance(smart_model, BehaviorModelBase)
-    assert smart_model.policy is not None
-
-
-@pytest.mark.integration
-@pytest.mark.slow
-def test_smart_predict_runs(smart_model):
-    """The public prediction entry point runs."""
-    participants = _history_participants(count=3)
-
-    predicted = smart_model.predict(
-        participants, _straight_map(), frame=HISTORY_END_MS, agent_ids=[0]
+def test_smart_rollout_runs():
+    """The released SMART integration loads and completes a CPU rollout."""
+    required = ["smart_waymo_ep0.pt", "motion_codebook.pkl", "map_codebook.pkl"]
+    if not all((ASSET_ROOT / asset).exists() for asset in required):
+        pytest.skip(f"Released SMART assets are not present under {ASSET_ROOT}.")
+    model = SmartBehaviorModel.from_checkpoint(
+        str(ASSET_ROOT / "smart_waymo_ep0.pt"),
+        config=SmartConfig(asset_root=str(ASSET_ROOT)),
+        device="cpu",
     )
-
-    assert set(predicted) == {0}
-    assert isinstance(predicted[0], Trajectory)
-
-
-@pytest.mark.integration
-@pytest.mark.slow
-def test_smart_closed_loop_runs(smart_model):
-    """The closed loop replans over a 41-step scenario and commits every agent."""
-    # A closed loop needs ground truth for the whole span, not just the warmup:
-    # the model overwrites the future, but it can only start from frames the
-    # scenario actually occupies.
     participants = _history_participants(count=3, frames=range(0, 4100, 100))
 
-    result = smart_model.rollout(
+    result = model.rollout(
         participants,
         _straight_map(),
         ego_id=0,

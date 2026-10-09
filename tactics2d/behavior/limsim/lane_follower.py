@@ -22,6 +22,10 @@ class LaneFollower:
 
     def __init__(self, config: LimSimConfig):
         self.config = config
+        self._route_path_cache = {}
+        self._centerline_cache = {}
+        self._lane_width_cache = {}
+        self._map_query_cache = {}
 
     def rollout(
         self,
@@ -35,7 +39,24 @@ class LaneFollower:
         horizon = self.config.horizon_steps if steps is None else steps
         route_path, route_lanes, start_progress = self._select_route(agent, action, map_)
 
-        states = []
+        return list(self._iter_states(agent, action, map_, horizon))
+
+    def advance_endpoint(
+        self, agent: AgentDecisionState, action: LimSimAction, map_: Optional[Map], steps: int
+    ) -> AgentDecisionState:
+        """Advance ``steps`` simulation ticks without retaining intermediate states."""
+
+        current = agent.with_updates(action=action)
+        for current in self._iter_states(agent, action, map_, steps):
+            pass
+        return current
+
+    def _iter_states(
+        self, agent: AgentDecisionState, action: LimSimAction, map_: Optional[Map], horizon: int
+    ):
+        """Yield the exact states used by both dense rollout and coarse search."""
+
+        route_path, route_lanes, start_progress = self._select_route(agent, action, map_)
         speed = agent.speed
         progress = start_progress
         current = agent
@@ -88,9 +109,26 @@ class LaneFollower:
                     speed=speed,
                     action=action,
                 )
-            states.append(current)
+            yield current
 
-        return states
+    def _map_query(self, map_: Map) -> SemanticMapQuery:
+        key = id(map_)
+        query = self._map_query_cache.get(key)
+        if query is None:
+            query = SemanticMapQuery(map_)
+            self._map_query_cache[key] = query
+        return query
+
+    def _centerline(self, map_: Map, lane_id) -> Optional[LineString]:
+        key = (id(map_), lane_id)
+        if key not in self._centerline_cache:
+            lane = map_.lanes.get(lane_id)
+            centerline = None if lane is None else lane.centerline()
+            coords = None if centerline is None else np.asarray(centerline.coords, dtype=float)
+            self._centerline_cache[key] = (
+                LineString(coords) if coords is not None and len(coords) >= 2 else None
+            )
+        return self._centerline_cache[key]
 
     def _lane_transition(
         self, agent: AgentDecisionState, action: LimSimAction, map_: Optional[Map]
@@ -106,7 +144,7 @@ class LaneFollower:
         if map_ is None or agent.lane_id is None or agent.lane_id not in map_.lanes:
             return None
         direction = "left" if action == LimSimAction.LCL else "right"
-        if not SemanticMapQuery(map_).get_lane_change_permission(
+        if not self._map_query(map_).get_lane_change_permission(
             agent.lane_id, direction, s=agent.route_progress
         ):
             return None
@@ -130,17 +168,12 @@ class LaneFollower:
             )
             return agent.with_updates(lateral_offset=float(clipped_offset))
 
-        next_lane = map_.lanes[next_lane_id]
-        next_centerline = next_lane.centerline()
-        next_centerline = (
-            np.asarray(next_centerline.coords, dtype=float) if next_centerline is not None else None
-        )
-        if next_centerline is None or len(next_centerline) < 2:
+        line = self._centerline(map_, next_lane_id)
+        if line is None:
             return agent.with_updates(lane_id=next_lane_id)
 
         # Project the vehicle's current Cartesian position onto the neighbor
         # lane's centerline to get a continuous lateral offset in the new frame.
-        line = LineString(next_centerline)
         next_progress = float(line.project(Point(agent.x, agent.y)))
         point = line.interpolate(next_progress)
         lookahead = line.interpolate(min(next_progress + 0.5, line.length))
@@ -164,32 +197,36 @@ class LaneFollower:
         point = Point(agent.x, agent.y)
 
         def _lane_centerline_distance(lid: str) -> float:
-            centerline = map_.lanes[lid].centerline()
-            centerline = (
-                np.asarray(centerline.coords, dtype=float) if centerline is not None else None
-            )
-            return (
-                LineString(centerline).distance(point) if centerline is not None else float("inf")
-            )
+            centerline = self._centerline(map_, lid)
+            return centerline.distance(point) if centerline is not None else float("inf")
 
         return min(candidates, key=_lane_centerline_distance)
 
     def _lane_width(self, lane) -> float:
+        key = id(lane)
+        if key in self._lane_width_cache:
+            return self._lane_width_cache[key]
         if lane.left_side is None or lane.right_side is None:
-            return self.config.default_lane_width
+            width = self.config.default_lane_width
+            self._lane_width_cache[key] = width
+            return width
         left = LineString(lane.left_side)
         right = LineString(lane.right_side)
         centerline = lane.centerline()
         centerline = np.asarray(centerline.coords, dtype=float) if centerline is not None else None
         if centerline is None or len(centerline) < 2:
-            return self.config.default_lane_width
+            width = self.config.default_lane_width
+            self._lane_width_cache[key] = width
+            return width
         line = LineString(centerline)
         samples = np.linspace(0.0, line.length, num=5)
         widths = []
         for progress in samples:
             point = line.interpolate(progress)
             widths.append(point.distance(left) + point.distance(right))
-        return float(np.mean(widths)) if widths else self.config.default_lane_width
+        width = float(np.mean(widths)) if widths else self.config.default_lane_width
+        self._lane_width_cache[key] = width
+        return width
 
     def _next_lateral_offset(self, agent: AgentDecisionState, action: LimSimAction) -> float:
         if action == LimSimAction.LCL:
@@ -207,13 +244,10 @@ class LaneFollower:
             lane = map_.lanes.get(lane_id)
             if lane is None:
                 continue
-            centerline = lane.centerline()
-            centerline = (
-                np.asarray(centerline.coords, dtype=float) if centerline is not None else None
-            )
-            if centerline is None or len(centerline) < 2:
+            centerline = self._centerline(map_, lane_id)
+            if centerline is None:
                 continue
-            distance = LineString(centerline).distance(point)
+            distance = centerline.distance(point)
             if distance < best_distance:
                 best_index, best_distance = index, distance
         return best_index
@@ -250,19 +284,24 @@ class LaneFollower:
                 route_lanes.append(next_lane_id)
                 current_lane_id = next_lane_id
 
-        centerlines = []
-        for lane_id in route_lanes:
-            centerline = map_.lanes[lane_id].centerline()
-            centerlines.append(
-                np.asarray(centerline.coords, dtype=float) if centerline is not None else None
+        route_lanes = tuple(route_lanes)
+        cache_key = (id(map_), route_lanes)
+        if cache_key not in self._route_path_cache:
+            centerlines = []
+            for lane_id in route_lanes:
+                centerline = self._centerline(map_, lane_id)
+                centerlines.append(
+                    None if centerline is None else np.asarray(centerline.coords, dtype=float)
+                )
+            path_array = polyline.concatenate(centerlines)
+            self._route_path_cache[cache_key] = (
+                LineString(path_array) if path_array is not None and len(path_array) >= 2 else None
             )
-        path_array = polyline.concatenate(centerlines)
-        if path_array is None or len(path_array) < 2:
-            return None, tuple(route_lanes), 0.0
-
-        route_path = LineString(path_array)
+        route_path = self._route_path_cache[cache_key]
+        if route_path is None:
+            return None, route_lanes, 0.0
         start_progress = route_path.project(Point(agent.x, agent.y))
-        return route_path, tuple(route_lanes), float(start_progress)
+        return route_path, route_lanes, float(start_progress)
 
 
 def is_action_valid(agent: AgentDecisionState, action: LimSimAction, map_: Optional[Map]) -> bool:

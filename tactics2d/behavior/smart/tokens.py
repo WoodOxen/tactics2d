@@ -106,6 +106,21 @@ class SmartAgentTokens:
 
         return int(self.token_idx.shape[1])
 
+    def to(self, device) -> "SmartAgentTokens":
+        """Return these tokens with every tensor on *device*."""
+
+        return SmartAgentTokens(
+            agent_ids=self.agent_ids,
+            token_idx=self.token_idx.to(device),
+            token_pos=self.token_pos.to(device),
+            token_heading=self.token_heading.to(device),
+            token_velocity=self.token_velocity.to(device),
+            agent_valid_mask=self.agent_valid_mask.to(device),
+            agent_type=self.agent_type,
+            agent_shape=self.agent_shape.to(device),
+            eval_mask=self.eval_mask.to(device),
+        )
+
 
 @dataclass
 class SmartMapTokens:
@@ -144,6 +159,22 @@ class SmartMapTokens:
 
         return int(self.pt_token_idx.shape[0])
 
+    def to(self, device) -> "SmartMapTokens":
+        """Return these tokens with every tensor on *device*."""
+
+        return SmartMapTokens(
+            pt_position=self.pt_position.to(device),
+            pt_orientation=self.pt_orientation.to(device),
+            pt_token_idx=self.pt_token_idx.to(device),
+            pt_type=self.pt_type.to(device),
+            pl_type=self.pl_type.to(device),
+            pt_side=self.pt_side.to(device),
+            light_type=self.light_type.to(device),
+            traj_pos=self.traj_pos.to(device),
+            traj_theta=self.traj_theta.to(device),
+            token2pl=self.token2pl.to(device),
+        )
+
 
 @dataclass
 class SmartTokenBatch:
@@ -158,3 +189,12 @@ class SmartTokenBatch:
     agents: Optional[SmartAgentTokens] = None
     map_tokens: Optional[SmartMapTokens] = None
     frame_ms: int = 0
+
+    def to(self, device) -> "SmartTokenBatch":
+        """Return this batch with its token tensors on *device*."""
+
+        return SmartTokenBatch(
+            agents=None if self.agents is None else self.agents.to(device),
+            map_tokens=None if self.map_tokens is None else self.map_tokens.to(device),
+            frame_ms=self.frame_ms,
+        )

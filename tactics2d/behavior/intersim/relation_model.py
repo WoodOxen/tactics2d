@@ -65,24 +65,20 @@ class _SubGraph(nn.Module):
         hidden_size = hidden_states.shape[2]
         device = hidden_states.device
 
-        attention_mask = torch.zeros([batch_size, max_vector_num, hidden_size // 2], device=device)
-        zeros = torch.zeros([hidden_size // 2], device=device)
-        for i in range(batch_size):
-            attention_mask[i][vector_num[i] : max_vector_num].fill_(-10000.0)
+        valid = (
+            torch.arange(max_vector_num, device=device)[None]
+            < torch.as_tensor(vector_num, device=device)[:, None]
+        )
         for layer in self.layers:
-            new_hidden_states = torch.zeros(
-                [batch_size, max_vector_num, hidden_size], device=device
-            )
             encoded_hidden_states = layer(hidden_states)
-            for j in range(max_vector_num):
-                attention_mask[:, j] += -10000.0
-                max_hidden, _ = torch.max(encoded_hidden_states + attention_mask, dim=1)
-                max_hidden = torch.max(max_hidden, zeros)
-                attention_mask[:, j] += 10000.0
-                new_hidden_states[:, j] = torch.cat(
-                    (encoded_hidden_states[:, j], max_hidden), dim=-1
-                )
-            hidden_states = new_hidden_states
+            masked = encoded_hidden_states.masked_fill(~valid[..., None], -10000.0)
+            prefix = torch.cummax(masked, dim=1).values
+            suffix = torch.flip(torch.cummax(torch.flip(masked, dims=[1]), dim=1).values, dims=[1])
+            fill = masked.new_full((batch_size, 1, hidden_size // 2), -10000.0)
+            left = torch.cat([fill, prefix[:, :-1]], dim=1)
+            right = torch.cat([suffix[:, 1:], fill], dim=1)
+            pooled = torch.maximum(left, right).clamp_min(0.0)
+            hidden_states = torch.cat((encoded_hidden_states, pooled), dim=-1)
         return torch.max(hidden_states, dim=1)[0]
 
 
@@ -200,6 +196,7 @@ class RelationVectorNet(nn.Module):
         self.decoder = nn.Module()
         self.decoder.inf_r_decoder = _DecoderResCat(in_features=_HIDDEN * 2, out_features=2)
 
+    @torch.inference_mode()
     def forward(
         self, matrix: np.ndarray, polyline_spans: List[slice], map_start_polyline_idx: int, device
     ) -> np.ndarray:
@@ -250,5 +247,6 @@ class RelationVectorNet(nn.Module):
         missing = [key for key in model.state_dict() if key not in state_dict]
         if missing:
             raise ValueError(f"Relation checkpoint is missing parameters: {missing}")
+        model.to(device)
         model.eval()
         return model

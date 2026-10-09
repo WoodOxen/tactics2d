@@ -37,6 +37,7 @@ class AgentRecord:
     speed_limit: Optional[float] = None
     intent_speed: Optional[float] = None
     lane_id: Optional[object] = None
+    route_poses: Optional[np.ndarray] = None
     # Braking/acceleration limits taken from the participant.
     max_accel: float = 3.0
     max_decel: float = 10.0
@@ -71,6 +72,9 @@ class AgentRecord:
             goal_array = np.asarray(goal_xy, dtype=float)
             if goal_array.shape == (2,):
                 goal = goal_array
+        route_poses = getattr(participant, "route_poses", None)
+        if route_poses is not None:
+            route_poses = np.asarray(route_poses, dtype=float).reshape(-1, 3)
         return cls(
             agent_id=participant.id_,
             is_vehicle=is_vehicle,
@@ -81,6 +85,7 @@ class AgentRecord:
             heading=spatial.normalize_angle(float(state.heading)),
             v0=float(max(0.0, speed)),
             goal=goal,
+            route_poses=route_poses,
             intent_speed=float(getattr(participant, "intent_speed", 0.0) or 0.0),
             max_accel=float(getattr(participant, "max_accel", 0.0) or 3.0),
             max_decel=float(
@@ -118,7 +123,9 @@ class AgentRecord:
                 lane = map_.lanes[lane_id]
                 self.lane_id = lane_id
                 self.speed_limit = lane.speed_limit
-                chain = lane_chain_points(map_, lane_id, lookahead, goal=self.goal)
+                chain = self._hinted_lane_points(config, map_, lane_id)
+                if chain is None:
+                    chain = lane_chain_points(map_, lane_id, lookahead, goal=self.goal)
                 if chain is not None:
                     path = ArcPath(chain)
         if path is None:
@@ -126,6 +133,32 @@ class AgentRecord:
             s0 = 0.0
         self.path = path
         return s0
+
+    def _hinted_lane_points(
+        self, config: InterSimConfig, map_: Map, lane_id: object
+    ) -> Optional[np.ndarray]:
+        """Build the released rerouter's future-pose-guided lane sequence."""
+
+        if self.route_poses is None or len(self.route_poses) == 0:
+            return None
+        route = [lane_id]
+        for x, y, heading in self.route_poses:
+            matched = match_lane(
+                map_, float(x), float(y), float(heading), 5.0, config.lane_heading_tolerance_deg
+            )
+            if matched is not None and matched[0] not in route:
+                route.append(matched[0])
+        if len(route) == 1:
+            return None
+        segments = []
+        for route_lane_id in route:
+            if route_lane_id not in map_.lanes:
+                continue
+            centerline = map_.lanes[route_lane_id].centerline()
+            if centerline is None or len(centerline.coords) < 2:
+                continue
+            segments.append(np.asarray(centerline.coords, dtype=float))
+        return np.concatenate(segments, axis=0) if segments else None
 
 
 def build_scene_records(

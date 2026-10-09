@@ -41,6 +41,10 @@ class TorchSmartPolicy:
         self.device = torch.device(device) if device is not None else None
         self.dtype = dtype
         self.seed = seed
+        if self.device is not None:
+            self.model.to(self.device)
+        if self.dtype is not None:
+            self.model.to(dtype=self.dtype)
 
     def predict_batch(self, batch: SmartTokenBatch) -> SmartPrediction:
         """Run the autoregressive rollout for one batch.
@@ -52,14 +56,10 @@ class TorchSmartPolicy:
             The joint rollout, in the world frame.
         """
 
-        if self.device is not None:
-            self.model.to(self.device)
-        if self.dtype is not None:
-            self.model.to(dtype=self.dtype)
         # Re-applied per call, so every step of a closed loop draws identically.
         if self.seed is not None:
             torch.manual_seed(self.seed)
-        with torch.no_grad():
+        with torch.inference_mode():
             output = self.model.inference(batch)
 
         agents = batch.agents

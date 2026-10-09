@@ -65,7 +65,7 @@ class TorchBitsPolicy(BitsPolicy):
         )
         module_arg = torch_batch if self.module_input == "batch" else torch_batch.tensors
 
-        with torch.no_grad():
+        with torch.inference_mode():
             output = self.module(module_arg, **self.module_kwargs)
 
         if isinstance(output, dict) and "plan" in output and "predictions" in output:

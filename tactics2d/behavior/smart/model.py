@@ -177,7 +177,8 @@ class SmartBehaviorModel(BehaviorModelBase):
         Args:
             path (str): Path to a ``.ckpt`` file or a bare state dict.
             config (Optional[SmartConfig], optional): Configuration to build with. Defaults to None.
-            map_location (optional): ``torch.load`` argument. Defaults to *device*, else CPU.
+            map_location (optional): ``torch.load`` argument. Defaults to CPU; the
+                constructed module is moved to *device* after loading.
             device (Optional[str], optional): Device to place the model on. Defaults to None.
             dtype (Optional[torch.dtype], optional): Parameter dtype. Defaults to None.
 
@@ -189,7 +190,11 @@ class SmartBehaviorModel(BehaviorModelBase):
         """
 
         if map_location is None:
-            map_location = device if device is not None else "cpu"
+            # Deserialize on CPU first, matching the released SMART loader.  In
+            # SMART's PyTorch 1.12 environment, restoring CUDA storages directly
+            # from this archive can crash inside torch.load even though ordinary
+            # CUDA allocation and moving the completed module both work.
+            map_location = "cpu"
         payload = torch.load(path, map_location=map_location)
         resolved = config if config is not None else SmartConfig()
 
@@ -268,10 +273,34 @@ class SmartBehaviorModel(BehaviorModelBase):
             ValueError: If *map_* is None, or if no modelled participant is active at *frame*.
         """
 
+        batch = self.prepare_scene(participants, map_, frame, agent_ids=agent_ids)
+        return self.predict_prepared_scene(batch, participants)
+
+    def prepare_scene(
+        self,
+        participants: Dict[object, object],
+        map_: Optional[Map],
+        frame: int,
+        agent_ids: Optional[Iterable[object]] = None,
+    ) -> SmartTokenBatch:
+        """Tokenize one scene once for one or more independent samples.
+
+        A prepared batch contains no rollout state and can therefore be reused
+        safely when a caller needs several stochastic futures for the same
+        observed scene.
+        """
+
         if map_ is None:
             raise ValueError("SMART needs a map to tokenize; map_ is None.")
         center_id = None if agent_ids is None else next(iter(agent_ids), None)
         batch = self.builder.build(participants, map_, frame, center_id=center_id)
+        return batch if self.device is None else batch.to(self.device)
+
+    def predict_prepared_scene(
+        self, batch: SmartTokenBatch, participants: Dict[object, object]
+    ) -> SmartPrediction:
+        """Sample a joint future from an already tokenized scene batch."""
+
         prediction = self.policy.predict_batch(batch)
         return dataclasses.replace(prediction, frames=self._future_frames(participants, batch))
 

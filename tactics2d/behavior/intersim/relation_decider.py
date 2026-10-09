@@ -4,14 +4,17 @@
 """Learned relation-direction arbitration."""
 
 from typing import Optional
+from weakref import WeakKeyDictionary
 
 import numpy as np
+import torch
 
 from tactics2d.geometry import spatial
 from tactics2d.participant.element import Vehicle
 
 from . import m2i_features as features
 from .config import InterSimConfig
+from .relation_model import RelationVectorNet
 
 # Adapted from InterSim (github.com/Tsinghua-MARS-Lab/InterSim), MIT,
 # Copyright (c) 2022 Tsinghua MARS Lab.
@@ -19,20 +22,21 @@ from .config import InterSimConfig
 # Process-wide cache: the checkpoints are read-only ~125 MB weight assets, so
 # they are kept alive per path for the lifetime of the process.
 _MODEL_CACHE = {}
+_ROAD_SAMPLE_CACHE = WeakKeyDictionary()
 
 
 def load_model(config: InterSimConfig):
-    """Return the relation predictor for the configured checkpoint, loading it on first use."""
+    """Return the cached relation predictor and its automatically selected device."""
 
     if not config.relation_model_path:
         raise ValueError("relation_mode='nn' requires config.relation_model_path.")
 
     path = str(config.relation_model_path)
-    if path not in _MODEL_CACHE:
-        from .relation_model import RelationVectorNet
-
-        _MODEL_CACHE[path] = RelationVectorNet.from_checkpoint(path)
-    return _MODEL_CACHE[path]
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    key = (path, str(device))
+    if key not in _MODEL_CACHE:
+        _MODEL_CACHE[key] = RelationVectorNet.from_checkpoint(path, device=str(device))
+    return _MODEL_CACHE[key], device
 
 
 def road_graph(map_, cx: float, cy: float):
@@ -44,34 +48,41 @@ def road_graph(map_, cx: float, cy: float):
     """
 
     type_map = {"road": 2, "highway": 1, "bicycle_lane": 3}
-    points = []
-    types = []
-    ids = []
-    lane_id = 0
-    for lane in map_.lanes.values():
-        centerline = lane.centerline()
-        if centerline is None or len(centerline.coords) < 2:
-            continue
-        coords = np.asarray(centerline.coords, dtype=float)
-        lane_type = type_map.get(lane.subtype, 2) if lane.subtype else 2
-        for index in range(0, len(coords), 2):
-            x, y = coords[index]
-            if abs(x - cx) <= 150.0 and -60.0 <= y - cy <= 170.0:
-                points.append([x, y, 0.0])
-                types.append(lane_type)
-                ids.append(lane_id)
-        lane_id += 1
-    if not points:
+    cached = _ROAD_SAMPLE_CACHE.get(map_)
+    if cached is None:
+        points = []
+        types = []
+        ids = []
+        lane_id = 0
+        for lane in map_.lanes.values():
+            centerline = lane.centerline()
+            if centerline is None or len(centerline.coords) < 2:
+                continue
+            coords = np.asarray(centerline.coords, dtype=float)[::2]
+            points.extend(np.column_stack([coords, np.zeros(len(coords))]))
+            lane_type = type_map.get(lane.subtype, 2) if lane.subtype else 2
+            types.extend([lane_type] * len(coords))
+            ids.extend([lane_id] * len(coords))
+            lane_id += 1
+        cached = (
+            np.asarray(points, dtype=np.float32).reshape(-1, 3),
+            np.asarray(types, dtype=np.int32),
+            np.asarray(ids, dtype=np.int32),
+        )
+        _ROAD_SAMPLE_CACHE[map_] = cached
+    all_points, all_types, all_ids = cached
+    if not len(all_points):
         return (
             np.zeros((0, 3), dtype=np.float32),
             np.zeros(0, dtype=np.int32),
             np.zeros(0, dtype=np.int32),
         )
-    return (
-        np.asarray(points, dtype=np.float32),
-        np.asarray(types, dtype=np.int32).reshape(-1),
-        np.asarray(ids, dtype=np.int32).reshape(-1),
+    keep = (
+        (np.abs(all_points[:, 0] - cx) <= 150.0)
+        & (all_points[:, 1] - cy >= -60.0)
+        & (all_points[:, 1] - cy <= 170.0)
     )
+    return all_points[keep], all_types[keep], all_ids[keep]
 
 
 def make_decider(config: InterSimConfig, poses, types, map_, ego_id, current: int):
@@ -81,13 +92,10 @@ def make_decider(config: InterSimConfig, poses, types, map_, ego_id, current: in
     returns ``None`` when the predictor is not confident.
     """
 
-    import torch
-
     ego_pose = poses[ego_id][current]
     road_points, road_types, road_ids = road_graph(map_, float(ego_pose[0]), float(ego_pose[1]))
     is_vehicle = {agent_id: types[agent_id] is Vehicle for agent_id in poses}
-    model = load_model(config)
-    device = torch.device("cpu")
+    model, device = load_model(config)
     cache = {}
 
     def decide(reactor_id, influencer_id):

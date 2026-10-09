@@ -34,34 +34,53 @@ class BitsRasterizer:
         raster_from_agent = self.raster_from_agent()
         agent_from_raster = np.linalg.inv(raster_from_agent)
         raster_from_world = raster_from_agent @ agent_from_world
+        world_from_raster = np.linalg.inv(raster_from_world)
 
         size = self.config.raster_size
+        corners = self._transform_coords(
+            np.asarray([[0.0, 0.0], [size, 0.0], [size, size], [0.0, size]]), world_from_raster
+        )
+        world_bounds = (
+            float(corners[:, 0].min()),
+            float(corners[:, 1].min()),
+            float(corners[:, 0].max()),
+            float(corners[:, 1].max()),
+        )
         image = np.zeros((3, size, size), dtype=np.float32)
         drivable_map = np.zeros((size, size), dtype=bool)
 
         for lane in map_.lanes.values():
             lane_mask = np.zeros_like(drivable_map)
-            self._fill_geometry(lane_mask, getattr(lane, "geometry", None), raster_from_world)
+            geometry = getattr(lane, "geometry", None)
+            if self._intersects_bounds(geometry, world_bounds, margin=self.config.pixel_size):
+                self._fill_geometry(lane_mask, geometry, raster_from_world)
             if lane_mask.any():
                 drivable_map |= lane_mask
                 image[0, lane_mask] = 1.0
 
             centerline = lane.centerline()
-            if centerline is not None:
+            if centerline is not None and self._intersects_bounds(
+                centerline, world_bounds, margin=self.config.pixel_size
+            ):
                 self._draw_line(image[1], centerline.coords, raster_from_world)
 
         for area in map_.areas.values():
             subtype = getattr(area, "subtype", None)
+            geometry = getattr(area, "geometry", None)
+            if not self._intersects_bounds(geometry, world_bounds, margin=self.config.pixel_size):
+                continue
             if subtype in self.DRIVABLE_AREA_SUBTYPES:
                 area_mask = np.zeros_like(drivable_map)
-                self._fill_geometry(area_mask, getattr(area, "geometry", None), raster_from_world)
+                self._fill_geometry(area_mask, geometry, raster_from_world)
                 if area_mask.any():
                     drivable_map |= area_mask
                     image[0, area_mask] = 1.0
             elif subtype in self.PEDESTRIAN_AREA_SUBTYPES:
-                self._fill_geometry(image[2], getattr(area, "geometry", None), raster_from_world)
+                self._fill_geometry(image[2], geometry, raster_from_world)
 
         for roadline in map_.roadlines.values():
+            if not self._intersects_bounds(roadline.geometry, world_bounds, margin=5.0):
+                continue
             width = self._line_width_pixels(getattr(roadline, "width", None))
             self._draw_line(image[1], roadline.geometry.coords, raster_from_world, width)
 
@@ -71,6 +90,21 @@ class BitsRasterizer:
             raster_from_agent=raster_from_agent,
             agent_from_raster=agent_from_raster,
             static_image=image,
+        )
+
+    @staticmethod
+    def _intersects_bounds(geometry, bounds, margin: float = 0.0) -> bool:
+        """Return whether a geometry can affect the current raster canvas."""
+
+        if geometry is None:
+            return False
+        min_x, min_y, max_x, max_y = geometry.bounds
+        view_min_x, view_min_y, view_max_x, view_max_y = bounds
+        return not (
+            max_x + margin < view_min_x
+            or min_x - margin > view_max_x
+            or max_y + margin < view_min_y
+            or min_y - margin > view_max_y
         )
 
     def rasterize_agents(

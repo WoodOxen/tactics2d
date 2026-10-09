@@ -12,7 +12,7 @@ from typing import Dict, Sequence
 from .action import LimSimAction
 from .config import LimSimConfig
 from .decision_state import AgentDecisionState
-from .interaction import first_collision_info, minimum_pair_distance
+from .interaction import trajectory_safety_summary
 
 
 class LimSimReward:
@@ -38,7 +38,8 @@ class LimSimReward:
         collision_ordered = ordered + obstacle_ordered
 
         # --- collision → 0.0 (matches original paper's terminal-on-collision) ---
-        if first_collision_info(collision_ordered) is not None:
+        collision, min_distance, closing_factor = trajectory_safety_summary(collision_ordered)
+        if collision is not None:
             return 0.0
 
         rewards = []
@@ -86,37 +87,13 @@ class LimSimReward:
         # --- proximity / closing-speed adjustments (shared across agents) ---
         avg_reward = sum(rewards) / len(rewards)
 
-        min_distance = minimum_pair_distance(collision_ordered)
         if min_distance < self.config.conflict_distance:
             avg_reward -= 0.05 * (self.config.conflict_distance - min_distance)
 
         # Normalised per rollout step and capped: only a collision may drive the
         # reward to 0.0, not a sustained approach.
-        closing_factor = self._closing_speed_factor(collision_ordered)
         lengths = [len(trajectory) for trajectory in collision_ordered if trajectory]
         steps = min(lengths) if lengths else 1
         avg_reward -= min(self.config.reward_closing_penalty_cap, 0.02 * closing_factor / steps)
 
         return float(max(0.0, min(1.0, avg_reward)))
-
-    def _closing_speed_factor(self, trajectories: Sequence[Sequence[AgentDecisionState]]) -> float:
-        factor = 0.0
-        if len(trajectories) < 2:
-            return factor
-        steps = min(len(trajectory) for trajectory in trajectories)
-        for step in range(steps):
-            for i, source in enumerate(trajectories):
-                for target in trajectories[i + 1 :]:
-                    source_state = source[step]
-                    target_state = target[step]
-                    if source_state.lane_id != target_state.lane_id:
-                        continue
-                    rear, front = source_state, target_state
-                    if rear.route_progress > front.route_progress:
-                        rear, front = front, rear
-                    gap = front.route_progress - rear.route_progress
-                    closing_speed = rear.speed - front.speed
-                    safe_gap = rear.length + max(rear.speed, 0.0)
-                    if closing_speed > 0.0 and gap < safe_gap:
-                        factor += closing_speed * (safe_gap - gap)
-        return factor
