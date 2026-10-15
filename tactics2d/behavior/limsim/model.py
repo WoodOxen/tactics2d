@@ -16,7 +16,7 @@ from tactics2d.map.element import Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import Trajectory
 
-from . import rolling
+from . import rollout
 from .action import LimSimAction
 from .config import LimSimConfig
 from .decision_search import LimSimDecisionSearch
@@ -24,12 +24,11 @@ from .decision_state import AgentDecisionState, states_to_trajectory
 from .frenet_planner import FrenetTrajectoryPlanner
 from .interaction import InteractionGraph, first_collision_info
 from .lane_follower import LaneFollower
-from .prediction import LimSimPredictor
 from .scene import SceneBuilder
 
 
 @dataclass
-class PlanningResult:
+class LimSimPlanResult:
     """Output of the LimSim behavior model."""
 
     trajectories: Dict[object, Trajectory] = field(default_factory=dict)
@@ -51,7 +50,6 @@ class LimSimBehaviorModel(BehaviorModelBase):
         self.decision_search = LimSimDecisionSearch(self.config)
         self.follower = LaneFollower(self.config)
         self.trajectory_planner = FrenetTrajectoryPlanner(self.config)
-        self.predictor = LimSimPredictor(self.config)
 
     def plan(
         self,
@@ -66,7 +64,7 @@ class LimSimBehaviorModel(BehaviorModelBase):
         roi_outer_radius: Optional[float] = None,
         ego_id: Optional[object] = None,
         last_planned_trajectories: Optional[Dict[object, Trajectory]] = None,
-    ) -> PlanningResult:
+    ) -> LimSimPlanResult:
         """Plan future trajectories for active agents at one frame.
 
         Args:
@@ -95,7 +93,7 @@ class LimSimBehaviorModel(BehaviorModelBase):
                 the predictor to reuse committed lane-change plans.
 
         Returns:
-            PlanningResult containing planned trajectories plus LimSim-specific
+            LimSimPlanResult containing planned trajectories plus LimSim-specific
             diagnostics such as actions, interaction groups, and RoI ids.
         """
 
@@ -152,7 +150,7 @@ class LimSimBehaviorModel(BehaviorModelBase):
             last_planned_trajectories=last_planned_trajectories,
         )
         groups = self.interaction_graph.build_groups(scene_states, map_)
-        result = PlanningResult(
+        result = LimSimPlanResult(
             groups=groups,
             roi_agent_ids=list(scene_states.keys()),
             background_agent_ids=background_ids,
@@ -277,10 +275,11 @@ class LimSimBehaviorModel(BehaviorModelBase):
         participants: Dict[object, object],
         map_: Optional[Map],
         ego_id: object,
-        frame_ms: Optional[int] = None,
+        start_frame: Optional[int] = None,
+        controlled_ids: Optional[Iterable[object]] = None,
+        *,
         horizon_ms: Optional[int] = None,
         route_map: Optional[Dict[object, Tuple[str, ...]]] = None,
-        controlled_ids: Optional[Iterable[object]] = None,
     ) -> TrajectoryRolloutResult:
         """Replay one vehicle's future in a receding-horizon loop.
 
@@ -288,11 +287,11 @@ class LimSimBehaviorModel(BehaviorModelBase):
         member. Defaulting to None replays the ego alone.
         """
 
-        return rolling.LimSimRollingRunner(self, self.config, horizon_ms=horizon_ms).run(
+        return rollout.LimSimRolloutRunner(self, self.config, horizon_ms=horizon_ms).run(
             participants,
             map_,
             ego_id,
-            frame_ms=frame_ms,
+            start_frame=start_frame,
             route_map=route_map,
             controlled_ids=controlled_ids,
         )
@@ -356,10 +355,8 @@ class LimSimBehaviorModel(BehaviorModelBase):
         return trajectories
 
     def _trajectory_to_decision_states(
-        self, trajectory: Optional[Trajectory], reference_state: AgentDecisionState
+        self, trajectory: Trajectory, reference_state: AgentDecisionState
     ):
-        if trajectory is None:
-            return []
         states = []
         previous_progress = reference_state.route_progress
         for frame in trajectory.frames[: self.config.horizon_steps]:

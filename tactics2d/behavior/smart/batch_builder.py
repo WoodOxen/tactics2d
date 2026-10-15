@@ -27,7 +27,7 @@ _PARTICIPANT_AGENT_TYPES = (
 )
 
 
-def participant_agent_type(participant) -> Optional[int]:
+def _participant_agent_type(participant) -> Optional[int]:
     """Return the motion codebook type index of a participant.
 
     Args:
@@ -43,7 +43,7 @@ def participant_agent_type(participant) -> Optional[int]:
     return None
 
 
-def _observed_frames(participants: Dict[object, object]) -> List[int]:
+def observed_frames(participants: Dict[object, object]) -> List[int]:
     """Return every frame any participant is observed at, ascending.
 
     Args:
@@ -66,7 +66,7 @@ def _dimensions(participant) -> Tuple[float, float, float]:
         participant: A tactics2d participant.
 
     Returns:
-        The length, width and height in metres, zero for a missing dimension.
+        The length, width and height in meters, zero for a missing dimension.
     """
 
     extent = []
@@ -154,17 +154,17 @@ class SmartBatchBuilder:
                 radius is measured from. Defaults to None.
 
         Returns:
-            The modelled participant ids, nearest to the centre first.
+            The modeled participant ids, nearest to the center first.
 
         Raises:
-            ValueError: If no modelled participant is active at *frame*, or if
+            ValueError: If no modeled participant is active at *frame*, or if
                 *center_id* is not one of them.
         """
 
         candidates = [
             agent_id
             for agent_id, participant in participants.items()
-            if participant_agent_type(participant) is not None
+            if _participant_agent_type(participant) is not None
             and participant.trajectory.has_state(frame)
         ]
         if self.config.vehicle_only:
@@ -172,12 +172,12 @@ class SmartBatchBuilder:
                 agent_id for agent_id in candidates if isinstance(participants[agent_id], Vehicle)
             ]
         if not candidates:
-            raise ValueError(f"no modelled participant is active at frame {frame}.")
+            raise ValueError(f"no modeled participant is active at frame {frame}.")
         if center_id is None:
             center_id = candidates[0]
         elif center_id not in candidates:
             raise ValueError(
-                f"center_id {center_id!r} is not a modelled participant active at frame {frame}."
+                f"center_id {center_id!r} is not a modeled participant active at frame {frame}."
             )
 
         center = participants[center_id].trajectory.get_state(frame).location
@@ -222,13 +222,13 @@ class SmartBatchBuilder:
             The tokenized agent history and map, stamped with *frame*.
 
         Raises:
-            ValueError: If no modelled participant is active at *frame*, or if
+            ValueError: If no modeled participant is active at *frame*, or if
                 *center_id* is not one of them.
         """
 
         # Anchor on the newest frame the scenario is actually observed at, not
         # on the requested timestamp.
-        grid = _observed_frames(participants)
+        grid = observed_frames(participants)
         observed = [frame_ for frame_ in grid if frame_ <= int(frame)]
         anchor = observed[-1] if observed else int(frame)
         # Read the map one frame on, so a light that changes as the rollout
@@ -251,7 +251,7 @@ class SmartBatchBuilder:
         for row, agent_id in enumerate(agent_ids):
             participant = participants[agent_id]
             trajectory = participant.trajectory
-            agent_type[row] = participant_agent_type(participant)
+            agent_type[row] = _participant_agent_type(participant)
             shape[row] = _dimensions(participant)
             for column, history_frame in enumerate(frames):
                 if not trajectory.has_state(history_frame):

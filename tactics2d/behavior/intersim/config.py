@@ -14,8 +14,7 @@ from typing import Optional
 class InterSimConfig:
     """Parameters for directed relation detection and conflict resolution.
 
-    ``horizon_steps`` is the InterSim-native alias of ``planning_steps``. All
-    learning-based predictor options must stay disabled.
+    ``horizon_steps`` is the InterSim-native alias of ``planning_steps``.
     """
 
     dt: float = 0.1
@@ -37,10 +36,7 @@ class InterSimConfig:
     max_resolution_iters: int = 6
     default_vehicle_length: float = 4.8
     default_vehicle_width: float = 1.9
-    use_relation_model: bool = False
     relation_model_path: Optional[str] = None
-    use_marginal_model: bool = False
-    marginal_model_path: Optional[str] = None
     # Closed-loop cadence in steps (WOMD 10 Hz).
     planning_warmup_steps: int = 11
     planning_interval: int = 10

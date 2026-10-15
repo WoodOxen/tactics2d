@@ -69,15 +69,15 @@ def _radius_single(
 ) -> torch.Tensor:
     """Solve one radius query for a single, unbatched pair of point sets.
 
-    Keeper of the nearest neighbours, ties broken by the lower index; the
+    Keeper of the nearest neighbors, ties broken by the lower index; the
     predicate is strict (``distance < r``) over all feature columns.
 
     Args:
-        x (torch.Tensor): Candidate neighbours of shape ``(N, F)``.
+        x (torch.Tensor): Candidate neighbors of shape ``(N, F)``.
         y (torch.Tensor): Query points of shape ``(M, F)``.
         r (float): Radius in the units of ``x`` and ``y``.
         max_num_neighbors (Optional[int]): Per-query cap. None keeps every
-            neighbour.
+            neighbor.
         chunk_size (int): Number of queries per distance sweep.
 
     Returns:
@@ -136,13 +136,13 @@ def radius(
     Row 0 of the result indexes ``y`` and row 1 indexes ``x``.
 
     Args:
-        x (torch.Tensor): Candidate neighbours of shape ``(N, F)``.
+        x (torch.Tensor): Candidate neighbors of shape ``(N, F)``.
         y (torch.Tensor): Query points of shape ``(M, F)``.
         r (float): Radius.
         batch_x (Optional[torch.Tensor], optional): Assignment vector for ``x``. Defaults to None.
         batch_y (Optional[torch.Tensor], optional): Assignment vector for ``y``. Defaults to None.
         max_num_neighbors (Optional[int], optional): Per-query cap on kept
-            neighbours. Defaults to 32.
+            neighbors. Defaults to 32.
         chunk_size (int, optional): Maximum queries per distance sweep. Defaults to 512.
 
     Returns:
@@ -204,12 +204,12 @@ def radius_graph(
         batch (Optional[torch.Tensor], optional): Assignment vector. Defaults to None.
         loop (bool, optional): Whether to keep self-loops. Defaults to False.
         max_num_neighbors (Optional[int], optional): Per-node cap on kept
-            neighbours. Defaults to 32.
+            neighbors. Defaults to 32.
         chunk_size (int, optional): Maximum queries per distance sweep. Defaults to 512.
 
     Returns:
-        An ``(2, E)`` index tensor where row 0 is the neighbour and row 1 is
-        the centre node.
+        An ``(2, E)`` index tensor where row 0 is the neighbor and row 1 is
+        the center node.
     """
 
     inflated = None if max_num_neighbors is None else max_num_neighbors + (0 if loop else 1)
@@ -237,9 +237,9 @@ def dense_to_sparse(mask: torch.Tensor) -> torch.Tensor:
     """
 
     if mask.dim() == 3:
-        batch_src, index, neighbours = mask.nonzero(as_tuple=True)
+        batch_src, index, neighbors = mask.nonzero(as_tuple=True)
         source = batch_src * mask.shape[1] + index
-        target = batch_src * mask.shape[2] + neighbours
+        target = batch_src * mask.shape[2] + neighbors
         return torch.stack([source, target], dim=0)
     if mask.dim() == 2:
         return mask.nonzero().t()

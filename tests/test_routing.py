@@ -171,6 +171,24 @@ def test_find_lane_at_pose_respects_driving_direction():
     assert matched_down[0] == "S"
 
 
+def test_find_lane_at_pose_spatial_candidates_match_full_scan(monkeypatch):
+    map_ = Map(name="indexed_lane_match")
+    for index in range(40):
+        x0 = float(index * 20)
+        map_.add_lane(_build_lane(f"far-{index}", x0, x0 + 2.0, 0.0, 20.0))
+    target = _build_lane("target", 0.0, 2.0, 0.0, 20.0)
+    map_.add_lane(target)
+
+    indexed = map_.find_lane_at_pose(x=1.0, y=8.0, heading=0.5 * np.pi, radius=5.0)
+
+    from tactics2d.map.element import map as map_module
+
+    monkeypatch.setattr(map_module, "HAS_STRTREE", False)
+    scanned = map_.find_lane_at_pose(x=1.0, y=8.0, heading=0.5 * np.pi, radius=5.0)
+
+    assert indexed == scanned == ("target", 8.0)
+
+
 @pytest.mark.search
 def test_find_nearest_lane_matches_a_lane_without_geometry():
     """A lane carrying only a centreline still takes part in the search."""

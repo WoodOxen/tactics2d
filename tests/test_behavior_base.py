@@ -10,7 +10,7 @@ import sys
 
 import pytest
 
-from tactics2d.behavior import BehaviorModelBase
+from tactics2d.behavior import BehaviorModelBase, BehaviorRolloutResult
 
 
 def test_public_module_and_configs_do_not_import_torch():
@@ -50,6 +50,16 @@ class _StubModel(BehaviorModelBase):
         if frame in self.fail_on:
             raise RuntimeError(f"cannot predict frame {frame}")
         return {agent_id: (frame, agent_id) for agent_id in agent_ids or ()}
+
+    def rollout(
+        self, participants, map_, ego_id, start_frame=None, controlled_ids=None, **model_options
+    ):
+        """Return the common result without running a model."""
+        return BehaviorRolloutResult(
+            ego_id=ego_id,
+            frames=[] if start_frame is None else [start_frame],
+            controlled_ids=list(controlled_ids or [ego_id]),
+        )
 
 
 @pytest.mark.integration
@@ -107,3 +117,20 @@ def test_predict_batch_forwards_only_the_shared_arguments():
         "max_workers",
     ]
     assert parameters["agent_ids"].default is None
+
+
+def test_rollout_declares_the_shared_arguments():
+    """Every behavior model exposes the same leading rollout arguments."""
+    parameters = inspect.signature(BehaviorModelBase.rollout).parameters
+
+    assert list(parameters) == [
+        "self",
+        "participants",
+        "map_",
+        "ego_id",
+        "start_frame",
+        "controlled_ids",
+        "model_options",
+    ]
+    assert parameters["start_frame"].default is None
+    assert parameters["controlled_ids"].default is None

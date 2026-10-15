@@ -3,7 +3,6 @@
 
 """Map implementation."""
 
-
 import enum
 import warnings
 from typing import Iterable, Optional, Sequence, Tuple
@@ -371,7 +370,18 @@ class Map:
         tolerance = np.radians(heading_tolerance_deg)
         best = None
         best_distance = radius
+        candidate_ids = None
+        if HAS_STRTREE and self._element_geometries:
+            nearby = set(self.query_point((x, y), buffer=radius))
+            # Elements without indexable geometry still need the historical
+            # projection fallback. Iterating the lane dictionary below keeps
+            # tie-breaking identical to the full scan.
+            candidate_ids = nearby | {
+                lane_id for lane_id in self.lanes if lane_id not in self._element_geometries
+            }
         for lane_id, lane in self.lanes.items():
+            if candidate_ids is not None and lane_id not in candidate_ids:
+                continue
             projection = lane.project_point((x, y))
             if projection is None or projection.distance > best_distance:
                 continue

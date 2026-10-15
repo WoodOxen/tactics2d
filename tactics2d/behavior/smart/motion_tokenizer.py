@@ -10,7 +10,8 @@ from typing import Dict, List, Optional
 import numpy as np
 import torch
 
-from .config import SmartConfig, load_codebook
+from .codebook import load_codebook
+from .config import SmartConfig
 from .tokens import AgentType, SmartAgentTokens
 
 # Codebook key per agent type index; any other type stays at token 0.
@@ -20,7 +21,7 @@ _CATEGORY_BY_TYPE = {
     AgentType.CYCLIST: "cyc",
 }
 
-# (length, width) in metres of the footprint matched against the codebook.
+# (length, width) in meters of the footprint matched against the codebook.
 _FOOTPRINT = {"veh": (4.8, 2.0), "cyc": (2.0, 1.0), "ped": (1.0, 1.0)}
 
 
@@ -31,11 +32,11 @@ def _oriented_contour(x, y, heading, length, width):
     3 is the heading axis read back from a token.
 
     Args:
-        x (torch.Tensor): Centre x-coordinates of shape ``(A,)``.
-        y (torch.Tensor): Centre y-coordinates of shape ``(A,)``.
+        x (torch.Tensor): Center x-coordinates of shape ``(A,)``.
+        y (torch.Tensor): Center y-coordinates of shape ``(A,)``.
         heading (torch.Tensor): Headings in radians of shape ``(A,)``.
-        length (float): Footprint length along the heading in metres.
-        width (float): Footprint width across the heading in metres.
+        length (float): Footprint length along the heading in meters.
+        width (float): Footprint width across the heading in meters.
 
     Returns:
         A ``(A, 4, 2)`` float32 tensor of corners.
@@ -296,7 +297,7 @@ class MotionTokenizer:
         """Quantize agent histories into motion tokens.
 
         Args:
-            positions: Positions of shape ``(A, F, 2)`` in metres, world frame.
+            positions: Positions of shape ``(A, F, 2)`` in meters, world frame.
             headings: Headings of shape ``(A, F)`` in radians.
             valid_mask: Per-frame presence of shape ``(A, F)``; usable frames are decided here.
             velocity: Velocities of shape ``(A, F, 2)``, used only to impute one missing pose.

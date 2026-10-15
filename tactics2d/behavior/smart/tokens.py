@@ -7,14 +7,14 @@
 
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import List, Optional
+from typing import List
 
 import numpy as np
 import torch
 
 
 class AgentType(IntEnum):
-    """Motion codebook type index of a modelled participant."""
+    """Motion codebook type index of a modeled participant."""
 
     VEHICLE = 0
     PEDESTRIAN = 1
@@ -67,7 +67,7 @@ class LightType(IntEnum):
 
 @dataclass
 class SmartAgentTokens:
-    """Tokenized motion history for the jointly modelled agents.
+    """Tokenized motion history for the jointly modeled agents.
 
     Tensors are shaped ``(A, S)``; each slot covers ``shift + 1`` history frames
     and overlaps the previous slot by one frame.
@@ -96,7 +96,7 @@ class SmartAgentTokens:
 
     @property
     def num_agents(self) -> int:
-        """Return the number of modelled agents."""
+        """Return the number of modeled agents."""
 
         return int(self.token_idx.shape[0])
 
@@ -119,6 +119,23 @@ class SmartAgentTokens:
             agent_type=self.agent_type,
             agent_shape=self.agent_shape.to(device),
             eval_mask=self.eval_mask.to(device),
+        )
+
+    def repeat_samples(self, count: int) -> "SmartAgentTokens":
+        """Repeat a scene's agents in sample-major order for batched rollouts."""
+
+        if count <= 0:
+            raise ValueError("sample count must be positive")
+        return SmartAgentTokens(
+            agent_ids=self.agent_ids * count,
+            token_idx=self.token_idx.repeat((count, 1)),
+            token_pos=self.token_pos.repeat((count, 1, 1)),
+            token_heading=self.token_heading.repeat((count, 1)),
+            token_velocity=self.token_velocity.repeat((count, 1, 1)),
+            agent_valid_mask=self.agent_valid_mask.repeat((count, 1)),
+            agent_type=np.tile(self.agent_type, count),
+            agent_shape=self.agent_shape.repeat((count, 1)),
+            eval_mask=self.eval_mask.repeat(count),
         )
 
 
@@ -181,20 +198,20 @@ class SmartTokenBatch:
     """One scenario assembled into the model's heterogeneous input.
 
     Attributes:
-        agents (Optional[SmartAgentTokens]): Tokenized agent history. Defaults to None.
-        map_tokens (Optional[SmartMapTokens]): Tokenized map. Defaults to None.
-        frame_ms (int): Timestamp of the newest observed frame. Defaults to 0.
+        agents (SmartAgentTokens): Tokenized agent history.
+        map_tokens (SmartMapTokens): Tokenized map.
+        frame_ms (int): Timestamp of the newest observed frame.
     """
 
-    agents: Optional[SmartAgentTokens] = None
-    map_tokens: Optional[SmartMapTokens] = None
-    frame_ms: int = 0
+    agents: SmartAgentTokens
+    map_tokens: SmartMapTokens
+    frame_ms: int
 
     def to(self, device) -> "SmartTokenBatch":
         """Return this batch with its token tensors on *device*."""
 
         return SmartTokenBatch(
-            agents=None if self.agents is None else self.agents.to(device),
-            map_tokens=None if self.map_tokens is None else self.map_tokens.to(device),
+            agents=self.agents.to(device),
+            map_tokens=self.map_tokens.to(device),
             frame_ms=self.frame_ms,
         )

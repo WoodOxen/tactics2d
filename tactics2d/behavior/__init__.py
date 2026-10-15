@@ -6,6 +6,7 @@
 from importlib import import_module
 
 from .base import BehaviorModelBase
+from .results import BehaviorRolloutResult
 
 _LAZY_EXPORTS = {
     "BitsBehaviorModel": (".bits.model", "BitsBehaviorModel"),
@@ -32,6 +33,7 @@ def __getattr__(name: str):
 
 __all__ = [
     "BehaviorModelBase",
+    "BehaviorRolloutResult",
     "BitsBehaviorModel",
     "BitsConfig",
     "InterSimBehaviorModel",

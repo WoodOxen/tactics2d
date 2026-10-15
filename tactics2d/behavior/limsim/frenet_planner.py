@@ -12,6 +12,7 @@ import numpy as np
 from shapely.geometry import LineString, Point
 
 from tactics2d.geometry import frenet, polyline, spatial
+from tactics2d.geometry.frenet import FrenetPoint, ReferencePath
 from tactics2d.map.element import Map
 from tactics2d.map.query import SemanticMapQuery, StopTarget
 
@@ -22,7 +23,7 @@ from .lane_follower import LaneFollower
 
 
 @dataclass
-class FrenetCandidate:
+class _FrenetCandidate:
     """One sampled trajectory and its scalar planning cost."""
 
     states: list[AgentDecisionState]
@@ -107,7 +108,7 @@ class FrenetTrajectoryPlanner:
     ) -> list[AgentDecisionState]:
         """Generate a final trajectory for one agent after the behavior action is fixed."""
 
-        reference_path = reference_path_from_agent(
+        reference_path = _reference_path_from_agent(
             agent, map_, self.config, cache=self._ref_path_cache
         )
         if reference_path is None or reference_path.path.length <= 1e-6:
@@ -224,7 +225,7 @@ class FrenetTrajectoryPlanner:
         stop_target_info: tuple[StopTarget, float] | None = None,
         conflict_points_cache: dict[tuple[str, str], list[Point]] | None = None,
         obstacle_footprints: list[list[object]] | None = None,
-    ) -> list[FrenetCandidate]:
+    ) -> list[_FrenetCandidate]:
         start = reference_path.cartesian_to_frenet(agent.x, agent.y)
         if not self._lane_change_is_allowed(agent, action, map_, start.s):
             return []
@@ -269,7 +270,7 @@ class FrenetTrajectoryPlanner:
                     conflict_points_cache=conflict_points_cache,
                     obstacle_footprints=obstacle_footprints,
                 )
-                candidates.append(FrenetCandidate(states=states, cost=cost))
+                candidates.append(_FrenetCandidate(states=states, cost=cost))
         return candidates
 
     def _build_states(
@@ -470,7 +471,7 @@ class FrenetTrajectoryPlanner:
         stop_target_info: tuple[StopTarget, float] | None = None,
         conflict_points_cache: dict[tuple[str, str], list[Point]] | None = None,
         obstacle_footprints: list[list[object]] | None = None,
-    ) -> FrenetCandidate:
+    ) -> _FrenetCandidate:
         states = [
             agent.with_updates(speed=0.0, action=action) for _ in range(self.config.horizon_steps)
         ]
@@ -487,7 +488,7 @@ class FrenetTrajectoryPlanner:
             conflict_points_cache=conflict_points_cache,
             obstacle_footprints=obstacle_footprints,
         )
-        return FrenetCandidate(states=states, cost=cost)
+        return _FrenetCandidate(states=states, cost=cost)
 
     def _has_collision(
         self,
@@ -580,7 +581,7 @@ class FrenetTrajectoryPlanner:
         time_ms: int | None = None,
         conflict_points_cache: dict[tuple[str, str], list[Point]] | None = None,
         obstacle_footprints: list[list[object]] | None = None,
-    ) -> FrenetCandidate:
+    ) -> _FrenetCandidate:
         _, stop_s = stop_target_info
         target_s = max(start.s, stop_s - self.config.frenet_stop_distance_buffer)
         distance_to_stop = max(target_s - start.s, 0.0)
@@ -633,7 +634,7 @@ class FrenetTrajectoryPlanner:
             conflict_points_cache=conflict_points_cache,
             obstacle_footprints=obstacle_footprints,
         )
-        return FrenetCandidate(states=states, cost=cost)
+        return _FrenetCandidate(states=states, cost=cost)
 
     def _stop_rule_cost(
         self,
@@ -723,7 +724,7 @@ def _lane_width(lane, default_width: float) -> float:
     return float(width) if width is not None else default_width
 
 
-def reference_path_from_agent(
+def _reference_path_from_agent(
     agent: AgentDecisionState, map_: Map | None, config: LimSimConfig, cache: dict | None = None
 ) -> ReferencePath | None:
     """Build a generic reference path from LimSim agent state and map context.

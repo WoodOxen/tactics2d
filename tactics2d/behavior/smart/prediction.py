@@ -14,7 +14,7 @@ from tactics2d.participant.trajectory import Trajectory
 
 @dataclass(frozen=True)
 class SmartPrediction:
-    """A joint SMART rollout for every modelled agent."""
+    """A joint SMART rollout for every modeled agent."""
 
     agent_ids: List[object]
     positions: np.ndarray

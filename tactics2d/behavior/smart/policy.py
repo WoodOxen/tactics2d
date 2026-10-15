@@ -5,7 +5,7 @@
 
 """SMART rollout policy implementation."""
 
-from typing import Optional
+from typing import List, Optional
 
 import numpy as np
 import torch
@@ -46,7 +46,15 @@ class TorchSmartPolicy:
         if self.dtype is not None:
             self.model.to(dtype=self.dtype)
 
-    def predict_batch(self, batch: SmartTokenBatch) -> SmartPrediction:
+    def encode_map(self, batch: SmartTokenBatch):
+        """Encode a prepared scene's map once for repeated sampling."""
+
+        with torch.inference_mode():
+            return self.model.encode_map(batch)
+
+    def predict_batch(
+        self, batch: SmartTokenBatch, map_encoding=None, future_steps: Optional[int] = None
+    ) -> SmartPrediction:
         """Run the autoregressive rollout for one batch.
 
         Args:
@@ -60,7 +68,12 @@ class TorchSmartPolicy:
         if self.seed is not None:
             torch.manual_seed(self.seed)
         with torch.inference_mode():
-            output = self.model.inference(batch)
+            if map_encoding is None:
+                output = self.model.inference(batch, future_steps=future_steps)
+            else:
+                output = self.model.agent_encoder.inference(
+                    batch.agents, batch.map_tokens, map_encoding, future_steps=future_steps
+                )
 
         agents = batch.agents
         positions = output["pred_traj"].detach().cpu().numpy()
@@ -73,3 +86,24 @@ class TorchSmartPolicy:
             frame_ms0=int(batch.frame_ms),
             step_ms=int(self.model.config.step_ms),
         )
+
+    def predict_samples(
+        self, batch: SmartTokenBatch, seeds: List[int], map_encoding=None
+    ) -> List[SmartPrediction]:
+        """Run multiple stochastic samples and transfer their arrays to CPU once."""
+
+        with torch.inference_mode():
+            output = self.model.sample_futures(batch, seeds, map_enc=map_encoding)
+        positions = output["pred_traj"].detach().cpu().numpy()
+        headings = output["pred_head"].detach().cpu().numpy()
+        return [
+            SmartPrediction(
+                agent_ids=list(batch.agents.agent_ids),
+                positions=positions[index],
+                headings=headings[index],
+                availabilities=np.ones(positions.shape[1:3], dtype=bool),
+                frame_ms0=int(batch.frame_ms),
+                step_ms=int(self.model.config.step_ms),
+            )
+            for index in range(len(seeds))
+        ]

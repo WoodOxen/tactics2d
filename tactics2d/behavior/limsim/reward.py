@@ -3,16 +3,30 @@
 
 """Reward model for LimSim-style MCTS.
 
-Per-step bonuses (lane-centre, speed, route-lane, continuity) are summed over
-the trajectory and normalised to [0, 1]; terminal bonus up to 0.8, collision 0.0.
+Per-step bonuses (lane-center, speed, route-lane, continuity) are summed over
+the trajectory and normalized to [0, 1]; terminal bonus up to 0.8, collision 0.0.
 """
 
+from dataclasses import dataclass
 from typing import Dict, Sequence
 
 from .action import LimSimAction
 from .config import LimSimConfig
 from .decision_state import AgentDecisionState
-from .interaction import trajectory_safety_summary
+from .interaction import cross_trajectory_safety_summary, trajectory_safety_summary
+
+
+@dataclass(frozen=True)
+class PreparedObstacleSafety:
+    """Fixed obstacle trajectories and their prefix safety statistics."""
+
+    trajectories: tuple
+    prefix_summaries: Dict[int, tuple]
+
+    def summary(self, steps: int):
+        """Return obstacle-only safety statistics for a rollout prefix."""
+
+        return self.prefix_summaries.get(steps, (None, float("inf"), 0.0))
 
 
 class LimSimReward:
@@ -21,11 +35,30 @@ class LimSimReward:
     def __init__(self, config: LimSimConfig):
         self.config = config
 
+    @staticmethod
+    def prepare_obstacles(
+        obstacle_trajectories: Sequence[Sequence[AgentDecisionState]],
+    ) -> PreparedObstacleSafety:
+        """Precompute safety terms that do not change during one MCTS search."""
+
+        trajectories = tuple(
+            tuple(trajectory) for trajectory in obstacle_trajectories if trajectory
+        )
+        if not trajectories:
+            return PreparedObstacleSafety(trajectories=(), prefix_summaries={})
+        max_steps = min(len(trajectory) for trajectory in trajectories)
+        summaries = {
+            steps: trajectory_safety_summary([trajectory[:steps] for trajectory in trajectories])
+            for steps in range(1, max_steps + 1)
+        }
+        return PreparedObstacleSafety(trajectories=trajectories, prefix_summaries=summaries)
+
     def evaluate(
         self,
         initial_agents: Sequence[AgentDecisionState],
         trajectories: Dict[object, Sequence[AgentDecisionState]],
         obstacle_trajectories: Sequence[Sequence[AgentDecisionState]] = (),
+        obstacle_safety: PreparedObstacleSafety = None,
     ) -> float:
         """Evaluate a joint rollout, returning a value in **[0, 1]**.
 
@@ -34,11 +67,27 @@ class LimSimReward:
         """
 
         ordered = [trajectories[agent.agent_id] for agent in initial_agents]
-        obstacle_ordered = [list(trajectory) for trajectory in obstacle_trajectories if trajectory]
+        if obstacle_safety is None:
+            obstacle_ordered = [
+                list(trajectory) for trajectory in obstacle_trajectories if trajectory
+            ]
+        else:
+            obstacle_ordered = list(obstacle_safety.trajectories)
         collision_ordered = ordered + obstacle_ordered
 
         # --- collision → 0.0 (matches original paper's terminal-on-collision) ---
-        collision, min_distance, closing_factor = trajectory_safety_summary(collision_ordered)
+        if obstacle_safety is None or not obstacle_ordered:
+            collision, min_distance, closing_factor = trajectory_safety_summary(collision_ordered)
+        else:
+            steps = min(len(trajectory) for trajectory in collision_ordered if trajectory)
+            candidate_safety = trajectory_safety_summary(
+                [trajectory[:steps] for trajectory in ordered]
+            )
+            obstacle_only_safety = obstacle_safety.summary(steps)
+            cross_safety = cross_trajectory_safety_summary(ordered, obstacle_ordered, steps=steps)
+            collision = candidate_safety[0] or obstacle_only_safety[0] or cross_safety[0]
+            min_distance = min(candidate_safety[1], obstacle_only_safety[1], cross_safety[1])
+            closing_factor = candidate_safety[2] + obstacle_only_safety[2] + cross_safety[2]
         if collision is not None:
             return 0.0
 
@@ -90,7 +139,7 @@ class LimSimReward:
         if min_distance < self.config.conflict_distance:
             avg_reward -= 0.05 * (self.config.conflict_distance - min_distance)
 
-        # Normalised per rollout step and capped: only a collision may drive the
+        # Normalized per rollout step and capped: only a collision may drive the
         # reward to 0.0, not a sustained approach.
         lengths = [len(trajectory) for trajectory in collision_ordered if trajectory]
         steps = min(lengths) if lengths else 1

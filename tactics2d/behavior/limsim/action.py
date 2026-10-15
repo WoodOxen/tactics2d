@@ -19,9 +19,6 @@ class LimSimAction(str, Enum):
     LCL = "LCL"
     LCR = "LCR"
 
-    #: Semantic alias — prefer ``KS`` for new code.
-    KEEP = "KS"
-
     @property
     def acceleration(self) -> float:
         """Nominal longitudinal acceleration for this action (m/s²)."""

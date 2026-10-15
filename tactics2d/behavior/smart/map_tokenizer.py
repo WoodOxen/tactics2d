@@ -16,7 +16,8 @@ from shapely.geometry import Polygon
 
 from tactics2d.map.query import SemanticMapQuery
 
-from .config import SmartConfig, load_codebook
+from .codebook import load_codebook
+from .config import SmartConfig
 from .tokens import LightType, PointType, PolygonType, SmartMapTokens
 
 # WOMD ``Lane.Type`` shifted by one to SMART's polygon type.
@@ -53,7 +54,7 @@ _LIGHT_TYPE_BY_STATE = {
 }
 
 _ARC_DISTANCE = 0.5
-# A token spans five metres, sampled every 0.5 m; tokens start five metres apart.
+# A token spans five meters, sampled every 0.5 m; tokens start five meters apart.
 _POLYLINE_SIZE = int(5.0 / _ARC_DISTANCE)  # 10 sample steps per token
 _MAP_TOKEN_POINTS = _POLYLINE_SIZE + 1  # 11 points per token window
 _MAP_SAMPLE_COUNT = 3

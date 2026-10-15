@@ -14,7 +14,7 @@ from .config import BitsConfig
 DEFAULT_REPLAN_INTERVAL = 20
 
 
-class BitsRollingRunner:
+class BitsRolloutRunner:
     """Configure the shared trajectory replay for BITS predictions."""
 
     def __init__(
@@ -38,7 +38,7 @@ class BitsRollingRunner:
         participants: Dict[object, object],
         map_: Optional[Map],
         ego_id: object,
-        frame_ms: Optional[int] = None,
+        start_frame: Optional[int] = None,
         controlled_ids: Optional[Iterable[object]] = None,
     ) -> TrajectoryRolloutResult:
         runner = TrajectoryReplayRunner(
@@ -49,5 +49,5 @@ class BitsRollingRunner:
             return self.model.predict(current_participants, map_, current, agent_ids=controlled)
 
         return runner.run(
-            participants, ego_id, predict, frame_ms=frame_ms, controlled_ids=controlled_ids
+            participants, ego_id, predict, frame_ms=start_frame, controlled_ids=controlled_ids
         )
