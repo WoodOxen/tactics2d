@@ -19,7 +19,7 @@ from tactics2d.map.element import Map
 _A_SLOWDOWN = 2.0
 _A_EMERGENCY = 4.5
 
-# Largest gap between a successor's start and the lane it continues, in metres.
+# Largest gap between a successor's start and the lane it continues, in meters.
 _MAX_LINK_GAP = 2.5
 
 # Corner speed cap constants.

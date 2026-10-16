@@ -3,6 +3,7 @@
 
 """Scene construction and reference paths."""
 
+from bisect import bisect_right
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional
 
@@ -180,32 +181,48 @@ def build_scene_records(
         The scene records keyed by agent id.
     """
 
-    requested_ids = select_vehicle_ids(participants, agent_ids)
+    requested_ids = _select_vehicle_ids(participants, agent_ids)
     records: Dict[object, AgentRecord] = {}
     for agent_id in requested_ids:
         record = AgentRecord.from_participant(config, participants.get(agent_id), frame)
         if record is not None:
             records[agent_id] = record
 
-    requested_positions = [(record.x, record.y) for record in records.values()]
+    requested_positions = np.asarray(
+        [(record.x, record.y) for record in records.values()], dtype=float
+    ).reshape(-1, 2)
+    candidate_ids = []
+    candidate_states = []
     for participant_id, participant in participants.items():
         if participant_id in records:
             continue
         state = current_state(participant, frame)
         if state is None:
             continue
-        if not any(
-            np.hypot(state.x - x, state.y - y) <= config.interaction_distance
-            for x, y in requested_positions
-        ):
+        candidate_ids.append(participant_id)
+        candidate_states.append(state)
+
+    if not len(requested_positions) or not candidate_states:
+        return records
+
+    candidate_positions = np.asarray(
+        [(state.x, state.y) for state in candidate_states], dtype=float
+    )
+    offsets = candidate_positions[:, None, :] - requested_positions[None, :, :]
+    nearby = np.any(
+        np.hypot(offsets[..., 0], offsets[..., 1]) <= config.interaction_distance, axis=1
+    )
+    for participant_id, state, is_nearby in zip(candidate_ids, candidate_states, nearby):
+        if not is_nearby:
             continue
+        participant = participants[participant_id]
         record = AgentRecord.from_participant(config, participant, frame, state=state)
         if record is not None:
             records[participant_id] = record
     return records
 
 
-def select_vehicle_ids(participants, agent_ids) -> List[object]:
+def _select_vehicle_ids(participants, agent_ids) -> List[object]:
     """Return the requested ids that are vehicles (all of them when None)."""
 
     if agent_ids is None:
@@ -226,7 +243,7 @@ def current_state(participant, frame: int):
     """Return the participant's latest state at or before ``frame``."""
 
     trajectory = participant.trajectory
-    observed = [frame_ms for frame_ms in trajectory.frames if frame_ms <= frame]
-    if not observed:
+    index = bisect_right(trajectory.frames, frame) - 1
+    if index < 0:
         return None
-    return trajectory.get_state(observed[-1])
+    return trajectory.get_state(trajectory.frames[index])

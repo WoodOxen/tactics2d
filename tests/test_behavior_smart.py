@@ -12,6 +12,8 @@ from shapely.geometry import LineString
 pytest.importorskip("torch", reason="SMART tests require torch.")
 
 from tactics2d.behavior import SmartBehaviorModel, SmartConfig
+from tactics2d.behavior.smart.prediction import SmartPrediction
+from tactics2d.behavior.smart.rollout import SmartRolloutRunner
 from tactics2d.map.element import Lane, Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
@@ -71,10 +73,49 @@ def _history_participants(count=3, spacing=8.0, frames=None):
     return {index: _vehicle(index, frames, x=0.0, y=spacing * index) for index in range(count)}
 
 
+class _ShortHorizonSmartModel:
+    def __init__(self, config):
+        self.config = config
+        self.requested_steps = []
+
+    def predict_scene(self, participants, map_, frame, agent_ids=None, future_steps=None):
+        del map_
+        self.requested_steps.append(future_steps)
+        agent_ids = list(agent_ids)
+        positions = np.zeros((len(agent_ids), future_steps, 2), dtype=float)
+        headings = np.zeros((len(agent_ids), future_steps), dtype=float)
+        for row, agent_id in enumerate(agent_ids):
+            state = participants[agent_id].trajectory.get_state(frame)
+            positions[row, :, 0] = state.x + np.arange(1, future_steps + 1) * 0.5
+            positions[row, :, 1] = state.y
+            headings[row] = state.heading
+        return SmartPrediction(
+            agent_ids=agent_ids,
+            positions=positions,
+            headings=headings,
+            availabilities=np.ones(positions.shape[:2], dtype=bool),
+            frame_ms0=frame,
+            step_ms=self.config.step_ms,
+        )
+
+
+def test_smart_closed_loop_requests_only_committed_future():
+    config = SmartConfig()
+    model = _ShortHorizonSmartModel(config)
+    participants = _history_participants(count=1, frames=range(0, 4100, 100))
+    runner = SmartRolloutRunner(
+        model, config=config, warmup_steps=11, planning_interval=10, scenario_steps=31
+    )
+
+    runner.run(participants, _straight_map(), ego_id=0, start_frame=0, controlled_ids=[0])
+
+    assert model.requested_steps == [10, 8]
+
+
 @pytest.mark.integration
 @pytest.mark.slow
-def test_smart_rollout_runs():
-    """The released SMART integration loads and completes a CPU rollout."""
+def test_smart_rollout_runs(womd_behavior_scene):
+    """The released SMART integration completes a CPU rollout on WOMD data."""
     required = ["smart_waymo_ep0.pt", "motion_codebook.pkl", "map_codebook.pkl"]
     if not all((ASSET_ROOT / asset).exists() for asset in required):
         pytest.skip(f"Released SMART assets are not present under {ASSET_ROOT}.")
@@ -83,17 +124,23 @@ def test_smart_rollout_runs():
         config=SmartConfig(asset_root=str(ASSET_ROOT)),
         device="cpu",
     )
-    participants = _history_participants(count=3, frames=range(0, 4100, 100))
+    participants, map_, controlled_ids = womd_behavior_scene
+    ego_id = controlled_ids[0]
 
     result = model.rollout(
         participants,
-        _straight_map(),
-        ego_id=0,
-        frame_ms0=0,
+        map_,
+        ego_id=ego_id,
+        start_frame=0,
         warmup_steps=11,
         planning_interval=10,
-        scenario_steps=41,
+        scenario_steps=31,
+        controlled_ids=controlled_ids,
     )
 
-    assert result.ego_id == 0
-    assert set(result.poses) == {0, 1, 2}
+    assert result.ego_id == ego_id
+    assert set(result.poses) == set(controlled_ids)
+    assert result.frames
+    assert result.cycles > 0
+    assert result.controlled_ids == result.modeled_ids
+    assert set(result.trajectories) == set(result.modeled_ids)

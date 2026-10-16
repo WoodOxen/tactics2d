@@ -5,42 +5,16 @@
 
 """Configuration for SMART-style joint behavior generation."""
 
-import pickle
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
+
+from .codebook import MAP_CODEBOOK_NAME, MOTION_CODEBOOK_NAME
+
 
 # SMART's codebooks are not redistributed with the package: download them
 # alongside the checkpoint and point ``asset_root`` (or the two explicit paths)
 # at that directory.
-MOTION_CODEBOOK_NAME = "motion_codebook.pkl"
-MAP_CODEBOOK_NAME = "map_codebook.pkl"
-
-
-def load_codebook(path: Optional[str], name: str) -> Dict[str, object]:
-    """Load one of SMART's downloadable codebooks.
-
-    Args:
-        path (Optional[str]): Configured codebook path.
-        name (str): Human-readable codebook name used in the message.
-
-    Returns:
-        The unpickled codebook.
-
-    Raises:
-        ValueError: If no path was configured.
-    """
-
-    if path is None:
-        raise ValueError(
-            f"The SMART {name} is not redistributed with the package. Download it "
-            f"together with the checkpoint and set SmartConfig(asset_root=...) or pass "
-            f"the path directly."
-        )
-    with open(path, "rb") as handle:
-        return pickle.load(handle)
-
-
 @dataclass(frozen=True)
 class SmartConfig:
     """Parameters for the SMART joint motion generation port.
@@ -73,14 +47,14 @@ class SmartConfig:
         pl2a_radius (float): Map-to-agent cross attention radius in meters.
         a2a_radius (float): Agent-to-agent attention radius in meters.
         time_span (int): Temporal attention window in frames.
-        max_pt2pt_neighbors (int): Neighbour cap for map map attention.
-        max_pl2a_neighbors (int): Neighbour cap for map agent attention.
-        max_a2a_neighbors (int): Neighbour cap for agent agent attention.
+        max_pt2pt_neighbors (int): Neighbor cap for map map attention.
+        max_pl2a_neighbors (int): Neighbor cap for map agent attention.
+        max_a2a_neighbors (int): Neighbor cap for agent agent attention.
         beam_size (int): Number of sampled token candidates.
         seed (Optional[int]): Sampling seed. Defaults to None (unseeded).
         device (Optional[str]): Torch device string. None selects automatically.
-        predicted_radius (float): Agent-selection radius around the centre agent, in meters.
-        max_predicted_agents (int): Upper bound on modelled agents.
+        predicted_radius (float): Agent-selection radius around the center agent, in meters.
+        max_predicted_agents (int): Upper bound on modeled agents.
         valid_radius (float): Distance beyond which agents are masked out.
         vehicle_only (bool): Whether to model vehicles only.
     """

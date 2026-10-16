@@ -161,8 +161,8 @@ def detect_relation_edges(
     for id_a, id_b in pair_pool:
         if id_a not in poses or id_b not in poses:
             continue
-        vehicle_a = bool(is_vehicle.get(id_a, True))
-        vehicle_b = bool(is_vehicle.get(id_b, True))
+        vehicle_a = is_vehicle[id_a]
+        vehicle_b = is_vehicle[id_b]
         if not vehicle_a and not vehicle_b:
             continue
 
@@ -190,9 +190,9 @@ def detect_relation_edges(
             elif abs(spatial.normalize_angle(yaw_a - yaw_b)) < tolerance_rad:
                 # Rear-end contact: the trailing vehicle is the reactor.
                 heading = spatial.heading_unit(yaw_a)
-                centre_a = poses[id_a][idx_a, :2]
-                centre_b = poses[id_b][idx_b, :2]
-                if float(np.dot(centre_b - centre_a, heading)) > 0:
+                center_a = poses[id_a][idx_a, :2]
+                center_b = poses[id_b][idx_b, :2]
+                if float(np.dot(center_b - center_a, heading)) > 0:
                     edges.append(Edge(id_b, id_a, 0))
                 else:
                     edges.append(Edge(id_a, id_b, 0))
@@ -229,7 +229,7 @@ def _collision_pairs(
 ) -> Optional[Tuple[int, int]]:
     """Return the closest-in-time colliding frame pair of two trajectories."""
 
-    # An oriented rectangle is wholly contained in the circle centred on it
+    # An oriented rectangle is wholly contained in the circle centered on it
     # with half-diagonal radius.  Rejecting pairs whose circles do not meet is
     # therefore an exact broad phase: it avoids the much more expensive SAT
     # test without changing any collision result.  Keep the historical
@@ -299,7 +299,7 @@ def _corridor_entry(
 
 
 def _nearest_same_index_gap(poses_a: np.ndarray, poses_b: np.ndarray) -> float:
-    """Return the minimum centre distance between two trajectories at equal time."""
+    """Return the minimum center distance between two trajectories at equal time."""
 
     common = min(len(poses_a), len(poses_b))
     valid = (poses_a[:common, 0] != -1) & (poses_b[:common, 0] != -1)

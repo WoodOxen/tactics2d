@@ -10,18 +10,6 @@ from tactics2d.participant.trajectory import Trajectory
 
 
 @dataclass
-class TrajectoryRolloutResult:
-    """Output of a receding-horizon replay on the recorded frame grid."""
-
-    ego_id: object = None
-    frames: List[int] = field(default_factory=list)
-    trajectory: Optional[Trajectory] = None
-    plans: Dict[int, List[Tuple[int, float, float]]] = field(default_factory=dict)
-    cycles: int = 0
-    controlled_ids: List[object] = field(default_factory=list)
-
-
-@dataclass
 class ClosedLoopMetrics:
     """Metrics shared by joint closed-loop behavior benchmarks."""
 
@@ -31,3 +19,23 @@ class ClosedLoopMetrics:
     progress: float = 0.0
     total_agents_controlled: int = 0
     collided: bool = False
+
+
+@dataclass
+class BehaviorRolloutResult:
+    """Common result returned by every behavior-model rollout."""
+
+    ego_id: object = None
+    frames: List[int] = field(default_factory=list)
+    controlled_ids: List[object] = field(default_factory=list)
+    trajectories: Dict[object, Trajectory] = field(default_factory=dict)
+    cycles: int = 0
+    metrics: Optional[ClosedLoopMetrics] = None
+
+
+@dataclass
+class TrajectoryRolloutResult(BehaviorRolloutResult):
+    """Output of a receding-horizon replay on the recorded frame grid."""
+
+    trajectory: Optional[Trajectory] = None
+    plans: Dict[int, List[Tuple[int, float, float]]] = field(default_factory=dict)

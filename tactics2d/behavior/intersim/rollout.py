@@ -15,9 +15,9 @@ from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 from tactics2d.routing.graph_builder import augment_lane_successors
 
-from ..results import ClosedLoopMetrics
+from ..results import BehaviorRolloutResult, ClosedLoopMetrics
 from ..rollout_metrics import progress_window
-from ..trajectory_processing import resample_participants
+from ..trajectory_processing import resample_participants, trajectory_from_poses
 from . import relation_decider
 from .config import InterSimConfig
 from .relation_geometry import AgentBody, check_released_overlap
@@ -30,13 +30,11 @@ _SNAP_RADIUS = 150.0
 
 
 @dataclass
-class InterSimRollingResult:
+class InterSimRolloutResult(BehaviorRolloutResult):
     """Per-scenario closed-loop outcome and its collision metrics."""
 
-    metrics: ClosedLoopMetrics = field(default_factory=ClosedLoopMetrics)
     offroad_scenarios: int = 0
     end_index: int = 0
-    ego_id: object = None
     relevant_ids: List[object] = field(default_factory=list)
     # Final per-index poses (x, y, z, yaw; -1 marks invalid) per agent.
     poses: Dict[object, np.ndarray] = field(default_factory=dict)
@@ -105,7 +103,7 @@ class ReplayState:
         )
 
 
-def snapshot(
+def _build_replay_snapshot(
     state: ReplayState, ego_id, current: int, goals: Dict[object, Optional[Tuple[float, float]]]
 ) -> Dict[object, object]:
     """Build a one-state participant snapshot around the ego at a frame."""
@@ -143,7 +141,7 @@ def snapshot(
     return result
 
 
-def relevant_ids(
+def _find_relevant_agent_ids(
     state: ReplayState,
     ego_id,
     current: int,
@@ -203,7 +201,7 @@ def relevant_ids(
     return result
 
 
-def commit(state: ReplayState, agent_id, trajectory, current: int) -> None:
+def _commit_trajectory(state: ReplayState, agent_id, trajectory, current: int) -> None:
     """Write one planned trajectory into the pose arrays from ``current`` on."""
 
     steps = state.config.scenario_steps
@@ -223,7 +221,7 @@ def commit(state: ReplayState, agent_id, trajectory, current: int) -> None:
         )
 
 
-def ego_collision_at(state: ReplayState, ego_id, index: int) -> Optional[int]:
+def _ego_collision_kind_at(state: ReplayState, ego_id, index: int) -> Optional[int]:
     """Classify an ego collision with InterSim's released approximation.
 
     Returns:
@@ -267,7 +265,7 @@ def ego_collision_at(state: ReplayState, ego_id, index: int) -> Optional[int]:
     return None
 
 
-def progress(
+def _sum_controlled_progress(
     state: ReplayState, ego_id, relevant_ids: List[object], end_index: int
 ) -> Tuple[float, int]:
     """Sum per-step displacements over the frames up to ``end_index``.
@@ -373,7 +371,7 @@ def _wrap_at(
     return wrapper
 
 
-class InterSimRollingRunner:
+class InterSimRolloutRunner:
     """Replay a scenario closed-loop around one ego.
 
     Attributes:
@@ -398,18 +396,19 @@ class InterSimRollingRunner:
         participants: Dict[object, object],
         map_: Optional[Map],
         ego_id: object,
-        base_frame_ms: Optional[int] = None,
+        start_frame: Optional[int] = None,
         controlled_ids: Optional[Iterable[object]] = None,
+        *,
         plan_ego: bool = True,
         deferred_ego_trajectory: Optional[Trajectory] = None,
-    ) -> InterSimRollingResult:
+    ) -> InterSimRolloutResult:
         """Replay the scenario closed-loop and return its outcome.
 
         Args:
             participants (Dict): All participants in the scenario.
             map_ (Optional[Map]): The map. None falls back to straight paths.
-            ego_id (object): The agent the loop is centred on.
-            base_frame_ms (Optional[int], optional): Time stamp of index 0, in
+            ego_id (object): The agent the loop is centered on.
+            start_frame (Optional[int], optional): Time stamp of index 0, in
                 milliseconds. Defaults to None, which uses the scenario's own
                 first observed frame - pass this only for a scenario whose frames
                 are stamped relative to another origin.
@@ -417,7 +416,7 @@ class InterSimRollingRunner:
                 agents to plan and commit each cycle. Defaults to None, which
                 grows the set from the ego over future body collisions. When
                 given, *ego_id* must be a member; the ego keeps its meaning as
-                the loop's centre, the snapshot anchor and the agent collisions
+                the loop's center, the snapshot anchor and the agent collisions
                 are attributed to.
             plan_ego (bool, optional): Whether this runner replans the ego.
                 Defaults to true; false keeps an externally supplied ego path.
@@ -442,14 +441,14 @@ class InterSimRollingRunner:
                 )
 
         participants = resample_participants(participants, self.config.step_ms)
-        if base_frame_ms is None:
-            base_frame_ms = int(participants[ego_id].trajectory.first_frame)
-        state = ReplayState.from_participants(self.config, participants, base_frame_ms)
+        if start_frame is None:
+            start_frame = int(participants[ego_id].trajectory.first_frame)
+        state = ReplayState.from_participants(self.config, participants, start_frame)
         deferred_ego_poses = None
         if deferred_ego_trajectory is not None:
             deferred_ego_poses = state.poses[ego_id].copy()
             for frame_ms in deferred_ego_trajectory.frames:
-                index = int(round((frame_ms - base_frame_ms) / self.config.step_ms))
+                index = int(round((frame_ms - start_frame) / self.config.step_ms))
                 if index < 0 or index >= self.config.scenario_steps:
                     continue
                 ego_state = deferred_ego_trajectory.get_state(frame_ms)
@@ -480,6 +479,7 @@ class InterSimRollingRunner:
 
         current = 1
         first_planning = True
+        cycles = 0
         while current <= end_index:
             if (current - warmup) >= 0 and (current - warmup) % interval == 0:
                 relevant = self._plan_once(
@@ -494,10 +494,11 @@ class InterSimRollingRunner:
                     relevant_union,
                 )
                 first_planning = False
+                cycles += 1
                 for agent_id in relevant:
                     if agent_id not in relevant_union:
                         relevant_union.append(agent_id)
-            kind = ego_collision_at(state, ego_id, current)
+            kind = _ego_collision_kind_at(state, ego_id, current)
             if kind is not None:
                 kinds[kind] += 1
                 collided = True
@@ -505,8 +506,22 @@ class InterSimRollingRunner:
                 break
             current += 1
 
-        progress_total, controlled = progress(state, ego_id, relevant_union, end_index)
-        return InterSimRollingResult(
+        progress_total, controlled = _sum_controlled_progress(
+            state, ego_id, relevant_union, end_index
+        )
+        frames = [start_frame + index * self.config.step_ms for index in range(end_index + 1)]
+        trajectories = {
+            agent_id: trajectory_from_poses(
+                agent_id,
+                state.poses[agent_id][: end_index + 1, :2],
+                state.poses[agent_id][: end_index + 1, 3],
+                frames,
+                availabilities=state.poses[agent_id][: end_index + 1, 0] != -1,
+                step_ms=self.config.step_ms,
+            )
+            for agent_id in relevant_union
+        }
+        return InterSimRolloutResult(
             metrics=ClosedLoopMetrics(
                 front_collisions=kinds[0],
                 side_collisions=kinds[1],
@@ -517,6 +532,10 @@ class InterSimRollingRunner:
             ),
             end_index=end_index,
             ego_id=ego_id,
+            frames=frames,
+            controlled_ids=list(relevant_union),
+            trajectories=trajectories,
+            cycles=cycles,
             relevant_ids=list(relevant_union),
             poses={agent_id: array.copy() for agent_id, array in state.poses.items()},
         )
@@ -542,7 +561,9 @@ class InterSimRollingRunner:
         horizon = self.config.horizon_steps
         frame_ms = state.base_frame_ms + current * self.config.step_ms
         if controlled_ids is None:
-            relevant = relevant_ids(state, ego_id, current, horizon, previous_ids=previous_relevant)
+            relevant = _find_relevant_agent_ids(
+                state, ego_id, current, horizon, previous_ids=previous_relevant
+            )
         else:
             relevant = list(controlled_ids)
         decider = None
@@ -552,12 +573,12 @@ class InterSimRollingRunner:
                 if deferred_ego_poses is not None
                 else state.poses
             )
-            decider = relation_decider.make_decider(
+            decider = relation_decider.build_relation_decider(
                 self.config, relation_poses, state.types, map_, ego_id, current
             )
         if deferred_ego_poses is not None:
             state.poses[ego_id][current:] = deferred_ego_poses[current:]
-        nearby = snapshot(state, ego_id, current, goals)
+        nearby = _build_replay_snapshot(state, ego_id, current, goals)
         if not nearby:
             return []
 
@@ -566,7 +587,7 @@ class InterSimRollingRunner:
                 nearby, map_, frame_ms, agent_ids=[ego_id], decider=decider
             )
             if ego_id in ego_trajectories:
-                commit(state, ego_id, ego_trajectories[ego_id], current)
+                _commit_trajectory(state, ego_id, ego_trajectories[ego_id], current)
 
         env_ids = [agent_id for agent_id in relevant if agent_id != ego_id and agent_id in nearby]
         if env_ids:
@@ -574,7 +595,7 @@ class InterSimRollingRunner:
                 nearby, map_, frame_ms, agent_ids=env_ids, decider=decider
             )
             for agent_id, trajectory in env_trajectories.items():
-                commit(state, agent_id, trajectory, current)
+                _commit_trajectory(state, agent_id, trajectory, current)
         # InterSim's released metrics call every collision-grown relevant
         # object "controlled", including non-vehicles that the planner leaves
         # on playback. Preserve that result semantics independently of which

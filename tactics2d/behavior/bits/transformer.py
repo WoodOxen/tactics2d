@@ -85,7 +85,7 @@ class _MultiHeadAttention(nn.Module):
             layer(inputs).view(*inputs.shape[:-1], self.h, self.d_k)
             for layer, inputs in zip(self.linears, (query, key, value))
         )
-        attended, self.attn = scaled_dot_product_attention(
+        attended, self.attn = _scaled_dot_product_attention(
             query.transpose(-2, pooling_dim - 1),
             key.transpose(-2, pooling_dim - 1),
             value.transpose(-2, pooling_dim - 1),
@@ -97,7 +97,7 @@ class _MultiHeadAttention(nn.Module):
         return self.linears[-1](attended)
 
 
-def scaled_dot_product_attention(
+def _scaled_dot_product_attention(
     query: torch.Tensor,
     key: torch.Tensor,
     value: torch.Tensor,

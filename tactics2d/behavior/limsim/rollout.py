@@ -12,7 +12,7 @@ from ..trajectory_rollout import TrajectoryReplayRunner
 from .config import LimSimConfig
 
 
-class LimSimRollingRunner:
+class LimSimRolloutRunner:
     """Configure the shared trajectory replay for LimSim predictions."""
 
     def __init__(
@@ -31,9 +31,10 @@ class LimSimRollingRunner:
         participants: Dict[object, object],
         map_: Optional[Map],
         ego_id: object,
-        frame_ms: Optional[int] = None,
-        route_map: Optional[Dict[object, Tuple[str, ...]]] = None,
+        start_frame: Optional[int] = None,
         controlled_ids: Optional[Iterable[object]] = None,
+        *,
+        route_map: Optional[Dict[object, Tuple[str, ...]]] = None,
     ) -> TrajectoryRolloutResult:
         runner = TrajectoryReplayRunner(
             self.config.step_ms, self.horizon_ms, commit_steps=1, suppress_prediction_errors=True
@@ -57,7 +58,7 @@ class LimSimRollingRunner:
             participants,
             ego_id,
             predict,
-            frame_ms=frame_ms,
+            frame_ms=start_frame,
             controlled_ids=controlled_ids,
             prepare=prepare,
         )

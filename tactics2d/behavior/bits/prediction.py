@@ -47,7 +47,7 @@ class BitsPlan:
 
 @dataclass(frozen=True)
 class BitsAgentPrediction:
-    """Neighbouring-agent predictions aligned with BITS plan candidates."""
+    """Neighboring-agent predictions aligned with BITS plan candidates."""
 
     positions: np.ndarray
     yaws: np.ndarray

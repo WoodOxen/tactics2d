@@ -237,6 +237,48 @@ class RelationVectorNet(nn.Module):
         scores = torch.exp(F.log_softmax(confidences, dim=-1))
         return scores.detach().cpu().numpy()
 
+    @torch.inference_mode()
+    def forward_many(self, mappings: List[dict], device) -> np.ndarray:
+        """Score multiple reactor/influencer mappings in one model pass."""
+
+        if not mappings:
+            return np.zeros((0, 2), dtype=np.float32)
+
+        tensor_lists = [
+            [
+                torch.tensor(mapping["matrix"][span], device=device, dtype=torch.float32)
+                for span in mapping["polyline_spans"]
+            ]
+            for mapping in mappings
+        ]
+        # Keep each mapping's historical sub-graph padding boundary. Combining
+        # polylines from mappings with different maximum lengths changes the
+        # released model's padded reduction by a small but observable amount.
+        state_lists = _merge_sub_graph(tensor_lists, self.sub_graph, device)
+
+        element_states = []
+        for mapping, states in zip(mappings, state_lists):
+            map_start = mapping["map_start_polyline_idx"]
+            agent_states = states[:map_start]
+            lane_states = states[map_start:]
+            if len(lane_states):
+                lanes = lane_states.unsqueeze(0)
+                lane_query = torch.cat([lanes, agent_states[0:1].unsqueeze(0)], dim=1)
+                lanes = lanes + self.laneGCN_A2L(lanes, lane_query)
+                states = torch.cat([agent_states, lanes.squeeze(0)])
+            element_states.append(states)
+
+        inputs, lengths = _merge_tensors(element_states, device)
+        poly_num = inputs.shape[1]
+        attention_mask = torch.zeros([len(element_states), poly_num, poly_num], device=device)
+        for index, length in enumerate(lengths):
+            attention_mask[index, :length, :length] = 1
+        hidden_states = self.global_graph(inputs, attention_mask)
+        pair_hidden = hidden_states[:, :2].reshape(len(element_states), -1)
+        confidences = self.decoder.inf_r_decoder(pair_hidden)
+        scores = torch.exp(F.log_softmax(confidences, dim=-1))
+        return scores.detach().cpu().numpy()
+
     @classmethod
     def from_checkpoint(cls, bin_path: str, device: str = "cpu") -> "RelationVectorNet":
         """Load a relation checkpoint into the relation-only VectorNet."""

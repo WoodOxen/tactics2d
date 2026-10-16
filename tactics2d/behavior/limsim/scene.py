@@ -14,7 +14,7 @@ from tactics2d.participant.trajectory import State
 from .config import LimSimConfig
 from .decision_state import AgentDecisionState
 
-# Score added to a lane that is not on the vehicle's route, in metres. Large
+# Score added to a lane that is not on the vehicle's route, in meters. Large
 # enough that the nearest on-route lane wins a junction fork, small enough that
 # an actual lane change still matches the lane the vehicle is moving onto.
 _OFF_ROUTE_PENALTY = 4.0
@@ -51,9 +51,6 @@ class SceneBuilder:
                 continue
 
             raw_state = participant.get_state(frame)
-            if not isinstance(raw_state, State):
-                continue
-
             preferred = route_map.get(agent_id, ()) if route_map else ()
             lane_id = self._match_lane(map_, raw_state, preferred)
             route_progress, lateral_offset = self._project_on_lane(

@@ -15,19 +15,17 @@ from tactics2d.map.element import Map
 from tactics2d.participant.element import Cyclist, Pedestrian, Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
 
-from ..results import ClosedLoopMetrics
+from ..results import BehaviorRolloutResult, ClosedLoopMetrics
 from ..rollout_metrics import collision_kind, progress_window
-from ..trajectory_processing import resample_participants
+from ..trajectory_processing import resample_participants, trajectory_from_poses
 from .config import SmartConfig
 
 
 @dataclass
-class SmartRollingResult:
+class SmartRolloutResult(BehaviorRolloutResult):
     """SMART-specific rollout state plus shared closed-loop metrics."""
 
-    metrics: ClosedLoopMetrics = field(default_factory=ClosedLoopMetrics)
-    ego_id: object = None
-    modelled_ids: List[object] = field(default_factory=list)
+    modeled_ids: List[object] = field(default_factory=list)
     poses: Dict[object, np.ndarray] = field(default_factory=dict)
 
 
@@ -52,7 +50,7 @@ def _body_extent(participant) -> Tuple[float, float]:
         participant: A tactics2d participant.
 
     Returns:
-        The extent in metres, falling back to a per-class default.
+        The extent in meters, falling back to a per-class default.
     """
 
     length = getattr(participant, "length", None)
@@ -67,7 +65,7 @@ def _body_extent(participant) -> Tuple[float, float]:
     )
 
 
-def extract_poses(
+def _extract_pose_arrays(
     participants: Dict[object, object], step_ms: int, frame_ms0: int, steps: int
 ) -> Tuple[Dict[object, np.ndarray], Dict[object, Tuple[float, float]], Dict[object, type]]:
     """Lay every participant's ground truth into indexed pose arrays.
@@ -112,7 +110,7 @@ def _speed_at(poses, agent_id, index: int, step_ms: int) -> float:
         step_ms (int): Interval between scenario steps, in milliseconds.
 
     Returns:
-        The speed in metres per second, zero when no recent pair exists.
+        The speed in meters per second, zero when no recent pair exists.
     """
 
     for back in (1, 2, 3, 4, 5):
@@ -168,7 +166,7 @@ def _history_trajectory(
     return trajectory
 
 
-def snapshot(
+def _build_replay_snapshot(
     config: SmartConfig, poses, dims, types, participants, ego_id, current: int, frame_ms0: int
 ) -> Tuple[Dict[object, object], List[object]]:
     """Build a history-window participant snapshot around the ego at a frame.
@@ -179,7 +177,7 @@ def snapshot(
         dims (Dict[object, Tuple[float, float]]): Per-agent collision extents.
         types (Dict[object, type]): Per-agent participant classes.
         participants (Dict[object, object]): All participants.
-        ego_id (object): The agent the loop is centred on.
+        ego_id (object): The agent the loop is centered on.
         current (int): Step the snapshot is taken at.
         frame_ms0 (int): Timestamp of index 0, in milliseconds.
 
@@ -216,7 +214,7 @@ def snapshot(
     return result, order
 
 
-def commit(
+def _commit_prediction(
     config: SmartConfig,
     poses,
     agent_id,
@@ -251,11 +249,11 @@ def commit(
     return written
 
 
-class SmartRollingRunner:
+class SmartRolloutRunner:
     """Replay a scenario closed-loop with the joint decoder.
 
     Every ``planning_interval`` steps after a ``planning_warmup_steps`` warmup
-    the whole modelled set is decoded once and committed together.
+    the whole modeled set is decoded once and committed together.
 
     Attributes:
         model (SmartBehaviorModel): The port model being replayed.
@@ -303,16 +301,16 @@ class SmartRollingRunner:
         participants: Dict[object, object],
         map_: Optional[Map],
         ego_id: object,
-        frame_ms0: Optional[int] = None,
+        start_frame: Optional[int] = None,
         controlled_ids: Optional[Iterable[object]] = None,
-    ) -> SmartRollingResult:
+    ) -> SmartRolloutResult:
         """Replay the scenario closed-loop and return its outcome.
 
         Args:
             participants (Dict[object, object]): All participants.
             map_ (Optional[Map]): The map, or None to fail on the first replan.
-            ego_id (object): The agent the loop is centred on.
-            frame_ms0 (Optional[int], optional): Timestamp of index 0, in
+            ego_id (object): The agent the loop is centered on.
+            start_frame (Optional[int], optional): Timestamp of index 0, in
                 milliseconds. Defaults to None, which uses the scenario's own
                 first observed frame - pass this only for a scenario whose frames
                 are stamped relative to another origin.
@@ -343,47 +341,55 @@ class SmartRollingRunner:
                     )
                 )
         participants = resample_participants(participants, self.config.step_ms)
-        if frame_ms0 is None:
+        if start_frame is None:
             # Default the window origin to the ego's first frame.
-            frame_ms0 = int(participants[ego_id].trajectory.first_frame)
+            start_frame = int(participants[ego_id].trajectory.first_frame)
         step_ms = self.config.step_ms
-        poses, dims, types = extract_poses(participants, step_ms, frame_ms0, self.scenario_steps)
+        poses, dims, types = _extract_pose_arrays(
+            participants, step_ms, start_frame, self.scenario_steps
+        )
 
-        modelled_union: List[object] = []
+        modeled_union: List[object] = []
         kinds = [0, 0, 0]  # front, side, rear
         collided = False
         # Index 0 is the last history frame, not a simulated step, so the loop
-        # starts one step in and ends after one whole modelled future.
+        # starts one step in and ends after one whole modeled future.
         end_index = self.scenario_steps - 2
 
         current = 1
+        cycles = 0
         while current <= end_index:
             if (current - self.warmup_steps) >= 0 and (current - self.warmup_steps) % (
                 self.planning_interval
             ) == 0:
-                frame_ms = frame_ms0 + current * step_ms
-                scene, _ = snapshot(
-                    self.config, poses, dims, types, participants, ego_id, current, frame_ms0
+                frame_ms = start_frame + current * step_ms
+                scene, _ = _build_replay_snapshot(
+                    self.config, poses, dims, types, participants, ego_id, current, start_frame
                 )
                 if scene:
+                    cycles += 1
                     requested = [ego_id] if controlled_ids is None else controlled_ids
                     prediction = self.model.predict_scene(
-                        scene, map_, frame_ms, agent_ids=requested
+                        scene,
+                        map_,
+                        frame_ms,
+                        agent_ids=requested,
+                        future_steps=max(1, min(self.planning_interval, end_index - current)),
                     )
                     for agent_id in prediction.agent_ids:
                         if controlled_ids is not None and agent_id not in controlled_ids:
                             continue
-                        commit(
+                        _commit_prediction(
                             self.config,
                             poses,
                             agent_id,
                             prediction.trajectory(agent_id),
                             current,
                             self.scenario_steps,
-                            frame_ms0,
+                            start_frame,
                         )
-                        if agent_id not in modelled_union:
-                            modelled_union.append(agent_id)
+                        if agent_id not in modeled_union:
+                            modeled_union.append(agent_id)
             kind = collision_kind(poses, dims, ego_id, current, "linear")
             if kind is not None:
                 kinds[kind] += 1
@@ -393,11 +399,23 @@ class SmartRollingRunner:
             current += 1
 
         total_progress = 0.0
-        for agent_id in modelled_union:
+        for agent_id in modeled_union:
             total, _ = progress_window(poses, agent_id, end_index, self.scenario_steps)
             total_progress += total
-        controlled = len(modelled_union)
-        return SmartRollingResult(
+        controlled = len(modeled_union)
+        frames = [start_frame + index * step_ms for index in range(end_index + 1)]
+        trajectories = {
+            agent_id: trajectory_from_poses(
+                agent_id,
+                poses[agent_id][: end_index + 1, :2],
+                poses[agent_id][: end_index + 1, 3],
+                frames,
+                availabilities=poses[agent_id][: end_index + 1, 0] != -1,
+                step_ms=step_ms,
+            )
+            for agent_id in modeled_union
+        }
+        return SmartRolloutResult(
             metrics=ClosedLoopMetrics(
                 front_collisions=kinds[0],
                 side_collisions=kinds[1],
@@ -407,6 +425,10 @@ class SmartRollingRunner:
                 collided=collided,
             ),
             ego_id=ego_id,
-            modelled_ids=list(modelled_union),
+            frames=frames,
+            controlled_ids=list(modeled_union),
+            trajectories=trajectories,
+            cycles=cycles,
+            modeled_ids=list(modeled_union),
             poses={agent_id: poses[agent_id].copy() for agent_id in poses},
         )

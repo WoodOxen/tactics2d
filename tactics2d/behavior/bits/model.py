@@ -18,10 +18,10 @@ from tactics2d.geometry import spatial
 from tactics2d.map.element import Map
 from tactics2d.participant.trajectory import State, Trajectory
 
-from . import rolling
+from . import rollout
 from .batch import BitsBatch
+from .batch_builder import BitsBatchBuilder
 from .config import BitsConfig
-from .dataset import BitsBatchBuilder
 from .encoder import RNNEncoder
 from .heads import FutureStatePredictorHead, GoalConditionalPolicyHead
 from .policy import BitsPolicy, TorchBitsPolicy
@@ -35,6 +35,7 @@ from .unet import GoalDecoder as SpatialGoalUNetDecoder
 from .unet import SharedRasterEncoder
 
 LOGGER = logging.getLogger(__name__)
+_INFERENCE_BATCH_SIZE = 4
 
 
 def _resolve_drivable_map(tensors):
@@ -76,7 +77,7 @@ def _unpack_ego_init_states(tensors):
 
 
 def _unpack_agent_init_states(tensors):
-    """Build neighbour-agent unicycle initial state tensors."""
+    """Build neighbor-agent unicycle initial state tensors."""
     history_positions = tensors["all_other_agents_history_positions"]
     if history_positions.ndim == 3:
         history_positions = history_positions.unsqueeze(0)
@@ -494,7 +495,7 @@ class BitsSpatialPlannerModule(nn.Module):
             encoder_features = self.standalone_encoder(image)
         spatial_prediction = self.spatial_goal_decoder(encoder_features, target_hw=image.shape[-2:])
         drivable_map = _resolve_drivable_map(tensors) if mask_drivable else None
-        decoded = decode_bits_spatial_prediction(
+        decoded = _decode_bits_spatial_prediction(
             spatial_prediction=spatial_prediction,
             agent_from_raster=add_batch_dim(tensors["agent_from_raster"], 3),
             drivable_map=drivable_map,
@@ -828,7 +829,7 @@ class BitsBiLevelTorchModel(nn.Module):
 # ---------------------------------------------------------------------------
 
 
-def decode_bits_spatial_prediction(
+def _decode_bits_spatial_prediction(
     spatial_prediction: torch.Tensor,
     agent_from_raster: torch.Tensor,
     drivable_map=None,
@@ -1168,7 +1169,7 @@ class BitsBehaviorModel(BehaviorModelBase):
         """Predict future trajectories for selected agents."""
 
         selected_ids = list(participants.keys()) if agent_ids is None else list(agent_ids)
-        trajectories = {}
+        prepared = []
         for ego_id in selected_ids:
             if ego_id not in participants or not participants[ego_id].trajectory.has_state(frame):
                 continue
@@ -1180,8 +1181,17 @@ class BitsBehaviorModel(BehaviorModelBase):
                 map_=map_,
                 include_raster=self.include_raster,
             )
-            prediction = self.policy.predict_batch(batch)
-            trajectories[ego_id] = self._prediction_to_trajectory(ego_id, frame, batch, prediction)
+            prepared.append((ego_id, batch))
+
+        trajectories = {}
+        for start in range(0, len(prepared), _INFERENCE_BATCH_SIZE):
+            chunk = prepared[start : start + _INFERENCE_BATCH_SIZE]
+            batches = [batch for _, batch in chunk]
+            predictions = self.policy.predict_batches(batches)
+            for (ego_id, batch), prediction in zip(chunk, predictions):
+                trajectories[ego_id] = self._prediction_to_trajectory(
+                    ego_id, frame, batch, prediction
+                )
         return trajectories
 
     def rollout(
@@ -1189,10 +1199,11 @@ class BitsBehaviorModel(BehaviorModelBase):
         participants: Dict[object, object],
         map_: Optional[Map],
         ego_id: object,
-        frame_ms: Optional[int] = None,
+        start_frame: Optional[int] = None,
+        controlled_ids: Optional[Iterable[object]] = None,
+        *,
         horizon_ms: Optional[int] = None,
         replan_interval: int = 20,
-        controlled_ids: Optional[Iterable[object]] = None,
     ) -> TrajectoryRolloutResult:
         """Replay one vehicle's future in a receding-horizon loop.
 
@@ -1200,9 +1211,9 @@ class BitsBehaviorModel(BehaviorModelBase):
         member. Defaulting to None replays the ego alone.
         """
 
-        return rolling.BitsRollingRunner(
+        return rollout.BitsRolloutRunner(
             self, self.config, horizon_ms=horizon_ms, replan_interval=replan_interval
-        ).run(participants, map_, ego_id, frame_ms=frame_ms, controlled_ids=controlled_ids)
+        ).run(participants, map_, ego_id, start_frame=start_frame, controlled_ids=controlled_ids)
 
     def _prediction_to_trajectory(
         self, ego_id: object, frame: int, batch: BitsBatch, prediction: BitsPrediction

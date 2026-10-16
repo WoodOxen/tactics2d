@@ -17,14 +17,15 @@ _MIN_HEADING_STEP = 1e-6
 
 
 def resample_replayed_trajectory(
-    ego_id, recorded_states, stable_freq, fps, history_frames, future_frames, samples
+    agent_id, recorded_states, stable_freq, fps, history_frames, future_frames, samples
 ) -> Trajectory:
     """Lay a replayed future back onto the recording's frame grid."""
 
-    replayed = Trajectory(id_=ego_id, fps=fps, stable_freq=stable_freq)
+    replayed = Trajectory(id_=agent_id, fps=fps, stable_freq=stable_freq)
     for frame in history_frames:
-        replayed.add_state(recorded_states[frame])
-    if not future_frames or not samples:
+        if frame in recorded_states:
+            replayed.add_state(recorded_states[frame])
+    if not replayed.frames or not future_frames or not samples:
         return replayed
     sample_frames = [frame for frame, _, _ in samples]
     xs = np.interp(future_frames, sample_frames, [x for _, x, _ in samples])
@@ -101,8 +102,6 @@ class TrajectoryReplayRunner:
         saved_stable_freq = {
             agent_id: participants[agent_id].trajectory.stable_freq for agent_id in controlled
         }
-        stable_freq = ego.trajectory.stable_freq
-        fps = ego.trajectory.fps
         for agent_id in controlled:
             participants[agent_id].trajectory.replace_states(
                 {
@@ -116,7 +115,7 @@ class TrajectoryReplayRunner:
         total_steps = self.horizon_ms // self.step_ms
         completed = 0
         current = take_over
-        samples = []
+        samples = {agent_id: [] for agent_id in controlled}
         plans = {}
         try:
             while completed < total_steps:
@@ -146,8 +145,7 @@ class TrajectoryReplayRunner:
                     ):
                         state = own.get_state(frame)
                         participants[agent_id].trajectory.add_state(state)
-                        if agent_id == ego_id:
-                            samples.append((frame, state.x, state.y))
+                        samples[agent_id].append((frame, state.x, state.y))
                 completed += count
                 current = window_end
         finally:
@@ -155,18 +153,23 @@ class TrajectoryReplayRunner:
                 participants[agent_id].trajectory.replace_states(saved_states[agent_id])
                 participants[agent_id].trajectory.stable_freq = saved_stable_freq[agent_id]
 
+        trajectories = {
+            agent_id: resample_replayed_trajectory(
+                agent_id,
+                saved_states[agent_id],
+                saved_stable_freq[agent_id],
+                participants[agent_id].trajectory.fps,
+                history_frames,
+                future_frames,
+                samples[agent_id],
+            )
+            for agent_id in controlled
+        }
         return TrajectoryRolloutResult(
             ego_id=ego_id,
             frames=history_frames + future_frames,
-            trajectory=resample_replayed_trajectory(
-                ego_id,
-                saved_states[ego_id],
-                stable_freq,
-                fps,
-                history_frames,
-                future_frames,
-                samples,
-            ),
+            trajectories=trajectories,
+            trajectory=trajectories[ego_id],
             plans=plans,
             cycles=len(plans),
             controlled_ids=controlled,

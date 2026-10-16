@@ -23,7 +23,7 @@ from .planner import (
     yield_speeds,
 )
 from .relation_geometry import AgentBody, Edge, check_body_collision, detect_relation_edges
-from .rolling import InterSimRollingResult, InterSimRollingRunner
+from .rollout import InterSimRolloutResult, InterSimRolloutRunner
 from .scene import AgentRecord
 
 # Adapted from InterSim (github.com/Tsinghua-MARS-Lab/InterSim), MIT,
@@ -60,11 +60,6 @@ class InterSimBehaviorModel(BehaviorModelBase):
 
     def __init__(self, config: Optional[InterSimConfig] = None):
         self.config = config or InterSimConfig()
-        if self.config.use_relation_model or self.config.use_marginal_model:
-            raise NotImplementedError(
-                "InterSim learning-based predictors are not ported; all weight "
-                "options must stay disabled."
-            )
         if self.config.relation_mode not in ("directed", "directed_tie", "yield_all", "nn"):
             raise ValueError(
                 "relation_mode must be 'directed', 'directed_tie', 'yield_all', or 'nn', "
@@ -224,6 +219,18 @@ class InterSimBehaviorModel(BehaviorModelBase):
         # "nn" mode the optional ``decider`` overrides the direction per pair.
         yield_edges = {(edge.influencer, edge.reactor) for edge in edges}
         reactor_influencers: Dict[object, List[object]] = {}
+        if config.relation_mode == "nn" and decider is not None and hasattr(decider, "decide_many"):
+            decision_pairs = []
+            seen_pairs = set()
+            for edge in edges:
+                first, second = tuple(sorted((edge.influencer, edge.reactor), key=str))
+                pair = (first, second)
+                if pair in seen_pairs:
+                    continue
+                seen_pairs.add(pair)
+                if records[first].is_vehicle and records[second].is_vehicle:
+                    decision_pairs.extend([(first, second), (second, first)])
+            decider.decide_many(decision_pairs)
         handled_pairs = set()
         for edge in edges:
             if config.relation_mode in ("directed", "directed_tie", "nn"):
@@ -431,18 +438,19 @@ class InterSimBehaviorModel(BehaviorModelBase):
         participants: Dict[object, object],
         map_: Optional[Map],
         ego_id: object,
-        base_frame_ms: Optional[int] = None,
+        start_frame: Optional[int] = None,
         controlled_ids: Optional[Iterable[object]] = None,
+        *,
         plan_ego: bool = True,
         deferred_ego_trajectory: Optional[Trajectory] = None,
-    ) -> InterSimRollingResult:
+    ) -> InterSimRolloutResult:
         """Replay the scenario closed-loop and return its outcome.
 
         Args:
             participants (Dict): All participants in the scenario.
             map_ (Optional[Map]): The map. None falls back to straight paths.
-            ego_id (object): The agent the loop is centred on.
-            base_frame_ms (Optional[int], optional): Time stamp of index 0, in
+            ego_id (object): The agent the loop is centered on.
+            start_frame (Optional[int], optional): Time stamp of index 0, in
                 milliseconds. Defaults to None, which uses the scenario's own first
                 observed frame.
             controlled_ids (Optional[Iterable], optional): The exact set of agents
@@ -460,11 +468,11 @@ class InterSimBehaviorModel(BehaviorModelBase):
             The closed-loop outcome with its metrics and final per-index poses.
         """
 
-        return InterSimRollingRunner(self, self.config).run(
+        return InterSimRolloutRunner(self, self.config).run(
             participants,
             map_,
             ego_id,
-            base_frame_ms=base_frame_ms,
+            start_frame=start_frame,
             controlled_ids=controlled_ids,
             plan_ego=plan_ego,
             deferred_ego_trajectory=deferred_ego_trajectory,

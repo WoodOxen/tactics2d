@@ -41,6 +41,8 @@ class LimSimDecisionSearch:
             agents=tuple(agents), depth=0, trajectories=tuple(tuple() for _ in agents)
         )
         decision_obstacles = self._coarsen_obstacles(obstacle_trajectories)
+        obstacle_safety = self.reward.prepare_obstacles(decision_obstacles)
+        reward_cache = {}
         self._transition_cache.clear()
 
         def terminal_fn(state: JointDecisionState) -> bool:
@@ -50,13 +52,20 @@ class LimSimDecisionSearch:
             return self._expand(state, map_)
 
         def reward_fn(state: JointDecisionState) -> float:
+            cached = reward_cache.get(state)
+            if cached is not None:
+                return cached
             trajectories = state.trajectory_dict()
             if not any(trajectories.values()):
                 trajectories = {
                     agent.agent_id: [self._advance(agent, agent.action, map_)]
                     for agent in state.agents
                 }
-            return self.reward.evaluate(agents, trajectories, decision_obstacles)
+            value = self.reward.evaluate(
+                agents, trajectories, decision_obstacles, obstacle_safety=obstacle_safety
+            )
+            reward_cache[state] = value
+            return value
 
         def simulate_fn(state: JointDecisionState) -> JointDecisionState:
             """Rollout to terminal with lightweight random-step generation."""

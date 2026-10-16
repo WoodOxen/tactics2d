@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Iterable, List, Optional
 
+from .results import BehaviorRolloutResult
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -30,6 +32,22 @@ class BehaviorModelBase(ABC):
         agent_ids: Optional[Iterable[object]] = None,
     ) -> Dict[object, object]:
         """Plan future trajectories for the specified traffic participants."""
+
+    @abstractmethod
+    def rollout(
+        self,
+        participants: Dict[object, object],
+        map_: Optional[object],
+        ego_id: object,
+        start_frame: Optional[int] = None,
+        controlled_ids: Optional[Iterable[object]] = None,
+        **model_options,
+    ) -> BehaviorRolloutResult:
+        """Run a closed-loop rollout from a millisecond timestamp.
+
+        Model implementations expose their supported ``model_options`` as
+        explicit keyword-only parameters.
+        """
 
     def predict_batch(
         self,

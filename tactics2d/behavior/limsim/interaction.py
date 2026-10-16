@@ -122,12 +122,6 @@ class InteractionGraph:
         return bool(tags.get("junction")) or "junction" in subtype or "intersection" in subtype
 
 
-def has_trajectory_collision(trajectories: Sequence[Sequence[AgentDecisionState]]) -> bool:
-    """Check whether any predicted footprints overlap at the same future step."""
-
-    return first_collision_info(trajectories) is not None
-
-
 def first_collision_info(
     trajectories: Sequence[Sequence[AgentDecisionState]],
 ) -> Optional[Tuple[int, AgentDecisionState, AgentDecisionState]]:
@@ -173,6 +167,57 @@ def trajectory_safety_summary(
             source_radius = 0.5 * (source.length**2 + source.width**2) ** 0.5
             source_shape = None
             for target in states[i + 1 :]:
+                distance = spatial.euclidean_distance(source.location, target.location)
+                min_distance = min(min_distance, distance)
+
+                if source.lane_id == target.lane_id:
+                    rear, front = source, target
+                    if rear.route_progress > front.route_progress:
+                        rear, front = front, rear
+                    gap = front.route_progress - rear.route_progress
+                    closing_speed = rear.speed - front.speed
+                    safe_gap = rear.length + max(rear.speed, 0.0)
+                    if closing_speed > 0.0 and gap < safe_gap:
+                        closing_factor += closing_speed * (safe_gap - gap)
+
+                target_radius = 0.5 * (target.length**2 + target.width**2) ** 0.5
+                if distance > source_radius + target_radius:
+                    continue
+                if source_shape is None:
+                    source_shape = source.footprint
+                if source_shape.intersects(target.footprint):
+                    return (step, source, target), min_distance, closing_factor
+
+    return None, min_distance, closing_factor
+
+
+def cross_trajectory_safety_summary(
+    source_trajectories: Sequence[Sequence[AgentDecisionState]],
+    target_trajectories: Sequence[Sequence[AgentDecisionState]],
+    steps: Optional[int] = None,
+) -> Tuple[Optional[Tuple[int, AgentDecisionState, AgentDecisionState]], float, float]:
+    """Compute safety statistics between two disjoint trajectory sets."""
+
+    source_trajectories = [trajectory for trajectory in source_trajectories if trajectory]
+    target_trajectories = [trajectory for trajectory in target_trajectories if trajectory]
+    if not source_trajectories or not target_trajectories:
+        return None, float("inf"), 0.0
+
+    available_steps = min(
+        len(trajectory) for trajectory in source_trajectories + target_trajectories
+    )
+    if steps is not None:
+        available_steps = min(available_steps, steps)
+
+    min_distance = float("inf")
+    closing_factor = 0.0
+    for step in range(available_steps):
+        for source_trajectory in source_trajectories:
+            source = source_trajectory[step]
+            source_radius = 0.5 * (source.length**2 + source.width**2) ** 0.5
+            source_shape = None
+            for target_trajectory in target_trajectories:
+                target = target_trajectory[step]
                 distance = spatial.euclidean_distance(source.location, target.location)
                 min_distance = min(min_distance, distance)
 

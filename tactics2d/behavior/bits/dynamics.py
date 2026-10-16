@@ -28,20 +28,22 @@ def integrate_unicycle_controls(
     """
 
     resolved_config = config or BitsConfig(future_steps=controls.shape[-2])
-    states = ensure_unicycle_state(current_states, controls)
+    states = _ensure_unicycle_state(current_states, controls)
     positions = []
     yaws = []
     for step in range(controls.shape[-2]):
-        states = unicycle_step(states, controls[..., step, :], resolved_config)
+        states = _unicycle_step(states, controls[..., step, :], resolved_config)
         positions.append(states[..., 0:2])
         yaws.append(states[..., 3:4])
     return torch.stack(positions, dim=-2), torch.stack(yaws, dim=-2)
 
 
-def unicycle_step(states: torch.Tensor, controls: torch.Tensor, config: BitsConfig) -> torch.Tensor:
+def _unicycle_step(
+    states: torch.Tensor, controls: torch.Tensor, config: BitsConfig
+) -> torch.Tensor:
     # State is [x, y, speed, yaw]; controls are [acceleration, yaw_rate].
     # Clamp controls, then integrate position with a half-step acceleration.
-    acceleration, yaw_rate = clip_unicycle_controls(states, controls, config)
+    acceleration, yaw_rate = _clip_unicycle_controls(states, controls, config)
     dt = float(config.dt)
     speed = states[..., 2:3]
     yaw = states[..., 3:4]
@@ -53,7 +55,7 @@ def unicycle_step(states: torch.Tensor, controls: torch.Tensor, config: BitsConf
     return torch.cat([states[..., 0:1] + dx, states[..., 1:2] + dy, next_speed, next_yaw], dim=-1)
 
 
-def clip_unicycle_controls(
+def _clip_unicycle_controls(
     states: torch.Tensor, controls: torch.Tensor, config: BitsConfig
 ) -> tuple:
     speed = states[..., 2:3]
@@ -88,7 +90,7 @@ def clip_unicycle_controls(
     )
 
 
-def ensure_unicycle_state(current_states: torch.Tensor, controls: torch.Tensor) -> torch.Tensor:
+def _ensure_unicycle_state(current_states: torch.Tensor, controls: torch.Tensor) -> torch.Tensor:
     states = current_states.to(device=controls.device, dtype=controls.dtype)
     while states.ndim < controls.ndim - 1:
         states = states.unsqueeze(1)

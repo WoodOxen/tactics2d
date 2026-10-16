@@ -8,6 +8,8 @@ import pytest
 from shapely.geometry import LineString
 
 from tactics2d.behavior import LimSimBehaviorModel, LimSimConfig
+from tactics2d.behavior.limsim.decision_state import AgentDecisionState
+from tactics2d.behavior.limsim.reward import LimSimReward
 from tactics2d.map.element import Lane, Map
 from tactics2d.participant.element import Vehicle
 from tactics2d.participant.trajectory import State, Trajectory
@@ -74,8 +76,51 @@ def test_limsim_rollout_runs():
     route_map = {1: ("A",), 2: ("B",)}
 
     result = model.rollout(
-        participants, map_, ego_id=1, frame_ms=1000, horizon_ms=1000, route_map=route_map
+        participants,
+        map_,
+        ego_id=1,
+        start_frame=1000,
+        horizon_ms=1000,
+        controlled_ids=[1, 2],
+        route_map=route_map,
     )
 
     assert result.cycles > 0
     assert isinstance(result.trajectory, Trajectory)
+    assert set(result.trajectories) == {1, 2}
+    assert result.trajectory is result.trajectories[1]
+    assert all(trajectory.last_frame == 2000 for trajectory in result.trajectories.values())
+
+
+def test_prepared_obstacle_reward_matches_direct_evaluation():
+    config = LimSimConfig(terminal_depth=3)
+    reward = LimSimReward(config)
+    agents = [AgentDecisionState(agent_id=1, x=0.0, y=0.0, heading=0.0, speed=5.0, lane_id="A")]
+    trajectories = {
+        1: [
+            agents[0].with_updates(x=float(step), route_progress=float(step))
+            for step in range(1, 4)
+        ]
+    }
+    obstacles = [
+        [
+            AgentDecisionState(
+                agent_id=agent_id,
+                x=float(step),
+                y=y,
+                heading=0.0,
+                speed=3.0,
+                lane_id=lane_id,
+                route_progress=float(step),
+            )
+            for step in range(1, 4)
+        ]
+        for agent_id, y, lane_id in ((2, 10.0, "B"), (3, 20.0, "C"))
+    ]
+
+    direct = reward.evaluate(agents, trajectories, obstacles)
+    prepared = reward.evaluate(
+        agents, trajectories, obstacles, obstacle_safety=reward.prepare_obstacles(obstacles)
+    )
+
+    assert prepared == pytest.approx(direct)

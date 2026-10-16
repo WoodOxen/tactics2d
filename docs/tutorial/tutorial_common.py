@@ -5,22 +5,26 @@
 
 import inspect
 import math
+import sqlite3
+from copy import copy
 from typing import Callable, Dict, Optional, Sequence, Tuple
 
 import matplotlib as mpl
 from matplotlib.animation import FuncAnimation
 from shapely.geometry import Point
 
+from tactics2d.behavior.trajectory_processing import resample_participants
+from tactics2d.dataset_parser.parse_nuplan import NuPlanParser
 from tactics2d.display.renderers import MatplotlibRenderer
 from tactics2d.display.sensor import BEVCamera
 from tactics2d.map.element import Map
 from tactics2d.map.parser import OSMParser
 from tactics2d.participant.element import Vehicle
-from tactics2d.participant.trajectory import State, Trajectory
+from tactics2d.participant.trajectory import Trajectory
 
 # BEVCamera perception range, in meters.
 PERCEPTION_RANGE = 200
-# Local view window centred on the ego, in meters.
+# Local view window centered on the ego, in meters.
 VIEW_WIDTH = 120
 VIEW_HEIGHT = 80
 # Colour the renderer gives the ego (takeover) vehicle.
@@ -45,7 +49,6 @@ COMPARISON_HORIZON_STEPS = 20
 SECOND_SCENARIO = 9
 SECOND_EGO = 2478
 SECOND_FRAME_MS = COMPARISON_FRAME_MS
-SECOND_HORIZON_STEPS = COMPARISON_HORIZON_STEPS
 
 # The nuPlan log the demos replay; the window is recomputed at run time, since the
 # parser stamps frames relative to ``datetime(2021, 1, 1)`` in local time.
@@ -161,9 +164,9 @@ def render_replay_animation(
             Defaults to 10.
         perception_range (float, optional): BEVCamera perception range, in meters.
             Defaults to 200.
-        view_width (float, optional): Window width centred on the ego, in meters.
+        view_width (float, optional): Window width centered on the ego, in meters.
             Defaults to 120.
-        view_height (float, optional): Window height centred on the ego, in
+        view_height (float, optional): Window height centered on the ego, in
             meters. Defaults to 80.
         title_prefix (str, optional): Prefix of the per-frame title. Defaults to
             None, which reads "Closed loop".
@@ -259,10 +262,6 @@ def nuplan_intersection_window(
         ValueError: If the log carries no frame tagged *tag*.
     """
 
-    import sqlite3
-
-    from tactics2d.dataset_parser.parse_nuplan import NuPlanParser
-
     with sqlite3.connect(str(db_path)) as connection:
         stamps = dict(connection.execute("SELECT token, timestamp FROM lidar_pc"))
         tagged = sorted(
@@ -329,8 +328,8 @@ def displacement_errors(
 
     Returns:
         A tuple of:
-            - ade (float): Mean displacement over the scored steps, in metres.
-            - fde (float): Displacement at the last scored step, in metres.
+            - ade (float): Mean displacement over the scored steps, in meters.
+            - fde (float): Displacement at the last scored step, in meters.
             - matched (int): How many steps were scored.
 
         Both errors are ``inf`` when no pair survives the tolerance.
@@ -407,105 +406,189 @@ def load_map(
     return map_ if map_ is not None else Map("empty_map", scenario_type="demo")
 
 
-def rebuild_render_participants(poses, participants, step_ms, frame_ms0=0) -> Dict[object, object]:
-    """Turn the pose arrays of a runner into participants a camera can render.
-
-    The arrays carry positions and headings only, so the speed is recovered from
-    the last pose seen, over the frames it took to reach it; the models read that
-    speed as the agent's initial one, and a state without velocity would plan
-    every agent as if it were standing still. Rows whose first column is ``-1.0``
-    hold no pose: they are filled with the last one seen, so a trajectory covers
-    the span the runner actually simulated.
+def load_scenario(
+    parser,
+    step_ms,
+    scenario_id=None,
+    file_name=None,
+    folder=None,
+    map_file=None,
+    map_folder=None,
+    map_path=None,
+    map_config=None,
+    **parse_kwargs,
+):
+    """Parse, resample, and map one tutorial scenario.
 
     Args:
-        poses (Dict): Pose arrays keyed by agent id, one ``(x, y, _, heading)``
-            row per frame.
-        participants (Dict): The parsed participants, used for the vehicle class,
-            its dimensions and the recorded goal of each agent.
-        step_ms (int): Length of one frame, in milliseconds.
-        frame_ms0 (int, optional): Timestamp of the first row. Defaults to 0.
+        parser: Dataset parser implementing ``parse_trajectory``.
+        step_ms (int): Target trajectory spacing in milliseconds.
+        scenario_id (object, optional): Scenario index for container formats.
+        file_name (str, optional): Scenario file name.
+        folder (str, optional): Scenario folder.
+        map_file (str, optional): Separate map file name.
+        map_folder (str, optional): Separate map folder.
+        map_path (str, optional): Stand-alone OpenStreetMap path.
+        map_config (dict, optional): Stand-alone map parser configuration.
+        **parse_kwargs: Dataset-specific trajectory arguments.
 
     Returns:
-        The rebuilt participants, keyed by agent id.
+        ``(participants, time_range, map_)`` on the requested time lattice.
     """
 
-    dt = step_ms / 1000.0
-    rebuilt = {}
-    for agent_id, array in poses.items():
-        valid = [index for index, row in enumerate(array) if row[0] != -1.0]
-        if not valid:
-            continue
-        source = participants.get(agent_id)
-        trajectory = Trajectory(id_=agent_id, fps=round(1000.0 / step_ms, 3), stable_freq=True)
-        seen = None
-        for index in range(valid[0], valid[-1] + 1):
-            row = array[index]
-            if row[0] != -1.0:
-                seen = (float(row[0]), float(row[1]), float(row[3]))
-            speed = 0.0
-            for back in (1, 2, 3, 4, 5):
-                past = index - back
-                if past >= 0 and array[past][0] != -1.0:
-                    speed = math.hypot(seen[0] - array[past][0], seen[1] - array[past][1]) / (
-                        back * dt
-                    )
-                    break
-            trajectory.add_state(
-                State(
-                    frame=int(frame_ms0 + index * step_ms),
-                    x=seen[0],
-                    y=seen[1],
-                    heading=seen[2],
-                    vx=speed * math.cos(seen[2]),
-                    vy=speed * math.sin(seen[2]),
-                    speed=speed,
-                )
+    scenario_args = () if scenario_id is None else (scenario_id,)
+    participants, time_range = parser.parse_trajectory(
+        *scenario_args, file=file_name, folder=folder, **parse_kwargs
+    )
+    participants = resample_participants(participants, step_ms)
+    map_ = load_map(
+        parser,
+        file_name=file_name,
+        folder=folder,
+        map_file=map_file,
+        map_folder=map_folder,
+        map_path=map_path,
+        map_config=map_config,
+        **({"scenario_id": scenario_id} if scenario_id is not None else {}),
+        **parse_kwargs,
+    )
+    return participants, time_range, map_
+
+
+def prepare_scenario(parser, step_ms, ego_id=None, ego_color=EGO_COLOR, **load_kwargs):
+    """Load one scenario and select the rollout ego."""
+
+    print("Parsing scenario ...")
+    participants, time_range, map_ = load_scenario(parser, step_ms, **load_kwargs)
+    if ego_id is None:
+        ego_id = select_ego(participants)
+    participants[ego_id].color = ego_color
+    print(
+        f"  participants: {len(participants)}, frames: {time_range}, "
+        f"lanes: {len(map_.lanes)}, ego: {ego_id}"
+    )
+    return participants, time_range, map_, ego_id
+
+
+def report_rollout(result):
+    """Print the common rollout summary and available closed-loop metrics."""
+
+    frames = result.frames
+    duration = (frames[-1] - frames[0]) / 1000.0 if len(frames) > 1 else 0.0
+    print(
+        f"  rollout: {result.cycles} cycles | {len(frames)} frames "
+        f"({frames[0]}-{frames[-1]} ms, {duration:g} s) | "
+        f"controlled: {len(result.controlled_ids)}"
+    )
+    if result.metrics is not None:
+        metrics = result.metrics
+        print(
+            "  metrics: collided=%s | front/side/rear=%d/%d/%d | progress=%.2f m"
+            % (
+                metrics.collided,
+                metrics.front_collisions,
+                metrics.side_collisions,
+                metrics.rear_collisions,
+                metrics.progress,
             )
-        if source is None:
-            rebuilt[agent_id] = Vehicle(agent_id, "vehicle", trajectory=trajectory)
-            continue
-        rebuilt[agent_id] = type(source)(
-            agent_id,
-            source.type_,
-            trajectory=trajectory,
-            length=float(getattr(source, "length", 0.0) or 4.8),
-            width=float(getattr(source, "width", 0.0) or 1.9),
         )
-        # The closed loop hands every agent its last recorded position as a
-        # routing goal; mirror it so a re-derived plan follows the same lanes.
-        if source.trajectory.last_state is not None:
-            rebuilt[agent_id].goal_xy = (
-                source.trajectory.last_state.x,
-                source.trajectory.last_state.y,
-            )
-    return rebuilt
+
+
+def report_displacement_errors(
+    predicted: Trajectory,
+    recorded: Trajectory,
+    shared_horizon_steps: int = COMPARISON_HORIZON_STEPS,
+    step_ms: int = 100,
+):
+    """Print and return shared-horizon and full-horizon displacement errors."""
+
+    shared = displacement_errors(predicted, recorded, shared_horizon_steps)
+    full = displacement_errors(predicted, recorded)
+    horizon_seconds = len(predicted.frames) * step_ms / 1000.0
+    print(
+        f"  vs the recorded future:  ADE@{shared_horizon_steps * step_ms / 1000:g}s "
+        f"{shared[0]:.3f} m  FDE@{shared_horizon_steps * step_ms / 1000:g}s "
+        f"{shared[1]:.3f} m  ({shared[2]} steps)"
+    )
+    if len(predicted.frames) != shared_horizon_steps:
+        print(
+            f"                           ADE@{horizon_seconds:g}s {full[0]:.3f} m  "
+            f"FDE@{horizon_seconds:g}s {full[1]:.3f} m  ({full[2]} steps)"
+        )
+    return shared, full
+
+
+def render_takeover_prediction(
+    participants,
+    map_,
+    time_range,
+    ego_id,
+    takeover_frame_ms,
+    prediction: Trajectory,
+    fps,
+    title_prefix,
+    resolution=(1200, 800),
+):
+    """Replace one recorded future with a prediction and animate it."""
+
+    ego = participants[ego_id]
+    recorded = ego.trajectory
+    replay = Trajectory(id_=recorded.id_, fps=recorded.fps, stable_freq=recorded.stable_freq)
+    for frame in recorded.frames:
+        if frame <= takeover_frame_ms:
+            replay.add_state(recorded.get_state(frame))
+    for frame in prediction.frames:
+        replay.add_state(prediction.get_state(frame))
+    ego.trajectory = replay
+    ego.color = EGO_COLOR
+    playback_frames = [frame for frame in replay.frames if frame <= time_range[1]]
+    plans = {
+        takeover_frame_ms: [
+            (frame, prediction.get_state(frame).x, prediction.get_state(frame).y)
+            for frame in prediction.frames
+        ]
+    }
+    return render_replay_animation(
+        participants,
+        map_,
+        playback_frames,
+        ego_id,
+        plans=plans,
+        resolution=resolution,
+        fps=fps,
+        title_prefix=title_prefix,
+    )
+
+
+def rollout_participants(result, participants):
+    """Copy participants and install the trajectories returned by a rollout."""
+
+    rendered = {}
+    for agent_id, participant in participants.items():
+        rendered[agent_id] = copy(participant)
+        if agent_id in result.trajectories:
+            rendered[agent_id].trajectory = result.trajectories[agent_id]
+    return rendered
 
 
 def collect_ego_plans(
     plan_at: Callable[[int], Optional[Trajectory]],
+    frames: Sequence[int],
     warmup_steps: int,
-    steps: int,
     interval_steps: int,
-    step_ms: int,
-    frame_ms0: int = 0,
 ) -> Dict[int, Sequence[Tuple[int, float, float]]]:
     """Re-derive the ego's plan at every planning frame of a closed loop.
 
-    The runners commit their plans into the pose arrays but do not return them,
-    so the plan trace is recovered by asking the same model, at the same frames,
-    for the ego's plan on the simulated state. Over the window in which a plan is
-    authoritative (up to the next replan) this reproduces what the runner
-    committed.
+    When a result does not retain individual plans, recover the visualization by
+    asking the same model on the returned rollout trajectories at each planning
+    frame.
 
     Args:
         plan_at (Callable): Returns the trajectory the model plans for the ego at
             a frame, or None when it has none.
         warmup_steps (int): Frames of warm-up the model needs before planning.
-        steps (int): Number of simulated frames, counted from the first one and
-            exclusive as in ``range``.
+        frames (Sequence[int]): Rollout timestamps in milliseconds.
         interval_steps (int): Frames between two plans (the replan cadence).
-        step_ms (int): Length of one frame, in milliseconds.
-        frame_ms0 (int, optional): Timestamp of the first frame. Defaults to 0.
 
     Returns:
         Plans keyed by the frame that issued them, each a sequence of
@@ -513,8 +596,8 @@ def collect_ego_plans(
     """
 
     plans = {}
-    for index in range(warmup_steps, steps, interval_steps):
-        frame = frame_ms0 + index * step_ms
+    for index in range(warmup_steps, len(frames), interval_steps):
+        frame = frames[index]
         trajectory = plan_at(frame)
         if trajectory is None:
             continue
@@ -523,3 +606,44 @@ def collect_ego_plans(
             for frame_ in trajectory.frames
         ]
     return plans
+
+
+def render_rollout_result(
+    result,
+    participants,
+    map_,
+    ego_id,
+    title_prefix,
+    *,
+    plans=None,
+    planning_interval=1,
+    warmup_steps=0,
+    plan_at=None,
+    playback_step=1,
+    resolution=(1200, 800),
+    fps=None,
+):
+    """Animate any behavior model's common rollout result."""
+
+    rendered = rollout_participants(result, participants)
+    rendered[ego_id].color = EGO_COLOR
+    playback_frames = result.frames[::playback_step]
+    if plans is None:
+        plans = getattr(result, "plans", None)
+    if plan_at is not None and not plans:
+        plans = collect_ego_plans(
+            lambda frame: plan_at(rendered, frame), result.frames, warmup_steps, planning_interval
+        )
+    if fps is None:
+        frame_gap = playback_frames[1] - playback_frames[0]
+        fps = 1000.0 / frame_gap
+    return render_replay_animation(
+        rendered,
+        map_,
+        playback_frames,
+        ego_id,
+        plans=plans,
+        resolution=resolution,
+        fps=fps,
+        title_prefix=title_prefix,
+    )

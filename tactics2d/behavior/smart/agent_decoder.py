@@ -5,7 +5,7 @@
 
 """Agent-token decoder for the SMART network."""
 
-from typing import Dict, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -25,7 +25,7 @@ from .tokens import SmartAgentTokens, SmartMapTokens
 
 
 class SmartAgentDecoder(nn.Module):
-    """Decode the joint future of every modelled agent.
+    """Decode the joint future of every modeled agent.
 
     Output is written into a slot array of ``history_slots + future_slots`` slots, the
     first ``history_slots`` of which hold the tokenized history.
@@ -349,7 +349,7 @@ class SmartAgentDecoder(nn.Module):
         batch_s: torch.Tensor,
         mask_s: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Connect every slot to the neighbouring agents' slots.
+        """Connect every slot to the neighboring agents' slots.
 
         Args:
             pos_a (torch.Tensor): Slot positions of shape ``(A, S, 2)``.
@@ -400,6 +400,7 @@ class SmartAgentDecoder(nn.Module):
         batch_s: torch.Tensor,
         batch_pl: torch.Tensor,
         num_step: int,
+        sample_count: int = 1,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Connect every map token to the agent slots within its radius.
 
@@ -427,6 +428,9 @@ class SmartAgentDecoder(nn.Module):
         device = pos_a.device
         pos_pl = tokens.pt_position[:, : self.input_dim].to(device).contiguous()
         orient_pl = tokens.pt_orientation.to(device).contiguous()
+        if sample_count > 1:
+            pos_pl = pos_pl.repeat((sample_count, 1))
+            orient_pl = orient_pl.repeat(sample_count)
         pos_pl = pos_pl.repeat(num_step, 1)
         orient_pl = orient_pl.repeat(num_step)
         edge_index_pl2a = radius(
@@ -454,9 +458,16 @@ class SmartAgentDecoder(nn.Module):
         return edge_index_pl2a, r_pl2a
 
     def inference(
-        self, agent: SmartAgentTokens, tokens: SmartMapTokens, map_enc: Dict[str, torch.Tensor]
+        self,
+        agent: SmartAgentTokens,
+        tokens: SmartMapTokens,
+        map_enc: Dict[str, torch.Tensor],
+        *,
+        sample_count: int = 1,
+        generators: Optional[List[torch.Generator]] = None,
+        future_steps: Optional[int] = None,
     ) -> Dict[str, torch.Tensor]:
-        """Decode the joint future of every modelled agent, token by token.
+        """Decode the joint future of every modeled agent, token by token.
 
         Each step attends over the history and the committed tokens, samples one token per
         agent out of the ``beam_size`` most likely ones and writes it into the slot arrays.
@@ -475,7 +486,18 @@ class SmartAgentDecoder(nn.Module):
             ``pos_a`` and ``head_a``.
         """
 
-        total_slots = self.history_slots + self.future_slots
+        if sample_count <= 0:
+            raise ValueError("sample_count must be positive")
+        if generators is not None and len(generators) != sample_count:
+            raise ValueError("one random generator is required per sample")
+        output_steps = self.future_steps if future_steps is None else int(future_steps)
+        if output_steps <= 0 or output_steps > self.future_steps:
+            raise ValueError(f"future_steps must be between 1 and {self.future_steps}")
+        decode_slots = (output_steps + self.shift - 1) // self.shift
+        source_agents = agent.num_agents
+        if sample_count > 1:
+            agent = agent.repeat_samples(sample_count)
+        total_slots = self.history_slots + decode_slots
         device = map_enc["x_pt"].device
 
         pos_a = self._pad_slots(agent.token_pos.to(device), total_slots, 2)
@@ -502,24 +524,28 @@ class SmartAgentDecoder(nn.Module):
 
         veh_mask, ped_mask, cyc_mask = self._agent_types(agent, device)
 
-        pred_traj = torch.zeros(num_agent, self.future_steps, 2, device=device)
-        pred_head = torch.zeros(num_agent, self.future_steps, device=device)
-        pred_prob = torch.zeros(num_agent, self.future_slots, device=device)
+        pred_traj = torch.zeros(num_agent, output_steps, 2, device=device)
+        pred_head = torch.zeros(num_agent, output_steps, device=device)
+        pred_prob = torch.zeros(num_agent, decode_slots, device=device)
         next_token_idx_list = []
         feat_a_t_dict: Dict[int, torch.Tensor] = {}
-        batch_s = torch.arange(num_step, device=device).repeat_interleave(num_agent)
-        batch_pl = torch.arange(num_step, device=device).repeat_interleave(
+        batch_s = torch.arange(num_step * sample_count, device=device).repeat_interleave(
+            source_agents
+        )
+        batch_pl = torch.arange(num_step * sample_count, device=device).repeat_interleave(
             tokens.pt_position.shape[0]
         )
+        sample_map_enc = map_enc["x_pt"]
+        if sample_count > 1:
+            sample_map_enc = sample_map_enc.repeat((sample_count, 1))
         map_x_pt = (
-            map_enc["x_pt"]
-            .repeat_interleave(repeats=num_step, dim=0)
+            sample_map_enc.repeat_interleave(repeats=num_step, dim=0)
             .reshape(-1, num_step, self.hidden_dim)
             .transpose(0, 1)
             .reshape(-1, self.hidden_dim)
         )
 
-        for t in range(self.future_slots):
+        for t in range(decode_slots):
             if t == 0:
                 inference_mask = mask.clone()
                 inference_mask[:, self.history_slots + t :] = False
@@ -530,7 +556,15 @@ class SmartAgentDecoder(nn.Module):
                 pos_a, head_a, head_vector_a, mask, inference_mask
             )
             edge_index_pl2a, r_pl2a = self.build_map2agent_edge(
-                tokens, pos_a, head_a, head_vector_a, inference_mask, batch_s, batch_pl, num_step
+                tokens,
+                pos_a,
+                head_a,
+                head_vector_a,
+                inference_mask,
+                batch_s,
+                batch_pl,
+                num_step,
+                sample_count,
             )
             mask_s = inference_mask.transpose(0, 1).reshape(-1)
             edge_index_a2a, r_a2a = self.build_interaction_edge(
@@ -583,17 +617,32 @@ class SmartAgentDecoder(nn.Module):
                 agent_diff_rel + pos_a[:, self.history_slots - 1 + t, :][:, None, None, None, ...]
             )
 
-            sample_index = torch.multinomial(topk_prob, 1).to(agent_pred_rel.device)
+            if generators is None:
+                sample_index = torch.multinomial(topk_prob, 1)
+            else:
+                sample_index = torch.cat(
+                    [
+                        torch.multinomial(
+                            topk_prob[index * source_agents : (index + 1) * source_agents],
+                            1,
+                            generator=generator,
+                        )
+                        for index, generator in enumerate(generators)
+                    ],
+                    dim=0,
+                )
+            sample_index = sample_index.to(agent_pred_rel.device)
             agent_pred_rel = agent_pred_rel.gather(
                 dim=1, index=sample_index[..., None, None, None].expand(-1, -1, 6, 4, 2)
             )[:, 0, ...]
             pred_prob[:, t] = topk_prob.gather(dim=-1, index=sample_index)[:, 0]
-            pred_traj[:, t * self.shift : (t + 1) * self.shift] = agent_pred_rel[:, 1:, ...].mean(
-                dim=2
-            )
+            start = t * self.shift
+            stop = min((t + 1) * self.shift, output_steps)
+            committed = stop - start
+            pred_traj[:, start:stop] = agent_pred_rel[:, 1 : committed + 1, ...].mean(dim=2)
             diff_xy = agent_pred_rel[:, 1:, 0, :] - agent_pred_rel[:, 1:, 3, :]
-            pred_head[:, t * self.shift : (t + 1) * self.shift] = torch.arctan2(
-                diff_xy[:, :, 1], diff_xy[:, :, 0]
+            pred_head[:, start:stop] = torch.arctan2(
+                diff_xy[:, :committed, 1], diff_xy[:, :committed, 0]
             )
 
             pos_a[:, self.history_slots + t] = agent_pred_rel[:, -1, ...].mean(dim=1)

@@ -12,8 +12,6 @@ import numpy as np
 # Copyright (c) 2022 Tsinghua MARS Lab.
 
 HISTORY_FRAME_NUM = 11
-RASTER_SIZE = 224
-RASTER_CHANNELS = 150
 VECTOR_DIM = 128
 ROAD_SCALE = 0.03
 ROAD_STRIDE = 10
@@ -23,7 +21,7 @@ MAX_LANE_POINTS = 2500
 MAX_LANE_NUM = 1000
 
 
-def build_mapping(
+def build_relation_model_input(
     agent_trajectories: np.ndarray,
     tracks_type: np.ndarray,
     road_points: np.ndarray,
@@ -49,17 +47,16 @@ def build_mapping(
     """
 
     origin_x, origin_y, origin_yaw = normalizer
-    image = np.zeros((RASTER_SIZE, RASTER_SIZE, RASTER_CHANNELS), dtype=np.int8)
-    normalized_trajectories = normalize_trajectories(
+    normalized_trajectories = _normalize_trajectories(
         np.asarray(agent_trajectories, dtype=np.float32), origin_x, origin_y, origin_yaw
     )
-    agent_vectors, agent_spans = agent_vectors_and_raster(normalized_trajectories, tracks_type, image)
-    road_vectors, road_spans = road_vectors_and_raster(
-        road_points, road_types, road_ids, origin_x, origin_y, origin_yaw, image
+    agent_rows, agent_spans = _agent_vectors(normalized_trajectories, tracks_type)
+    road_rows, road_spans = _road_vectors(
+        road_points, road_types, road_ids, origin_x, origin_y, origin_yaw
     )
-    matrix = np.concatenate([agent_vectors, road_vectors], axis=0).astype(np.float32)
+    matrix = np.concatenate([agent_rows, road_rows], axis=0).astype(np.float32)
     map_start = len(agent_spans)
-    agent_count = len(agent_vectors)
+    agent_count = len(agent_rows)
     spans = list(agent_spans) + [
         slice(int(road_span.start) + agent_count, int(road_span.stop) + agent_count)
         for road_span in road_spans
@@ -69,24 +66,19 @@ def build_mapping(
         "matrix": matrix,
         "polyline_spans": spans,
         "map_start_polyline_idx": map_start,
-        "image": image,
         "all_agent_ids": list(all_agent_ids),
         "scenario_id": scenario_id,
     }
 
 
-def agent_vectors_and_raster(
-    trajectories: np.ndarray,
-    tracks_type: np.ndarray,
-    image: np.ndarray,
+def _agent_vectors(
+    trajectories: np.ndarray, tracks_type: np.ndarray
 ) -> Tuple[np.ndarray, List[slice]]:
     """Vectorize normalized agent trajectories into relation feature rows.
 
     Args:
         trajectories: ``(A, T, 7)`` already normalized (x/y in agent frame).
         tracks_type: per-agent integer type (inference uses all ones).
-        image: ``(224, 224, 150)`` int8 raster, mutated in place.
-
     Returns:
         A ``(A * 10, 128)`` float32 vector array and one ``slice`` span per
         agent covering its 10 frame-to-frame vectors.
@@ -94,19 +86,13 @@ def agent_vectors_and_raster(
 
     trajectories = np.asarray(trajectories, dtype=np.float32)
     agent_num = trajectories.shape[0]
-    vectors = np.zeros((agent_num * 10, VECTOR_DIM), dtype=np.float32)
+    vector_count = HISTORY_FRAME_NUM - 1
+    vectors = np.zeros((agent_num * vector_count, VECTOR_DIM), dtype=np.float32)
     spans: List[slice] = []
 
     for agent_index in range(agent_num):
-        for frame in range(HISTORY_FRAME_NUM):
-            x_int = round_half_up(float(trajectories[agent_index, frame, 0])) + RASTER_SIZE // 2
-            y_int = round_half_up(float(trajectories[agent_index, frame, 1])) + 56
-            if _in_image(x_int, y_int):
-                channel = frame if agent_index == 0 else 20 + frame
-                image[x_int, y_int, channel] = 1
-
-        row_start = agent_index * 10
-        for frame in range(10):
+        row_start = agent_index * vector_count
+        for frame in range(vector_count):
             row = vectors[row_start + frame]
             row[0:2] = trajectories[agent_index, frame, :2]
             row[2:7] = trajectories[agent_index, frame, 2:7]
@@ -115,37 +101,32 @@ def agent_vectors_and_raster(
             row[30] = frame
             row[31 + frame] = 1.0
             row[50] = tracks_type[agent_index]
-            type_int = int(tracks_type[agent_index])
-            if 0 <= type_int < 19:
-                row[51 + type_int] = 1.0
-        spans.append(slice(row_start, row_start + 10))
+            row[51 + int(tracks_type[agent_index])] = 1.0
+        spans.append(slice(row_start, row_start + vector_count))
 
     return vectors, spans
 
 
-def road_vectors_and_raster(
+def _road_vectors(
     road_points: np.ndarray,
     road_types: np.ndarray,
     road_ids: np.ndarray,
     x: float,
     y: float,
     yaw: float,
-    image: np.ndarray,
 ) -> Tuple[np.ndarray, List[slice]]:
-    """Vectorize and rasterize grouped road (lane) points.
+    """Vectorize grouped road (lane) points.
 
     Args:
         road_points: ``(N, 3)`` world xyz of sampled lane points.
         road_types: ``(N,)`` integer lane type per point (type < 20).
         road_ids: ``(N,)`` integer lane id per point.
         x, y, yaw: normalizer origin (world) and rotation angle.
-        image: raster mutated in place.
-
     Returns:
         road vector rows and one ``slice`` span per lane.
     """
 
-    points = normalize_points(road_points, x, y, yaw)
+    points = _normalize_points(road_points, x, y, yaw)
 
     lane_id_to_ids: Dict[int, List[int]] = {}
     for index in range(len(points)):
@@ -166,12 +147,6 @@ def road_vectors_and_raster(
         length = len(point_ids)
         type_id = int(road_types[point_ids[0]])
 
-        for point_id in point_ids:
-            x_int = round_half_up(float(points[point_id, 0])) + RASTER_SIZE // 2
-            y_int = round_half_up(float(points[point_id, 1])) + 56
-            if _in_image(x_int, y_int) and 0 <= 40 + type_id < RASTER_CHANNELS:
-                image[x_int, y_int, 40 + type_id] = 1
-
         vector_count = (length + ROAD_STRIDE - 1) // ROAD_STRIDE
         lane_vectors = np.zeros((vector_count, VECTOR_DIM), dtype=np.float32)
         for vector_index in range(vector_count):
@@ -181,8 +156,7 @@ def road_vectors_and_raster(
                 point_id = point_ids[min(start + k, length - 1)]
                 row[2 * k] = float(points[point_id, 0]) * ROAD_SCALE
                 row[2 * k + 1] = float(points[point_id, 1]) * ROAD_SCALE
-            if 0 <= 30 + type_id < VECTOR_DIM:
-                row[30 + type_id] = 1.0
+            row[30 + type_id] = 1.0
             row[40] = float(start)
             row[41] = float(start) / float(length)
         vectors_all.append(lane_vectors)
@@ -198,18 +172,18 @@ def road_vectors_and_raster(
     return np.concatenate(vectors_all, axis=0), spans
 
 
-def normalize_trajectories(trajectories: np.ndarray, x: float, y: float, yaw: float) -> np.ndarray:
+def _normalize_trajectories(trajectories: np.ndarray, x: float, y: float, yaw: float) -> np.ndarray:
     """Normalize a ``(A, T, 7)`` trajectory array into the agent frame.
 
     Only the x/y channels are rotated; the remaining feature channels are zeroed.
     """
 
     out = np.zeros_like(trajectories)
-    out[..., :2] = normalize_points(trajectories[..., :2], x, y, yaw)
+    out[..., :2] = _normalize_points(trajectories[..., :2], x, y, yaw)
     return out
 
 
-def normalize_points(points: np.ndarray, x: float, y: float, yaw: float) -> np.ndarray:
+def _normalize_points(points: np.ndarray, x: float, y: float, yaw: float) -> np.ndarray:
     """Rotate and translate points into the agent frame."""
 
     points = np.asarray(points, dtype=np.float32)
@@ -221,13 +195,3 @@ def normalize_points(points: np.ndarray, x: float, y: float, yaw: float) -> np.n
     out[..., 0] = dx * cos_yaw - dy * sin_yaw
     out[..., 1] = dx * sin_yaw + dy * cos_yaw
     return out
-
-
-def round_half_up(value: float) -> int:
-    """Round half away from zero."""
-
-    return int(math.floor(value + 0.5))
-
-
-def _in_image(x: int, y: int) -> bool:
-    return 0 <= x < RASTER_SIZE and 0 <= y < RASTER_SIZE

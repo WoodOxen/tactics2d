@@ -1,6 +1,17 @@
 ````markdown
 # Change Log
 
+## [Unreleased]
+
+### Changed
+
+- Unified the BITS, InterSim, LimSim, and SMART rollout APIs, streamlined their model-specific data preparation, and updated the behavior tutorials to share common helpers.
+- Improved behavior-model fidelity and rollout efficiency while keeping CPU smoke coverage for checkpoint-backed integrations.
+
+### Fixed
+
+- Rejected degenerate B-spline knot domains before interpolation.
+
 ## [0.1.9] - 2026-09-24
 
 ### Added

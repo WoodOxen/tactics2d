@@ -3,8 +3,7 @@
 
 """Build BITS-style agent-centric samples from Tactics2D data."""
 
-from dataclasses import dataclass
-from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, Optional, Sequence
 
 import numpy as np
 
@@ -16,14 +15,6 @@ from tactics2d.participant.trajectory import State
 from .batch import BitsBatch
 from .config import BitsConfig
 from .rasterizer import BitsRasterizer
-
-
-@dataclass(frozen=True)
-class BitsSampleIndex:
-    """Index pointer to one BITS training/inference sample."""
-
-    frame: int
-    ego_id: object
 
 
 class BitsBatchBuilder:
@@ -235,143 +226,3 @@ class BitsBatchBuilder:
         if map_ is None or not map_.lanes:
             return None
         return map_.find_nearest_lane(state.location)
-
-
-class BitsSampleDataset:
-    """Iterate BITS samples from parsed Tactics2D participants and a map."""
-
-    def __init__(
-        self,
-        participants: Dict[object, object],
-        map_: Optional[Map],
-        config: Optional[BitsConfig] = None,
-        builder: Optional[BitsBatchBuilder] = None,
-        include_raster: bool = False,
-        ego_ids: Optional[Iterable[object]] = None,
-        frame_range: Optional[Tuple[int, int]] = None,
-        require_full_history: bool = True,
-        require_full_future: bool = True,
-    ):
-        self.participants = participants
-        self.map = map_
-        self.config = config or BitsConfig()
-        self.builder = builder or BitsBatchBuilder(self.config)
-        self.include_raster = include_raster
-        self.require_full_history = require_full_history
-        self.require_full_future = require_full_future
-        self.indices = self._build_indices(ego_ids=ego_ids, frame_range=frame_range)
-
-    def __len__(self) -> int:
-        return len(self.indices)
-
-    def __iter__(self) -> Iterator[BitsBatch]:
-        for index in self.indices:
-            yield self.get(index)
-
-    def __getitem__(self, index: int) -> BitsBatch:
-        return self.get(self.indices[index])
-
-    def get(self, index: BitsSampleIndex) -> BitsBatch:
-        """Build a batch from a stored sample index."""
-
-        return self.builder.build(
-            participants=self.participants,
-            frame=index.frame,
-            ego_id=index.ego_id,
-            map_=self.map,
-            include_raster=self.include_raster,
-        )
-
-    def frames(self) -> List[int]:
-        """Return unique sample frames in chronological order."""
-
-        return sorted({index.frame for index in self.indices})
-
-    def ego_ids(self) -> List[object]:
-        """Return unique ego ids in deterministic order."""
-
-        return sorted({index.ego_id for index in self.indices}, key=str)
-
-    def _build_indices(
-        self, ego_ids: Optional[Iterable[object]], frame_range: Optional[Tuple[int, int]]
-    ) -> List[BitsSampleIndex]:
-        selected_ego_ids = list(self.participants.keys()) if ego_ids is None else list(ego_ids)
-        indices = []
-        for ego_id in selected_ego_ids:
-            participant = self.participants.get(ego_id)
-            if participant is None:
-                continue
-            for frame in participant.trajectory.frames:
-                if frame_range is not None and not frame_range[0] <= frame <= frame_range[1]:
-                    continue
-                if self._is_valid_sample_frame(participant, frame):
-                    indices.append(BitsSampleIndex(frame=frame, ego_id=ego_id))
-
-        indices.sort(key=lambda item: (item.frame, str(item.ego_id)))
-        return indices
-
-    def _is_valid_sample_frame(self, participant, frame: int) -> bool:
-        if self.require_full_history:
-            for history_frame in self.builder._history_frames(frame):
-                if not participant.trajectory.has_state(history_frame):
-                    return False
-        if self.require_full_future:
-            for future_frame in self.builder._future_frames(frame):
-                if not participant.trajectory.has_state(future_frame):
-                    return False
-        return True
-
-
-class NuPlanBitsDataset(BitsSampleDataset):
-    """Load a NuPlan log/map pair and expose BITS samples."""
-
-    def __init__(
-        self,
-        data_file: str,
-        data_folder: str,
-        map_file: str,
-        map_folder: Optional[str] = None,
-        time_range: Optional[Tuple[int, int]] = None,
-        parser=None,
-        config: Optional[BitsConfig] = None,
-        include_raster: bool = True,
-        ego_ids: Optional[Iterable[object]] = None,
-        frame_range: Optional[Tuple[int, int]] = None,
-        require_full_history: bool = True,
-        require_full_future: bool = True,
-        map_cache: Optional[dict] = None,
-    ):
-        if parser is None:
-            from tactics2d.dataset_parser.parse_nuplan import NuPlanParser
-
-            self.parser = NuPlanParser()
-        else:
-            self.parser = parser
-        self.data_file = data_file
-        self.data_folder = data_folder
-        self.map_file = map_file
-        self.map_folder = map_folder
-
-        participants, actual_time_range = self.parser.parse_trajectory(
-            data_file, data_folder, time_range
-        )
-        map_cache_key = (str(map_folder), str(map_file))
-        if map_cache is not None and map_cache_key in map_cache:
-            map_ = map_cache[map_cache_key]
-        else:
-            map_ = self.parser.parse_map(map_file, self.map_folder)
-            if map_cache is not None:
-                map_cache[map_cache_key] = map_
-        self.actual_time_range = actual_time_range
-
-        sample_frame_range = frame_range if frame_range is not None else time_range
-        super().__init__(
-            participants=participants,
-            map_=map_,
-            config=config,
-            include_raster=include_raster,
-            ego_ids=ego_ids,
-            frame_range=sample_frame_range,
-            require_full_history=require_full_history,
-            require_full_future=require_full_future,
-        )

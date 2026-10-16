@@ -17,7 +17,7 @@ from .prediction import BitsAgentPrediction, BitsPlan, BitsPrediction
 class TensorBatch:
     """A torch-backed view of one or more BITS samples."""
 
-    tensors: Dict[str, object]
+    tensors: Dict[str, torch.Tensor]
     metadata: Dict[str, object] = field(default_factory=dict)
 
     def as_dict(self) -> Dict[str, object]:
@@ -27,10 +27,7 @@ class TensorBatch:
         """Move all tensor values to another torch device."""
 
         return TensorBatch(
-            tensors={
-                name: value.to(device) if hasattr(value, "to") else value
-                for name, value in self.tensors.items()
-            },
+            tensors={name: value.to(device) for name, value in self.tensors.items()},
             metadata=self.metadata,
         )
 
@@ -303,7 +300,7 @@ def plan_from_tensor(plan_output, fallback_prediction: BitsPrediction) -> BitsPl
 
 
 def agent_prediction_from_tensor(prediction_output) -> Optional[BitsAgentPrediction]:
-    """Extract neighbour-agent predictions from a prediction dict.
+    """Extract neighbor-agent predictions from a prediction dict.
 
     Args:
         prediction_output: A dict optionally containing ``agent_positions``,
@@ -355,46 +352,3 @@ def agent_prediction_from_tensor(prediction_output) -> Optional[BitsAgentPredict
             availabilities=availabilities,
         )
     return None
-
-
-# ---------------------------------------------------------------------------
-# Goal tensor helpers
-# ---------------------------------------------------------------------------
-
-
-def collate_goals(goals, device=None, dtype=None):
-    """Stack spatial planner supervision for a torch mini-batch."""
-
-    goal_tensors = [goal_to_tensor(g, device, dtype) for g in goals]
-    if not goal_tensors:
-        return {}
-    keys = set(goal_tensors[0].keys())
-    return {k: torch.stack([g[k] for g in goal_tensors], dim=0) for k in keys}
-
-
-def goal_to_tensor(goal, device=None, dtype=None):
-    """Convert BITS spatial planner supervision to torch tensors."""
-
-    resolved = dtype or torch.float32
-    tensors = {
-        "goal_position": torch.as_tensor(goal.goal_position, dtype=resolved, device=device),
-        "goal_yaw": torch.as_tensor(goal.goal_yaw, dtype=resolved, device=device),
-        "goal_index": torch.as_tensor(goal.goal_index, dtype=torch.long, device=device),
-    }
-    if goal.goal_position_pixel is not None:
-        tensors["goal_position_pixel"] = torch.as_tensor(
-            goal.goal_position_pixel, dtype=torch.long, device=device
-        )
-    if goal.goal_position_pixel_flat is not None:
-        tensors["goal_position_pixel_flat"] = torch.as_tensor(
-            goal.goal_position_pixel_flat, dtype=torch.long, device=device
-        )
-    if goal.goal_position_residual is not None:
-        tensors["goal_position_residual"] = torch.as_tensor(
-            goal.goal_position_residual, dtype=resolved, device=device
-        )
-    if goal.goal_spatial_map is not None:
-        tensors["goal_spatial_map"] = torch.as_tensor(
-            goal.goal_spatial_map, dtype=resolved, device=device
-        )
-    return tensors
