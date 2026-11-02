@@ -531,8 +531,8 @@ def test_get_conflict_points_handles_overlapping_and_multiple_crossings():
     assert sorted(point.x for point in crossings) == pytest.approx([25.0, 75.0])
 
     mixed = query.get_conflict_points("long", "mixed")
-    assert sorted(tuple(point.coords[0]) for point in mixed) == pytest.approx(
-        [(80.0, 0.0), (85.0, 0.0)]
+    np.testing.assert_allclose(
+        sorted(tuple(point.coords[0]) for point in mixed), [(80.0, 0.0), (85.0, 0.0)]
     )
 
 
